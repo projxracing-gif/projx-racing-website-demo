@@ -1,0 +1,114 @@
+{
+  "summary": {
+    "checks": 13,
+    "failures": 0,
+    "consoleErrors": 0
+  },
+  "results": [
+    {
+      "name": "Mobile navigation state and focus",
+      "passed": true,
+      "details": {
+        "open": {
+          "open": true,
+          "hidden": "false",
+          "inert": false,
+          "focus": true
+        },
+        "closed": {
+          "open": false,
+          "hidden": "true",
+          "inert": true
+        }
+      }
+    },
+    {
+      "name": "Theme preference",
+      "passed": true,
+      "details": {
+        "theme": "light",
+        "stored": "light"
+      }
+    },
+    {
+      "name": "Language preference and RTL",
+      "passed": true,
+      "details": {
+        "hash": "#/ar",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "stored": "ar"
+      }
+    },
+    {
+      "name": "Gallery lightbox navigation and Escape",
+      "passed": true,
+      "details": {
+        "before": "1 / 50",
+        "after": "2 / 50"
+      }
+    },
+    {
+      "name": "Project search filter",
+      "passed": true,
+      "details": {
+        "visible": 1,
+        "hidden": 11
+      }
+    },
+    {
+      "name": "Brand category filter",
+      "passed": true,
+      "details": {
+        "options": 33,
+        "visible": 3
+      }
+    },
+    {
+      "name": "Quote basket and Escape close",
+      "passed": true,
+      "details": {
+        "open": true,
+        "hidden": "false"
+      }
+    },
+    {
+      "name": "Enquiry modal",
+      "passed": true,
+      "details": "opened/closed"
+    },
+    {
+      "name": "Native form validation",
+      "passed": true,
+      "details": {
+        "invalid": 5
+      }
+    },
+    {
+      "name": "WhatsApp handoff",
+      "passed": true,
+      "details": "https://wa.me/96597976052?text=*Projx%20Racing%20Website%20Enquiry*%0AReference%3A%20PRX-WEB-2026-UJAK3%0ARequest%20type%3A%20Website%20Enquiry%0AName%3A%20Webs"
+    },
+    {
+      "name": "FAQ accordion",
+      "passed": true,
+      "details": "faq-tuning-does-projx-racing-guarantee-a-power-figure-1"
+    },
+    {
+      "name": "Consent-based map load",
+      "passed": true,
+      "details": "Workshop location"
+    },
+    {
+      "name": "Phone, WhatsApp, Instagram and map links",
+      "passed": true,
+      "details": {
+        "tel": 4,
+        "wa": 8,
+        "ig": 3,
+        "maps": 4
+      }
+    }
+  ],
+  "consoleErrors": []
+}

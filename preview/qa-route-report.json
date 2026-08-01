@@ -1,0 +1,5219 @@
+{
+  "summary": {
+    "routeChecks": 336,
+    "routeFailures": 0,
+    "consoleErrors": 0,
+    "elapsedSeconds": 20.8
+  },
+  "results": [
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/ecu-dyno-tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "ECU & Dyno Tuning",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/ecu-dyno-tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة ECU وضبط Mainline Dyno",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/motorsport-wiring",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Motorsport Wiring",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/motorsport-wiring",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Motorsport Wiring والإلكترونيات",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/fabrication",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Fabrication",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/fabrication",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "التصنيع والتجهيز المخصص",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/race-car-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Race-Car Preparation",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/race-car-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز سيارات الحلبة والسباق",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/suspension-setup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Suspension Setup",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/suspension-setup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Suspension Setup",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/alignment-corner-balance",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Alignment & Corner Balance",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/alignment-corner-balance",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Wheel Alignment وCorner Balance",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/brake-systems",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Brake Systems",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/brake-systems",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أنظمة البريكات",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/performance-parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Performance Parts",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/performance-parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "قطع الأداء",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/complete-vehicle-builds",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Complete Vehicle Builds",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/complete-vehicle-builds",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "مشاريع سيارات متكاملة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/track-support",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Track Support & Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/track-support",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "دعم وتطوير الحلبة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/services/diagnostics-troubleshooting",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Diagnostics & Troubleshooting",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/services/diagnostics-troubleshooting",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "التشخيص وحل الأعطال",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Custom online tuning with compatibility review first.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة مخصصة عن بُعد تبدأ بفحص التوافق.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/tuning/cobb",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Porsche Custom COBB Tuning",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/tuning/cobb",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة Porsche مخصصة عبر COBB",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/tuning/hptuners",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS/LT Custom HP Tuners Calibration",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/tuning/hptuners",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة GM LS/LT مخصصة عبر HP Tuners",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/gr-yaris-kmt-cup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Yaris Cup & Track Preparation",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/gr-yaris-kmt-cup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Yaris — تجهيز Cup والحلبة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/honda-s2000-kmt",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Honda S2000 KMT Race Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/honda-s2000-kmt",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Honda S2000 — تطوير سباقات KMT",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/supra-b58-time-attack",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Supra B58 Track & MHD Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/supra-b58-time-attack",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Supra B58 — Track وMHD Development",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/bmw-e92-development",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW E92 Performance Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/bmw-e92-development",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW E92 — تطوير أداء وشاصي",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/corvette-c6-dyno",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Supercharged Corvette C6 Dyno & Calibration",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/corvette-c6-dyno",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Supercharged Corvette C6 — Dyno وبرمجة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/ls-lt-engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "In-House GM LS/LT Engine Building",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/ls-lt-engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "بناء محركات GM LS/LT داخل الورشة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/foxbody-mustang-race-build",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Fox-Body Mustang Competition Build",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/foxbody-mustang-race-build",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Fox-Body Mustang — مشروع Competition",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/nissan-350z-drift",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Nissan 350Z LS Drift Programme",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/nissan-350z-drift",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Nissan 350Z LS — مشروع Drift",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/k20-brz-road-race",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "K20-Swapped Subaru BRZ Road-Race Build",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/k20-brz-road-race",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Subaru BRZ K20 Swap — Road-Race Build",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/porsche-track-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Porsche 911 GT3 / GT3 RS Track Preparation",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/porsche-track-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Porsche 911 GT3 / GT3 RS — تجهيز حلبة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/cadillac-cts-v-service",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Cadillac CTS-V Performance Service",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/cadillac-cts-v-service",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Cadillac CTS-V — خدمة أداء",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/projects/offroad-competition-chassis",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Off-Road Competition Chassis Build",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/projects/offroad-competition-chassis",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Off-Road Competition Chassis Build",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Parts selected for the exact application.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "قطع مختارة حسب السيارة والاستخدام.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/brands",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Performance brands available through Projx Racing.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/brands",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "علامات أداء متوفرة عن طريق Projx Racing.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/gallery",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Genuine media from Projx Racing.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/gallery",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "صور حقيقية من Projx Racing.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/reviews",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Current customer reviews are shown by Google.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/reviews",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "التقييمات الحالية تظهر مباشرة على Google.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/about",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated vehicle development in Kuwait.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/about",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تطوير سيارات متكامل في الكويت.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/faq",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Clear answers before work begins.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/faq",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "إجابات واضحة قبل بدء العمل.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/legal/privacy",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Website privacy information.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/legal/privacy",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "معلومات خصوصية الموقع.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/legal/terms",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Website and workshop information.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/legal/terms",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "معلومات الموقع والورشة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/legal/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Online tuning conditions.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/legal/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "شروط البرمجة عن بُعد.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "en",
+      "route": "/legal/engine",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Engine-building conditions.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 390,
+      "locale": "ar",
+      "route": "/legal/engine",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "شروط بناء المحركات.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 390,
+        "iw": 390,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/ecu-dyno-tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "ECU & Dyno Tuning",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/ecu-dyno-tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة ECU وضبط Mainline Dyno",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/motorsport-wiring",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Motorsport Wiring",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/motorsport-wiring",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Motorsport Wiring والإلكترونيات",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/fabrication",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Fabrication",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/fabrication",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "التصنيع والتجهيز المخصص",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/race-car-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Race-Car Preparation",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/race-car-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز سيارات الحلبة والسباق",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/suspension-setup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Suspension Setup",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/suspension-setup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Suspension Setup",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/alignment-corner-balance",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Alignment & Corner Balance",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/alignment-corner-balance",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Wheel Alignment وCorner Balance",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/brake-systems",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Brake Systems",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/brake-systems",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أنظمة البريكات",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/performance-parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Performance Parts",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/performance-parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "قطع الأداء",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/complete-vehicle-builds",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Complete Vehicle Builds",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/complete-vehicle-builds",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "مشاريع سيارات متكاملة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/track-support",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Track Support & Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/track-support",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "دعم وتطوير الحلبة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/services/diagnostics-troubleshooting",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Diagnostics & Troubleshooting",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/services/diagnostics-troubleshooting",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "التشخيص وحل الأعطال",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Custom online tuning with compatibility review first.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة مخصصة عن بُعد تبدأ بفحص التوافق.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/tuning/cobb",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Porsche Custom COBB Tuning",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/tuning/cobb",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة Porsche مخصصة عبر COBB",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/tuning/hptuners",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS/LT Custom HP Tuners Calibration",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/tuning/hptuners",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة GM LS/LT مخصصة عبر HP Tuners",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/gr-yaris-kmt-cup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Yaris Cup & Track Preparation",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/gr-yaris-kmt-cup",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Yaris — تجهيز Cup والحلبة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/honda-s2000-kmt",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Honda S2000 KMT Race Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/honda-s2000-kmt",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Honda S2000 — تطوير سباقات KMT",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/supra-b58-time-attack",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Supra B58 Track & MHD Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/supra-b58-time-attack",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Toyota GR Supra B58 — Track وMHD Development",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/bmw-e92-development",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW E92 Performance Development",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/bmw-e92-development",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW E92 — تطوير أداء وشاصي",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/corvette-c6-dyno",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Supercharged Corvette C6 Dyno & Calibration",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/corvette-c6-dyno",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Supercharged Corvette C6 — Dyno وبرمجة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/ls-lt-engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "In-House GM LS/LT Engine Building",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/ls-lt-engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "بناء محركات GM LS/LT داخل الورشة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/foxbody-mustang-race-build",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Fox-Body Mustang Competition Build",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/foxbody-mustang-race-build",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Fox-Body Mustang — مشروع Competition",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/nissan-350z-drift",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Nissan 350Z LS Drift Programme",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/nissan-350z-drift",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Nissan 350Z LS — مشروع Drift",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/k20-brz-road-race",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "K20-Swapped Subaru BRZ Road-Race Build",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/k20-brz-road-race",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Subaru BRZ K20 Swap — Road-Race Build",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/porsche-track-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Porsche 911 GT3 / GT3 RS Track Preparation",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/porsche-track-preparation",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Porsche 911 GT3 / GT3 RS — تجهيز حلبة",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/cadillac-cts-v-service",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Cadillac CTS-V Performance Service",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/cadillac-cts-v-service",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Cadillac CTS-V — خدمة أداء",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/projects/offroad-competition-chassis",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Off-Road Competition Chassis Build",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/projects/offroad-competition-chassis",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Off-Road Competition Chassis Build",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Parts selected for the exact application.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/parts",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "قطع مختارة حسب السيارة والاستخدام.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/brands",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Performance brands available through Projx Racing.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/brands",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "علامات أداء متوفرة عن طريق Projx Racing.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/gallery",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Genuine media from Projx Racing.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/gallery",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "صور حقيقية من Projx Racing.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/reviews",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Current customer reviews are shown by Google.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/reviews",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "التقييمات الحالية تظهر مباشرة على Google.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/about",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated vehicle development in Kuwait.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/about",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تطوير سيارات متكامل في الكويت.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/faq",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Clear answers before work begins.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/faq",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "إجابات واضحة قبل بدء العمل.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/legal/privacy",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Website privacy information.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/legal/privacy",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "معلومات خصوصية الموقع.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/legal/terms",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Website and workshop information.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/legal/terms",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "معلومات الموقع والورشة.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/legal/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Online tuning conditions.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/legal/tuning",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "شروط البرمجة عن بُعد.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "en",
+      "route": "/legal/engine",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Engine-building conditions.",
+        "lang": "en",
+        "dir": "ltr",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "viewport": 1440,
+      "locale": "ar",
+      "route": "/legal/engine",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "شروط بناء المحركات.",
+        "lang": "ar-KW",
+        "dir": "rtl",
+        "sw": 1440,
+        "iw": 1440,
+        "dups": [],
+        "broken": 0
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 320,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 320,
+        "iw": 320,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 375,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 375,
+        "iw": 375,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 430,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 430,
+        "iw": 430,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 768,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 768,
+        "iw": 768,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1024,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 1024,
+        "iw": 1024,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1366,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 1366,
+        "iw": 1366,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Built for performance. Engineered for the job.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Integrated motorsport services.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "BMW & Toyota Supra Custom MHD Tuning",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "GM LS and LT engines specified for the application.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Real vehicles. Documented work.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "en",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "Send the vehicle details before visiting.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "dark",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "dark"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "تجهيز مضبوط. أداء مبني على استخدام السيارة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/services",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "خدمات Motorsport مترابطة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/tuning/mhd",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "برمجة MHD مخصصة لـ BMW وToyota GR Supra",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/engine-building",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/projects",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "سيارات حقيقية. أعمال موثقة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    },
+    {
+      "matrix": true,
+      "viewport": 1920,
+      "locale": "ar",
+      "theme": "light",
+      "route": "/contact",
+      "passed": true,
+      "failures": [],
+      "metrics": {
+        "h1": "أرسل بيانات السيارة قبل الزيارة.",
+        "sw": 1920,
+        "iw": 1920,
+        "theme": "light"
+      }
+    }
+  ],
+  "consoleErrors": []
+}

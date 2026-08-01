@@ -1,0 +1,39 @@
+{
+  "id": "./",
+  "name": "Projx Racing Co.",
+  "short_name": "Projx Racing",
+  "description": "Motorsport engineering, ECU calibration, Mainline dyno tuning, engine building, wiring, fabrication and vehicle development in Kuwait.",
+  "lang": "en-KW",
+  "dir": "ltr",
+  "start_url": "./en/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "categories": ["automotive", "business"],
+  "icons": [
+    { "src": "assets/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Online Tuning",
+      "short_name": "Tuning",
+      "url": "./en/tuning/",
+      "icons": [{ "src": "assets/brand/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Engine Building",
+      "short_name": "Engines",
+      "url": "./en/engine-building/",
+      "icons": [{ "src": "assets/brand/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Contact Projx Racing",
+      "short_name": "Contact",
+      "url": "./en/contact/",
+      "icons": [{ "src": "assets/brand/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
