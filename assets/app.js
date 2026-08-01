@@ -174,7 +174,6 @@
   }
 
   function mediaImage(id, {
-    thumb = false,
     loading = "lazy",
     className = "",
     alt = "",
@@ -183,12 +182,10 @@
   } = {}) {
     const media = mediaItem(id);
     if (!media) return "";
-    if (thumb) {
-      const index = Math.max(0, Number(media.id) - 1);
-      const column = index % 5;
-      const row = Math.floor(index / 5);
-      return `<span class="thumb-sprite ${esc(className)}" role="img" aria-label="${esc(alt || media.alt)}" style="--thumb-x:${(column / 4) * 100}%;--thumb-y:${(row / 9) * 100}%"></span>`;
-    }
+    // Use the original WebP for every placement. The former 256 px square
+    // sprite tiles became soft and were distorted inside 16:10 and 4:3 cards.
+    // Real images retain their intrinsic ratio; the layout crops them safely
+    // with object-fit while native lazy loading limits initial bandwidth.
     return `<img class="${esc(className)}" src="${esc(media.full)}" alt="${esc(alt || media.alt)}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" sizes="${esc(sizes)}" width="${Number(media.width) || 1600}" height="${Number(media.height) || 1200}">`;
   }
 
