@@ -38,6 +38,25 @@ const tests = [
   ['accepts platform-specific tuning type before delivery configuration', (await invoke({ body: { ...valid, type: 'MHD Online Tuning' } })).status === 503]
 ];
 
+const originalFetch = globalThis.fetch;
+const originalApiKey = process.env.RESEND_API_KEY;
+const originalTo = process.env.ENQUIRY_TO_EMAIL;
+const originalFrom = process.env.ENQUIRY_FROM_EMAIL;
+let deliveredPayload;
+process.env.RESEND_API_KEY = 'test-only-key';
+delete process.env.ENQUIRY_TO_EMAIL;
+process.env.ENQUIRY_FROM_EMAIL = 'Projx Racing Website <onboarding@resend.dev>';
+globalThis.fetch = async (url, options) => {
+  deliveredPayload = { url, ...JSON.parse(options.body) };
+  return { ok: true, text: async () => '' };
+};
+const delivery = await invoke({ body: valid });
+tests.push(['routes completed enquiries to projxracing@gmail.com', delivery.status === 200 && deliveredPayload?.to?.[0] === 'projxracing@gmail.com']);
+globalThis.fetch = originalFetch;
+if (originalApiKey === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = originalApiKey;
+if (originalTo === undefined) delete process.env.ENQUIRY_TO_EMAIL; else process.env.ENQUIRY_TO_EMAIL = originalTo;
+if (originalFrom === undefined) delete process.env.ENQUIRY_FROM_EMAIL; else process.env.ENQUIRY_FROM_EMAIL = originalFrom;
+
 const failed = tests.filter(([, passed]) => !passed);
 if (failed.length) {
   for (const [name] of failed) console.error(`FAILED: ${name}`);

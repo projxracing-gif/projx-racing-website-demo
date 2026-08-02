@@ -1,4 +1,4 @@
-const CACHE_NAME = "projx-racing-bilingual-v1";
+const CACHE_NAME = "projx-racing-bilingual-v2";
 const CORE_ASSETS = [
   "./",
   "./en/",

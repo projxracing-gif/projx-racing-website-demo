@@ -4,7 +4,9 @@
 
 - [ ] Public telephone number confirmed
 - [ ] Public WhatsApp number confirmed
-- [ ] Public email confirmed, or email contact remains disabled
+- [x] Initial enquiry recipient confirmed as `projxracing@gmail.com`
+- [ ] Resend sender identity connected and verified in Vercel
+- [ ] Clerk account application connected and sign-in methods approved
 - [ ] Exact weekly hours confirmed
 - [ ] Ramadan and holiday hours confirmed
 - [ ] Final domain confirmed
@@ -60,6 +62,7 @@
 - [ ] All forms checked in both languages
 - [ ] WhatsApp prefilled messages checked in both languages
 - [ ] Optional email delivery checked, if enabled
+- [ ] Registration, sign-in, email verification, password recovery and sign-out checked
 - [ ] Telephone link tested on a real phone
 - [ ] Instagram, Google Business and directions links checked
 - [ ] Map consent/load control checked

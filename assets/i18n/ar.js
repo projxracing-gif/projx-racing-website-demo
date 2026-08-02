@@ -292,25 +292,91 @@ window.PROJX_TRANSLATIONS.ar = {
       "safetyText": "نظام الوقود والاشتعال والتبريد والتحكم بالـ Boost والحساسات والحالة الميكانيكية لازم تكون مناسبة. تتوقف البرمجة إذا كان العطل يمنع تطوير آمن."
     },
     "engineBuilding": {
-      "title": "بناء محركات GM LS وLT | Projx Racing الكويت",
-      "description": "محركات كاملة وLong Blocks وإعادة بناء وتطوير محركات GM LS وLT مع فحص وقياس وتجميع داخل الورشة في الكويت.",
+      "title": "بناء محركات GM LS/LT وFord Coyote | Projx Racing الكويت",
+      "description": "استشارات Long Block وShort Block وإعادة بناء وتطوير لمحركات GM LS/LT وFord Coyote داخل الورشة في الكويت.",
       "eyebrow": "بناء محركات داخل الورشة",
-      "heading": "محركات GM LS وLT بمواصفات تناسب الاستخدام.",
-      "intro": "Projx Racing يوفر محركات كاملة وLong Blocks وإعادة بناء وتطوير، مع فحص وقياس وتنسيق أعمال الخراطة وتجميع مضبوط وخيارات تركيب وبرمجة.",
-      "optionsHeading": "ثلاث طرق واضحة لخدمة المحرك.",
-      "optionsText": "المواصفات النهائية تعتمد بعد معرفة السيارة والوقود ونظام الشحن وطبيعة الاستخدام والهدف وحالة المحرك.",
+      "heading": "GM - LS/LT",
+      "intro": "حدد LS أو LT أو Ford Coyote، وبعدها اختر كود المحرك ومستوى البناء بالضبط. Projx Racing يؤكد البلوك والاستخدام والنطاق قبل عرض السعر.",
+      "familyEyebrow": "حدد عائلة المحرك",
+      "familyHeading": "ابدأ بعائلة المحرك الصحيحة.",
+      "familyText": "حدد العائلة أولاً، وبعدها يعرض النموذج الجيل وكود المحرك بالتحديد.",
+      "families": [
+        {
+          "value": "GM - LS",
+          "title": "GM - LS",
+          "text": "خيارات LS من Gen III وGen IV. اختر كود المحرك بالتحديد في الخطوة التالية.",
+          "highlights": ["Gen III", "Gen IV"],
+          "variants": [
+            "Gen III · LS1 · 5.7L ألمنيوم",
+            "Gen III · LS6 · 5.7L ألمنيوم",
+            "Gen III Truck · LR4 · 4.8L حديد",
+            "Gen III Truck · LM7 · 5.3L حديد",
+            "Gen III Truck · L59 · 5.3L حديد FlexFuel",
+            "Gen III Truck · LM4 · 5.3L ألمنيوم",
+            "Gen III Truck · L33 · 5.3L ألمنيوم",
+            "Gen III Truck · LQ4 · 6.0L حديد",
+            "Gen III Truck · LQ9 · 6.0L حديد",
+            "Gen IV · LS2 · 6.0L ألمنيوم",
+            "Gen IV · LS3 · 6.2L ألمنيوم",
+            "Gen IV · LS7 · 7.0L ألمنيوم",
+            "Gen IV · LS9 · 6.2L Supercharged",
+            "Gen IV · LSA · 6.2L Supercharged",
+            "Gen IV Truck · LY2 · 4.8L حديد",
+            "Gen IV Truck · L20 · 4.8L حديد",
+            "Gen IV Truck · LY5 · 5.3L حديد",
+            "Gen IV Truck · LMG · 5.3L حديد FlexFuel",
+            "Gen IV Truck · LH6 · 5.3L ألمنيوم",
+            "Gen IV Truck · LH8 · 5.3L ألمنيوم",
+            "Gen IV Truck · LH9 · 5.3L ألمنيوم",
+            "Gen IV Truck · LC9 · 5.3L ألمنيوم",
+            "Gen IV · L76 · 6.0L ألمنيوم",
+            "Gen IV Truck · LY6 · 6.0L حديد",
+            "Gen IV Truck · L96 · 6.0L حديد",
+            "Gen IV Truck · L92 · 6.2L ألمنيوم",
+            "Gen IV Truck · L9H · 6.2L ألمنيوم",
+            "Gen IV Truck · L94 · 6.2L ألمنيوم"
+          ]
+        },
+        {
+          "value": "GM - LT",
+          "title": "GM - LT",
+          "text": "خيارات LT من Gen V. اختر كود المحرك بالتحديد في الخطوة التالية.",
+          "highlights": ["Gen V"],
+          "variants": [
+            "Gen V · LT1 · 6.2L ألمنيوم",
+            "Gen V · LT2 · 6.2L ألمنيوم",
+            "Gen V · LT4 · 6.2L Supercharged",
+            "Gen V · LT5 · 6.2L Supercharged",
+            "Gen V Truck · L83 · 5.3L ألمنيوم",
+            "Gen V Truck · L84 · 5.3L ألمنيوم",
+            "Gen V Truck · L86 · 6.2L ألمنيوم",
+            "Gen V Truck · L87 · 6.2L ألمنيوم",
+            "Gen V Truck · L8T · 6.6L حديد",
+            "Gen V Crate · L8P · 6.6L حديد"
+          ]
+        },
+        {
+          "value": "Ford - Coyote",
+          "title": "Ford - Coyote فقط",
+          "text": "طلبات محركات Ford محدودة فقط لمحركات Coyote. عائلات محركات Ford الأخرى غير مشمولة.",
+          "highlights": ["Coyote Gen 1", "Coyote Gen 2", "Coyote Gen 3", "Coyote Gen 4"],
+          "variants": ["Coyote Gen 1", "Coyote Gen 2", "Coyote Gen 3", "Coyote Gen 4"]
+        }
+      ],
+      "optionsHeading": "اختر مستوى البناء المطلوب.",
+      "optionsText": "",
       "options": [
         [
-          "Complete Engine",
-          "محرك مجمع حسب مستوى تجهيز متفق عليه. الـ Intake والوقود والاشتعال والإكسسوارات والـ Controls تُذكر بوضوح في عرض السعر."
-        ],
-        [
           "Long Block",
-          "تجميعة أساسية للمحرك. عرض السعر يحدد البلوك والـ Rotating Assembly والرؤوس والـ Valvetrain والتايمنغ والتزييت والغطاءات والاستثناءات."
+          "تجميعة أساسية تشمل القطع المحددة للبلوك والـ Rotating Assembly والرؤوس والـ Valvetrain حسب عرض السعر."
         ],
         [
-          "إعادة بناء أو تطوير محرك العميل",
-          "يتم فك وفحص وقياس محرك LS أو LT الحالي قبل اعتماد القطع وأعمال الخراطة والقطع الممكن إعادة استخدامها."
+          "Short Block / Bottom End",
+          "بلوك وRotating Assembly بمواصفات واضحة، مع اعتماد Compression والاستخدام ونظام الشحن قبل التجميع."
+        ],
+        [
+          "إعادة بناء أو تطوير",
+          "يتم فحص وقياس محرك العميل قبل اعتماد القطع والخراطة والقطع الممكن إعادة استخدامها."
         ]
       ],
       "processHeading": "مراحل بناء المحرك.",
@@ -340,18 +406,16 @@ window.PROJX_TRANSLATIONS.ar = {
           "خيارات تركيب وتشغيل أولي وتعليمات Break-in وضبط Dyno وبرمجة."
         ]
       ],
-      "provideHeading": "المعلومات المطلوبة لاستشارة بناء المحرك.",
+      "provideHeading": "أرسل هذه المعلومات حتى تحصل على رد أسرع.",
       "provide": [
-        "السيارة وكود المحرك",
+        "السيارة وسنة الموديل وعائلة المحرك",
+        "كود المحرك أو بلوك الشاحنة بالضبط",
+        "مستوى البناء أو باقة On-Shelf المطلوبة",
         "حالة المحرك أو تاريخ العطل",
-        "القطع الحالية والقطع المطلوب إعادة استخدامها",
-        "الوقود ونظام الشحن",
-        "هدف القوة وطلب الحد الأقصى للـ RPM",
-        "استخدام شارع أو حلبة أو Drag أو Drift أو Marine أو Competition",
-        "القير والدرايفترين",
-        "الوقت المطلوب للإنجاز"
+        "الوقود ونظام الشحن والاستخدام",
+        "الهدف والوقت المطلوب"
       ],
-      "note": "القوة والـ RPM والضمان والسعر ومدة الإنجاز تُعتمد فقط في عرض السعر النهائي."
+      "note": ""
     },
     "projects": {
       "title": "مشاريع Motorsport وأعمال مكتملة | Projx Racing الكويت",
@@ -637,8 +701,8 @@ window.PROJX_TRANSLATIONS.ar = {
     "engine-building": {
       "title": "بناء وتجميع المحركات",
       "kicker": "داخل الورشة",
-      "summary": "محركات كاملة وLong Blocks وإعادة بناء وتطوير حسب السيارة والاستخدام.",
-      "intro": "Projx Racing يقدم بناء محركات GM LS وLT داخل الورشة، من الفحص والقياس واختيار القطع إلى تنسيق الخراطة والتجميع وخيارات التشغيل والبرمجة.",
+      "summary": "محركات كاملة وLong Blocks وإعادة بناء وتطوير لـGM LS/LT وFord Coyote حسب الاستخدام.",
+      "intro": "Projx Racing يقدم بناء محركات GM LS/LT وFord Coyote داخل الورشة، من الفحص والقياس واختيار القطع إلى تنسيق الخراطة والتجميع وخيارات التشغيل والبرمجة.",
       "features": [
         "Complete Engines",
         "Long Blocks",
@@ -648,9 +712,8 @@ window.PROJX_TRANSLATIONS.ar = {
         "توثيق البناء ودعم البرمجة"
       ],
       "platforms": [
-        "GM LS",
-        "GM LT",
-        "تطبيقات Motorsport خاصة"
+        "GM LS/LT",
+        "Ford Coyote Gen 1–4 فقط"
       ],
       "process": [
         "مراجعة التطبيق",
@@ -1607,7 +1670,37 @@ window.PROJX_TRANSLATIONS.ar = {
       "title": "تفاصيل السلامة والخدمة الخلفية للـ BRZ",
       "alt": "تفاصيل السلامة والخدمة الخلفية للـ BRZ",
       "caption": "تفاصيل السلامة والخدمة الخلفية للـ BRZ"
-    }
+    },
+    "51": { "title": "سيارة سباق على الحلبة", "alt": "سيارة سباق أثناء جولة سريعة على الحلبة", "caption": "سيارة سباق أثناء جولة سريعة على الحلبة" },
+    "52": { "title": "BMW على الحلبة", "alt": "سيارة سباق BMW أثناء جولة على الحلبة", "caption": "سيارة سباق BMW أثناء جولة على الحلبة" },
+    "53": { "title": "رأس محرك GM LS", "alt": "رأس وValvetrain لمحرك GM LS داخل غرفة المحركات", "caption": "رأس وValvetrain لمحرك GM LS داخل غرفة المحركات" },
+    "54": { "title": "GM LS Long Block", "alt": "تجميع GM LS Long Block داخل غرفة المحركات", "caption": "تجميع GM LS Long Block داخل غرفة المحركات" },
+    "55": { "title": "GM LT Long Block", "alt": "تجميع GM LT Long Block داخل غرفة المحركات", "caption": "تجميع GM LT Long Block داخل غرفة المحركات" },
+    "56": { "title": "محرك شاحنة GM تيربو", "alt": "Engine Bay لشاحنة GM تيربو داخل ورشة Projx Racing", "caption": "Engine Bay لشاحنة GM تيربو داخل ورشة Projx Racing" },
+    "57": { "title": "تجهيز بلوك V8", "alt": "بلوك V8 مجهز لبدء تجميع المحرك", "caption": "بلوك V8 مجهز لبدء تجميع المحرك" },
+    "58": { "title": "تجميع محرك Ford Coyote", "alt": "تجميع محرك Ford Coyote داخل غرفة محركات Projx Racing", "caption": "تجميع محرك Ford Coyote داخل غرفة محركات Projx Racing" },
+    "59": { "title": "فحص بلوك المحرك", "alt": "قياس وفحص بلوك المحرك قبل التجميع", "caption": "قياس وفحص بلوك المحرك قبل التجميع" },
+    "60": { "title": "سيارة أداء على Mainline Dyno", "alt": "سيارة أداء مثبتة لاختبار Chassis Dyno", "caption": "سيارة أداء مثبتة لاختبار Chassis Dyno" },
+    "61": { "title": "شاحنة GM على Chassis Dyno", "alt": "شاحنة GM مجهزة لاختبار Chassis Dyno", "caption": "شاحنة GM مجهزة لاختبار Chassis Dyno" },
+    "62": { "title": "اختبار مركبة سباق Off-Road", "alt": "مركبة سباق Off-Road أثناء اختبار على الحلبة", "caption": "مركبة سباق Off-Road أثناء اختبار على الحلبة" },
+    "63": { "title": "تجهيز سيارة سباق في الحلبة", "alt": "سيارة سباق داخل كراج الحلبة قبل الجولة", "caption": "سيارة سباق داخل كراج الحلبة قبل الجولة" },
+    "64": { "title": "قمرة سيارة سباق", "alt": "قمرة وتحكم ومعدات سلامة داخل سيارة سباق", "caption": "قمرة وتحكم ومعدات سلامة داخل سيارة سباق" },
+    "65": { "title": "جلسة برمجة Porsche", "alt": "برمجة Porsche ومراجعة Data Logs داخل السيارة", "caption": "برمجة Porsche ومراجعة Data Logs داخل السيارة" },
+    "66": { "title": "برمجة Porsche مخصصة للحلبة", "alt": "برمجة ومراجعة Data Logs لسيارة Porsche مخصصة للحلبة", "caption": "برمجة ومراجعة Data Logs لسيارة Porsche مخصصة للحلبة" },
+    "67": { "title": "Performance Crankshaft", "alt": "Crankshaft مجهز لتجميع محرك بالقياسات", "caption": "Crankshaft مجهز لتجميع محرك بالقياسات" },
+    "68": { "title": "Forged Pistons وConnecting Rods", "alt": "طقم Forged Pistons وConnecting Rods مجهز لبناء المحرك", "caption": "طقم Forged Pistons وConnecting Rods مجهز لبناء المحرك" },
+    "69": { "title": "قياس توقيت المحرك", "alt": "قياس توقيت المحرك والـ Camshaft أثناء التجميع", "caption": "قياس توقيت المحرك والـ Camshaft أثناء التجميع" },
+    "70": { "title": "تجميع Bottom End", "alt": "تركيب Crankshaft وMain Bearings أثناء بناء المحرك", "caption": "تركيب Crankshaft وMain Bearings أثناء بناء المحرك" },
+    "71": { "title": "برمجة Chevrolet Camaro", "alt": "برمجة Chevrolet Camaro ومراجعة Data Logs", "caption": "برمجة Chevrolet Camaro ومراجعة Data Logs" },
+    "72": { "title": "برمجة Chevrolet Silverado", "alt": "برمجة Chevrolet Silverado ومراجعة Data Logs", "caption": "برمجة Chevrolet Silverado ومراجعة Data Logs" },
+    "73": { "title": "اختبار Chevrolet Camaro على الحلبة", "alt": "Chevrolet Camaro مجهزة لجولة حلبة ليلية", "caption": "Chevrolet Camaro مجهزة لجولة حلبة ليلية" },
+    "74": { "title": "برمجة Porsche على الحلبة", "alt": "برمجة Porsche ومراجعة Data Logs مباشرة على الحلبة", "caption": "برمجة Porsche ومراجعة Data Logs مباشرة على الحلبة" },
+    "75": { "title": "تركيب Fuel System لسيارة سباق", "alt": "معدات Fuel System داخل سيارة سباق مجهزة بقفص حماية", "caption": "معدات Fuel System داخل سيارة سباق مجهزة بقفص حماية" },
+    "76": { "title": "Datalogging لسيارة سباق", "alt": "برمجة وDatalogging من داخل قمرة سيارة سباق", "caption": "برمجة وDatalogging من داخل قمرة سيارة سباق" },
+    "77": { "title": "دعم برمجة في الحلبة", "alt": "مراجعة Data Logs باللابتوب داخل Pit Garage", "caption": "مراجعة Data Logs باللابتوب داخل Pit Garage" },
+    "78": { "title": "GM LS Valvetrain", "alt": "رأس وروكرات وValvetrain لمحرك GM LS", "caption": "رأس وروكرات وValvetrain لمحرك GM LS" },
+    "79": { "title": "تجهيز برمجة شاحنة GM تيربو", "alt": "Engine Bay لشاحنة GM تيربو أثناء تجهيز البرمجة", "caption": "Engine Bay لشاحنة GM تيربو أثناء تجهيز البرمجة" },
+    "80": { "title": "تعليق ودفرنس خلفي لمركبة سباق", "alt": "دفرنس وDampers ومكونات تعليق خلفي لمركبة سباق", "caption": "دفرنس وDampers ومكونات تعليق خلفي لمركبة سباق" }
   },
   "mediaCategories": {
     "Track Preparation": "تجهيز حلبة",
@@ -1630,7 +1723,10 @@ window.PROJX_TRANSLATIONS.ar = {
     "Online Tuning": "برمجة عن بُعد",
     "Safety": "سلامة",
     "Engine Swap": "Engine Swap",
-    "Intake": "Intake"
+    "Intake": "Intake",
+    "Circuit Racing": "سباقات حلبة",
+    "Engine Components": "مكونات محرك",
+    "Suspension": "تعليق"
   },
   "parts": [
     {
@@ -1770,8 +1866,9 @@ window.PROJX_TRANSLATIONS.ar = {
         "Additional Fuel Map"
       ],
       "fuels": [
-        "95 RON — مراجعة",
-        "98 RON",
+        "ممتاز 91 (91 RON) — محطات الكويت — مراجعة",
+        "خصوصي 95 (95 RON) — محطات الكويت — مراجعة",
+        "ألترا 98 (98 RON) — محطات الكويت",
         "102 RON",
         "Fixed Ethanol Blend",
         "Flex Fuel — مراجعة الهاردوير",
@@ -1816,8 +1913,9 @@ window.PROJX_TRANSLATIONS.ar = {
         "Retune بعد تغيير التعديلات"
       ],
       "fuels": [
-        "95 RON — مراجعة",
-        "98 RON",
+        "ممتاز 91 (91 RON) — محطات الكويت — مراجعة",
+        "خصوصي 95 (95 RON) — محطات الكويت — مراجعة",
+        "ألترا 98 (98 RON) — محطات الكويت",
         "102 RON",
         "Race Fuel — مراجعة",
         "Ethanol Blend — مراجعة توافق"
@@ -1863,8 +1961,9 @@ window.PROJX_TRANSLATIONS.ar = {
         "Retune بعد تغيير التعديلات"
       ],
       "fuels": [
-        "95 RON — مراجعة",
-        "98 RON",
+        "ممتاز 91 (91 RON) — محطات الكويت — مراجعة",
+        "خصوصي 95 (95 RON) — محطات الكويت — مراجعة",
+        "ألترا 98 (98 RON) — محطات الكويت",
         "102 RON",
         "E85 / Flex Fuel",
         "Race Fuel — مراجعة",

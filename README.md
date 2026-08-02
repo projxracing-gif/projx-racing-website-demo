@@ -16,12 +16,12 @@ This version keeps the verified workshop, tuning, engine-building, wiring, fabri
 - Real engine-building service information and a direct technical consultation form
 - 12 verified project records based on supplied company information and media
 - 44 brands, suppliers and technical-platform records with relationship labels
-- All 50 supplied Projx Racing photographs
+- 80 verified Projx Racing photographs, including 30 newly selected high-resolution workshop, engine, dyno and track images
 - Searchable services, projects, parts, brands and gallery sections
-- Quote basket, enquiry forms, mobile navigation, lightbox and FAQ controls
+- Quote basket, enquiry forms, secure customer-account portal shell, mobile navigation, lightbox and FAQ controls
 - Verified telephone, WhatsApp, Instagram and map actions
 - Localized metadata, canonical URLs, hreflang, structured data, sitemap and robots rules
-- Optional Vercel email endpoint with WhatsApp as the verified default delivery method
+- Vercel email endpoint routed to `projxracing@gmail.com`, with WhatsApp as the automatic fallback until Resend is connected
 - GitHub Pages and Vercel deployment configuration
 
 The retired interactive calculation and visualization module is not included in this project. Engine-building and Mainline Dyno services remain as real workshop services.
@@ -30,7 +30,7 @@ The retired interactive calculation and visualization module is not included in 
 
 ```text
 api/
-  enquiry.js                 Optional Vercel email endpoint
+  enquiry.js                 Secure Vercel enquiry-email endpoint
 assets/
   app.js                     Page rendering and interactions
   data.js                    Verified shared business/content records
@@ -101,9 +101,11 @@ Keep brand names, engine codes, product names, software names, units, email addr
 
 ## Enquiry delivery
 
-The default website mode prepares a structured WhatsApp message to the verified public number. It does not claim that an email was sent.
+All website enquiry forms first use the secure Vercel endpoint. The recipient defaults to `projxracing@gmail.com` and can later be changed through `ENQUIRY_TO_EMAIL` without editing the website. Until Resend and an approved sender are connected, the same structured request opens in WhatsApp and the website does not claim that an email was sent.
 
-Vercel email delivery can be activated only after an approved public inbox and verified sender domain are supplied. See `.env.example` and `DEPLOYMENT.md`.
+## Customer accounts
+
+The bilingual `/account/` route includes sign-in, registration and profile-management mounting points for Clerk. Account credentials are never stored in the static website. Add `CLERK_PUBLISHABLE_KEY` in Vercel to activate the portal; never commit keys to GitHub. See `.env.example` and `DEPLOYMENT.md`.
 
 ## Important launch inputs
 

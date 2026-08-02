@@ -1,11 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(repo, 'dist');
 const template = fs.readFileSync(path.join(repo, 'template.html'), 'utf8');
+const assetVersion = crypto.createHash('sha256')
+  .update(['assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/i18n/en.js', 'assets/i18n/ar.js', 'assets/app.js']
+    .map(file => fs.readFileSync(path.join(repo, file)))
+    .reduce((buffer, part) => Buffer.concat([buffer, part]), Buffer.from('')))
+  .update(String(process.env.CLERK_PUBLISHABLE_KEY || ''))
+  .digest('hex')
+  .slice(0, 12);
 
 function loadProjectData() {
   const context = { window: {} };
@@ -213,6 +221,16 @@ for (const key of ['parts', 'brands', 'gallery', 'reviews', 'about', 'contact', 
   });
 }
 
+add('/account', locale => ({
+  title: locale === 'ar' ? 'حساب العميل | Projx Racing' : 'Customer Account | Projx Racing',
+  h1: locale === 'ar' ? 'تسجيل الدخول أو إنشاء حساب' : 'Sign in or create an account',
+  description: locale === 'ar' ? 'دخول آمن لعملاء Projx Racing وإنشاء حساب جديد.' : 'Secure customer sign-in and account registration for Projx Racing.',
+  eyebrow: locale === 'ar' ? 'حساب العميل' : 'Customer account',
+  hero: 20,
+  details: locale === 'ar' ? ['تسجيل دخول آمن', 'إنشاء حساب جديد', 'إدارة بيانات الحساب'] : ['Secure sign-in', 'New account registration', 'Account profile management'],
+  links: [[T[locale].ui.actions.contactWorkshop, '/contact']]
+}));
+
 for (const slug of Object.keys(T.en.legal)) {
   add(`/legal/${slug}`, locale => {
     const page = T[locale].legal[slug];
@@ -242,6 +260,7 @@ function render(locale, route, page) {
     DIR: T[locale].dir,
     LOCALE: locale,
     BASE: base,
+    ASSET_VERSION: assetVersion,
     ROUTE: route,
     TITLE: page.title,
     DESCRIPTION: trimDescription(page.description),
@@ -268,6 +287,11 @@ function render(locale, route, page) {
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 fs.cpSync(path.join(repo, 'assets'), path.join(dist, 'assets'), { recursive: true });
+const clerkPublishableKey = String(process.env.CLERK_PUBLISHABLE_KEY || '').trim();
+if (clerkPublishableKey && !/^pk_(?:test|live)_[A-Za-z0-9_-]+$/.test(clerkPublishableKey)) throw new Error('CLERK_PUBLISHABLE_KEY has an invalid format.');
+const builtConfigPath = path.join(dist, 'assets', 'site-config.js');
+const builtConfig = fs.readFileSync(builtConfigPath, 'utf8').replace('__CLERK_PUBLISHABLE_KEY__', clerkPublishableKey);
+fs.writeFileSync(builtConfigPath, builtConfig);
 for (const file of ['manifest.webmanifest', 'sw.js']) fs.copyFileSync(path.join(repo, file), path.join(dist, file));
 fs.writeFileSync(path.join(dist, '.nojekyll'), '');
 
@@ -284,7 +308,7 @@ for (const route of routes) {
   }
 }
 
-const rootHtml = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow"><link rel="canonical" href="${canonical('en', '/')}"><link rel="alternate" hreflang="en-KW" href="${canonical('en', '/')}"><link rel="alternate" hreflang="ar-KW" href="${canonical('ar', '/')}"><link rel="alternate" hreflang="x-default" href="${canonical('en', '/')}"><meta name="description" content="Projx Racing motorsport workshop in Kuwait. Choose English or Arabic."><title>Projx Racing Kuwait</title><link rel="stylesheet" href="assets/styles.css"><script>try{const l=localStorage.getItem('projxLanguage');location.replace(l==='ar'?'./ar/':'./en/')}catch{location.replace('./en/')}</script></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png" width="354" height="146" alt="Projx Racing Motorsports"><h1>Projx Racing Kuwait</h1><p>Choose a language · اختر اللغة</p><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
+const rootHtml = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow"><link rel="canonical" href="${canonical('en', '/')}"><link rel="alternate" hreflang="en-KW" href="${canonical('en', '/')}"><link rel="alternate" hreflang="ar-KW" href="${canonical('ar', '/')}"><link rel="alternate" hreflang="x-default" href="${canonical('en', '/')}"><meta name="description" content="Projx Racing motorsport workshop in Kuwait. Choose English or Arabic."><title>Projx Racing Kuwait</title><link rel="stylesheet" href="assets/styles.css?v=${assetVersion}"><script>try{const l=localStorage.getItem('projxLanguage');location.replace(l==='ar'?'./ar/':'./en/')}catch{location.replace('./en/')}</script></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png" width="354" height="146" alt="Projx Racing Motorsports"><h1>Projx Racing Kuwait</h1><p>Choose a language · اختر اللغة</p><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
 fs.writeFileSync(path.join(dist, 'index.html'), rootHtml);
 
 const xhtml = 'http://www.w3.org/1999/xhtml';
@@ -300,7 +324,7 @@ const sitemapRows = routes.map(({ route }) => {
 fs.writeFileSync(path.join(dist, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="${xhtml}">\n${sitemapRows}\n</urlset>\n`);
 fs.writeFileSync(path.join(dist, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${new URL('sitemap.xml', siteUrl).href}\n`);
 
-const notFound = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="description" content="The requested Projx Racing page could not be found. Choose English or Arabic to continue."><link rel="stylesheet" href="assets/styles.css"><title>Page Not Found | Projx Racing</title></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png" width="354" height="146" alt="Projx Racing Motorsports"><span class="eyebrow">404</span><h1>Page not found · الصفحة غير موجودة</h1><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
+const notFound = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="description" content="The requested Projx Racing page could not be found. Choose English or Arabic to continue."><link rel="stylesheet" href="assets/styles.css?v=${assetVersion}"><title>Page Not Found | Projx Racing</title></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png" width="354" height="146" alt="Projx Racing Motorsports"><span class="eyebrow">404</span><h1>Page not found · الصفحة غير موجودة</h1><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
 fs.writeFileSync(path.join(dist, '404.html'), notFound);
 fs.writeFileSync(path.join(dist, 'route-manifest.json'), JSON.stringify(manifest, null, 2));
 

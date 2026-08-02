@@ -95,9 +95,9 @@ npm run check
 
 Redeploy so canonical URLs, sitemap entries, alternate-language links and structured data use the production domain.
 
-## 6. Optional Vercel email delivery
+## 6. Vercel enquiry-email delivery
 
-The default mode prepares a verified WhatsApp message. To enable email delivery, add these Vercel environment variables only after the recipient and sender are approved:
+The website attempts secure server-side email delivery first and falls back to the verified WhatsApp workflow when the email service is unavailable. Add these Vercel environment variables after connecting Resend:
 
 ```text
 RESEND_API_KEY
@@ -105,24 +105,29 @@ ENQUIRY_TO_EMAIL
 ENQUIRY_FROM_EMAIL
 ```
 
-Then set in `assets/site-config.js`:
+`ENQUIRY_TO_EMAIL` should initially be `projxracing@gmail.com`. `ENQUIRY_FROM_EMAIL` must be a Resend-approved sender. Do not commit secret values to GitHub; add them in Vercel **Project Settings → Environment Variables**.
 
-```js
-formMode: "auto"
+## 7. Customer account activation
+
+Connect Clerk to the same Vercel project and add:
+
+```text
+CLERK_PUBLISHABLE_KEY
 ```
 
-Do not commit secret values to GitHub. Add them in Vercel **Project Settings → Environment Variables**.
+The key is inserted into the generated public configuration during the Vercel build. Clerk handles sign-in, registration, email verification, password recovery and account-profile controls; passwords are never stored by this repository.
 
-## 7. Deployment verification
+## 8. Deployment verification
 
 After deployment:
 
 1. Open the final English and Arabic URLs.
 2. Test direct refresh on nested routes.
 3. Test both themes.
-4. Submit a controlled test enquiry.
-5. Test telephone, WhatsApp, Instagram and maps on a real phone.
-6. Confirm sitemap and robots URLs.
-7. Inspect browser console and failed network requests.
-8. Run Lighthouse against the actual production domain.
-9. Confirm analytics and cookie behaviour only after approval.
+4. Test sign-in, registration, verification and sign-out with a controlled account.
+5. Submit a controlled test enquiry and confirm delivery at `projxracing@gmail.com`.
+6. Test telephone, WhatsApp, Instagram and maps on a real phone.
+7. Confirm sitemap and robots URLs.
+8. Inspect browser console and failed network requests.
+9. Run Lighthouse against the actual production domain.
+10. Confirm analytics and cookie behaviour only after approval.

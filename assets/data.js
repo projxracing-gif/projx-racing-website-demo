@@ -218,7 +218,8 @@ window.PROJX_DATA = {
       "thumb": "assets/media/full/projx-09.jpg",
       "width": 1800,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": true,
+      "showInGallery": false
     },
     {
       "id": 10,
@@ -614,7 +615,8 @@ window.PROJX_DATA = {
       "thumb": "assets/media/full/projx-29.jpg",
       "width": 936,
       "height": 731,
-      "thumbSprite": true
+      "thumbSprite": true,
+      "showInGallery": false
     },
     {
       "id": 30,
@@ -1033,7 +1035,37 @@ window.PROJX_DATA = {
       "width": 1012,
       "height": 1800,
       "thumbSprite": true
-    }
+    },
+    { "id": 51, "title": "Circuit race car", "alt": "Race car photographed at speed on circuit", "caption": "Race car photographed at speed on circuit", "vehicle": "Toyota 86 / GR86", "make": "Toyota", "category": "Circuit Racing", "tags": ["Toyota", "Circuit Racing", "Toyota 86 / GR86"], "full": "assets/media/uploads/projx-upload-51.webp", "width": 1279, "height": 1600 },
+    { "id": 52, "title": "BMW circuit car", "alt": "BMW race car during a circuit session", "caption": "BMW race car during a circuit session", "vehicle": "BMW race car", "make": "BMW", "category": "Circuit Racing", "tags": ["BMW", "Circuit Racing", "BMW race car"], "full": "assets/media/uploads/projx-upload-52.webp", "width": 1600, "height": 898 },
+    { "id": 53, "title": "GM LS cylinder head", "alt": "GM LS cylinder head and valvetrain assembly in the engine room", "caption": "GM LS cylinder head and valvetrain assembly in the engine room", "vehicle": "GM LS", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM LS"], "full": "assets/media/uploads/projx-upload-53.webp", "width": 2400, "height": 1350 },
+    { "id": 54, "title": "GM LS long block", "alt": "GM LS long-block assembly prepared in the engine room", "caption": "GM LS long-block assembly prepared in the engine room", "vehicle": "GM LS", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM LS"], "full": "assets/media/uploads/projx-upload-54.webp", "width": 1350, "height": 2400 },
+    { "id": 55, "title": "GM LT long block", "alt": "GM LT long-block assembly prepared in the engine room", "caption": "GM LT long-block assembly prepared in the engine room", "vehicle": "GM LT", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM LT"], "full": "assets/media/uploads/projx-upload-55.webp", "width": 2159, "height": 1953 },
+    { "id": 56, "title": "Turbocharged GM truck engine bay", "alt": "Turbocharged GM truck engine bay in the Projx Racing workshop", "caption": "Turbocharged GM truck engine bay in the Projx Racing workshop", "vehicle": "GM truck", "make": "GM", "category": "Forced Induction", "tags": ["GM", "Forced Induction", "GM truck"], "full": "assets/media/uploads/projx-upload-56.webp", "width": 2400, "height": 1350 },
+    { "id": 57, "title": "V8 block preparation", "alt": "V8 cylinder block prepared for engine assembly", "caption": "V8 cylinder block prepared for engine assembly", "vehicle": "GM V8", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM V8"], "full": "assets/media/uploads/projx-upload-57.webp", "width": 1800, "height": 2400 },
+    { "id": 58, "title": "Ford Coyote engine assembly", "alt": "Ford Coyote engine assembly in the Projx Racing engine room", "caption": "Ford Coyote engine assembly in the Projx Racing engine room", "vehicle": "Ford Coyote", "make": "Ford", "category": "Engine Building", "tags": ["Ford", "Engine Building", "Ford Coyote"], "full": "assets/media/uploads/projx-upload-58.webp", "width": 1800, "height": 2400 },
+    { "id": 59, "title": "Engine block inspection", "alt": "Engine block measurement and inspection before assembly", "caption": "Engine block measurement and inspection before assembly", "vehicle": "GM V8", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM V8"], "full": "assets/media/uploads/projx-upload-59.webp", "width": 1800, "height": 2400 },
+    { "id": 60, "title": "Performance car on the Mainline dyno", "alt": "Performance car secured for chassis-dyno testing", "caption": "Performance car secured for chassis-dyno testing", "vehicle": "Performance vehicle", "make": "Other", "category": "Dyno Tuning", "tags": ["Other", "Dyno Tuning", "Performance vehicle"], "full": "assets/media/uploads/projx-upload-60.webp", "width": 1350, "height": 2400 },
+    { "id": 61, "title": "GM truck on the chassis dyno", "alt": "GM truck positioned for chassis-dyno testing", "caption": "GM truck positioned for chassis-dyno testing", "vehicle": "GM truck", "make": "GM", "category": "Dyno Tuning", "tags": ["GM", "Dyno Tuning", "GM truck"], "full": "assets/media/uploads/projx-upload-61.webp", "width": 1800, "height": 2400 },
+    { "id": 62, "title": "Off-road competition testing", "alt": "Off-road competition vehicle during a circuit test session", "caption": "Off-road competition vehicle during a circuit test session", "vehicle": "Competition vehicle", "make": "Other", "category": "Track Support", "tags": ["Other", "Track Support", "Competition vehicle"], "full": "assets/media/uploads/projx-upload-62.webp", "width": 1179, "height": 1896 },
+    { "id": 63, "title": "Race car circuit preparation", "alt": "Race car positioned in the circuit garage before a session", "caption": "Race car positioned in the circuit garage before a session", "vehicle": "Race car", "make": "Other", "category": "Track Preparation", "tags": ["Other", "Track Preparation", "Race car"], "full": "assets/media/uploads/projx-upload-63.webp", "width": 1800, "height": 2400 },
+    { "id": 64, "title": "Motorsport cockpit", "alt": "Race-car cockpit, controls and safety equipment", "caption": "Race-car cockpit, controls and safety equipment", "vehicle": "Race car", "make": "Other", "category": "Motorsport Interior", "tags": ["Other", "Motorsport Interior", "Race car"], "full": "assets/media/uploads/projx-upload-64.webp", "width": 1800, "height": 2400 },
+    { "id": 65, "title": "Porsche calibration session", "alt": "Porsche calibration and datalog review inside the vehicle", "caption": "Porsche calibration and datalog review inside the vehicle", "vehicle": "Porsche", "make": "Porsche", "category": "ECU Tuning", "tags": ["Porsche", "ECU Tuning", "Porsche"], "full": "assets/media/uploads/projx-upload-65.webp", "width": 1800, "height": 2400 },
+    { "id": 66, "title": "Porsche race-car calibration", "alt": "Track-focused Porsche calibration and datalog review", "caption": "Track-focused Porsche calibration and datalog review", "vehicle": "Porsche race car", "make": "Porsche", "category": "Track Support", "tags": ["Porsche", "Track Support", "Porsche race car"], "full": "assets/media/uploads/projx-upload-66.webp", "width": 1800, "height": 2400 },
+    { "id": 67, "title": "Performance crankshaft", "alt": "Performance crankshaft prepared for measured engine assembly", "caption": "Performance crankshaft prepared for measured engine assembly", "vehicle": "GM V8", "make": "GM", "category": "Engine Components", "tags": ["GM", "Engine Components", "GM V8"], "full": "assets/media/uploads/projx-upload-67.webp", "width": 1800, "height": 2400 },
+    { "id": 68, "title": "Forged pistons and connecting rods", "alt": "Forged piston and connecting-rod set prepared for an engine build", "caption": "Forged piston and connecting-rod set prepared for an engine build", "vehicle": "GM V8", "make": "GM", "category": "Engine Components", "tags": ["GM", "Engine Components", "GM V8"], "full": "assets/media/uploads/projx-upload-68.webp", "width": 1800, "height": 2400 },
+    { "id": 69, "title": "Engine timing measurement", "alt": "Engine timing and camshaft measurement during assembly", "caption": "Engine timing and camshaft measurement during assembly", "vehicle": "GM V8", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM V8"], "full": "assets/media/uploads/projx-upload-69.webp", "width": 1800, "height": 2400 },
+    { "id": 70, "title": "Bottom-end assembly", "alt": "Crankshaft and main-bearing assembly during an engine build", "caption": "Crankshaft and main-bearing assembly during an engine build", "vehicle": "GM V8", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM V8"], "full": "assets/media/uploads/projx-upload-70.webp", "width": 1800, "height": 2400 },
+    { "id": 71, "title": "Chevrolet Camaro calibration", "alt": "Chevrolet Camaro calibration and datalog review", "caption": "Chevrolet Camaro calibration and datalog review", "vehicle": "Chevrolet Camaro", "make": "GM", "category": "ECU Tuning", "tags": ["GM", "ECU Tuning", "Chevrolet Camaro"], "full": "assets/media/uploads/projx-upload-71.webp", "width": 1800, "height": 2400 },
+    { "id": 72, "title": "Chevrolet Silverado calibration", "alt": "Chevrolet Silverado calibration and datalog review", "caption": "Chevrolet Silverado calibration and datalog review", "vehicle": "Chevrolet Silverado", "make": "GM", "category": "ECU Tuning", "tags": ["GM", "ECU Tuning", "Chevrolet Silverado"], "full": "assets/media/uploads/projx-upload-72.webp", "width": 1800, "height": 2400 },
+    { "id": 73, "title": "Chevrolet Camaro track testing", "alt": "Chevrolet Camaro prepared for a night track session", "caption": "Chevrolet Camaro prepared for a night track session", "vehicle": "Chevrolet Camaro", "make": "GM", "category": "Track Support", "tags": ["GM", "Track Support", "Chevrolet Camaro"], "full": "assets/media/uploads/projx-upload-73.webp", "width": 1800, "height": 2400 },
+    { "id": 74, "title": "Porsche track calibration", "alt": "Porsche track calibration and live datalog review", "caption": "Porsche track calibration and live datalog review", "vehicle": "Porsche", "make": "Porsche", "category": "ECU Tuning", "tags": ["Porsche", "ECU Tuning", "Porsche"], "full": "assets/media/uploads/projx-upload-74.webp", "width": 1800, "height": 2400 },
+    { "id": 75, "title": "Race-car fuel-system installation", "alt": "Fuel-system hardware installed inside a caged race car", "caption": "Fuel-system hardware installed inside a caged race car", "vehicle": "Race car", "make": "Other", "category": "Fuel System", "tags": ["Other", "Fuel System", "Race car"], "full": "assets/media/uploads/projx-upload-75.webp", "width": 1800, "height": 2400 },
+    { "id": 76, "title": "Race-car datalogging", "alt": "Race-car calibration and datalogging from the cockpit", "caption": "Race-car calibration and datalogging from the cockpit", "vehicle": "Race car", "make": "Other", "category": "ECU Tuning", "tags": ["Other", "ECU Tuning", "Race car"], "full": "assets/media/uploads/projx-upload-76.webp", "width": 1800, "height": 2400 },
+    { "id": 77, "title": "Trackside calibration support", "alt": "Laptop datalog review in a circuit pit garage", "caption": "Laptop datalog review in a circuit pit garage", "vehicle": "Race car", "make": "Other", "category": "Track Support", "tags": ["Other", "Track Support", "Race car"], "full": "assets/media/uploads/projx-upload-77.webp", "width": 1800, "height": 2400 },
+    { "id": 78, "title": "GM LS valvetrain assembly", "alt": "GM LS cylinder head, rocker and valvetrain assembly", "caption": "GM LS cylinder head, rocker and valvetrain assembly", "vehicle": "GM LS", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM LS"], "full": "assets/media/uploads/projx-upload-78.webp", "width": 2400, "height": 1800 },
+    { "id": 79, "title": "Turbo GM truck tuning", "alt": "Turbocharged GM truck engine bay during tuning preparation", "caption": "Turbocharged GM truck engine bay during tuning preparation", "vehicle": "GM truck", "make": "GM", "category": "Forced Induction", "tags": ["GM", "Forced Induction", "GM truck"], "full": "assets/media/uploads/projx-upload-79.webp", "width": 1800, "height": 2400 },
+    { "id": 80, "title": "Competition rear suspension and differential", "alt": "Rear differential, dampers and suspension hardware on a competition vehicle", "caption": "Rear differential, dampers and suspension hardware on a competition vehicle", "vehicle": "Competition vehicle", "make": "Other", "category": "Suspension", "tags": ["Other", "Suspension", "Competition vehicle"], "full": "assets/media/uploads/projx-upload-80.webp", "width": 1800, "height": 2400 }
   ],
   "services": [
     {
@@ -1062,10 +1094,14 @@ window.PROJX_DATA = {
         "Holley EFI"
       ],
       "media": [
+        60,
         6,
-        7,
-        24,
-        40
+        61,
+        71,
+        72,
+        65,
+        74,
+        76
       ],
       "process": [
         "Vehicle and controller identification",
@@ -1107,9 +1143,11 @@ window.PROJX_DATA = {
       ],
       "media": [
         36,
-        7,
-        40,
-        31
+        71,
+        65,
+        74,
+        76,
+        77
       ],
       "process": [
         "Select the supported platform",
@@ -1134,8 +1172,8 @@ window.PROJX_DATA = {
       "title": "Engine Building",
       "icon": "⬡",
       "kicker": "In-house",
-      "summary": "Complete engines, long blocks, rebuilds and upgrades specified around the vehicle and intended use.",
-      "intro": "Projx Racing provides in-house GM LS and LT engine-building services, including inspection, measurement, parts specification, machining coordination, controlled assembly and commissioning support.",
+      "summary": "GM LS/LT and Ford Coyote complete engines, long blocks, rebuilds and upgrades specified around the application.",
+      "intro": "Projx Racing provides in-house engine-building services for GM LS/LT and Ford Coyote applications, including inspection, measurement, parts specification, machining coordination, controlled assembly and commissioning support.",
       "features": [
         "Complete engines",
         "Long blocks",
@@ -1145,15 +1183,21 @@ window.PROJX_DATA = {
         "Build documentation and calibration support"
       ],
       "platforms": [
-        "GM LS",
-        "GM LT",
-        "Custom motorsport applications"
+        "GM LS/LT",
+        "Ford Coyote Gen 1–4 only"
       ],
       "media": [
-        19,
-        5,
-        8,
-        27
+        53,
+        54,
+        55,
+        57,
+        58,
+        59,
+        67,
+        68,
+        69,
+        70,
+        78
       ],
       "process": [
         "Application consultation",
@@ -1242,6 +1286,7 @@ window.PROJX_DATA = {
         "Engine swaps"
       ],
       "media": [
+        75,
         2,
         17,
         33,
@@ -1287,9 +1332,12 @@ window.PROJX_DATA = {
         "Track day"
       ],
       "media": [
-        35,
+        52,
+        51,
+        63,
+        64,
+        73,
         13,
-        29,
         14
       ],
       "process": [
@@ -1332,6 +1380,7 @@ window.PROJX_DATA = {
         "Track-focused systems"
       ],
       "media": [
+        80,
         11,
         23,
         25,
@@ -1423,6 +1472,7 @@ window.PROJX_DATA = {
         "URGE"
       ],
       "media": [
+        52,
         11,
         25,
         14,
@@ -1466,6 +1516,10 @@ window.PROJX_DATA = {
         "Installation available"
       ],
       "media": [
+        68,
+        67,
+        75,
+        80,
         27,
         30,
         37,
@@ -1510,6 +1564,9 @@ window.PROJX_DATA = {
         "Engine swaps"
       ],
       "media": [
+        63,
+        64,
+        75,
         12,
         17,
         41,
@@ -1555,10 +1612,13 @@ window.PROJX_DATA = {
         "Competition"
       ],
       "media": [
-        9,
-        35,
-        14,
-        29
+        52,
+        51,
+        62,
+        66,
+        73,
+        77,
+        14
       ],
       "process": [
         "Pre-event inspection",
@@ -1604,8 +1664,11 @@ window.PROJX_DATA = {
         "Holley EFI"
       ],
       "media": [
+        71,
+        72,
+        74,
+        76,
         7,
-        40,
         39,
         30
       ],
@@ -1703,7 +1766,7 @@ window.PROJX_DATA = {
       "vehicle": "Toyota GR Supra 3.0",
       "category": "Track Cars",
       "make": "Toyota",
-      "cover": 13,
+      "cover": 51,
       "media": [
         13,
         31,
@@ -1816,12 +1879,21 @@ window.PROJX_DATA = {
       "vehicle": "GM LS & LT V8",
       "category": "Engine Builds",
       "make": "GM",
-      "cover": 19,
+      "cover": 53,
       "media": [
+        53,
+        54,
+        55,
+        57,
+        59,
+        67,
+        68,
+        69,
+        70,
+        78,
         19,
         5,
-        8,
-        27
+        8
       ],
       "summary": "In-house LS/LT inspection, measurement, specification and assembly supported by a dedicated engine-build area and drivetrain preparation.",
       "objective": "Specify each build around the vehicle, fuel, induction, RPM, duty cycle and service-life target.",
@@ -1852,7 +1924,7 @@ window.PROJX_DATA = {
       "vehicle": "Ford Mustang Fox Body",
       "category": "Complete Builds",
       "make": "Ford",
-      "cover": 12,
+      "cover": 58,
       "media": [
         12,
         16,
@@ -1890,7 +1962,6 @@ window.PROJX_DATA = {
       "cover": 34,
       "media": [
         34,
-        29,
         41
       ],
       "summary": "A competition drift 350Z with an LS V8 powertrain, front-chassis service access and track operation documented in the supplied media.",
@@ -1920,7 +1991,7 @@ window.PROJX_DATA = {
       "vehicle": "2013 Subaru BRZ ZC6",
       "category": "Race Cars",
       "make": "Subaru",
-      "cover": 48,
+      "cover": 74,
       "media": [
         48,
         44,
@@ -1960,11 +2031,13 @@ window.PROJX_DATA = {
       "vehicle": "Porsche 911",
       "category": "Track Cars",
       "make": "Porsche",
-      "cover": 14,
+      "cover": 71,
       "media": [
         14,
-        38,
-        9
+        65,
+        66,
+        74,
+        38
       ],
       "summary": "Inspection, underbody work and track support for Porsche 911 GT3/GT3 RS applications, shown in workshop and on-track media.",
       "objective": "Preserve factory system integration while preparing the car for sustained circuit use and reliable event operation.",
@@ -1993,7 +2066,7 @@ window.PROJX_DATA = {
       "vehicle": "Cadillac CTS-V",
       "category": "Street Performance",
       "make": "GM",
-      "cover": 39,
+      "cover": 79,
       "media": [
         39,
         40,
@@ -2026,8 +2099,10 @@ window.PROJX_DATA = {
       "vehicle": "Custom Competition Vehicle",
       "category": "Complete Builds",
       "make": "Other",
-      "cover": 17,
+      "cover": 62,
       "media": [
+        62,
+        80,
         17,
         2
       ],
@@ -2486,8 +2561,9 @@ window.PROJX_DATA = {
         "Additional Fuel Map"
       ],
       "fuels": [
-        "95 RON — Review",
-        "98 RON",
+        "Premium 91 (91 RON) — Kuwait pump — Review",
+        "Super 95 (95 RON) — Kuwait pump — Review",
+        "Ultra 98 (98 RON) — Kuwait pump",
         "102 RON",
         "Fixed Ethanol Blend",
         "Flex Fuel — Hardware Review",
@@ -2510,8 +2586,10 @@ window.PROJX_DATA = {
         "Customer recommendations"
       ],
       "notice": "Projx Racing online MHD tuning is limited to supported S55, B58 and S58 applications. ECU/DME support and unlock status are confirmed before work begins.",
-      "cover": 36,
+      "cover": 52,
       "media": [
+        52,
+        60,
         36,
         31,
         13,
@@ -2559,8 +2637,9 @@ window.PROJX_DATA = {
         "Retune for Modification Changes"
       ],
       "fuels": [
-        "95 RON — Review",
-        "98 RON",
+        "Premium 91 (91 RON) — Kuwait pump — Review",
+        "Super 95 (95 RON) — Kuwait pump — Review",
+        "Ultra 98 (98 RON) — Kuwait pump",
         "102 RON",
         "Race Fuel — Review",
         "Ethanol Blend — Compatibility Review"
@@ -2582,11 +2661,14 @@ window.PROJX_DATA = {
         "Supporting recommendations"
       ],
       "notice": "Porsche support is confirmed by exact model, generation, year, market, ECU, PDK and Accessport details before work begins.",
-      "cover": 14,
+      "cover": 71,
       "media": [
+        71,
         14,
+        65,
+        66,
+        74,
         38,
-        9,
         40
       ],
       "relationship": "COBB Tuning platform",
@@ -2660,8 +2742,9 @@ window.PROJX_DATA = {
         "Retune for Modification Changes"
       ],
       "fuels": [
-        "95 RON — Review",
-        "98 RON",
+        "Premium 91 (91 RON) — Kuwait pump — Review",
+        "Super 95 (95 RON) — Kuwait pump — Review",
+        "Ultra 98 (98 RON) — Kuwait pump",
         "102 RON",
         "E85 / Flex Fuel",
         "Race Fuel — Review",
@@ -2686,6 +2769,10 @@ window.PROJX_DATA = {
       "notice": "Online GM tuning is limited to compatible LS/LT V8 applications. Credits, controller services and remote hardware are confirmed after vehicle review.",
       "cover": 6,
       "media": [
+        61,
+        71,
+        72,
+        79,
         6,
         7,
         24,

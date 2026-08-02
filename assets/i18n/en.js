@@ -266,17 +266,83 @@
         safetyText: "Fuel supply, ignition, cooling, boost control, sensors and mechanical condition must be suitable. Tuning is paused when a fault prevents safe development."
       },
       engineBuilding: {
-        title: "GM LS & LT Engine Building | Projx Racing Kuwait",
-        description: "In-house GM LS and LT complete engines, long blocks, rebuilds, upgrades, inspection, measurement and assembly in Kuwait.",
+        title: "GM LS/LT & Ford Coyote Engine Building | Projx Racing Kuwait",
+        description: "In-house GM LS/LT and Ford Coyote long-block, short-block, rebuild and upgrade consultation in Kuwait.",
         eyebrow: "In-House Engine Building",
-        heading: "GM LS and LT engines specified for the application.",
-        intro: "Projx Racing provides complete engines, long blocks, rebuilds and upgrades with inspection, measurement, machining coordination, controlled assembly and optional installation or calibration support.",
-        optionsHeading: "Three clear engine-building routes.",
-        optionsText: "The final specification is approved after the vehicle, fuel, induction, duty cycle, target and engine condition are known.",
+        heading: "GM - LS/LT",
+        intro: "Choose LS, LT or Ford Coyote, then select the exact engine code and build level. Projx Racing confirms the block, application and scope before quotation.",
+        familyEyebrow: "Choose Engine Family",
+        familyHeading: "Start with the correct engine family.",
+        familyText: "Choose the family first. The enquiry form then lists the exact generation and engine code.",
+        families: [
+          {
+            value: "GM - LS",
+            title: "GM - LS",
+            text: "Gen III and Gen IV LS variants. Select the exact engine code in the next step.",
+            highlights: ["Gen III", "Gen IV"],
+            variants: [
+              "Gen III · LS1 · 5.7L aluminum",
+              "Gen III · LS6 · 5.7L aluminum",
+              "Gen III Truck · LR4 · 4.8L iron",
+              "Gen III Truck · LM7 · 5.3L iron",
+              "Gen III Truck · L59 · 5.3L iron FlexFuel",
+              "Gen III Truck · LM4 · 5.3L aluminum",
+              "Gen III Truck · L33 · 5.3L aluminum",
+              "Gen III Truck · LQ4 · 6.0L iron",
+              "Gen III Truck · LQ9 · 6.0L iron",
+              "Gen IV · LS2 · 6.0L aluminum",
+              "Gen IV · LS3 · 6.2L aluminum",
+              "Gen IV · LS7 · 7.0L aluminum",
+              "Gen IV · LS9 · 6.2L supercharged",
+              "Gen IV · LSA · 6.2L supercharged",
+              "Gen IV Truck · LY2 · 4.8L iron",
+              "Gen IV Truck · L20 · 4.8L iron",
+              "Gen IV Truck · LY5 · 5.3L iron",
+              "Gen IV Truck · LMG · 5.3L iron FlexFuel",
+              "Gen IV Truck · LH6 · 5.3L aluminum",
+              "Gen IV Truck · LH8 · 5.3L aluminum",
+              "Gen IV Truck · LH9 · 5.3L aluminum",
+              "Gen IV Truck · LC9 · 5.3L aluminum",
+              "Gen IV · L76 · 6.0L aluminum",
+              "Gen IV Truck · LY6 · 6.0L iron",
+              "Gen IV Truck · L96 · 6.0L iron",
+              "Gen IV Truck · L92 · 6.2L aluminum",
+              "Gen IV Truck · L9H · 6.2L aluminum",
+              "Gen IV Truck · L94 · 6.2L aluminum"
+            ]
+          },
+          {
+            value: "GM - LT",
+            title: "GM - LT",
+            text: "Gen V LT variants. Select the exact engine code in the next step.",
+            highlights: ["Gen V"],
+            variants: [
+              "Gen V · LT1 · 6.2L aluminum",
+              "Gen V · LT2 · 6.2L aluminum",
+              "Gen V · LT4 · 6.2L supercharged",
+              "Gen V · LT5 · 6.2L supercharged",
+              "Gen V Truck · L83 · 5.3L aluminum",
+              "Gen V Truck · L84 · 5.3L aluminum",
+              "Gen V Truck · L86 · 6.2L aluminum",
+              "Gen V Truck · L87 · 6.2L aluminum",
+              "Gen V Truck · L8T · 6.6L iron",
+              "Gen V Crate · L8P · 6.6L iron"
+            ]
+          },
+          {
+            value: "Ford - Coyote",
+            title: "Ford - Coyote only",
+            text: "Ford engine enquiries are limited to Coyote variants. Other Ford engine families are not included.",
+            highlights: ["Coyote Gen 1", "Coyote Gen 2", "Coyote Gen 3", "Coyote Gen 4"],
+            variants: ["Coyote Gen 1", "Coyote Gen 2", "Coyote Gen 3", "Coyote Gen 4"]
+          }
+        ],
+        optionsHeading: "Choose the required build level.",
+        optionsText: "",
         options: [
-          ["Complete Engine", "An assembled engine supplied at an agreed completion level. Intake, fuel, ignition, accessories and controls are listed clearly in the quotation."],
-          ["Long Block", "An assembled core engine package. The quotation defines the block, rotating assembly, cylinder heads, valvetrain, timing, oiling, covers and exclusions."],
-          ["Customer Engine Rebuild or Upgrade", "An existing LS or LT engine is disassembled, inspected and measured before parts, machining and reuse decisions are approved."]
+          ["Long Block", "An assembled core package with the included block, rotating assembly, heads and valvetrain defined in the quotation."],
+          ["Short Block / Bottom End", "A defined block and rotating-assembly package, with compression, intended use and power-adder route confirmed before assembly."],
+          ["Rebuild or Upgrade", "The customer engine is inspected and measured before parts, machining and reuse decisions are approved."]
         ],
         processHeading: "Engine-building process.",
         process: [
@@ -287,9 +353,9 @@
           ["Assembly", "Trial checks, final clearances, controlled assembly and documentation."],
           ["Commissioning", "Optional installation, startup support, break-in guidance, dyno and calibration."]
         ],
-        provideHeading: "Information required for an engine consultation.",
-        provide: ["Vehicle and engine code", "Current engine condition or failure history", "Existing parts and parts intended for reuse", "Fuel and induction system", "Target power and maximum RPM request", "Street, track, drag, drift, marine or competition use", "Transmission and drivetrain", "Required completion timing"],
-        note: "Power, RPM, warranty, price and lead time are confirmed only in the approved quotation."
+        provideHeading: "Send these details for a faster answer.",
+        provide: ["Vehicle, model year and engine family", "Exact engine or truck-block code", "Required build level or on-shelf package", "Current condition or failure history", "Fuel, induction and intended use", "Objective and required timing"],
+        note: ""
       },
       projects: {
         title: "Motorsport Projects & Completed Builds | Projx Racing Kuwait",

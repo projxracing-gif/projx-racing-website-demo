@@ -150,6 +150,7 @@
     sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
     moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
     globe: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+    user: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5 20a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
     instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     filter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
@@ -186,7 +187,8 @@
     // sprite tiles became soft and were distorted inside 16:10 and 4:3 cards.
     // Real images retain their intrinsic ratio; the layout crops them safely
     // with object-fit while native lazy loading limits initial bandwidth.
-    return `<img class="${esc(className)}" src="${esc(media.full)}" alt="${esc(alt || media.alt)}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" sizes="${esc(sizes)}" width="${Number(media.width) || 1600}" height="${Number(media.height) || 1200}">`;
+    const position = /^(?:left|center|right|top|bottom|[0-9]{1,3}%)(?:\s+(?:left|center|right|top|bottom|[0-9]{1,3}%))?$/.test(media.position || "") ? media.position : "center";
+    return `<img class="${esc(className)}" src="${esc(media.full)}" alt="${esc(alt || media.alt)}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" sizes="${esc(sizes)}" width="${Number(media.width) || 1600}" height="${Number(media.height) || 1200}" style="object-position:${esc(position)}">`;
   }
 
   function button(label, href, { variant = "", external = false, icon = icons.arrow, attrs = "" } = {}) {
@@ -201,14 +203,29 @@
     }).join("")}</nav>`;
   }
 
-  function pageHero({ eyebrow, title, text, media = 15, crumbs = [], actions = "", meta = "" }) {
+  function pageHero({ eyebrow, title, text, media = 15, crumbs = [], actions = "", meta = "", review = null }) {
+    const highResolutionHeroByRoute = {
+      "/tuning": 60,
+      "/parts": 68,
+      "/gallery": 51,
+      "/reviews": 73,
+      "/contact": 60,
+      "/faq": 53,
+      "/account": 53
+    };
+    const heroMedia = highResolutionHeroByRoute[currentPath()] || media;
+    const heroMediaRecord = mediaItem(heroMedia);
+    const portraitHero = Number(heroMediaRecord?.height) > Number(heroMediaRecord?.width);
+    const heroMediaClass = portraitHero ? "page-hero-media is-portrait" : "page-hero-media";
+    const heroMediaStyle = portraitHero ? ` style="--hero-source-width:${Number(heroMediaRecord.width)}px"` : "";
+    const reviewBadge = review ? `<span class="review-badge"><b>${esc(review.number)} · ${esc(review.type)}</b><span>${esc(review.label)}</span></span>` : "";
     return `<section class="page-hero">
-      <div class="page-hero-media">${mediaImage(media, { loading: "eager", fetchpriority: "high", className: "cover-img", sizes: "100vw" })}</div>
+      <div class="${heroMediaClass}"${heroMediaStyle}>${mediaImage(heroMedia, { loading: "eager", fetchpriority: "high", className: "cover-img", sizes: "100vw" })}</div>
       <div class="page-hero-overlay"></div>
       <div class="container page-hero-content">
         ${breadcrumbs(crumbs)}
         <span class="eyebrow eyebrow-on-media">${esc(eyebrow)}</span>
-        <h1>${esc(title)}</h1>
+        <h1 class="${review ? `review-marked review-marked-${esc(review.kind || "changed")} review-hero-title` : ""}">${reviewBadge}${esc(title)}</h1>
         <p>${esc(text)}</p>
         ${meta ? `<div class="page-hero-meta">${meta}</div>` : ""}
         ${actions ? `<div class="btn-row">${actions}</div>` : ""}
@@ -330,7 +347,8 @@
       ...tuning.map(platform => [platform.short, `/tuning/${platform.slug}`, true]),
       [ui.nav.engineBuilding, "/engine-building"], [ui.nav.projects, "/projects"],
       [ui.nav.parts, "/parts"], [ui.nav.brands, "/brands"], [ui.nav.gallery, "/gallery"],
-      [ui.nav.about, "/about"], [ui.nav.reviews, "/reviews"], [ui.nav.faq, "/faq"], [ui.nav.contact, "/contact"]
+      [ui.nav.about, "/about"], [ui.nav.reviews, "/reviews"], [ui.nav.faq, "/faq"], [ui.nav.contact, "/contact"],
+      [state.locale === "ar" ? "حساب العميل" : "Customer account", "/account"]
     ].map(([label, path, child]) => `<a class="mobile-nav-link ${child ? "is-child" : ""} ${routeActive(path) ? "is-active" : ""}" href="${routeUrl(path)}" ${routeActive(path) ? 'aria-current="page"' : ""}>${esc(label)}</a>`).join("");
 
     const alternate = alternateLocale();
@@ -340,13 +358,15 @@
 
   function footerHtml() {
     const ui = U();
-    const services = DATA.services.slice(0, 7).map(localizedService);
+    const services = DATA.services.filter(item => ["ecu-dyno-tuning", "online-tuning", "engine-building", "race-car-preparation"].includes(item.slug)).map(localizedService);
     const yearText = new Date().getFullYear();
-    return `<div class="footer-main"><div class="container footer-grid"><div class="footer-brand"><span class="brand-logo-frame footer-logo"><img src="${esc(CONFIG.logoHeader || "assets/brand/projx-racing-logo-header.png")}" alt="Projx Racing Motorsports" width="354" height="146"></span><p>${esc(P().about.intro)}</p><div class="footer-social"><a href="${CONFIG.instagramUrl}" target="_blank" rel="noopener" aria-label="Instagram">${icons.instagram}</a><a href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener" aria-label="${esc(ui.actions.directions)}">${icons.map}</a></div></div><div><h2>${esc(ui.nav.services)}</h2>${services.map(service => `<a href="${routeUrl(serviceHref(service.slug))}">${esc(service.title)}</a>`).join("")}</div><div><h2>${esc(ui.nav.tuning)}</h2>${Object.values(DATA.tuningPlatforms).map(localizedPlatform).map(platform => `<a href="${routeUrl(`/tuning/${platform.slug}`)}">${esc(platform.short)}</a>`).join("")}<a href="${routeUrl("/engine-building")}">${esc(ui.nav.engineBuilding)}</a><a href="${routeUrl("/parts")}">${esc(ui.nav.parts)}</a><a href="${routeUrl("/brands")}">${esc(ui.nav.brands)}</a></div><div><h2>${esc(ui.nav.contact)}</h2><p>${esc(CONFIG.addressLine1)}<br>${esc(CONFIG.addressLine2)}<br>${esc(CONFIG.cityCountry)}</p><a href="${telUrl()}"><bdi>${esc(CONFIG.phoneDisplay)}</bdi></a><a href="${waUrl()}" target="_blank" rel="noopener">WhatsApp</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener">${esc(ui.actions.directions)}</a><a href="${CONFIG.instagramUrl}" target="_blank" rel="noopener">Instagram</a></div></div></div><div class="footer-bottom"><div class="container"><p>© ${yearText} Projx Racing Co. ${state.locale === "ar" ? "جميع الحقوق محفوظة." : "All rights reserved."}</p><nav><a href="${routeUrl("/legal/privacy")}">${state.locale === "ar" ? "الخصوصية" : "Privacy"}</a><a href="${routeUrl("/legal/terms")}">${state.locale === "ar" ? "معلومات الورشة" : "Workshop Information"}</a><a href="${routeUrl("/legal/tuning")}">${state.locale === "ar" ? "شروط البرمجة" : "Tuning Information"}</a><a href="${routeUrl("/legal/engine")}">${state.locale === "ar" ? "شروط المحركات" : "Engine Information"}</a></nav></div></div>`;
+    return `<div class="footer-main"><div class="container footer-grid footer-grid-simple"><div class="footer-brand"><span class="brand-logo-frame footer-logo"><img src="${esc(CONFIG.logoHeader || "assets/brand/projx-racing-logo-header.png")}" alt="Projx Racing Motorsports" width="354" height="146"></span><div class="footer-social"><a href="${CONFIG.instagramUrl}" target="_blank" rel="noopener" aria-label="Instagram">${icons.instagram}</a><a href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener" aria-label="${esc(ui.actions.directions)}">${icons.map}</a></div></div><div><h2>${esc(ui.nav.services)}</h2>${services.map(service => `<a href="${routeUrl(serviceHref(service.slug))}">${esc(service.title)}</a>`).join("")}<a href="${routeUrl("/projects")}">${esc(ui.nav.projects)}</a></div><div><h2>${esc(ui.nav.contact)}</h2><p>${esc(CONFIG.addressLine1)}<br>${esc(CONFIG.addressLine2)}<br>${esc(CONFIG.cityCountry)}</p><a href="${telUrl()}"><bdi>${esc(CONFIG.phoneDisplay)}</bdi></a><a href="${waUrl()}" target="_blank" rel="noopener">WhatsApp</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener">${esc(ui.actions.directions)}</a></div></div></div><div class="footer-bottom"><div class="container"><p>© ${yearText} Projx Racing Co.</p></div></div>`;
   }
 
   function renderHeader() {
     header.innerHTML = headerHtml();
+    const languageButton = header.querySelector(".header-tools .language-button");
+    languageButton?.insertAdjacentHTML("beforebegin", `<a class="tool-button account-button" href="${routeUrl("/account")}" aria-label="${esc(state.locale === "ar" ? "حساب العميل" : "Customer account")}">${icons.user}<span class="tool-label">${esc(state.locale === "ar" ? "الحساب" : "Account")}</span></a>`);
     document.body.classList.toggle("menu-open", state.mobileOpen);
   }
   function renderFooter() {
@@ -370,7 +390,34 @@
 
   function trustBar() {
     const ui = U();
-    return `<section class="trust-bar"><div class="container trust-grid"><div><span>${esc(ui.common.location)}</span><strong>${esc(CONFIG.locationShort)}</strong><small>${esc(CONFIG.addressLine1)}</small></div><div><span>${esc(ui.common.dyno)}</span><strong>Mainline</strong><small>${state.locale === "ar" ? "برمجة وقياس مضبوط" : "Controlled calibration and testing"}</small></div><div><span>${esc(ui.common.onlineTuning)}</span><strong>MHD • COBB • HP Tuners</strong><small>S55 • B58 • S58 • Porsche • GM LS/LT</small></div><div><span>${esc(ui.common.engineBuilding)}</span><strong>GM LS • LT</strong><small>${state.locale === "ar" ? "فحص وقياس وتجميع داخل الورشة" : "In-house inspection, measurement and assembly"}</small></div><div><span>${esc(ui.common.officialContact)}</span><strong><bdi>${esc(CONFIG.phoneDisplay)}</bdi></strong><small>${state.locale === "ar" ? "اتصال أو WhatsApp" : "Call or WhatsApp"}</small></div></div></section>`;
+    return `<section class="trust-bar"><div class="container trust-grid"><div><span>${esc(ui.common.location)}</span><strong>${esc(CONFIG.locationShort)}</strong><small>${esc(CONFIG.addressLine1)}</small></div><div><span>${esc(ui.common.dyno)}</span><strong>Mainline</strong><small>${state.locale === "ar" ? "برمجة وقياس مضبوط" : "Controlled calibration and testing"}</small></div><div><span>${esc(ui.common.onlineTuning)}</span><strong>MHD • COBB • HP Tuners</strong><small>S55 • B58 • S58 • Porsche • GM LS/LT</small></div><div><span>${esc(ui.common.engineBuilding)}</span><strong>GM LS/LT • Ford Coyote</strong><small>${state.locale === "ar" ? "LS/LT وCoyote فقط" : "GM LS/LT and Coyote-only routes"}</small></div><div><span>${esc(ui.common.officialContact)}</span><strong><bdi>${esc(CONFIG.phoneDisplay)}</bdi></strong><small>${state.locale === "ar" ? "اتصال أو WhatsApp" : "Call or WhatsApp"}</small></div></div></section>${accomplishmentsSection()}`;
+  }
+
+  function accomplishmentsSection() {
+    const isAr = state.locale === "ar";
+    const copy = isAr ? {
+      eyebrow: "إنجازات موثقة",
+      heading: "نتائج تم تحقيقها وتسجيلها.",
+      text: "نعرض فقط النتائج الموجودة في سجلات Projx Racing. أرقام اللفات تاريخية وليست ادعاءً بأنها أرقام قياسية حالية.",
+      action: "شاهد المشاريع الموثقة",
+      marker: "كل الإنجازات المؤكدة من البيانات السابقة",
+      labels: ["لفة مسجلة على KMT GP", "مراكز أولى في GR Yaris Cup", "KMTC 2K Touring — الجولتان 3 و4", "نتيجة GulfRun"],
+      details: ["نتيجة تاريخية من ديسمبر 2024", "نتائج منافسات مقدمة من Projx Racing", "مركز أول في الجولتين", "نتيجة منافسة مقدمة من Projx Racing"]
+    } : {
+      eyebrow: "Verified accomplishments",
+      heading: "Results earned and recorded.",
+      text: "Only results held in Projx Racing's supplied records are shown. Historical lap times are not presented as current circuit records.",
+      action: "View documented projects",
+      marker: "All confirmed accomplishments from the previous data",
+      labels: ["KMT GP recorded lap", "GR Yaris Cup finishes", "KMTC 2K Touring — Rounds 3 & 4", "GulfRun result"],
+      details: ["Historical result from December 2024", "Competition results supplied by Projx Racing", "First place in both rounds", "Competition result supplied by Projx Racing"]
+    };
+    const results = (DATA.results || []).map((result, index) => ({
+      value: result.value,
+      label: copy.labels[index] || result.label,
+      detail: copy.details[index] || result.detail
+    }));
+    return `<section class="section accomplishments-section"><div class="container"><div class="accomplishments-shell review-marked review-marked-new"><span class="review-badge"><b>06 · ${esc(isAr ? "جديد" : "NEW")}</b><span>${esc(copy.marker)}</span></span>${sectionHead(copy.eyebrow, copy.heading, copy.text, `<a class="text-link" href="${routeUrl("/projects")}">${esc(copy.action)}${icons.arrow}</a>`)}<div class="accomplishments-grid">${results.map(result => `<article><strong dir="ltr">${esc(result.value)}</strong><h3>${esc(result.label)}</h3><p>${esc(result.detail)}</p></article>`).join("")}</div></div></div></section>`;
   }
 
   function homePage() {
@@ -410,13 +457,162 @@
     if (slug === "engine-building") return engineBuildingPage();
     const service = localizedService(base);
     const related = (relatedProjectMap[slug] || []).map(projectSlug => DATA.projects.find(item => item.slug === projectSlug)).filter(Boolean);
-    return `${pageHero({ eyebrow: service.kicker, title: service.title, text: service.summary, media: service.media?.[0] || 15, crumbs: [[U().nav.services, "/services"], [service.title]], actions: `<button class="btn" type="button" data-action="open-form" data-form-type="${esc(service.title)} Enquiry" data-context="${esc(service.title)}">${esc(U().actions.requestQuote)}${icons.arrow}</button><a class="btn btn-outline-light" href="${waUrl(`${state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن خدمة" : "Hello Projx Racing, I would like to enquire about"} ${service.title}.`)}" target="_blank" rel="noopener">${esc(U().actions.whatsapp)}${icons.whatsapp}</a>` })}<section class="section"><div class="container service-intro-grid"><div><span class="eyebrow">${esc(U().common.whatWeDo)}</span><h2>${esc(service.title)}</h2><p class="lead">${esc(service.intro)}</p>${featureList(service.features || [])}</div><aside class="content-panel"><span class="mini-label">${esc(U().common.supportedSystems)}</span>${tags(service.platforms || [])}<div class="divider"></div><p>${esc(service.cta)}</p><button class="btn btn-block" type="button" data-action="open-form" data-form-type="${esc(service.title)} Enquiry" data-context="${esc(service.title)}">${esc(U().actions.contactWorkshop)}${icons.arrow}</button></aside></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.howItWorks, state.locale === "ar" ? "خطوات واضحة من الفحص إلى التسليم." : "A clear process from inspection to handover.")}${numberSteps((service.process || []).map(item => [item, ""]))}</div></section><section class="section"><div class="container detail-two-column"><div>${gallery(service.media || [], `service-${slug}`, service.title)}</div><div class="content-panel"><span class="eyebrow">${esc(U().common.whatYouReceive)}</span><h2>${state.locale === "ar" ? "نطاق وتسليم موثق." : "Defined scope and documented handover."}</h2>${featureList(service.deliverables || [])}</div></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.relatedProjects, state.locale === "ar" ? "شغل مرتبط بالخدمة من داخل الورشة." : "Related work from the Projx Racing workshop.")}<div class="project-grid">${related.map(projectCard).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? `ناقش خدمة ${service.title}.` : `Discuss ${service.title}.`, service.cta, U().actions.requestQuote, `${service.title} Enquiry`)}`;
+    const raceContact = slug === "race-car-preparation" ? raceProgrammeContact() : "";
+    return `${pageHero({ eyebrow: service.kicker, title: service.title, text: service.summary, media: service.media?.[0] || 15, crumbs: [[U().nav.services, "/services"], [service.title]], actions: `<button class="btn" type="button" data-action="open-form" data-form-type="${esc(service.title)} Enquiry" data-context="${esc(service.title)}">${esc(U().actions.requestQuote)}${icons.arrow}</button><a class="btn btn-outline-light" href="${waUrl(`${state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن خدمة" : "Hello Projx Racing, I would like to enquire about"} ${service.title}.`)}" target="_blank" rel="noopener">${esc(U().actions.whatsapp)}${icons.whatsapp}</a>` })}${raceContact}<section class="section"><div class="container service-intro-grid"><div><span class="eyebrow">${esc(U().common.whatWeDo)}</span><h2>${esc(service.title)}</h2><p class="lead">${esc(service.intro)}</p>${featureList(service.features || [])}</div><aside class="content-panel"><span class="mini-label">${esc(U().common.supportedSystems)}</span>${tags(service.platforms || [])}<div class="divider"></div><p>${esc(service.cta)}</p><button class="btn btn-block" type="button" data-action="open-form" data-form-type="${esc(service.title)} Enquiry" data-context="${esc(service.title)}">${esc(U().actions.contactWorkshop)}${icons.arrow}</button></aside></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.howItWorks, state.locale === "ar" ? "خطوات واضحة من الفحص إلى التسليم." : "A clear process from inspection to handover.")}${numberSteps((service.process || []).map(item => [item, ""]))}</div></section><section class="section"><div class="container detail-two-column"><div>${gallery(service.media || [], `service-${slug}`, service.title)}</div><div class="content-panel"><span class="eyebrow">${esc(U().common.whatYouReceive)}</span><h2>${state.locale === "ar" ? "نطاق وتسليم موثق." : "Defined scope and documented handover."}</h2>${featureList(service.deliverables || [])}</div></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.relatedProjects, state.locale === "ar" ? "شغل مرتبط بالخدمة من داخل الورشة." : "Related work from the Projx Racing workshop.")}<div class="project-grid">${related.map(projectCard).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? `ناقش خدمة ${service.title}.` : `Discuss ${service.title}.`, service.cta, U().actions.requestQuote, `${service.title} Enquiry`)}`;
+  }
+
+  function tuningFinder() {
+    const isAr = state.locale === "ar";
+    const platforms = Object.values(DATA.tuningPlatforms).map(localizedPlatform);
+    const makes = [...new Set(platforms.flatMap(platform => platform.makes || []))];
+    const initialMake = makes.includes("BMW") ? "BMW" : makes[0];
+    const platform = platforms.find(item => (item.makes || []).includes(initialMake)) || platforms[0];
+    const engine = platform?.engines?.[0] || "";
+    const model = platform?.models?.[engine]?.[0] || "";
+    const tuneType = platform?.tuneTypes?.[0] || "";
+    const fuel = platform?.fuels?.[0] || "";
+    const context = [platform?.short, initialMake, model, engine, tuneType, fuel].filter(Boolean).join(" • ");
+    const labels = isAr ? {
+      reviewTitle: "وضع مراجعة التغييرات",
+      reviewIntro: "الأصفر يوضح الإضافات الجديدة. الأزرق يوضح العنصر الموجود الذي تم تعديله.",
+      reviewNew: "جديد",
+      reviewChanged: "تم التعديل",
+      reviewHide: "إخفاء العلامات",
+      reviewShow: "إظهار العلامات",
+      reviewHero: "زر البداية يفتح محدد المسار",
+      reviewIntroBlock: "شرح جديد يبدأ من السيارة",
+      reviewSteps: "مسار واضح من ثلاث خطوات",
+      reviewFilters: "اختيارات السيارة والخدمة",
+      reviewMatch: "ترشيح مباشر لمنصة البرمجة",
+      reviewHandoff: "انتقال لفحص التوافق",
+      eyebrow: "تصور مبدئي للتحسين",
+      heading: "حدد سيارتك. وخلك على المسار الصحيح من البداية.",
+      intro: "اختيارات واضحة تربط السيارة والمحرك والوقود بمنصة البرمجة المناسبة قبل إرسال طلب التوافق.",
+      first: "حدد السيارة",
+      firstText: "الشركة والمحرك والموديل",
+      second: "اختر الخدمة",
+      secondText: "نوع البرمجة والوقود",
+      third: "راجع التوافق",
+      thirdText: "الجهاز والفتح والحالة الميكانيكية",
+      details: "بيانات السيارة والخدمة",
+      make: "الشركة",
+      engine: "المحرك",
+      model: "الموديل",
+      service: "الخدمة المطلوبة",
+      fuel: "الوقود",
+      match: "المسار المقترح",
+      platform: "منصة البرمجة",
+      selected: "اختيارك",
+      requirements: "المطلوب قبل البدء",
+      view: "شوف تفاصيل المنصة",
+      continue: "كمل فحص التوافق",
+      note: "لا يتم اعتماد السعر أو بدء البرمجة قبل تأكيد السيارة ووحدة التحكم والجهاز والوقود والحالة الميكانيكية."
+    } : {
+      reviewTitle: "Change review overlay",
+      reviewIntro: "Yellow marks new functionality. Blue marks an existing element that was changed.",
+      reviewNew: "NEW",
+      reviewChanged: "CHANGED",
+      reviewHide: "Hide markers",
+      reviewShow: "Show markers",
+      reviewHero: "Hero action now opens the finder",
+      reviewIntroBlock: "New vehicle-first introduction",
+      reviewSteps: "New three-step guidance",
+      reviewFilters: "New vehicle and service filters",
+      reviewMatch: "New live platform recommendation",
+      reviewHandoff: "New compatibility handoff",
+      eyebrow: "Optimization concept preview",
+      heading: "Choose the vehicle. Start on the right tuning route.",
+      intro: "A clearer path connects the vehicle, engine and fuel to the correct tuning platform before a compatibility request is submitted.",
+      first: "Identify the vehicle",
+      firstText: "Make, engine and model",
+      second: "Choose the service",
+      secondText: "Tune type and available fuel",
+      third: "Confirm compatibility",
+      thirdText: "Device, unlock and mechanical condition",
+      details: "Vehicle and service details",
+      make: "Make",
+      engine: "Engine",
+      model: "Model",
+      service: "Required service",
+      fuel: "Available fuel",
+      match: "Recommended route",
+      platform: "Tuning platform",
+      selected: "Your selection",
+      requirements: "Required before starting",
+      view: "View platform details",
+      continue: "Continue compatibility check",
+      note: "Price and work are not approved until the vehicle, controller, device, fuel and mechanical condition have been confirmed."
+    };
+
+    return `<section id="tuning-finder" class="section tuning-finder-section"><div class="container">
+      <div class="review-toolbar" role="note" aria-label="${esc(labels.reviewTitle)}"><div><span class="review-toolbar-title">${esc(labels.reviewTitle)}</span><p>${esc(labels.reviewIntro)}</p></div><div class="review-toolbar-actions"><span class="review-key review-key-new"><i></i>${esc(labels.reviewNew)}</span><span class="review-key review-key-changed"><i></i>${esc(labels.reviewChanged)}</span><button class="review-toggle" type="button" data-action="toggle-review-markers" data-hide-label="${esc(labels.reviewHide)}" data-show-label="${esc(labels.reviewShow)}" aria-pressed="true"><span data-role="review-toggle-label">${esc(labels.reviewHide)}</span></button></div></div>
+      <div class="tuning-finder-heading review-marked review-marked-new" data-review-number="02"><span class="review-badge"><b>02 · ${esc(labels.reviewNew)}</b><span>${esc(labels.reviewIntroBlock)}</span></span><div><span class="eyebrow eyebrow-on-media">${esc(labels.eyebrow)}</span><h2>${esc(labels.heading)}</h2></div><p>${esc(labels.intro)}</p></div>
+      <div class="finder-steps review-marked review-marked-new" data-review-number="03" aria-label="${esc(labels.heading)}"><span class="review-badge"><b>03 · ${esc(labels.reviewNew)}</b><span>${esc(labels.reviewSteps)}</span></span>
+        <div><span>01</span><strong>${esc(labels.first)}</strong><small>${esc(labels.firstText)}</small></div>
+        <div><span>02</span><strong>${esc(labels.second)}</strong><small>${esc(labels.secondText)}</small></div>
+        <div><span>03</span><strong>${esc(labels.third)}</strong><small>${esc(labels.thirdText)}</small></div>
+      </div>
+      <div class="tuning-finder-shell" data-tuning-finder>
+        <div class="tuning-finder-controls review-marked review-marked-new" data-review-number="04"><span class="review-badge"><b>04 · ${esc(labels.reviewNew)}</b><span>${esc(labels.reviewFilters)}</span></span><span class="mini-label">${esc(labels.details)}</span><div class="finder-control-grid">
+          <label><span>${esc(labels.make)}</span><select class="select" data-role="finder-make">${optionList(makes, initialMake)}</select></label>
+          <label><span>${esc(labels.engine)}</span><select class="select" data-role="finder-engine">${optionList(platform?.engines || [], engine)}</select></label>
+          <label class="full"><span>${esc(labels.model)}</span><select class="select" data-role="finder-model">${optionList(platform?.models?.[engine] || [], model)}</select></label>
+          <label class="full"><span>${esc(labels.service)}</span><select class="select" data-role="finder-service">${optionList(platform?.tuneTypes || [], tuneType)}</select></label>
+          <label class="full"><span>${esc(labels.fuel)}</span><select class="select" data-role="finder-fuel">${optionList(platform?.fuels || [], fuel)}</select></label>
+        </div></div>
+        <aside class="tuning-finder-result review-marked review-marked-new" data-review-number="05" aria-live="polite"><span class="review-badge"><b>05 · ${esc(labels.reviewNew)}</b><span>${esc(labels.reviewMatch)}</span></span>
+          <div class="finder-result-top"><span class="mini-label">${esc(labels.match)}</span>${statusBadge("Compatibility Check Required")}</div>
+          <span class="finder-platform-label">${esc(labels.platform)}</span><h3 data-role="finder-title">${esc(platform?.short || "")}</h3><p data-role="finder-scope">${esc(platform?.supportedScope || "")}</p>
+          <div class="finder-result-facts"><div><span>${esc(labels.selected)}</span><strong data-role="finder-selection">${esc([model, engine].filter(Boolean).join(" • "))}</strong></div><div><span>${esc(labels.service)}</span><strong data-role="finder-service-summary">${esc(tuneType)}</strong></div></div>
+          <div class="finder-requirements"><strong>${esc(labels.requirements)}</strong><ul data-role="finder-requirements">${(platform?.requirements || []).slice(0, 3).map(item => `<li>${icons.check}<span>${esc(item)}</span></li>`).join("")}</ul></div>
+          <div class="finder-actions review-marked review-marked-new" data-review-number="06"><span class="review-badge"><b>06 · ${esc(labels.reviewNew)}</b><span>${esc(labels.reviewHandoff)}</span></span><a class="btn btn-outline-light" data-role="finder-detail" href="${routeUrl(`/tuning/${platform?.slug || "mhd"}`)}">${esc(labels.view)}${icons.arrow}</a><button class="btn btn-light" type="button" data-action="open-form" data-role="finder-review" data-form-type="Online Tuning Compatibility Review" data-context="${esc(context)}">${esc(labels.continue)}${icons.arrow}</button></div>
+        </aside>
+      </div>
+      <p class="finder-note">${icons.check}<span>${esc(labels.note)}</span></p>
+    </div></section>`;
+  }
+
+  function updateTuningFinder(component) {
+    if (!component) return;
+    const platforms = Object.values(DATA.tuningPlatforms).map(localizedPlatform);
+    const makeSelect = component.querySelector('[data-role="finder-make"]');
+    const engineSelect = component.querySelector('[data-role="finder-engine"]');
+    const modelSelect = component.querySelector('[data-role="finder-model"]');
+    const serviceSelect = component.querySelector('[data-role="finder-service"]');
+    const fuelSelect = component.querySelector('[data-role="finder-fuel"]');
+    const platform = platforms.find(item => (item.makes || []).includes(makeSelect?.value)) || platforms[0];
+    if (!platform || !makeSelect || !engineSelect || !modelSelect || !serviceSelect || !fuelSelect) return;
+
+    const previousEngine = engineSelect.value;
+    const engine = (platform.engines || []).includes(previousEngine) ? previousEngine : platform.engines?.[0] || "";
+    engineSelect.innerHTML = optionList(platform.engines || [], engine);
+    const models = platform.models?.[engine] || [];
+    const model = models.includes(modelSelect.value) ? modelSelect.value : models[0] || "";
+    modelSelect.innerHTML = optionList(models, model);
+    const tuneType = (platform.tuneTypes || []).includes(serviceSelect.value) ? serviceSelect.value : platform.tuneTypes?.[0] || "";
+    serviceSelect.innerHTML = optionList(platform.tuneTypes || [], tuneType);
+    const fuel = (platform.fuels || []).includes(fuelSelect.value) ? fuelSelect.value : platform.fuels?.[0] || "";
+    fuelSelect.innerHTML = optionList(platform.fuels || [], fuel);
+
+    component.querySelector('[data-role="finder-title"]').textContent = platform.short;
+    component.querySelector('[data-role="finder-scope"]').textContent = platform.supportedScope;
+    component.querySelector('[data-role="finder-selection"]').textContent = [model, engine].filter(Boolean).join(" • ");
+    component.querySelector('[data-role="finder-service-summary"]').textContent = tuneType;
+    component.querySelector('[data-role="finder-requirements"]').innerHTML = (platform.requirements || []).slice(0, 3).map(item => `<li>${icons.check}<span>${esc(item)}</span></li>`).join("");
+    component.querySelector('[data-role="finder-detail"]').href = routeUrl(`/tuning/${platform.slug}`);
+    component.querySelector('[data-role="finder-review"]').dataset.context = [platform.short, makeSelect.value, model, engine, tuneType, fuel].filter(Boolean).join(" • ");
+  }
+
+  function setupTuningFinder() {
+    document.querySelectorAll("[data-tuning-finder]").forEach(updateTuningFinder);
   }
 
   function tuningLandingPage() {
     const page = P().tuning;
     const platforms = Object.values(DATA.tuningPlatforms).map(localizedPlatform);
-    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 36, crumbs: [[U().nav.tuning]], actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Online Tuning Compatibility Review">${esc(U().actions.startTuning)}${icons.arrow}</button>` })}<section class="section"><div class="container">${sectionHead(U().common.platform, page.platformsHeading, page.platformsText)}<div class="platform-grid">${platforms.map(platformCard).join("")}</div></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.howItWorks, page.processHeading)}${numberSteps(page.process)}</div></section><section class="section"><div class="container safety-panel"><div>${mediaImage(7, { thumb: true, className: "cover-img" })}</div><div><span class="eyebrow">${esc(state.locale === "ar" ? "السلامة والتوافق" : "Safety & Compatibility")}</span><h2>${esc(page.safetyHeading)}</h2><p>${esc(page.safetyText)}</p>${featureList(state.locale === "ar" ? ["تأكيد الوقود المتوفر", "فحص الأعطال قبل البدء", "التأكد من نظام الوقود والتبريد", "الالتزام بتعليمات الـ Logging", "استخدام Dyno أو حلبة مناسبة عند الحاجة"] : ["Confirm the available fuel", "Resolve faults before development", "Verify fuel and cooling systems", "Follow the supplied logging instructions", "Use a dyno or suitable closed course when required"])}</div></div></section><section class="section section-tone"><div class="container narrow">${sectionHead(U().nav.faq, state.locale === "ar" ? "أسئلة مهمة قبل البرمجة." : "Important questions before tuning.")}${accordion(i18n().faq.tuning, "tuning-faq")}</div></section>${ctaBlock(state.locale === "ar" ? "ابدأ بتأكيد التوافق." : "Start with compatibility confirmation.", state.locale === "ar" ? "أرسل السيارة والـ ECU والهاردوير والوقود والتعديلات والأعطال الحالية قبل شراء أي خدمة أو جهاز." : "Submit the vehicle, controller, hardware, fuel, modifications and current faults before purchasing a service or device.", U().actions.checkCompatibility, "Online Tuning Compatibility Review")}`;
+    const heroReview = state.locale === "ar" ? "زر البداية يفتح محدد المسار" : "Hero action now opens the finder";
+    const reviewChanged = state.locale === "ar" ? "تم التعديل" : "CHANGED";
+    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 36, crumbs: [[U().nav.tuning]], actions: `<a class="btn review-marked review-marked-changed review-hero-action" data-review-number="01" href="${routeUrl('/tuning')}#tuning-finder"><span class="review-badge"><b>01 · ${esc(reviewChanged)}</b><span>${esc(heroReview)}</span></span>${esc(state.locale === "ar" ? "حدد مسار البرمجة" : "Find Your Tuning Route")}${icons.arrow}</a>` })}${tuningFinder()}<section class="section"><div class="container">${sectionHead(U().common.platform, page.platformsHeading, page.platformsText)}<div class="platform-grid">${platforms.map(platformCard).join("")}</div></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.howItWorks, page.processHeading)}${numberSteps(page.process)}</div></section><section class="section"><div class="container safety-panel"><div>${mediaImage(7, { thumb: true, className: "cover-img" })}</div><div><span class="eyebrow">${esc(state.locale === "ar" ? "السلامة والتوافق" : "Safety & Compatibility")}</span><h2>${esc(page.safetyHeading)}</h2><p>${esc(page.safetyText)}</p>${featureList(state.locale === "ar" ? ["تأكيد الوقود المتوفر", "فحص الأعطال قبل البدء", "التأكد من نظام الوقود والتبريد", "الالتزام بتعليمات الـ Logging", "استخدام Dyno أو حلبة مناسبة عند الحاجة"] : ["Confirm the available fuel", "Resolve faults before development", "Verify fuel and cooling systems", "Follow the supplied logging instructions", "Use a dyno or suitable closed course when required"])}</div></div></section><section class="section section-tone"><div class="container narrow">${sectionHead(U().nav.faq, state.locale === "ar" ? "أسئلة مهمة قبل البرمجة." : "Important questions before tuning.")}${accordion(i18n().faq.tuning, "tuning-faq")}</div></section>${ctaBlock(state.locale === "ar" ? "ابدأ بتأكيد التوافق." : "Start with compatibility confirmation.", state.locale === "ar" ? "أرسل السيارة والـ ECU والهاردوير والوقود والتعديلات والأعطال الحالية قبل شراء أي خدمة أو جهاز." : "Submit the vehicle, controller, hardware, fuel, modifications and current faults before purchasing any service or device.", U().actions.checkCompatibility, "Online Tuning Compatibility Review")}`;
   }
 
   function optionList(items = [], selected = "") {
@@ -435,17 +631,215 @@
     const base = DATA.tuningPlatforms[slug];
     if (!base) return notFoundPage();
     const platform = localizedPlatform(base);
-    return `${pageHero({ eyebrow: platform.platform, title: platform.title, text: platform.supportedScope, media: platform.cover, crumbs: [[U().nav.tuning, "/tuning"], [platform.short]], meta: `${statusBadge(platform.relationship)}`, actions: `<a class="btn" href="#compatibility-form">${esc(U().actions.checkCompatibility)}${icons.arrow}</a>` })}<section class="section"><div class="container tuning-layout"><div class="content-stack"><div>${gallery(platform.media || [], `tuning-${slug}`, platform.title, { hero: true })}</div><article class="content-panel"><span class="eyebrow">${esc(U().common.requirements)}</span><h2>${state.locale === "ar" ? "تأكد من المتطلبات قبل البدء." : "Confirm the requirements before starting."}</h2>${featureList(platform.requirements || [])}</article><article class="content-panel"><span class="eyebrow">${esc(U().common.included)}</span><h2>${state.locale === "ar" ? "نطاق واضح للتسليم والمراجعة." : "A defined review and delivery scope."}</h2>${featureList(platform.inclusions || [])}</article><article class="notice notice-warning"><strong>${state.locale === "ar" ? "مراجعة التوافق مطلوبة:" : "Compatibility review required:"}</strong> ${esc(platform.notice)}</article><article class="content-panel"><span class="eyebrow">${esc(U().actions.checkCompatibility)}</span><h2>${state.locale === "ar" ? "شنو نراجع؟" : "What is reviewed?"}</h2>${featureList(platform.compatibilityChecks || [])}</article></div><aside id="compatibility-form" class="form-panel sticky-panel"><span class="mini-label">${esc(platform.short)}</span><h2>${esc(U().forms.title)}</h2><p>${esc(U().forms.intro)}</p>${tuningForm(platform)}</aside></div></section><section class="section section-tone"><div class="container narrow">${sectionHead(U().nav.faq, state.locale === "ar" ? "أسئلة عن التوافق والـ Logging." : "Questions about compatibility and logging.")}${accordion(i18n().faq.tuning, `${slug}-faq`)}</div></section>${ctaBlock(state.locale === "ar" ? `تحتاج مساعدة مع ${platform.short}؟` : `Need help with ${platform.short}?`, platform.notice, U().actions.contactWorkshop, platform.formType)}`;
+    return `${pageHero({ eyebrow: platform.platform, title: platform.title, text: platform.supportedScope, media: platform.cover, crumbs: [[U().nav.tuning, "/tuning"], [platform.short]], meta: `${statusBadge(platform.relationship)}`, actions: `<a class="btn" href="${routeUrl(`/tuning/${slug}`)}#compatibility-form">${esc(U().actions.checkCompatibility)}${icons.arrow}</a>` })}<section class="section"><div class="container tuning-layout"><div class="content-stack"><div>${gallery(platform.media || [], `tuning-${slug}`, platform.title, { hero: true })}</div><article class="content-panel"><span class="eyebrow">${esc(U().common.requirements)}</span><h2>${state.locale === "ar" ? "تأكد من المتطلبات قبل البدء." : "Confirm the requirements before starting."}</h2>${featureList(platform.requirements || [])}</article><article class="content-panel"><span class="eyebrow">${esc(U().common.included)}</span><h2>${state.locale === "ar" ? "نطاق واضح للتسليم والمراجعة." : "A defined review and delivery scope."}</h2>${featureList(platform.inclusions || [])}</article><article class="notice notice-warning"><strong>${state.locale === "ar" ? "مراجعة التوافق مطلوبة:" : "Compatibility review required:"}</strong> ${esc(platform.notice)}</article><article class="content-panel"><span class="eyebrow">${esc(U().actions.checkCompatibility)}</span><h2>${state.locale === "ar" ? "شنو نراجع؟" : "What is reviewed?"}</h2>${featureList(platform.compatibilityChecks || [])}</article></div><aside id="compatibility-form" class="form-panel sticky-panel"><span class="mini-label">${esc(platform.short)}</span><h2>${esc(U().forms.title)}</h2><p>${esc(U().forms.intro)}</p>${tuningForm(platform)}</aside></div></section><section class="section section-tone"><div class="container narrow">${sectionHead(U().nav.faq, state.locale === "ar" ? "أسئلة عن التوافق والـ Logging." : "Questions about compatibility and logging.")}${accordion(i18n().faq.tuning, `${slug}-faq`)}</div></section>${ctaBlock(state.locale === "ar" ? `تحتاج مساعدة مع ${platform.short}؟` : `Need help with ${platform.short}?`, platform.notice, U().actions.contactWorkshop, platform.formType)}`;
+  }
+
+  function engineShelfPackages() {
+    const isAr = state.locale === "ar";
+    const leadTime = isAr ? "حد أدنى أسبوعين للتجهيز بعد اعتماد الطلب" : "Minimum two-week preparation lead time after approval";
+    const liveStock = isAr ? "التوفر يحتاج تأكيد مباشر قبل اعتماد الطلب" : "Live availability must be confirmed before approval";
+    return [
+      {
+        title: "Bottom-End Rod & Piston Package",
+        service: "Short Block / Bottom End",
+        family: "",
+        specs: isAr ? ["LS وLT", "High Compression", "مخصص لتطبيقات Drift وTrack"] : ["LS and LT", "High-compression route", "For drift and track applications"],
+        availability: leadTime
+      },
+      {
+        title: "Stock Bottom End + Heads & Cam Package",
+        service: "Short Block / Bottom End",
+        family: "",
+        specs: isAr ? ["LS وLT", "Boost أو Naturally Aspirated", "المواصفة النهائية حسب الاستخدام"] : ["LS and LT", "Boost or naturally aspirated", "Final specification follows the application"],
+        availability: leadTime
+      },
+      {
+        title: "GM LS 6.0 Aluminum Long Block",
+        service: "Long Block",
+        family: "GM - LS",
+        specs: isAr ? ["AFR 235 cc Heads", "PJX Cam Package", "الهدف المعلن: 450 HP على Pump Fuel", "الهدف المعلن: 500+ HP على E85", "مصمم للاستخدام القاسي"] : ["AFR 235 cc heads", "PJX cam package", "Stated target: 450 HP on pump fuel", "Stated target: 500+ HP on E85", "Built for hard use"],
+        availability: leadTime
+      },
+      {
+        title: "Stocker 416 High-Compression Short Block",
+        service: "Short Block / Bottom End",
+        family: "GM - LS",
+        specs: ["Callies Compstar crankshaft", "Callies H-beam rods", "Wiseco 4.070 in · +5 cc dome"],
+        availability: isAr ? `مذكور In Stock / On Shelf · ${liveStock}` : `Noted in stock / on shelf · ${liveStock}`
+      },
+      {
+        title: "RHS 427 Boost Short Block",
+        service: "Short Block / Bottom End",
+        family: "GM - LS",
+        specs: ["Callies Apex 4.000 in stroke · 8-counterweight", "Ultra I-beam rods · L19 rod bolts", "Diamond 2K pistons · -14 cc dish"],
+        availability: leadTime
+      },
+      {
+        title: "L83 1000 HP+ Boost Long Block",
+        service: "Long Block",
+        family: "GM - LT",
+        specs: isAr ? ["Long Block مخصص للـ Boost", "التصنيف المعلن للباقة: 1,000 HP+"] : ["Boost-specific long-block package", "Stated package rating: 1,000 HP+"],
+        availability: leadTime
+      },
+      {
+        title: "LTR 427 Long Block",
+        service: "Long Block",
+        family: "GM - LS",
+        specs: isAr ? ["427 cu in", "PRC Heads", "المواصفة النهائية حسب الاستخدام والوقود"] : ["427 cu in", "PRC heads", "Final specification follows use and fuel"],
+        availability: leadTime
+      },
+      {
+        title: "LSR Blocks",
+        service: "Short Block / Bottom End",
+        family: "GM - LS",
+        specs: isAr ? ["عدد 2 مذكور في المخزون", "الخراطة والمواصفة حسب المشروع"] : ["Two units noted in stock", "Machining and specification follow the project"],
+        availability: liveStock
+      }
+    ];
+  }
+
+  function enginePhotoKey(family = "GM - LS", service = "Long Block", packageName = "") {
+    if (/L83/i.test(packageName)) return "lt-long";
+    if (/Short Block|Bottom End/i.test(service)) return "bottom-end";
+    if (/Rebuild|Upgrade|إعادة بناء|تطوير/i.test(service)) return "rebuild";
+    if (/Ford|Coyote/i.test(family)) return "coyote-long";
+    if (/GM - LT/i.test(family)) return "lt-long";
+    return "ls-long";
+  }
+
+  function enginePhotoMediaId(key) {
+    return ({ "ls-long": 54, "lt-long": 55, "coyote-long": 58, "bottom-end": 70, rebuild: 59, components: 68 })[key] || 54;
+  }
+
+  function enginePhotoLabel(key) {
+    const labels = state.locale === "ar" ? {
+      "ls-long": "صورة Long Block LS من ورشة Projx Racing",
+      "lt-long": "صورة Long Block LT من ورشة Projx Racing",
+      "coyote-long": "صورة Ford Coyote من ورشة Projx Racing",
+      "bottom-end": "صورة Bottom End من ورشة Projx Racing",
+      "rebuild": "صورة فحص وإعادة بناء من ورشة Projx Racing"
+    } : {
+      "ls-long": "Projx Racing LS long-block workshop photo",
+      "lt-long": "Projx Racing LT long-block workshop photo",
+      "coyote-long": "Projx Racing Ford Coyote workshop photo",
+      "bottom-end": "Projx Racing bottom-end workshop photo",
+      "rebuild": "Projx Racing inspection and rebuild workshop photo"
+    };
+    return labels[key] || labels["ls-long"];
+  }
+
+  function enginePhotoFrame(key, className = "engine-selector-photo") {
+    const label = enginePhotoLabel(key);
+    return `<div class="${esc(className)}" data-photo-key="${esc(key)}" data-role="engine-selection-photo">${mediaImage(enginePhotoMediaId(key), { className: "engine-workshop-photo", alt: label, sizes: "(max-width: 760px) 100vw, 42vw" })}<span>${esc(label)}</span></div>`;
+  }
+
+  function engineBuildOptionPhoto(title) {
+    if (/Long Block/i.test(title)) {
+      return `<div class="engine-option-photo engine-option-photo-split"><div data-photo-key="ls-long">${mediaImage(enginePhotoMediaId("ls-long"), { className: "engine-workshop-photo", alt: enginePhotoLabel("ls-long"), sizes: "25vw" })}<span>LS</span></div><div data-photo-key="lt-long">${mediaImage(enginePhotoMediaId("lt-long"), { className: "engine-workshop-photo", alt: enginePhotoLabel("lt-long"), sizes: "25vw" })}<span>LT</span></div></div>`;
+    }
+    const key = /Short Block|Bottom End/i.test(title) ? "bottom-end" : "rebuild";
+    return enginePhotoFrame(key, "engine-option-photo");
+  }
+
+  function engineShelfSection() {
+    const isAr = state.locale === "ar";
+    const packages = engineShelfPackages();
+    return `<section class="section engine-stock-section"><div class="container engine-stock-review review-marked review-marked-new"><span class="review-badge"><b>07 · ${esc(isAr ? "جديد" : "NEW")}</b><span>${esc(isAr ? "باقات On-Shelf وخيارات جاهزة للطلب" : "On-shelf packages and selectable specifications")}</span></span>${sectionHead(isAr ? "On-Shelf وبرامج التجهيز" : "On-shelf & scheduled builds", isAr ? "اختر الباقة قبل إرسال الطلب." : "Choose a package before sending the enquiry.", isAr ? "المخزون يتغير ويجب تأكيده مباشرة. محركات وباقات On-Shelf تحتاج حد أدنى أسبوعين للتجهيز بعد اعتماد الطلب إلا إذا نص عرض السعر على غير ذلك." : "Stock changes and must be confirmed directly. On-shelf engines and packages require a minimum two-week preparation lead time after approval unless the quotation states otherwise.")}<div class="engine-package-grid">${packages.map((item, index) => {
+      const photoKey = enginePhotoKey(item.family || "GM - LS", item.service, item.title);
+      return `<article class="engine-package-card">${enginePhotoFrame(photoKey, "engine-package-photo")}<div class="engine-package-top"><span>${compactNumber(index + 1)}</span><small>${esc(item.availability)}</small></div><h3>${esc(item.title)}</h3>${featureList(item.specs)}<button class="btn btn-outline btn-sm" type="button" data-action="select-engine-package" data-engine-package="${esc(item.title)}" data-engine-family="${esc(item.family)}" data-engine-service="${esc(item.service)}">${esc(isAr ? "اختر للطلب" : "Select for enquiry")}${icons.arrow}</button></article>`;
+    }).join("")}</div><p class="engine-package-source-note">${esc(isAr ? "اختيار الكود في النموذج يساعد على بدء الطلب، لكن المواصفة النهائية تعتمد على فحص البلوك والـ Casting والـ Reluctor والحساسات والقطع الحالية." : "The selector starts the enquiry; final compatibility still depends on the block casting, reluctor wheel, sensors and the parts presented for inspection.")}</p></div></section>`;
   }
 
   function engineConsultationForm() {
     const ui = U();
-    return `<form class="enquiry-form embedded-form" data-enquiry-form data-form-type="Engine Build Enquiry" novalidate><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><div class="form-grid"><div class="form-group"><label class="required" for="engine-name">${esc(ui.forms.name)}</label><input id="engine-name" class="input" name="name" required autocomplete="name" placeholder="${esc(ui.forms.placeholders.name)}"></div><div class="form-group"><label class="required" for="engine-phone">${esc(ui.forms.phone)}</label><input id="engine-phone" class="input ltr-input" name="phone" required inputmode="tel" autocomplete="tel" placeholder="${esc(ui.forms.placeholders.phone)}"></div><div class="form-group"><label for="engine-email">${esc(ui.forms.email)} <small>${esc(ui.forms.optional)}</small></label><input id="engine-email" class="input ltr-input" name="email" type="email" autocomplete="email" placeholder="${esc(ui.forms.placeholders.email)}"></div><div class="form-group"><label for="engine-country">${esc(ui.forms.country)}</label><input id="engine-country" class="input" name="country" placeholder="${esc(ui.forms.placeholders.country)}"></div><div class="form-group full"><label class="required" for="engine-vehicle">${esc(ui.forms.vehicle)}</label><input id="engine-vehicle" class="input" name="vehicle" required placeholder="${esc(ui.forms.placeholders.vehicle)}"></div><div class="form-group"><label class="required" for="engine-code">${esc(ui.forms.engine)}</label><input id="engine-code" class="input" name="engine" required placeholder="${esc(ui.forms.placeholders.engine)}"></div><div class="form-group"><label for="engine-transmission">${esc(ui.forms.transmission)}</label><input id="engine-transmission" class="input" name="transmission" placeholder="${esc(ui.forms.placeholders.transmission)}"></div><div class="form-group"><label for="engine-service">${esc(ui.forms.service)}</label><select id="engine-service" class="select" name="service"><option>${state.locale === "ar" ? "Complete Engine" : "Complete Engine"}</option><option>Long Block</option><option>${state.locale === "ar" ? "إعادة بناء محرك حالي" : "Existing Engine Rebuild"}</option><option>${state.locale === "ar" ? "تطوير محرك حالي" : "Existing Engine Upgrade"}</option><option>${state.locale === "ar" ? "فحص عطل بالمحرك" : "Engine Failure Assessment"}</option></select></div><div class="form-group"><label for="engine-fuel">${esc(ui.forms.fuel)}</label><input id="engine-fuel" class="input" name="fuel" placeholder="98 RON, E85, Race Fuel..."></div><div class="form-group full"><label class="required" for="engine-mods">${state.locale === "ar" ? "حالة المحرك والقطع الحالية" : "Current engine condition and existing parts"}</label><textarea id="engine-mods" class="textarea" name="modifications" required placeholder="${state.locale === "ar" ? "العطل إن وجد، البلوك، Crank، Rods، Pistons، Heads، Cam، Oiling والقطع المطلوب إعادة استخدامها" : "Failure history, block, crank, rods, pistons, heads, cam, oiling and any parts intended for reuse"}"></textarea></div><div class="form-group full"><label class="required" for="engine-target">${esc(ui.forms.target)}</label><textarea id="engine-target" class="textarea" name="message" required placeholder="${state.locale === "ar" ? "استخدام السيارة، نظام الشحن، هدف القوة، RPM المطلوب، الاعتمادية والوقت" : "Vehicle use, induction, power objective, requested RPM, reliability priority and timing"}"></textarea></div><div class="form-group full"><label for="engine-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="engine-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.txt"><small class="form-help">${esc(ui.forms.fileNote)}</small></div><label class="checkbox form-group full"><input type="checkbox" name="consent" required><span>${esc(ui.forms.consent)}</span></label></div><button class="btn btn-block" type="submit">${esc(ui.actions.engineConsultation)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
+    const page = P().engineBuilding;
+    const families = page.families || [];
+    const family = families[0] || { value: "GM - LS", variants: ["Gen III · LS1 · 5.7L aluminum"] };
+    const services = (page.options || []).map(([title]) => title);
+    const packagePrompt = state.locale === "ar" ? "مواصفة خاصة / لم يتم اختيار باقة" : "Custom specification / no package selected";
+    const packages = [packagePrompt, ...engineShelfPackages().map(item => item.title)];
+    const firstService = services[0] || "Long Block";
+    const firstPhotoKey = enginePhotoKey(family.value, firstService);
+    const isAr = state.locale === "ar";
+    return `<form class="enquiry-form embedded-form engine-enquiry-flow" data-enquiry-form data-engine-consultation data-form-type="Engine Build Enquiry" novalidate><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}">
+      <div class="engine-selector-shell">
+        ${enginePhotoFrame(firstPhotoKey)}
+        <div class="engine-selector-fields"><span class="engine-form-step">${esc(isAr ? "الخطوة 1 · اختر المحرك والبناء" : "Step 1 · Choose the engine and build")}</span><div class="form-grid">
+          <div class="form-group"><label class="required" for="engine-family">${esc(isAr ? "عائلة المحرك" : "Engine family")}</label><select id="engine-family" class="select" name="platform" required data-role="engine-family">${optionList(families.map(item => item.value), family.value)}</select></div>
+          <div class="form-group"><label class="required" for="engine-variant">${esc(isAr ? "النوع أو الجيل" : "Variant or generation")}</label><select id="engine-variant" class="select" name="engine" required data-role="engine-variant">${optionList(family.variants || [])}</select></div>
+          <div class="form-group"><label class="required" for="engine-service">${esc(ui.forms.service)}</label><select id="engine-service" class="select" name="service" required data-role="engine-service">${optionList(services, firstService)}</select></div>
+          <div class="form-group"><label for="engine-package">${esc(isAr ? "باقة On-Shelf أو المواصفة" : "On-shelf package or specification")}</label><select id="engine-package" class="select" name="package" data-role="engine-package">${optionList(packages, packagePrompt)}</select></div>
+          <div class="form-group full"><label class="required" for="engine-vehicle">${esc(ui.forms.vehicle)}</label><input id="engine-vehicle" class="input" name="vehicle" required placeholder="${esc(isAr ? "السنة، الشركة، الموديل" : "Year, make and model")}"></div>
+          <div class="form-group full"><label for="engine-fuel">${esc(isAr ? "الوقود ونظام الشحن" : "Fuel and induction")}</label><input id="engine-fuel" class="input" name="fuel" placeholder="${esc(isAr ? "98 RON، Naturally Aspirated، Turbo، Supercharger..." : "98 RON, naturally aspirated, turbo, supercharger...")}"></div>
+          <div class="form-group full"><label class="required" for="engine-mods">${esc(isAr ? "حالة المحرك الحالية" : "Current engine condition")}</label><textarea id="engine-mods" class="textarea" name="modifications" required placeholder="${esc(isAr ? "حالة التشغيل أو العطل والقطع الحالية والقطع المطلوب إعادة استخدامها" : "Running condition or failure, existing parts and anything intended for reuse")}"></textarea></div>
+          <div class="form-group full"><label class="required" for="engine-target">${esc(isAr ? "الاستخدام والهدف" : "Intended use and objective")}</label><textarea id="engine-target" class="textarea" name="message" required placeholder="${esc(isAr ? "شارع أو Drag أو Circuit، الهدف، الاعتمادية والوقت المطلوب" : "Street, drag or circuit use, objective, reliability priority and required timing")}"></textarea></div>
+          <div class="form-group full"><label for="engine-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="engine-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.txt"><small class="form-help">${esc(ui.forms.fileNote)}</small></div>
+        </div></div>
+      </div>
+      <fieldset class="engine-customer-step"><legend><span class="engine-form-step">${esc(isAr ? "الخطوة الأخيرة · بيانات العميل" : "Final step · Customer details")}</span><strong>${esc(isAr ? "كيف نتواصل معك؟" : "How should we contact you?")}</strong></legend><p>${esc(isAr ? "بعد تحديد المحرك والبناء، أرسل بياناتك حتى يراجع الفريق الطلب ويتواصل معك." : "After choosing the engine and build, send your details so the team can review the request and contact you.")}</p><div class="form-grid">
+        <div class="form-group"><label class="required" for="engine-name">${esc(ui.forms.name)}</label><input id="engine-name" class="input" name="name" required autocomplete="name" placeholder="${esc(ui.forms.placeholders.name)}"></div>
+        <div class="form-group"><label class="required" for="engine-phone">${esc(ui.forms.phone)}</label><input id="engine-phone" class="input ltr-input" name="phone" required inputmode="tel" autocomplete="tel" placeholder="${esc(ui.forms.placeholders.phone)}"></div>
+        <div class="form-group full"><label for="engine-email">${esc(ui.forms.email)} <small>${esc(ui.forms.optional)}</small></label><input id="engine-email" class="input ltr-input" name="email" type="email" autocomplete="email" placeholder="${esc(ui.forms.placeholders.email)}"></div>
+        <label class="checkbox form-group full"><input type="checkbox" name="consent" required><span>${esc(ui.forms.consent)}</span></label>
+      </div></fieldset>
+      <button class="btn btn-block" type="submit">${esc(ui.actions.engineConsultation)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
+  }
+
+  function updateEngineFamilyForm(select) {
+    const form = select?.closest("[data-engine-consultation]");
+    const variantSelect = form?.querySelector('[data-role="engine-variant"]');
+    const families = P().engineBuilding.families || [];
+    const family = families.find(item => item.value === select?.value) || families[0];
+    if (!family || !variantSelect) return;
+    variantSelect.innerHTML = optionList(family.variants || []);
+    updateEngineSelectionPhoto(form);
+  }
+
+  function updateEngineSelectionPhoto(form) {
+    if (!form) return;
+    const photo = form.querySelector('[data-role="engine-selection-photo"], .engine-selector-photo');
+    const family = form.querySelector('[data-role="engine-family"]')?.value || "GM - LS";
+    const service = form.querySelector('[data-role="engine-service"]')?.value || "Long Block";
+    const packageName = form.querySelector('[data-role="engine-package"]')?.value || "";
+    if (!photo) return;
+    const key = enginePhotoKey(family, service, packageName);
+    const label = enginePhotoLabel(key);
+    photo.dataset.photoKey = key;
+    const item = mediaItem(enginePhotoMediaId(key));
+    const image = photo.querySelector("img");
+    if (image && item) {
+      image.src = item.full;
+      image.alt = label;
+      image.width = Number(item.width) || 1600;
+      image.height = Number(item.height) || 1200;
+      image.style.objectPosition = item.position || "center";
+    }
+    const caption = photo.querySelector("span");
+    if (caption) caption.textContent = label;
+  }
+
+  function engineReviewToolbar() {
+    const isAr = state.locale === "ar";
+    return `<div class="review-toolbar engine-review-toolbar" role="note" aria-label="${esc(isAr ? "مراجعة تغييرات صفحة المحركات" : "Engine-page change review")}"><div><span class="review-toolbar-title">${esc(isAr ? "مراجعة تغييرات صفحة المحركات" : "Engine-page change review")}</span><p>${esc(isAr ? "تم تبسيط بطاقات LS وLT إلى ثلاثة مستويات بناء، وإضافة صور حقيقية بجانب خيارات المحرك، ونقل بيانات العميل إلى الخطوة الأخيرة." : "LS and LT cards are simplified to three build levels, real workshop photos now sit beside the engine choices, and customer details are the final step.")}</p></div><div class="review-toolbar-actions"><span class="review-key review-key-new"><i></i>${esc(isAr ? "جديد" : "NEW")}</span><span class="review-key review-key-changed"><i></i>${esc(isAr ? "تم التعديل" : "CHANGED")}</span><button class="review-toggle" type="button" data-action="toggle-review-markers" data-hide-label="${esc(isAr ? "إخفاء العلامات" : "Hide markers")}" data-show-label="${esc(isAr ? "إظهار العلامات" : "Show markers")}" aria-pressed="true"><span data-role="review-toggle-label">${esc(isAr ? "إخفاء العلامات" : "Hide markers")}</span></button></div></div>`;
   }
 
   function engineBuildingPage() {
     const page = P().engineBuilding;
-    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 19, crumbs: [[U().nav.engineBuilding]], actions: `<a class="btn" href="#engine-consultation">${esc(U().actions.engineConsultation)}${icons.arrow}</a><a class="btn btn-outline-light" href="${waUrl(state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن بناء محرك GM LS/LT." : "Hello Projx Racing, I would like to discuss a GM LS/LT engine project.")}" target="_blank" rel="noopener">${esc(U().actions.whatsapp)}${icons.whatsapp}</a>` })}<section class="section"><div class="container">${sectionHead(U().common.serviceScope, page.optionsHeading, page.optionsText)}<div class="engine-option-grid">${page.options.map(([title, text], index) => `<article><span>${compactNumber(index + 1)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p><button class="text-link" type="button" data-action="open-form" data-form-type="Engine Build Enquiry" data-context="${esc(title)}">${esc(U().actions.engineConsultation)}${icons.arrow}</button></article>`).join("")}</div></div></section><section class="section section-tone"><div class="container">${sectionHead(U().common.howItWorks, page.processHeading)}${numberSteps(page.process)}</div></section><section class="section"><div class="container detail-two-column"><div>${gallery([19, 5, 8, 27], "engine-building", page.heading, { hero: true })}</div><div class="content-panel"><span class="eyebrow">${esc(U().common.whatToProvide)}</span><h2>${esc(page.provideHeading)}</h2>${featureList(page.provide)}<div class="notice notice-warning">${esc(page.note)}</div></div></div></section><section id="engine-consultation" class="section section-tone"><div class="container form-feature"><div><span class="eyebrow">${esc(U().actions.engineConsultation)}</span><h2>${state.locale === "ar" ? "أرسل معلومات كافية للمراجعة الفنية." : "Send enough information for a technical review."}</h2><p>${state.locale === "ar" ? "هذا طلب استشارة مباشر، وما يحسب قوة أو سعر أو مواصفات تلقائياً. الفريق يراجع المحرك والسيارة قبل إصدار عرض السعر." : "This is a direct consultation request. It does not calculate power, price or specifications automatically. The team reviews the engine and vehicle before issuing a quotation."}</p>${featureList(page.provide.slice(0, 6))}</div><div class="form-panel">${engineConsultationForm()}</div></div></section><section class="section"><div class="container narrow">${sectionHead(U().nav.faq, state.locale === "ar" ? "أسئلة مهمة عن بناء المحرك." : "Important engine-building questions.")}${accordion(i18n().faq.engines, "engine-faq")}</div></section>${ctaBlock(state.locale === "ar" ? "ناقش مشروع المحرك مع الورشة." : "Discuss the engine project with the workshop.", page.note, U().actions.engineConsultation, "Engine Build Enquiry")}`;
+    const isAr = state.locale === "ar";
+    const changed = isAr ? "تم التعديل" : "CHANGED";
+    const added = isAr ? "جديد" : "NEW";
+    const whatsappText = isAr ? "هلا Projx Racing، حاب أستفسر عن بناء محرك. عائلة المحرك: GM LS/LT أو Ford Coyote. السيارة: " : "Hello Projx Racing, I would like to discuss an engine build. Engine family: GM LS/LT or Ford Coyote. Vehicle: ";
+    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 53, crumbs: [[U().nav.engineBuilding]], review: { number: "01", type: changed, kind: "changed", label: isAr ? "عنوان GM أقصر وأوضح" : "Shorter GM title" }, actions: `<button class="btn" type="button" data-action="scroll-to" data-target="engine-family">${esc(isAr ? "حدد عائلة المحرك" : "Choose engine family")}${icons.arrow}</button><a class="btn btn-outline-light" href="${waUrl(whatsappText)}" target="_blank" rel="noopener">${esc(U().actions.whatsapp)}${icons.whatsapp}</a>` })}
+      <section id="engine-family" class="section"><div class="container">${engineReviewToolbar()}<div class="engine-family-review review-marked review-marked-new"><span class="review-badge"><b>02 · ${esc(added)}</b><span>${esc(isAr ? "مسارات LS وLT وFord Coyote بالصور" : "Photo-led LS, LT and Ford Coyote routes")}</span></span>${sectionHead(page.familyEyebrow, page.familyHeading, page.familyText)}<div class="engine-family-grid">${(page.families || []).map((family, index) => `<article class="engine-family-card">${enginePhotoFrame(["ls-long", "lt-long", "coyote-long"][index] || "ls-long", "engine-family-photo")}<span class="engine-family-index">${compactNumber(index + 1)}</span><div><h3>${esc(family.title)}</h3><p>${esc(family.text)}</p><div class="tags">${(family.highlights || family.variants || []).map(item => `<span>${esc(item)}</span>`).join("")}</div></div><button class="btn btn-outline" type="button" data-action="select-engine-family" data-engine-family="${esc(family.value)}">${esc(isAr ? "اختر هذا المسار" : "Choose this family")}${icons.arrow}</button></article>`).join("")}</div></div></div></section>
+      <section class="section section-tone"><div class="container engine-options-review review-marked review-marked-changed"><span class="review-badge"><b>03 · ${esc(changed)}</b><span>${esc(isAr ? "ثلاثة مستويات بناء مع صور" : "Three photographed build levels")}</span></span>${sectionHead(U().common.serviceScope, page.optionsHeading)}<div class="engine-option-grid engine-option-grid-simple">${page.options.map(([title, text], index) => `<article>${engineBuildOptionPhoto(title)}<span>${compactNumber(index + 1)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p><button class="text-link" type="button" data-action="select-engine-service" data-engine-service="${esc(title)}">${esc(isAr ? "اختر وانتقل للطلب" : "Select and continue")}${icons.arrow}</button></article>`).join("")}</div></div></section>
+      ${engineShelfSection()}
+      <section id="engine-consultation" class="section"><div class="container form-feature engine-fast-form"><div class="engine-form-intro"><span class="eyebrow">${esc(U().actions.engineConsultation)}</span><h2>${esc(page.provideHeading)}</h2><p>${esc(isAr ? "اختر المحرك والبناء أولاً. تظهر الصورة المناسبة بجانب الخيارات، وبعدها تدخل بيانات التواصل في الخطوة الأخيرة." : "Choose the engine and build first. The matching workshop photo stays beside the selectors, then customer contact details appear as the final step.")}</p></div><div class="form-panel review-marked review-marked-changed"><span class="review-badge"><b>04 · ${esc(changed)}</b><span>${esc(isAr ? "بيانات العميل في الخطوة الأخيرة" : "Customer details moved to the final step")}</span></span>${engineConsultationForm()}</div></div></section>`;
+  }
+
+  function raceProgrammeContact() {
+    const isAr = state.locale === "ar";
+    const message = isAr ? "هلا Projx Racing، حاب أستفسر عن برنامج KMTC 2K أو تجهيز سباقات الحلبة. السيارة: " : "Hello Projx Racing, I would like to enquire about the KMTC 2K programme or circuit-racing preparation. Vehicle: ";
+    return `<section class="section race-programme-section"><div class="container"><div class="race-programme-card review-marked review-marked-new"><span class="review-badge"><b>05 · ${esc(isAr ? "جديد" : "NEW")}</b><span>${esc(isAr ? "تواصل مباشر لبرنامج 2K والحلبة" : "Direct 2K and circuit contact")}</span></span><div><span class="eyebrow eyebrow-on-media">${esc(isAr ? "برامج السباق" : "Race programmes")}</span><h2>${esc(isAr ? "KMTC 2K وسباقات الحلبة" : "KMTC 2K & circuit racing")}</h2><p>${esc(isAr ? "أرسل السيارة والفئة والخبرة والهدف. الورشة تراجع أهلية البرنامج ونطاق تجهيز السيارة قبل تأكيد العمل." : "Send the vehicle, class, driver experience and objective. The workshop reviews programme eligibility and vehicle-preparation scope before work is confirmed.")}</p></div><div class="race-programme-actions"><a class="btn btn-light" href="${waUrl(message)}" target="_blank" rel="noopener">${esc(isAr ? "أرسل استفسار WhatsApp" : "Send WhatsApp enquiry")}${icons.whatsapp}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="2K / Circuit Racing Enquiry" data-context="KMTC 2K / Circuit Racing">${esc(isAr ? "أرسل بيانات المشروع" : "Send project details")}${icons.arrow}</button></div></div></div></section>`;
   }
 
   function projectsPage() {
@@ -453,7 +847,7 @@
     const projects = DATA.projects.map(localizedProject);
     const categories = [...new Set(projects.map(project => project.category))];
     const makes = [...new Set(projects.map(project => project.make))];
-    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 35, crumbs: [[U().nav.projects]], actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Project Consultation">${esc(U().actions.discussBuild)}${icons.arrow}</button>` })}<section class="section"><div class="container"><div class="filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="projects" placeholder="${esc(U().filters.searchProjects)}" aria-label="${esc(U().filters.searchProjects)}"></label><label class="select-control">${icons.filter}<span class="sr-only">${esc(U().filters.filterByCategory)}</span><select data-filter-select="projects" data-filter-attribute="category"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<span class="sr-only">${esc(U().filters.filterByMake)}</span><select data-filter-select="projects" data-filter-attribute="make"><option value="">${esc(U().common.allMakes)}</option>${makes.map(make => `<option value="${esc(make)}">${esc(make)}</option>`).join("")}</select></label></div><div class="project-grid" data-filter-grid="projects">${DATA.projects.map(projectCard).join("")}</div><div class="empty-state" data-filter-empty="projects" hidden>${esc(U().common.noResults)}</div></div></section>${ctaBlock(state.locale === "ar" ? "عندك مشروع مشابه؟" : "Planning a similar project?", state.locale === "ar" ? "أرسل السيارة والمواصفات الحالية والهدف والاستخدام والوقت حتى نراجع نطاق المشروع." : "Send the vehicle, current specification, objective, intended use and timing so the workshop can review the project scope.", U().actions.discussBuild, "Project Consultation")}`;
+    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 35, crumbs: [[U().nav.projects]], actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Project Consultation">${esc(U().actions.discussBuild)}${icons.arrow}</button>` })}${raceProgrammeContact()}<section class="section"><div class="container"><div class="filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="projects" placeholder="${esc(U().filters.searchProjects)}" aria-label="${esc(U().filters.searchProjects)}"></label><label class="select-control">${icons.filter}<span class="sr-only">${esc(U().filters.filterByCategory)}</span><select data-filter-select="projects" data-filter-attribute="category"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<span class="sr-only">${esc(U().filters.filterByMake)}</span><select data-filter-select="projects" data-filter-attribute="make"><option value="">${esc(U().common.allMakes)}</option>${makes.map(make => `<option value="${esc(make)}">${esc(make)}</option>`).join("")}</select></label></div><div class="project-grid" data-filter-grid="projects">${DATA.projects.map(projectCard).join("")}</div><div class="empty-state" data-filter-empty="projects" hidden>${esc(U().common.noResults)}</div></div></section>${ctaBlock(state.locale === "ar" ? "عندك مشروع مشابه؟" : "Planning a similar project?", state.locale === "ar" ? "أرسل السيارة والمواصفات الحالية والهدف والاستخدام والوقت حتى نراجع نطاق المشروع." : "Send the vehicle, current specification, objective, intended use and timing so the workshop can review the project scope.", U().actions.discussBuild, "Project Consultation")}`;
   }
 
   function projectPage(slug) {
@@ -461,7 +855,7 @@
     if (!base) return notFoundPage();
     const project = localizedProject(base);
     const related = DATA.projects.filter(item => item.slug !== slug && (item.make === base.make || item.category === base.category)).slice(0, 3);
-    return `${pageHero({ eyebrow: project.category, title: project.title, text: project.summary, media: project.cover, crumbs: [[U().nav.projects, "/projects"], [project.title]], meta: `${statusBadge(project.vehicle)}`, actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Project Consultation" data-context="${esc(project.title)}">${esc(U().actions.discussBuild)}${icons.arrow}</button>` })}<section class="section"><div class="container project-detail-layout"><div>${gallery(project.media || [], `project-${slug}`, project.title, { hero: true })}</div><aside class="project-summary"><div><span>${esc(U().common.vehicle)}</span><strong>${esc(project.vehicle)}</strong></div><div><span>${esc(U().common.category)}</span><strong>${esc(project.category)}</strong></div><div><span>${esc(U().common.projectObjective)}</span><p>${esc(project.objective)}</p></div>${tags(project.tags || [])}</aside></div></section><section class="section section-tone"><div class="container detail-two-column"><article class="content-panel"><span class="eyebrow">${esc(U().common.projectWork)}</span><h2>${state.locale === "ar" ? "الأعمال المؤكدة ضمن المشروع." : "Confirmed work within the project."}</h2>${featureList(project.work || [])}</article><article class="content-panel"><span class="eyebrow">${esc(U().common.recordedResults)}</span><h2>${state.locale === "ar" ? "نتائج وملاحظات موثقة." : "Documented results and observations."}</h2>${featureList(project.results || [])}<div class="notice">${esc(project.note)}</div></article></div></section><section class="section"><div class="container">${sectionHead(U().common.relatedProjects, state.locale === "ar" ? "مشاريع أخرى مرتبطة." : "Other related projects.")}<div class="project-grid">${related.map(projectCard).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? `ناقش مشروع مشابه لـ ${project.vehicle}.` : `Discuss a project similar to the ${project.vehicle}.`, state.locale === "ar" ? "أرسل مواصفات سيارتك الحالية والهدف المطلوب. ما يتم افتراض أن نفس القطع أو النتيجة تناسب سيارة ثانية." : "Submit your current vehicle specification and objective. The same parts or result are not assumed to suit another vehicle.", U().actions.discussBuild, "Project Consultation")}`;
+    return `${pageHero({ eyebrow: project.category, title: project.title, text: project.summary, media: project.cover, crumbs: [[U().nav.projects, "/projects"], [project.title]], meta: `${statusBadge(project.vehicle)}`, actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Project Consultation" data-context="${esc(project.title)}">${esc(U().actions.discussBuild)}${icons.arrow}</button>` })}<section class="section"><div class="container project-detail-layout"><div>${gallery(project.media || [], `project-${slug}`, project.title, { hero: true })}</div><aside class="project-summary"><div><span>${esc(U().common.vehicle)}</span><strong>${esc(project.vehicle)}</strong></div><div><span>${esc(U().common.category)}</span><strong>${esc(project.category)}</strong></div><div><span>${esc(U().common.projectObjective)}</span><p>${esc(project.objective)}</p></div>${tags(project.tags || [])}</aside></div></section><section class="section section-tone"><div class="container detail-two-column"><article class="content-panel"><span class="eyebrow">${esc(U().common.projectWork)}</span><h2>${state.locale === "ar" ? "الأعمال المؤكدة ضمن المشروع." : "Confirmed work within the project."}</h2>${featureList(project.work || [])}</article><article class="content-panel"><span class="eyebrow">${esc(U().common.recordedResults)}</span><h2>${state.locale === "ar" ? "نتائج موثقة." : "Documented results."}</h2>${featureList(project.results || [])}</article></div></section><section class="section"><div class="container">${sectionHead(U().common.relatedProjects, state.locale === "ar" ? "مشاريع أخرى مرتبطة." : "Other related projects.")}<div class="project-grid">${related.map(projectCard).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? `ناقش مشروع مشابه لـ ${project.vehicle}.` : `Discuss a project similar to the ${project.vehicle}.`, state.locale === "ar" ? "أرسل مواصفات سيارتك الحالية والهدف المطلوب. ما يتم افتراض أن نفس القطع أو النتيجة تناسب سيارة ثانية." : "Submit your current vehicle specification and objective. The same parts or result are not assumed to suit another vehicle.", U().actions.discussBuild, "Project Consultation")}`;
   }
 
   function partsPage() {
@@ -479,11 +873,12 @@
 
   function galleryPage() {
     const page = P().gallery;
-    const localized = DATA.media.map(item => mediaItem(item.id));
+    const galleryMedia = DATA.media.filter(item => item.showInGallery !== false);
+    const localized = galleryMedia.map(item => mediaItem(item.id));
     const categories = [...new Set(localized.map(item => item.category))];
     const makes = [...new Set(localized.map(item => item.make))];
-    state.galleries.archive = DATA.media.map(item => item.id);
-    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 20, crumbs: [[U().nav.gallery]], actions: `<a class="btn" href="${CONFIG.instagramUrl}" target="_blank" rel="noopener">${esc(U().actions.openInstagram)}${icons.instagram}</a>` })}<section class="section"><div class="container"><div class="filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="media" placeholder="${esc(U().filters.searchMedia)}" aria-label="${esc(U().filters.searchMedia)}"></label><label class="select-control">${icons.filter}<select data-filter-select="media" data-filter-attribute="category"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="media" data-filter-attribute="make"><option value="">${esc(U().common.allMakes)}</option>${makes.map(make => `<option value="${esc(make)}">${esc(make)}</option>`).join("")}</select></label></div><div class="media-grid" data-filter-grid="media">${DATA.media.map(item => mediaCard(item.id)).join("")}</div><div class="empty-state" data-filter-empty="media" hidden>${esc(U().common.noResults)}</div></div></section>${ctaBlock(state.locale === "ar" ? "حاب تناقش سيارة من الصور؟" : "Want to discuss a vehicle shown here?", state.locale === "ar" ? "اذكر اسم السيارة أو المشروع وأرسل تفاصيل سيارتك الحالية حتى نحدد الخدمة المناسبة." : "Reference the vehicle or project and submit your current vehicle details so the correct service can be identified.", U().actions.contactWorkshop, "Project Consultation")}`;
+    state.galleries.archive = galleryMedia.map(item => item.id);
+    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 20, crumbs: [[U().nav.gallery]], actions: `<a class="btn" href="${CONFIG.instagramUrl}" target="_blank" rel="noopener">${esc(U().actions.openInstagram)}${icons.instagram}</a>` })}<section class="section"><div class="container"><div class="filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="media" placeholder="${esc(U().filters.searchMedia)}" aria-label="${esc(U().filters.searchMedia)}"></label><label class="select-control">${icons.filter}<select data-filter-select="media" data-filter-attribute="category"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="media" data-filter-attribute="make"><option value="">${esc(U().common.allMakes)}</option>${makes.map(make => `<option value="${esc(make)}">${esc(make)}</option>`).join("")}</select></label></div><div class="media-grid" data-filter-grid="media">${galleryMedia.map(item => mediaCard(item.id)).join("")}</div><div class="empty-state" data-filter-empty="media" hidden>${esc(U().common.noResults)}</div></div></section>${ctaBlock(state.locale === "ar" ? "حاب تناقش سيارة من الصور؟" : "Want to discuss a vehicle shown here?", state.locale === "ar" ? "اذكر اسم السيارة أو المشروع وأرسل تفاصيل سيارتك الحالية حتى نحدد الخدمة المناسبة." : "Reference the vehicle or project and submit your current vehicle details so the correct service can be identified.", U().actions.contactWorkshop, "Project Consultation")}`;
   }
 
   function reviewsPage() {
@@ -497,6 +892,76 @@
       const local = localizedService(service);
       return `<a href="${routeUrl(serviceHref(local.slug))}"><span>${esc(local.kicker)}</span><strong>${esc(local.title)}</strong><small>${esc(local.summary)}</small></a>`;
     }).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? "ابدأ بالهدف الكامل، مو بقائمة قطع." : "Bring the complete objective—not just a parts list.", state.locale === "ar" ? "اشرح استخدام السيارة والمشكلة والهدف والحدود، وبعدها Projx Racing يحدد المسار المتكامل المناسب." : "Explain how the vehicle is used, the problem, the objective and the constraints. Projx Racing can then define the correct integrated route.", U().actions.contactWorkshop, "Workshop Consultation")}`;
+  }
+
+  function accountPage() {
+    const isAr = state.locale === "ar";
+    return `${pageHero({
+      eyebrow: isAr ? "حساب العميل" : "Customer account",
+      title: isAr ? "تسجيل الدخول أو إنشاء حساب." : "Sign in or create an account.",
+      text: isAr ? "بوابة آمنة لإدارة هوية العميل وبيانات الحساب. تقدر ترسل أي استفسار بدون تسجيل دخول." : "A secure portal for customer identity and account details. Website enquiries remain available without signing in.",
+      media: 20,
+      crumbs: [[isAr ? "حساب العميل" : "Customer account"]],
+      actions: `<a class="btn" href="${routeUrl("/contact")}">${esc(U().actions.contactWorkshop)}${icons.arrow}</a>`
+    })}<section class="section account-section"><div class="container account-layout"><aside class="account-intro"><span class="eyebrow">${esc(isAr ? "دخول آمن" : "Secure access")}</span><h2>${esc(isAr ? "حساب واحد للتواصل مع Projx Racing." : "One account for your Projx Racing access.")}</h2><p>${esc(isAr ? "التسجيل وتسجيل الدخول والتحقق من البريد واستعادة كلمة المرور تتم من خلال مزود هوية آمن. فريق الورشة ما يشوف كلمة المرور." : "Registration, sign-in, email verification and password recovery are handled by a secure identity provider. The workshop never sees your password.")}</p><ul class="feature-list"><li>${icons.check}<span>${esc(isAr ? "إنشاء حساب جديد أو تسجيل الدخول" : "Create a new account or sign in")}</span></li><li>${icons.check}<span>${esc(isAr ? "إدارة بيانات الحساب بأمان" : "Manage account details securely")}</span></li><li>${icons.check}<span>${esc(isAr ? "الاستفسارات متاحة بدون حساب" : "Enquiries remain available without an account")}</span></li></ul></aside><div class="account-panel"><div class="account-tabs" role="tablist" aria-label="${esc(isAr ? "خيارات الحساب" : "Account options")}"><button class="is-active" type="button" role="tab" aria-selected="true" data-action="account-mode" data-account-mode="sign-in">${esc(isAr ? "تسجيل الدخول" : "Sign in")}</button><button type="button" role="tab" aria-selected="false" data-action="account-mode" data-account-mode="sign-up">${esc(isAr ? "إنشاء حساب" : "Register")}</button></div><div id="account-auth-root" class="account-auth-root" data-account-mode="sign-in"><div class="account-loading" role="status">${esc(isAr ? "جاري تحميل بوابة الحساب الآمنة..." : "Loading the secure account portal...")}</div></div></div></div></section>`;
+  }
+
+  let clerkLoadPromise = null;
+  function loadAccountScript(src, attributes = {}) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${CSS.escape(src)}"]`);
+      if (existing?.dataset.loaded === "true") return resolve();
+      const script = existing || document.createElement("script");
+      if (!existing) {
+        script.src = src;
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        Object.entries(attributes).forEach(([key, value]) => script.setAttribute(key, value));
+        document.head.append(script);
+      }
+      script.addEventListener("load", () => { script.dataset.loaded = "true"; resolve(); }, { once: true });
+      script.addEventListener("error", () => reject(new Error("account_script_failed")), { once: true });
+    });
+  }
+
+  async function loadClerk() {
+    if (window.Clerk?.loaded) return window.Clerk;
+    if (clerkLoadPromise) return clerkLoadPromise;
+    const key = String(CONFIG.clerkPublishableKey || "").trim();
+    if (!/^pk_(?:test|live)_[A-Za-z0-9_-]+$/.test(key)) throw new Error("account_not_configured");
+    clerkLoadPromise = (async () => {
+      const domain = atob(key.split("_")[2]).slice(0, -1);
+      if (!/^[a-z0-9.-]+$/i.test(domain)) throw new Error("account_domain_invalid");
+      await loadAccountScript(`https://${domain}/npm/@clerk/ui@1/dist/ui.browser.js`);
+      await loadAccountScript(`https://${domain}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`, { "data-clerk-publishable-key": key });
+      await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } });
+      return window.Clerk;
+    })();
+    return clerkLoadPromise;
+  }
+
+  async function mountAccountPortal(mode = "sign-in") {
+    const root = document.getElementById("account-auth-root");
+    if (!root) return;
+    root.dataset.accountMode = mode;
+    root.innerHTML = `<div class="account-loading" role="status">${esc(state.locale === "ar" ? "جاري تحميل بوابة الحساب الآمنة..." : "Loading the secure account portal...")}</div>`;
+    try {
+      const clerk = await loadClerk();
+      if (!document.body.contains(root)) return;
+      root.innerHTML = "";
+      if (clerk.isSignedIn) {
+        root.innerHTML = `<div class="account-signed-in"><div><span>${esc(state.locale === "ar" ? "تم تسجيل الدخول" : "Signed in")}</span><strong>${esc(clerk.user?.fullName || clerk.user?.primaryEmailAddress?.emailAddress || (state.locale === "ar" ? "حساب العميل" : "Customer account"))}</strong></div><div id="account-user-button"></div><div id="account-user-profile"></div></div>`;
+        clerk.mountUserButton(document.getElementById("account-user-button"));
+        if (typeof clerk.mountUserProfile === "function") clerk.mountUserProfile(document.getElementById("account-user-profile"));
+      } else if (mode === "sign-up") {
+        clerk.mountSignUp(root, { routing: "hash" });
+      } else {
+        clerk.mountSignIn(root, { routing: "hash" });
+      }
+    } catch (error) {
+      const notConfigured = error?.message === "account_not_configured";
+      root.innerHTML = `<div class="account-setup-notice"><strong>${esc(state.locale === "ar" ? (notConfigured ? "بوابة الحساب جاهزة للربط" : "تعذر تحميل بوابة الحساب") : (notConfigured ? "Account portal ready to connect" : "Account portal could not load"))}</strong><p>${esc(state.locale === "ar" ? (notConfigured ? "واجهة الحساب مكتملة، ويحتاج تفعيل التسجيل ربط Clerk بمشروع Vercel وإضافة المفتاح العام فقط." : "حاول مرة ثانية أو تواصل مع الورشة مباشرة.") : (notConfigured ? "The account interface is complete. Activating registration only requires connecting Clerk to the Vercel project and adding its publishable key." : "Try again or contact the workshop directly."))}</p><a class="btn btn-sm" href="${routeUrl("/contact")}">${esc(U().actions.contactWorkshop)}${icons.arrow}</a></div>`;
+    }
   }
 
   function genericForm(type = "General Enquiry", context = "") {
@@ -549,6 +1014,7 @@
     else if (path === "/reviews") html = reviewsPage();
     else if (path === "/about") html = aboutPage();
     else if (path === "/contact") html = contactPage();
+    else if (path === "/account") html = accountPage();
     else if (path === "/faq") html = faqPage();
     else if (path.startsWith("/legal/")) html = legalPage(path.split("/")[2]);
     else html = notFoundPage();
@@ -557,6 +1023,8 @@
     renderFooter();
     updateThemeControls();
     setupFilters();
+    setupTuningFinder();
+    if (path === "/account") mountAccountPortal("sign-in");
     state.galleries["home-capability"] = [20, 19, 24, 23];
     state.galleries["about-facility"] = [20, 19, 24, 23, 17];
     if (PREVIEW_MODE) {
@@ -854,12 +1322,72 @@
   }
 
   document.addEventListener("click", event => {
+    const localHashLink = event.target.closest('a[href^="#"]');
+    const localHash = localHashLink?.getAttribute("href") || "";
+    if (/^#[A-Za-z][\w:.-]*$/.test(localHash)) {
+      const section = document.getElementById(localHash.slice(1));
+      if (section) {
+        event.preventDefault();
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (localHash === "#main-content") window.setTimeout(() => section.focus({ preventScroll: true }), 450);
+      }
+      return;
+    }
     const target = event.target.closest("[data-action]");
     if (!target) return;
     const action = target.dataset.action;
+    if (action === "toggle-review-markers") {
+      const markersHidden = document.body.classList.toggle("review-markers-hidden");
+      document.querySelectorAll('[data-action="toggle-review-markers"]').forEach(button => {
+        button.setAttribute("aria-pressed", String(!markersHidden));
+        const label = button.querySelector('[data-role="review-toggle-label"]');
+        if (label) label.textContent = markersHidden ? button.dataset.showLabel : button.dataset.hideLabel;
+      });
+      return;
+    }
     if (action === "toggle-menu") { setMobileOpen(!state.mobileOpen); return; }
     if (action === "close-menu") { setMobileOpen(false); return; }
     if (action === "toggle-theme") { applyTheme(currentTheme() === "dark" ? "light" : "dark"); renderHeader(); return; }
+    if (action === "scroll-to") {
+      document.getElementById(target.dataset.target || "")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (action === "account-mode") {
+      const mode = target.dataset.accountMode === "sign-up" ? "sign-up" : "sign-in";
+      document.querySelectorAll('[data-action="account-mode"]').forEach(button => {
+        const active = button === target;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", String(active));
+      });
+      mountAccountPortal(mode);
+      return;
+    }
+    if (action === "select-engine-family") {
+      const select = document.querySelector('[data-role="engine-family"]');
+      if (select) { select.value = target.dataset.engineFamily || select.value; updateEngineFamilyForm(select); }
+      document.getElementById("engine-consultation")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => select?.focus(), 450);
+      return;
+    }
+    if (action === "select-engine-service") {
+      const select = document.querySelector('[data-role="engine-service"]');
+      if (select) { select.value = target.dataset.engineService || select.value; updateEngineSelectionPhoto(select.closest("[data-engine-consultation]")); }
+      document.getElementById("engine-consultation")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => select?.focus(), 450);
+      return;
+    }
+    if (action === "select-engine-package") {
+      const packageSelect = document.querySelector('[data-role="engine-package"]');
+      const familySelect = document.querySelector('[data-role="engine-family"]');
+      const serviceSelect = document.querySelector('[data-role="engine-service"]');
+      if (packageSelect) packageSelect.value = target.dataset.enginePackage || packageSelect.value;
+      if (familySelect && target.dataset.engineFamily) { familySelect.value = target.dataset.engineFamily; updateEngineFamilyForm(familySelect); }
+      if (serviceSelect && target.dataset.engineService) serviceSelect.value = target.dataset.engineService;
+      updateEngineSelectionPhoto(packageSelect?.closest("[data-engine-consultation]"));
+      document.getElementById("engine-consultation")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => packageSelect?.focus(), 450);
+      return;
+    }
     if (action === "open-form") { openForm(target.dataset.formType || "General Enquiry", target.dataset.context || ""); return; }
     if (action === "close-modal") { if (event.target === target || target.closest("button")) closeModal(); return; }
     if (action === "open-quote") { openQuote(); return; }
@@ -895,6 +1423,12 @@
   document.addEventListener("change", event => {
     const engineSelect = event.target.closest('[data-role="platform-engine"]');
     if (engineSelect) updatePlatformModels(engineSelect);
+    const finderSelect = event.target.closest("[data-tuning-finder] select");
+    if (finderSelect) updateTuningFinder(finderSelect.closest("[data-tuning-finder]"));
+    const engineFamilySelect = event.target.closest('[data-role="engine-family"]');
+    if (engineFamilySelect) updateEngineFamilyForm(engineFamilySelect);
+    const engineFlowSelect = event.target.closest('[data-role="engine-service"], [data-role="engine-package"]');
+    if (engineFlowSelect) updateEngineSelectionPhoto(engineFlowSelect.closest("[data-engine-consultation]"));
   });
 
   document.addEventListener("click", event => {

@@ -74,7 +74,7 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  const to = clean(process.env.ENQUIRY_TO_EMAIL, 500);
+  const to = clean(process.env.ENQUIRY_TO_EMAIL || 'projxracing@gmail.com', 500);
   const from = clean(process.env.ENQUIRY_FROM_EMAIL, 500);
   if (!apiKey || !to || !from) return json(res, 503, { error: 'backend_not_configured' });
 
