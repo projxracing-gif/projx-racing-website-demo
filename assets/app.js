@@ -76,6 +76,7 @@
     locale: document.body.dataset.locale === "ar" ? "ar" : "en",
     route: normalizeRoute(document.body.dataset.route || "/"),
     quote: safeParse(storage.get("projxQuote"), []),
+    partsVehicle: safeParse(storage.get("projxPartsVehicle"), null),
     mobileOpen: false,
     lightbox: null,
     galleries: Object.create(null),
@@ -354,10 +355,22 @@
     return `<article class="project-card photo-card filter-item" data-category="${esc(local.category)}" data-make="${esc(local.make)}" data-search="${esc(search)}"><a href="${routeUrl(`/projects/${local.slug}`)}" class="photo-card-media project-card-media">${mediaImage(local.cover, { thumb: true, className: "cover-img" })}<span class="photo-overlay"></span><span class="card-index">${compactNumber(index + 1)}</span><span class="card-kicker">${esc(local.vehicle)}</span></a><div class="card-body"><span class="mini-label">${esc(local.category)}</span><h3><a href="${routeUrl(`/projects/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><div class="card-footer"><a class="text-link" href="${routeUrl(`/projects/${local.slug}`)}">${esc(U().actions.viewProject)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-kind="Project Consultation" data-title="${esc(local.title)}" data-details="${esc(local.vehicle)}" aria-label="${esc(`${U().actions.addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
+  function normalizedBrandWords(value = "") {
+    return String(value).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  }
+
+  function brandsForPart(partBrand = "") {
+    const sourceWords = new Set(normalizedBrandWords(partBrand));
+    const generic = new Set(["and", "brands", "brakes", "cooling", "designs", "ecu", "engineering", "flashtool", "motorsport", "motorsports", "performance", "products", "racing", "supported", "suspension", "tuning", "usa", "wheels"]);
+    const allowedShort = new Set(["ap", "hp", "kw", "st"]);
+    return DATA.brands.filter(brand => normalizedBrandWords(brand.name).some(word => !generic.has(word) && (word.length >= 3 || allowedShort.has(word)) && sourceWords.has(word)));
+  }
+
   function partCard(part, index) {
     const local = localizedPart(part, index);
     const search = [local.title, local.category, local.brand, local.vehicle, local.summary].join(" ").toLowerCase();
-    return `<article class="part-card filter-item" data-category="${esc(local.category)}" data-search="${esc(search)}"><div class="part-media">${mediaImage(local.media, { thumb: true, className: "cover-img" })}<span>${statusBadge(local.status)}</span></div><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3>${esc(local.title)}</h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(U().common.quotation)}</dt><dd>${esc(local.price)}</dd></div></dl><div class="card-footer"><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry" data-context="${esc(local.title)}">${esc(U().actions.enquire)}${icons.arrow}</button><button class="icon-action" type="button" data-action="add-quote" data-kind="Parts Enquiry" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}" aria-label="${esc(`${U().actions.addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
+    const brandKeys = brandsForPart(part.brand).map(brand => brand.name.toLowerCase()).join("|");
+    return `<article class="part-card filter-item" data-category="${esc(local.category)}" data-brand="${esc(brandKeys)}" data-search="${esc(search)}"><div class="part-media">${mediaImage(local.media, { thumb: true, className: "cover-img" })}<span>${statusBadge(local.status)}</span></div><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3>${esc(local.title)}</h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(U().common.quotation)}</dt><dd>${esc(local.price)}</dd></div></dl><div class="card-footer"><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry" data-context="${esc(local.title)}">${esc(U().actions.enquire)}${icons.arrow}</button><button class="icon-action" type="button" data-action="add-quote" data-kind="Parts Enquiry" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}" aria-label="${esc(`${U().actions.addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function brandCard(brand) {
@@ -367,15 +380,16 @@
     return `<article class="brand-card filter-item" data-category="${esc(category)}" data-search="${esc(search)}">${brandLogoMarkup(brand)}<div><h3 dir="ltr">${esc(brand.name)}</h3><p>${esc(category)}</p>${statusBadge(relationship)}</div><button class="icon-action" type="button" data-action="open-form" data-form-type="Brand / Parts Enquiry" data-context="${esc(brand.name)}" aria-label="${esc(`${U().actions.enquire}: ${brand.name}`)}">${icons.arrow}</button></article>`;
   }
 
-  function brandLogoMarkup(brand, { compact = false } = {}) {
+  function brandLogoMarkup(brand, { compact = false, inline = false } = {}) {
     const logos = BRAND_LOGOS[brand.name] || [];
     const compactClass = compact ? " is-compact" : "";
     const pairClass = logos.length > 1 ? " is-pair" : "";
+    const tag = inline ? "span" : "div";
     if (!logos.length) {
       const initials = brand.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase();
-      return `<div class="brand-mark${compactClass}" aria-hidden="true">${esc(initials)}</div>`;
+      return `<${tag} class="brand-mark${compactClass}" aria-hidden="true">${esc(initials)}</${tag}>`;
     }
-    return `<div class="brand-mark brand-logo-mark${compactClass}${pairClass}" aria-hidden="true">${logos.map(source => `<img src="${esc(source)}" alt="" loading="lazy" decoding="async">`).join("")}</div>`;
+    return `<${tag} class="brand-mark brand-logo-mark${compactClass}${pairClass}" aria-hidden="true">${logos.map(source => `<img src="${esc(source)}" alt="" loading="lazy" decoding="async">`).join("")}</${tag}>`;
   }
 
   function platformCard(platform) {
@@ -917,11 +931,89 @@
     return `${pageHero({ eyebrow: project.category, title: project.title, text: project.summary, media: project.cover, crumbs: [[U().nav.projects, "/projects"], [project.title]], meta: `${statusBadge(project.vehicle)}`, actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Project Consultation" data-context="${esc(project.title)}">${esc(U().actions.discussBuild)}${icons.arrow}</button>` })}<section class="section"><div class="container project-detail-layout"><div>${gallery(project.media || [], `project-${slug}`, project.title, { hero: true })}</div><aside class="project-summary"><div><span>${esc(U().common.vehicle)}</span><strong>${esc(project.vehicle)}</strong></div><div><span>${esc(U().common.category)}</span><strong>${esc(project.category)}</strong></div><div><span>${esc(U().common.projectObjective)}</span><p>${esc(project.objective)}</p></div>${tags(project.tags || [])}</aside></div></section><section class="section section-tone"><div class="container detail-two-column"><article class="content-panel"><span class="eyebrow">${esc(U().common.projectWork)}</span><h2>${state.locale === "ar" ? "الأعمال المؤكدة ضمن المشروع." : "Confirmed work within the project."}</h2>${featureList(project.work || [])}</article><article class="content-panel"><span class="eyebrow">${esc(U().common.recordedResults)}</span><h2>${state.locale === "ar" ? "نتائج موثقة." : "Documented results."}</h2>${featureList(project.results || [])}</article></div></section><section class="section"><div class="container">${sectionHead(U().common.relatedProjects, state.locale === "ar" ? "مشاريع أخرى مرتبطة." : "Other related projects.")}<div class="project-grid">${related.map(projectCard).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? `ناقش مشروع مشابه لـ ${project.vehicle}.` : `Discuss a project similar to the ${project.vehicle}.`, state.locale === "ar" ? "أرسل مواصفات سيارتك الحالية والهدف المطلوب. ما يتم افتراض أن نفس القطع أو النتيجة تناسب سيارة ثانية." : "Submit your current vehicle specification and objective. The same parts or result are not assumed to suit another vehicle.", U().actions.discussBuild, "Project Consultation")}`;
   }
 
+  function partsVehicleLabel() {
+    const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : null;
+    if (!vehicle) return "";
+    return [vehicle.year, vehicle.make, vehicle.model, vehicle.engine].map(value => cleanText(value || "", 80)).filter(Boolean).join(" · ");
+  }
+
+  function partsVehicleSummaryMarkup() {
+    const finder = P().parts.finder;
+    const label = partsVehicleLabel();
+    if (!label) return `<span>${icons.user}</span><div><strong>${esc(finder.noVehicle)}</strong><small>${esc(finder.noVehicleText)}</small></div>`;
+    return `<span>${icons.check}</span><div><strong>${esc(finder.selectedVehicle)}</strong><bdi>${esc(label)}</bdi><small>${esc(finder.selectedVehicleText)}</small></div><button class="text-link" type="button" data-action="clear-parts-vehicle">${esc(finder.clearVehicle)}</button>`;
+  }
+
+  function renderPartsVehicleSummary() {
+    const summary = document.querySelector("[data-parts-vehicle-summary]");
+    if (!summary) return;
+    summary.classList.toggle("is-active", Boolean(partsVehicleLabel()));
+    summary.innerHTML = partsVehicleSummaryMarkup();
+  }
+
+  function savePartsVehicle(form) {
+    if (!form.reportValidity()) return;
+    const fields = new FormData(form);
+    state.partsVehicle = {
+      year: cleanText(fields.get("year"), 4),
+      make: cleanText(fields.get("make"), 80),
+      model: cleanText(fields.get("model"), 80),
+      engine: cleanText(fields.get("engine"), 80)
+    };
+    storage.set("projxPartsVehicle", JSON.stringify(state.partsVehicle));
+    renderPartsVehicleSummary();
+    showToast(P().parts.finder.vehicleSaved, partsVehicleLabel());
+    document.getElementById("parts-categories")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function partsPage() {
     const page = P().parts;
+    const finder = page.finder;
     const parts = DATA.parts.map(localizedPart);
     const categories = [...new Set(parts.map(part => part.category))];
-    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.arrow}</button>` })}<section class="section"><div class="container"><div class="notice notice-info"><strong>${esc(page.noticeHeading)}</strong> ${esc(page.noticeText)}</div><div class="filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label></div><div class="parts-grid" data-filter-grid="parts">${DATA.parts.map(partCard).join("")}</div><div class="empty-state" data-filter-empty="parts" hidden>${esc(U().common.noResults)}</div></div></section>${ctaBlock(state.locale === "ar" ? "عندك رقم قطعة محدد؟" : "Have an exact part number?", state.locale === "ar" ? "أرسل رقم القطعة والسيارة وVIN عند الحاجة ومكان التسليم وخيار التركيب." : "Send the part number, vehicle, VIN where required, delivery location and whether installation is needed.", U().actions.enquire, "Parts Enquiry")}`;
+    const brandCounts = DATA.brands.map(brand => ({ brand, count: DATA.parts.filter(part => brandsForPart(part.brand).some(match => match.name === brand.name)).length })).filter(item => item.count > 0);
+    const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : {};
+    const makes = ["BMW", "Chevrolet / GM", "Ford", "Honda", "Nissan", "Porsche", "Subaru", "Toyota"];
+    const value = key => esc(vehicle[key] || "");
+    const categoryTiles = categories.map((category, index) => {
+      const count = parts.filter(part => part.category === category).length;
+      return `<button class="parts-category-card" type="button" data-action="select-parts-category" data-parts-category="${esc(category)}" aria-pressed="false"><span>${compactNumber(index + 1)}</span><strong>${esc(category)}</strong><small>${count} ${esc(finder.items)}</small>${icons.arrow}</button>`;
+    }).join("");
+    const brandTiles = brandCounts.map(({ brand, count }) => `<button class="parts-brand-card" type="button" data-action="select-parts-brand" data-parts-brand="${esc(brand.name.toLowerCase())}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${count} ${esc(finder.items)}</small></span>${icons.arrow}</button>`).join("");
+
+    return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<a class="btn" href="#parts-vehicle">${esc(finder.byVehicle)}${icons.arrow}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.quote}</button>` })}
+      <div data-parts-shop>
+        <section class="section parts-entry-section"><div class="container">
+          ${sectionHead(finder.overviewEyebrow, finder.overviewHeading, finder.overviewText)}
+          <nav class="parts-paths" aria-label="${esc(finder.overviewEyebrow)}">
+            <a href="#parts-vehicle"><span>01</span><strong>${esc(finder.byVehicle)}</strong><small>${esc(finder.vehiclePathText)}</small>${icons.arrow}</a>
+            <a href="#parts-categories"><span>02</span><strong>${esc(finder.byCategory)}</strong><small>${esc(finder.categoryPathText)}</small>${icons.arrow}</a>
+            <a href="#parts-brands"><span>03</span><strong>${esc(finder.byBrand)}</strong><small>${esc(finder.brandPathText)}</small>${icons.arrow}</a>
+          </nav>
+          <div class="parts-vehicle-panel" id="parts-vehicle">
+            <div class="parts-vehicle-copy"><span class="mini-label">${esc(finder.vehicleEyebrow)}</span><h2>${esc(finder.vehicleHeading)}</h2><p>${esc(finder.vehicleText)}</p></div>
+            <form class="parts-vehicle-form" data-parts-vehicle-form>
+              <label><span>${esc(finder.year)}</span><input class="input" name="year" value="${value("year")}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="${esc(finder.yearPlaceholder)}" required></label>
+              <label><span>${esc(finder.make)}</span><select class="select" name="make" required><option value="">${esc(finder.chooseMake)}</option>${makes.map(make => `<option value="${esc(make)}" ${vehicle.make === make ? "selected" : ""}>${esc(make)}</option>`).join("")}<option value="Other" ${vehicle.make === "Other" ? "selected" : ""}>${esc(finder.otherMake)}</option></select></label>
+              <label><span>${esc(finder.model)}</span><input class="input" name="model" value="${value("model")}" maxlength="80" placeholder="${esc(finder.modelPlaceholder)}" required></label>
+              <label><span>${esc(finder.engine)}</span><input class="input" name="engine" value="${value("engine")}" maxlength="80" placeholder="${esc(finder.enginePlaceholder)}"></label>
+              <button class="btn" type="submit">${esc(finder.saveVehicle)}${icons.arrow}</button>
+            </form>
+            <div class="parts-selected-vehicle ${partsVehicleLabel() ? "is-active" : ""}" data-parts-vehicle-summary>${partsVehicleSummaryMarkup()}</div>
+          </div>
+        </div></section>
+        <section class="section section-tone" id="parts-categories"><div class="container">${sectionHead(finder.categoryEyebrow, finder.categoryHeading, finder.categoryText)}<div class="parts-category-grid">${categoryTiles}</div></div></section>
+        <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
+        <section class="section section-tone" id="parts-results"><div class="container">
+          ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count"><span data-parts-result-count>${DATA.parts.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
+          <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
+          <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${brandCounts.map(({ brand }) => `<option value="${esc(brand.name.toLowerCase())}">${esc(brand.name)}</option>`).join("")}</select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
+          <div class="parts-grid" data-filter-grid="parts">${DATA.parts.map(partCard).join("")}</div>
+          <div class="empty-state" data-filter-empty="parts" hidden><p>${esc(U().common.noResults)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(finder.requestUnlisted)}${icons.arrow}</button></div>
+          <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
+        </div></section>
+      </div>
+      ${ctaBlock(state.locale === "ar" ? "عندك رقم قطعة محدد؟" : "Have an exact part number?", state.locale === "ar" ? "أرسل رقم القطعة والسيارة وVIN عند الحاجة ومكان التسليم وخيار التركيب." : "Send the part number, vehicle, VIN where required, delivery location and whether installation is needed.", U().actions.enquire, "Parts Enquiry")}`;
   }
 
   function brandsPage() {
@@ -1110,7 +1202,8 @@
       const selectMatch = selects.every(select => {
         if (!select.value) return true;
         const attribute = select.dataset.filterAttribute;
-        return (item.dataset[attribute] || "") === select.value;
+        const itemValue = item.dataset[attribute] || "";
+        return select.dataset.filterMatch === "includes" ? itemValue.split("|").includes(select.value) : itemValue === select.value;
       });
       const show = searchMatch && selectMatch;
       item.hidden = !show;
@@ -1118,6 +1211,38 @@
     });
     const empty = document.querySelector(`[data-filter-empty="${CSS.escape(group)}"]`);
     if (empty) empty.hidden = visible > 0;
+    if (group === "parts") updatePartsFilterState(visible);
+  }
+
+  function updatePartsFilterState(visible) {
+    const count = document.querySelector("[data-parts-result-count]");
+    if (count) count.textContent = String(visible);
+    const category = document.querySelector('[data-filter-select="parts"][data-filter-attribute="category"]')?.value || "";
+    const brand = document.querySelector('[data-filter-select="parts"][data-filter-attribute="brand"]')?.value || "";
+    document.querySelectorAll("[data-parts-category]").forEach(button => {
+      const active = button.dataset.partsCategory === category;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    document.querySelectorAll("[data-parts-brand]").forEach(button => {
+      const active = button.dataset.partsBrand === brand;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
+
+  function selectPartsFilter(attribute, value) {
+    const select = document.querySelector(`[data-filter-select="parts"][data-filter-attribute="${attribute}"]`);
+    if (!select) return;
+    select.value = select.value === value ? "" : value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("parts-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function clearPartsFilters() {
+    document.querySelectorAll('[data-filter-search="parts"], [data-filter-select="parts"]').forEach(control => { control.value = ""; });
+    const search = document.querySelector('[data-filter-search="parts"]');
+    if (search) applyFilter({ currentTarget: search });
   }
 
   function currentTheme() { return document.documentElement.dataset.theme === "light" ? "light" : "dark"; }
@@ -1447,12 +1572,29 @@
       window.setTimeout(() => packageSelect?.focus(), 450);
       return;
     }
-    if (action === "open-form") { openForm(target.dataset.formType || "General Enquiry", target.dataset.context || ""); return; }
+    if (action === "select-parts-category") { selectPartsFilter("category", target.dataset.partsCategory || ""); return; }
+    if (action === "select-parts-brand") { selectPartsFilter("brand", target.dataset.partsBrand || ""); return; }
+    if (action === "clear-parts-filters") { clearPartsFilters(); return; }
+    if (action === "clear-parts-vehicle") {
+      state.partsVehicle = null;
+      storage.remove("projxPartsVehicle");
+      document.querySelector("[data-parts-vehicle-form]")?.reset();
+      renderPartsVehicleSummary();
+      showToast(P().parts.finder.vehicleCleared);
+      return;
+    }
+    if (action === "open-form") {
+      const selectedVehicle = currentPath() === "/parts" && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
+      const context = [target.dataset.context || "", selectedVehicle].filter(Boolean).join(" | ");
+      openForm(target.dataset.formType || "General Enquiry", context);
+      return;
+    }
     if (action === "close-modal") { if (event.target === target || target.closest("button")) closeModal(); return; }
     if (action === "open-quote") { openQuote(); return; }
     if (action === "close-quote") { closeQuote(); return; }
     if (action === "add-quote") {
-      addQuote({ id: `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", details: target.dataset.details || "" });
+      const selectedVehicle = currentPath() === "/parts" && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
+      addQuote({ id: `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", details: [target.dataset.details || "", selectedVehicle].filter(Boolean).join(" | ") });
       return;
     }
     if (action === "remove-quote") { state.quote = state.quote.filter(item => item.id !== target.dataset.id); saveQuote(); renderQuoteDrawer(); return; }
@@ -1473,6 +1615,12 @@
   });
 
   document.addEventListener("submit", event => {
+    const vehicleForm = event.target.closest("[data-parts-vehicle-form]");
+    if (vehicleForm) {
+      event.preventDefault();
+      savePartsVehicle(vehicleForm);
+      return;
+    }
     const form = event.target.closest("[data-enquiry-form]");
     if (!form) return;
     event.preventDefault();

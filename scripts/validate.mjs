@@ -139,6 +139,9 @@ for (const logo of brandLogoPaths) {
 }
 assert(data.tuningPlatforms.mhd.tuneTypes.includes('xHP Transmission Tune — Compatibility Review'), 'MHD/xHP transmission tune option is missing.');
 assert(translations.ar.tuning.mhd.tuneTypes.includes('برمجة قير xHP — مراجعة التوافق'), 'Arabic MHD/xHP transmission tune option is missing.');
+assert(appSource.includes('data-parts-shop') && appSource.includes('data-parts-vehicle-form'), 'Vehicle-first parts finder is missing.');
+assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
+assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
 
 for (const locale of ['en', 'ar']) {
   const t = translations[locale];
@@ -148,6 +151,7 @@ for (const locale of ['en', 'ar']) {
   assert(Object.keys(t.projects || {}).length === data.projects.length, `${locale}: incomplete project translations.`);
   if (locale === 'ar') assert(Object.keys(t.media || {}).length === data.media.length, `${locale}: incomplete media translations.`);
   assert((t.parts || []).length === data.parts.length, `${locale}: incomplete parts translations.`);
+  assert(t.pages?.parts?.finder?.byVehicle && t.pages?.parts?.finder?.byCategory && t.pages?.parts?.finder?.byBrand, `${locale}: incomplete parts-finder translations.`);
   assert(Object.keys(t.tuning || {}).length === Object.keys(data.tuningPlatforms).length, `${locale}: incomplete tuning translations.`);
 }
 
