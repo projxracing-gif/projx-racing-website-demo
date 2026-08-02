@@ -2059,6 +2059,7 @@ window.PROJX_TRANSLATIONS.ar = {
     "Performance Parts / Tuning": "قطع أداء / برمجة",
     "ECU Tuning": "برمجة ECU",
     "Transmission Tuning": "برمجة القير",
+    "Race Parts / Fabrication": "قطع سباق / تصنيع",
     "European Performance Parts": "قطع أداء أوروبية",
     "European OEM / Performance Parts": "قطع OEM وأداء أوروبية",
     "Suspension / Bushings / Arms": "Suspension / Bushings / Arms",

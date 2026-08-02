@@ -33,6 +33,7 @@
     "AMS Performance": ["assets/brand/partners/ams-performance.png"],
     "MHD Tuning": ["assets/brand/partners/mhd-tuning.png"],
     "xHP Flashtool": ["assets/brand/partners/xhp-flashtool.png"],
+    "Motion Raceworks": ["assets/brand/partners/motion-raceworks.png"],
     "ECS Tuning": ["assets/brand/partners/ecs-tuning.png"],
     "FCP Euro": ["assets/brand/partners/fcp-euro.png"],
     "Vivid Racing": ["assets/brand/partners/vivid-racing.png"],

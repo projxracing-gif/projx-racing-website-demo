@@ -2367,8 +2367,14 @@ window.PROJX_DATA = {
     {
       "name": "xHP Flashtool",
       "category": "Transmission Tuning",
-      "relationship": "Supported Platform",
+      "relationship": "Dealer",
       "description": "Transmission calibration option for compatible S55, B58 and S58 applications, subject to transmission, licence and software support review."
+    },
+    {
+      "name": "Motion Raceworks",
+      "category": "Race Parts / Fabrication",
+      "relationship": "Dealer",
+      "description": "Race-car, engine, fabrication and performance components supplied by application and part-number review."
     },
     {
       "name": "ECS Tuning",

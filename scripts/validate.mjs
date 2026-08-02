@@ -130,6 +130,9 @@ assert(data.projects.length === 12, `Expected 12 project records; found ${data.p
 assert(data.brands.length >= 44, `Expected at least 44 brand records; found ${data.brands.length}.`);
 assert(!Object.hasOwn(data, 'engineProducts'), 'Removed engine-product catalogue remains in data.js.');
 for (const brand of data.brands) assert(brandLogoNames.has(brand.name), `Brand logo mapping is missing: ${brand.name}`);
+for (const dealerName of ['xHP Flashtool', 'Motion Raceworks', 'ECS Tuning']) {
+  assert(data.brands.some(brand => brand.name === dealerName && brand.relationship === 'Dealer'), `${dealerName} is not marked as a dealer.`);
+}
 for (const logo of brandLogoPaths) {
   assert(fs.existsSync(path.join(repo, logo)), `Brand logo asset is missing: ${logo}`);
   assert(fs.existsSync(path.join(dist, logo)), `Brand logo was not copied to production: ${logo}`);
