@@ -120,11 +120,22 @@ for (const locale of ['en', 'ar']) {
 }
 
 const { PROJX_DATA: data, PROJX_TRANSLATIONS: translations } = loadProjectData();
+const appSource = fs.readFileSync(path.join(repo, 'assets/app.js'), 'utf8');
+const brandLogoBlock = appSource.match(/const BRAND_LOGOS = Object\.freeze\(\{([\s\S]*?)\n\s*\}\);/)?.[1] || '';
+const brandLogoNames = new Set([...brandLogoBlock.matchAll(/^\s+"([^"]+)":/gm)].map(match => JSON.parse(`"${match[1]}"`)));
+const brandLogoPaths = [...new Set([...brandLogoBlock.matchAll(/"(assets\/brand\/partners\/[^"]+)"/g)].map(match => match[1]))];
 assert(data.media.length >= 50, `Expected at least 50 supplied media records; found ${data.media.length}.`);
 assert(data.services.length === 13, `Expected 13 service records; found ${data.services.length}.`);
 assert(data.projects.length === 12, `Expected 12 project records; found ${data.projects.length}.`);
 assert(data.brands.length >= 44, `Expected at least 44 brand records; found ${data.brands.length}.`);
 assert(!Object.hasOwn(data, 'engineProducts'), 'Removed engine-product catalogue remains in data.js.');
+for (const brand of data.brands) assert(brandLogoNames.has(brand.name), `Brand logo mapping is missing: ${brand.name}`);
+for (const logo of brandLogoPaths) {
+  assert(fs.existsSync(path.join(repo, logo)), `Brand logo asset is missing: ${logo}`);
+  assert(fs.existsSync(path.join(dist, logo)), `Brand logo was not copied to production: ${logo}`);
+}
+assert(data.tuningPlatforms.mhd.tuneTypes.includes('xHP Transmission Tune — Compatibility Review'), 'MHD/xHP transmission tune option is missing.');
+assert(translations.ar.tuning.mhd.tuneTypes.includes('برمجة قير xHP — مراجعة التوافق'), 'Arabic MHD/xHP transmission tune option is missing.');
 
 for (const locale of ['en', 'ar']) {
   const t = translations[locale];
@@ -178,6 +189,7 @@ if (failures.length) {
 }
 console.log(`Validation passed: ${routeManifest.length / 2} routes × 2 languages, ${htmlFiles.length} HTML files and ${distFiles.length} production files.`);
 console.log(`Content passed: ${data.services.length} services, ${data.projects.length} verified projects, ${data.brands.length} brands and ${data.media.length} supplied images.`);
+console.log(`Brand logos passed: ${brandLogoNames.size} mapped brands and ${brandLogoPaths.length} local logo assets.`);
 console.log('Themes passed: complete light/dark token sets, early theme bootstrap and RTL-specific layout rules detected.');
 console.log(`Source package passed: ${sourceFiles.length} files, ready for Git-based GitHub upload.`);
 warnings.forEach(item => console.warn(`Warning: ${item}`));

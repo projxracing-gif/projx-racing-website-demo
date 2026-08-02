@@ -753,12 +753,20 @@ html[lang^="ar"] .review-toolbar-title, html[lang^="ar"] .review-key, html[lang^
 .part-body dt { color: var(--muted-2); font-size: .75rem; }
 .part-body dd { margin: 0; color: var(--text); font-size: .78rem; font-weight: 700; text-align: end; }
 .brands-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.brand-card { display: grid; min-height: 126px; padding: 17px; grid-template-columns: 58px 1fr auto; gap: 15px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
-.brand-mark { display: grid; width: 58px; height: 58px; place-items: center; border-radius: 14px; color: #fff; background: linear-gradient(145deg, var(--red), var(--red-deep)); font-size: 1rem; font-weight: 950; }
+.brand-card { display: grid; min-height: 132px; padding: 17px; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 15px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.brand-mark { display: grid; width: 76px; height: 64px; place-items: center; overflow: hidden; border-radius: 14px; color: #fff; background: linear-gradient(145deg, var(--red), var(--red-deep)); font-size: 1rem; font-weight: 950; }
+.brand-logo-mark { padding: 8px; border: 1px solid rgba(10,14,20,.12); background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.brand-logo-mark img { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; }
+.brand-logo-mark.is-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 7px; }
+.brand-logo-mark.is-pair img { max-height: 40px; }
 .brand-card h3 { margin: 0; color: var(--text-strong); font-size: 1rem; }
 .brand-card p { margin: 2px 0 7px; color: var(--muted); font-size: .75rem; }
-.brand-strip { display: flex; flex-wrap: wrap; gap: 10px; }
-.brand-strip span { padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface); font-size: .78rem; font-weight: 750; }
+.brand-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.brand-strip-item { display: grid; min-width: 0; min-height: 76px; padding: 10px; grid-template-columns: 56px minmax(0, 1fr); gap: 11px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.brand-logo-mark.is-compact { width: 56px; height: 54px; padding: 7px; border-radius: 11px; }
+.brand-strip-copy { display: grid; min-width: 0; gap: 3px; }
+.brand-strip-copy strong { overflow: hidden; color: var(--text-strong); font-size: .79rem; text-overflow: ellipsis; white-space: nowrap; }
+.brand-strip-copy small { color: var(--muted); font-size: .68rem; line-height: 1.35; }
 
 /* Filters */
 .filter-bar {
@@ -1001,6 +1009,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .header-tools { margin-inline-start: auto; }
   .card-grid, .project-grid, .parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brands-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brand-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .process-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -1040,6 +1049,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .cta-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-bar { grid-template-columns: 1fr 1fr; }
   .filter-bar .search-control { grid-column: 1 / -1; }
+  .brand-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 680px) {
@@ -1078,6 +1088,9 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .review-hero-action > .review-badge { inset-block-start: -48px; min-width: 0; width: min(280px, 100%); }
   .section-head h2, .feature-copy h2, .content-panel h2, .contact-form-panel h2, .form-feature h2, .about-intro h2 { font-size: clamp(2rem, 10vw, 3.3rem); }
   .card-grid, .project-grid, .parts-grid, .platform-grid, .engine-option-grid, .capability-grid, .brands-grid, .review-source-grid, .process-grid, .footer-grid { grid-template-columns: 1fr; }
+  .brand-strip { grid-template-columns: 1fr; }
+  .brand-card { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .brand-mark { width: 72px; }
   .engine-family-grid, .engine-package-grid, .race-programme-actions { grid-template-columns: 1fr; }
   .engine-family-review, .engine-options-review { padding: 18px 12px; }
   .engine-family-card { min-height: 0; padding: 20px; }

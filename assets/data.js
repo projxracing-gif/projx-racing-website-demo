@@ -2365,6 +2365,12 @@ window.PROJX_DATA = {
       "description": "Calibration platform used for selected supported vehicles and controllers."
     },
     {
+      "name": "xHP Flashtool",
+      "category": "Transmission Tuning",
+      "relationship": "Supported Platform",
+      "description": "Transmission calibration option for compatible S55, B58 and S58 applications, subject to transmission, licence and software support review."
+    },
+    {
       "name": "ECS Tuning",
       "category": "European Performance Parts",
       "relationship": "Dealer",
@@ -2558,7 +2564,8 @@ window.PROJX_DATA = {
         "Custom Ethanol-Blend Tune",
         "Custom Upgraded-Turbo Tune",
         "Retune for Modification Changes",
-        "Additional Fuel Map"
+        "Additional Fuel Map",
+        "xHP Transmission Tune — Compatibility Review"
       ],
       "fuels": [
         "Premium 91 (91 RON) — Kuwait pump — Review",
@@ -2603,6 +2610,7 @@ window.PROJX_DATA = {
         "MHD licence for the selected engine",
         "MHD adapter availability",
         "MHD Unlock Check result",
+        "Transmission type and xHP licence/support status when transmission tuning is requested",
         "Bench/FEMTO or other unlock status where required",
         "Fuel type and reliable local fuel supply",
         "Complete modification and fault-code report"

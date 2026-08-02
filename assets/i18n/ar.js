@@ -1854,6 +1854,7 @@ window.PROJX_TRANSLATIONS.ar = {
         "رخصة MHD",
         "توفر MHD Adapter",
         "نتيجة MHD Unlock Check",
+        "نوع القير وحالة دعم ورخصة xHP عند طلب برمجة القير",
         "حالة Bench/FEMTO Unlock عند الحاجة",
         "نوع الوقود وتوفره",
         "قائمة التعديلات والأعطال كاملة"
@@ -1863,7 +1864,8 @@ window.PROJX_TRANSLATIONS.ar = {
         "Custom Ethanol-Blend Tune",
         "Upgraded-Turbo Tune",
         "Retune بعد تغيير التعديلات",
-        "Additional Fuel Map"
+        "Additional Fuel Map",
+        "برمجة قير xHP — مراجعة التوافق"
       ],
       "fuels": [
         "ممتاز 91 (91 RON) — محطات الكويت — مراجعة",
@@ -2056,6 +2058,7 @@ window.PROJX_TRANSLATIONS.ar = {
     "Drift / Performance Parts": "Drift / قطع أداء",
     "Performance Parts / Tuning": "قطع أداء / برمجة",
     "ECU Tuning": "برمجة ECU",
+    "Transmission Tuning": "برمجة القير",
     "European Performance Parts": "قطع أداء أوروبية",
     "European OEM / Performance Parts": "قطع OEM وأداء أوروبية",
     "Suspension / Bushings / Arms": "Suspension / Bushings / Arms",
