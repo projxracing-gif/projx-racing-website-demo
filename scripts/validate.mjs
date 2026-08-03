@@ -252,6 +252,7 @@ assert(appSource.includes('new Date().getFullYear() + 1') && appSource.includes(
 assert(appSource.includes('data-tegiwa-catalog') && appSource.includes('/api/tegiwa-catalog') && appSource.includes('data-action="tegiwa-next"'), 'Paginated Tegiwa storefront integration is missing.');
 assert(appSource.includes(`data-tegiwa-catalog-count>${tegiwaCatalogSummary.productCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback count does not match the public catalog summary.');
 assert(appSource.includes(`data-tegiwa-available-count>${tegiwaIndex.availableProductCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback availability count does not match the stock index.');
+assert(appSource.includes('(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))'), 'Tegiwa storefront product-detail guard does not support all validated official handles.');
 assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
 assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
 assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');

@@ -1425,7 +1425,7 @@
   }
 
   async function openTegiwaProduct(handle, opener) {
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(handle || ""))) return;
+    if (!/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))) return;
     const labels = storeText();
     state.formContext = { opener };
     state.tegiwaCatalog.detailController?.abort();
