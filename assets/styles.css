@@ -1243,6 +1243,15 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
 .account-signed-in span { color: var(--muted); font-size: .75rem; }
 .account-signed-in strong { color: var(--text-strong); }
 
+@media (min-width: 1261px) and (max-width: 1500px) {
+  .header-inner { gap: 12px; }
+  .brand-logo-frame { width: 128px; }
+  .desktop-nav { gap: 2px; }
+  .nav-link { padding-inline: 6px; font-size: .64rem; }
+  .tool-label, .header-contact span { display: none; }
+  .header-contact { width: 44px; padding: 0; justify-content: center; }
+}
+
 @media (max-width: 1260px) {
   .desktop-nav { display: none; }
   .menu-button { display: inline-grid; }
