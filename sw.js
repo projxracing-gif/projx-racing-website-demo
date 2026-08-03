@@ -1,4 +1,4 @@
-const CACHE_NAME = "projx-racing-bilingual-v3";
+const CACHE_NAME = "projx-racing-bilingual-v4";
 const CORE_ASSETS = [
   "./",
   "./en/",
@@ -6,6 +6,7 @@ const CORE_ASSETS = [
   "./assets/styles.css",
   "./assets/site-config.js",
   "./assets/data.js",
+  "./assets/tegiwa-vehicle-directory.js",
   "./assets/i18n/en.js",
   "./assets/i18n/ar.js",
   "./assets/app.js",

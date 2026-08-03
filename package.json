@@ -13,8 +13,10 @@
     "catalog:tegiwa-stock": "node scripts/build-tegiwa-stock-index.mjs",
     "catalog:tegiwa-sitemaps": "node scripts/build-tegiwa-sitemap-manifest.mjs",
     "catalog:tegiwa-snapshot": "node scripts/build-tegiwa-catalog-snapshot.mjs",
+    "catalog:tegiwa-search": "node scripts/build-tegiwa-search-index.mjs",
+    "vehicles:validate": "node scripts/validate-tegiwa-vehicle-directory.mjs",
     "test": "npm run test:api",
-    "check": "npm run lint && npm run build && npm run validate && npm run test:api",
+    "check": "npm run lint && npm run build && npm run validate && npm run vehicles:validate && npm run test:api",
     "preview": "node scripts/serve.mjs dist 4173"
   },
   "engines": {

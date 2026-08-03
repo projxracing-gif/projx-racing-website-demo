@@ -910,10 +910,34 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-catalog-stats span { color: var(--muted); font-size: .7rem; line-height: 1.4; }
 .tegiwa-search { display: grid; gap: 8px; }
 .tegiwa-search > label { color: var(--text); font-size: .78rem; font-weight: 850; }
-.tegiwa-search-row { position: relative; display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 9px; }
-.tegiwa-search-row > span { position: absolute; z-index: 1; inset-inline-start: 16px; top: 50%; width: 21px; height: 21px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
-.tegiwa-search-row > span svg { width: 100%; }
-.tegiwa-search-row .input { min-height: 52px; padding-inline-start: 49px; }
+.tegiwa-search-row { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 9px; align-items: stretch; }
+.tegiwa-search-box { position: relative; min-width: 0; }
+.tegiwa-search-icon { position: absolute; z-index: 2; inset-inline-start: 16px; top: 26px; width: 21px; height: 21px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
+.tegiwa-search-icon svg { width: 100%; }
+.tegiwa-search-box .input { min-height: 52px; padding-inline-start: 49px; }
+.tegiwa-suggestions { position: absolute; z-index: 40; inset-inline: 0; top: calc(100% + 6px); display: grid; max-height: min(430px, 62vh); padding: 6px; gap: 2px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 20px 50px rgba(8,12,19,.2); }
+.tegiwa-suggestions[hidden] { display: none; }
+.tegiwa-suggestion { display: grid; width: 100%; min-height: 48px; padding: 9px 12px; grid-template-columns: 24px minmax(0, 1fr); gap: 2px 10px; align-items: center; border: 0; border-radius: 9px; color: var(--text); background: transparent; font: inherit; text-align: start; cursor: pointer; }
+.tegiwa-suggestion > span { display: grid; grid-row: 1 / span 2; width: 20px; color: var(--muted); place-items: center; }
+.tegiwa-suggestion > span svg { width: 18px; }
+.tegiwa-suggestion strong { min-width: 0; overflow-wrap: anywhere; font-size: .78rem; }
+.tegiwa-suggestion small { color: var(--muted); font-size: .66rem; }
+.tegiwa-suggestion:hover, .tegiwa-suggestion:focus-visible, .tegiwa-suggestion.is-active { outline: 0; color: var(--text-strong); background: color-mix(in srgb, var(--red) 7%, var(--surface-2)); }
+.tegiwa-suggestion.is-correction > span { color: var(--green); }
+.tegiwa-search-toolbar { display: flex; min-height: 44px; align-items: center; justify-content: flex-start; }
+.tegiwa-filter-toggle { display: inline-flex; min-height: 44px; padding: 8px 13px; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface-2); font: inherit; font-size: .72rem; font-weight: 850; cursor: pointer; }
+.tegiwa-filter-toggle > svg { width: 18px; color: var(--red-label); }
+.tegiwa-filter-toggle small { display: inline-flex; min-height: 24px; padding: 4px 8px; align-items: center; border-radius: 999px; color: #fff; background: var(--red); font-size: .62rem; }
+.tegiwa-filter-toggle small[hidden] { display: none; }
+.tegiwa-filter-toggle[aria-expanded="true"] { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); background: color-mix(in srgb, var(--red) 6%, var(--surface-2)); }
+.tegiwa-filter-panel { display: grid; padding: 15px; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.tegiwa-filter-panel[hidden] { display: none; }
+.tegiwa-filter-panel label { display: grid; min-width: 0; gap: 6px; color: var(--text); font-size: .68rem; font-weight: 800; }
+.tegiwa-filter-panel .select { width: 100%; min-height: 46px; }
+.tegiwa-filter-panel .btn { min-height: 46px; white-space: nowrap; }
+.tegiwa-correction { display: flex; padding: 10px 13px; align-items: flex-start; gap: 8px; border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line)); border-radius: var(--radius-sm); color: var(--text); background: color-mix(in srgb, var(--green) 5%, var(--surface-2)); font-size: .72rem; line-height: 1.5; }
+.tegiwa-correction[hidden] { display: none; }
+.tegiwa-correction svg { width: 18px; min-width: 18px; color: var(--green); }
 .tegiwa-source-note { display: flex; margin: 0; padding: 13px 15px; align-items: flex-start; gap: 9px; border: 1px solid color-mix(in srgb, var(--green) 24%, var(--line)); border-radius: var(--radius-sm); color: var(--muted); background: color-mix(in srgb, var(--green) 4%, var(--surface-2)); font-size: .74rem; line-height: 1.55; }
 .tegiwa-source-note svg { width: 18px; min-width: 18px; color: var(--green); }
 .tegiwa-catalog-status { min-height: 24px; color: var(--muted); font-size: .76rem; font-weight: 750; }
@@ -1349,6 +1373,8 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .brand-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .parts-brand-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tegiwa-catalog-head { grid-template-columns: 1fr; }
+  .tegiwa-filter-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tegiwa-filter-panel .btn { width: 100%; }
   .tegiwa-detail-grid { grid-template-columns: 1fr; }
   .tegiwa-detail-grid figure { max-width: 620px; width: 100%; margin-inline: auto; }
 }
@@ -1401,8 +1427,11 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .store-catalogue-status { grid-template-columns: 1fr; }
   .tegiwa-catalog-shell { padding: 19px 16px; }
   .tegiwa-search-row { grid-template-columns: 1fr; }
-  .tegiwa-search-row > span { top: 26px; }
   .tegiwa-search-row .btn { width: 100%; }
+  .tegiwa-search-toolbar, .tegiwa-filter-toggle { width: 100%; }
+  .tegiwa-filter-toggle { justify-content: center; }
+  .tegiwa-filter-panel { grid-template-columns: 1fr; }
+  .tegiwa-suggestions { max-height: min(360px, 55vh); }
   .tegiwa-product-grid { grid-template-columns: 1fr; }
   .tegiwa-product-card.is-loading { min-height: 430px; }
   .tegiwa-pagination { grid-template-columns: 1fr 1fr; }

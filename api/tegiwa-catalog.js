@@ -2,9 +2,16 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
-const SHOPIFY_ORIGIN = 'https://tegiwa.myshopify.com';
 const PAGE_SIZE = 100;
-const MAX_SEARCH_RESULTS = 10;
+const SEARCH_SUGGESTION_LIMIT = 8;
+const MAX_QUERY_TOKENS = 20;
+const MAX_PREFIX_TERMS_PER_TOKEN = 4_096;
+const MAX_SEARCH_CARD_SHARDS = 100;
+const SEARCH_METADATA_RECORD_BYTES = 16;
+const SEARCH_PAIR_RECORD_BYTES = 16;
+const SEARCH_RATE_LIMIT = 120;
+const SEARCH_RATE_WINDOW_MS = 60_000;
+const SEARCH_RATE_BUCKETS = 512;
 const MAX_SITEMAPS = 512;
 const MAX_SITEMAP_PRODUCTS = 50_000;
 const MAX_PRODUCT_HANDLE_LENGTH = 255;
@@ -20,6 +27,16 @@ const STOCK_INDEX_URL = new URL('./data/tegiwa-stock-index.json', import.meta.ur
 const SITEMAP_MANIFEST_URL = new URL('./data/tegiwa-sitemap-manifest.json', import.meta.url);
 const CATALOG_SUMMARY_URL = new URL('./data/tegiwa-catalog-summary.json', import.meta.url);
 const CATALOG_SHARD_DIRECTORY_URL = new URL('./data/tegiwa-catalog-pages/', import.meta.url);
+const SEARCH_SUMMARY_URL = new URL('./data/tegiwa-search-summary.json', import.meta.url);
+const SEARCH_TERMS_URL = new URL('./data/tegiwa-search-terms.json', import.meta.url);
+const SEARCH_TERM_POSTINGS_URL = new URL('./data/tegiwa-search-term-postings.bin', import.meta.url);
+const SEARCH_PAIRS_URL = new URL('./data/tegiwa-search-pairs.bin', import.meta.url);
+const SEARCH_PAIR_POSTINGS_URL = new URL('./data/tegiwa-search-pair-postings.bin', import.meta.url);
+const SEARCH_METADATA_URL = new URL('./data/tegiwa-search-metadata.bin', import.meta.url);
+
+const SEARCH_SORTS = new Set(['relevance', 'name_asc', 'name_desc', 'price_asc', 'price_desc']);
+const SEARCH_AVAILABILITY_FILTERS = new Set(['all', 'available', 'in_stock', 'supplier_stock', 'check', 'unavailable']);
+const SEARCH_PRICING_FILTERS = new Set(['all', 'priced', 'request_price']);
 
 const STATUS_CODES = Object.freeze({
   0: 'out_of_stock',
@@ -198,6 +215,207 @@ function loadDefaultCatalogSummary() {
   return defaultCatalogSummary;
 }
 
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('en-US')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function searchTokens(value) {
+  return normalizeSearchText(value).split(' ').filter(Boolean);
+}
+
+function fnv1a64(value) {
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of Buffer.from(value, 'utf8')) {
+    hash ^= BigInt(byte);
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return hash;
+}
+
+function validatePostingIds(ids, productCount) {
+  if (!Array.isArray(ids)) throw new Error('invalid_search_index');
+  let previous = -1;
+  return ids.map(value => {
+    const documentId = safeInteger(value, 0, productCount - 1);
+    if (documentId === null || documentId <= previous) throw new Error('invalid_search_index');
+    previous = documentId;
+    return documentId;
+  });
+}
+
+function injectedSearchProvider(candidate) {
+  const productCount = safeInteger(candidate?.productCount, 1, 10_000_000);
+  if (!candidate || candidate.version !== 1 || productCount === null
+    || !candidate.terms || typeof candidate.terms !== 'object' || Array.isArray(candidate.terms)
+    || !candidate.pairs || typeof candidate.pairs !== 'object' || Array.isArray(candidate.pairs)
+    || !Array.isArray(candidate.nameRanks) || candidate.nameRanks.length !== productCount
+    || !Array.isArray(candidate.stockKeys) || candidate.stockKeys.length !== productCount) {
+    throw new Error('invalid_search_index');
+  }
+  const terms = new Map();
+  for (const [term, ids] of Object.entries(candidate.terms)) {
+    if (!term || term !== normalizeSearchText(term) || term.includes(' ')) throw new Error('invalid_search_index');
+    terms.set(term, validatePostingIds(ids, productCount));
+  }
+  const pairs = new Map();
+  for (const [pair, ids] of Object.entries(candidate.pairs)) {
+    if (!/^.+\u0001.+$/u.test(pair)) throw new Error('invalid_search_index');
+    pairs.set(fnv1a64(pair), validatePostingIds(ids, productCount));
+  }
+  const vocabulary = [...terms.keys()].sort();
+  const metadata = candidate.nameRanks.map((nameRank, documentId) => {
+    const rank = safeInteger(nameRank, 0, productCount - 1);
+    const stockKey = String(candidate.stockKeys[documentId] || '');
+    if (rank === null || !/^[A-Za-z0-9_-]{16}$/.test(stockKey)) throw new Error('invalid_search_index');
+    return { nameRank: rank, stockKey };
+  });
+  if (new Set(metadata.map(value => value.nameRank)).size !== productCount) throw new Error('invalid_search_index');
+  return {
+    productCount,
+    vocabulary,
+    termCount(term) { return terms.get(term)?.length || 0; },
+    termPostings(term) { return terms.get(term) || []; },
+    pairPostings(left, right) { return pairs.get(fnv1a64(`${left}\u0001${right}`)) || []; },
+    metadata(documentId) { return metadata[documentId]; }
+  };
+}
+
+function validateSearchSummary(candidate) {
+  const productCount = safeInteger(candidate?.productCount, 1, 10_000_000);
+  const termCount = safeInteger(candidate?.termCount, 1, 1_000_000);
+  const termPostingCount = safeInteger(candidate?.termPostingCount, 1, 100_000_000);
+  const pairCount = safeInteger(candidate?.pairCount, 1, 10_000_000);
+  const pairPostingCount = safeInteger(candidate?.pairPostingCount, 1, 100_000_000);
+  const files = candidate?.files;
+  if (!candidate || candidate.version !== 1 || candidate.pageSize !== PAGE_SIZE
+    || candidate.metadataRecordBytes !== SEARCH_METADATA_RECORD_BYTES
+    || candidate.pairRecordBytes !== SEARCH_PAIR_RECORD_BYTES
+    || [productCount, termCount, termPostingCount, pairCount, pairPostingCount].some(value => value === null)
+    || !files || typeof files !== 'object') throw new Error('invalid_search_summary');
+  const file = name => {
+    const value = files[name];
+    const bytes = safeInteger(value?.bytes, 1, 250_000_000);
+    if (!value || typeof value.name !== 'string' || bytes === null || !/^[a-f0-9]{64}$/.test(value.sha256 || '')) {
+      throw new Error('invalid_search_summary');
+    }
+    return { ...value, bytes };
+  };
+  return {
+    productCount, termCount, termPostingCount, pairCount, pairPostingCount,
+    files: {
+      terms: file('terms'), termPostings: file('termPostings'), pairs: file('pairs'),
+      pairPostings: file('pairPostings'), metadata: file('metadata')
+    }
+  };
+}
+
+function checkedSearchFile(url, specification) {
+  const buffer = readFileSync(url);
+  if (buffer.length !== specification.bytes
+    || createHash('sha256').update(buffer).digest('hex') !== specification.sha256) {
+    throw new Error('invalid_search_index_file');
+  }
+  return buffer;
+}
+
+let defaultSearchProvider;
+function loadDefaultSearchProvider() {
+  if (defaultSearchProvider) return defaultSearchProvider;
+  try {
+    const summary = validateSearchSummary(JSON.parse(readFileSync(SEARCH_SUMMARY_URL, 'utf8')));
+    const termsBuffer = checkedSearchFile(SEARCH_TERMS_URL, summary.files.terms);
+    const termPostingsBuffer = checkedSearchFile(SEARCH_TERM_POSTINGS_URL, summary.files.termPostings);
+    const pairDictionary = checkedSearchFile(SEARCH_PAIRS_URL, summary.files.pairs);
+    const pairPostingsBuffer = checkedSearchFile(SEARCH_PAIR_POSTINGS_URL, summary.files.pairPostings);
+    const metadataBuffer = checkedSearchFile(SEARCH_METADATA_URL, summary.files.metadata);
+    const termPayload = JSON.parse(termsBuffer.toString('utf8'));
+    if (!termPayload || termPayload.version !== 1 || !Array.isArray(termPayload.terms)
+      || termPayload.terms.length !== summary.termCount
+      || termPostingsBuffer.length !== summary.termPostingCount * 4
+      || pairDictionary.length !== summary.pairCount * SEARCH_PAIR_RECORD_BYTES
+      || pairPostingsBuffer.length !== summary.pairPostingCount * 4
+      || metadataBuffer.length !== summary.productCount * SEARCH_METADATA_RECORD_BYTES) {
+      throw new Error('invalid_search_index');
+    }
+
+    const terms = new Map();
+    const vocabulary = [];
+    let previousTerm = '';
+    for (const entry of termPayload.terms) {
+      if (!Array.isArray(entry) || entry.length !== 3) throw new Error('invalid_search_index');
+      const [term, offsetValue, countValue] = entry;
+      const offset = safeInteger(offsetValue, 0, summary.termPostingCount);
+      const count = safeInteger(countValue, 1, summary.productCount);
+      if (typeof term !== 'string' || !term || term !== normalizeSearchText(term) || term.includes(' ')
+        || (previousTerm && term <= previousTerm) || offset === null || count === null
+        || offset + count > summary.termPostingCount) throw new Error('invalid_search_index');
+      previousTerm = term;
+      terms.set(term, { offset, count });
+      vocabulary.push(term);
+    }
+
+    const readPostings = (buffer, offset, count) => {
+      const ids = new Array(count);
+      let previous = -1;
+      for (let index = 0; index < count; index += 1) {
+        const documentId = buffer.readUInt32LE((offset + index) * 4);
+        if (documentId >= summary.productCount || documentId <= previous) throw new Error('invalid_search_postings');
+        ids[index] = documentId;
+        previous = documentId;
+      }
+      return ids;
+    };
+    const findPair = hash => {
+      let low = 0;
+      let high = summary.pairCount - 1;
+      while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const position = middle * SEARCH_PAIR_RECORD_BYTES;
+        const candidate = pairDictionary.readBigUInt64LE(position);
+        if (candidate === hash) {
+          return {
+            offset: pairDictionary.readUInt32LE(position + 8),
+            count: pairDictionary.readUInt32LE(position + 12)
+          };
+        }
+        if (candidate < hash) low = middle + 1;
+        else high = middle - 1;
+      }
+      return null;
+    };
+    defaultSearchProvider = {
+      productCount: summary.productCount,
+      vocabulary,
+      termCount(term) { return terms.get(term)?.count || 0; },
+      termPostings(term) {
+        const entry = terms.get(term);
+        return entry ? readPostings(termPostingsBuffer, entry.offset, entry.count) : [];
+      },
+      pairPostings(left, right) {
+        const entry = findPair(fnv1a64(`${left}\u0001${right}`));
+        return entry ? readPostings(pairPostingsBuffer, entry.offset, entry.count) : [];
+      },
+      metadata(documentId) {
+        if (!Number.isInteger(documentId) || documentId < 0 || documentId >= summary.productCount) throw new Error('invalid_search_document');
+        const offset = documentId * SEARCH_METADATA_RECORD_BYTES;
+        return {
+          nameRank: metadataBuffer.readUInt32LE(offset),
+          stockKey: metadataBuffer.subarray(offset + 4, offset + 16).toString('base64url')
+        };
+      }
+    };
+  } catch (error) {
+    throw new Error('The public Tegiwa search index could not be loaded.', { cause: error });
+  }
+  return defaultSearchProvider;
+}
+
 function stockSnapshotIsFresh(index, nowValue) {
   if (!index.checkedAt) return false;
   const endOfCheckedDay = Date.parse(`${index.checkedAt.slice(0, 10)}T23:59:59.999Z`);
@@ -206,6 +424,10 @@ function stockSnapshotIsFresh(index, nowValue) {
 
 function stockForTitle(index, title) {
   const key = stockKeyForTitle(title);
+  return stockForKey(index, key);
+}
+
+function stockForKey(index, key) {
   const record = key && Object.prototype.hasOwnProperty.call(index.products, key) ? index.products[key] : null;
   if (!Array.isArray(record) || record.length < 4) return null;
   const minPence = safeInteger(record[0], 0, 100_000_000);
@@ -454,7 +676,6 @@ function isAllowedUpstreamUrl(value) {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password) return false;
-    if (url.hostname === 'tegiwa.myshopify.com') return url.pathname === '/search/suggest.json';
     if (url.hostname !== 'www.tegiwa.com') return false;
     return /^\/products\/[a-z0-9]+(?:[-_][a-z0-9]+)*\.js$/.test(url.pathname);
   } catch {
@@ -543,20 +764,69 @@ function cleanSingleParameter(value, limit) {
   return safeText(value, limit);
 }
 
+function positivePage(value, defaultValue = null) {
+  if (value === undefined) return defaultValue;
+  const text = Array.isArray(value) ? '' : String(value).trim();
+  const page = /^\d+$/.test(text) ? safeInteger(text, 1, 10_000_000) : null;
+  if (page === null) throw new PublicApiError(400, 'invalid_page', 'Catalog pages must be positive whole numbers.');
+  return page;
+}
+
+function enumParameter(value, allowed, fallback, code, message) {
+  if (value === undefined) return fallback;
+  if (Array.isArray(value)) throw new PublicApiError(400, 'invalid_parameters', 'Only one value is allowed for each parameter.');
+  const normalized = String(value).trim().toLowerCase();
+  if (!allowed.has(normalized)) throw new PublicApiError(400, code, message);
+  return normalized;
+}
+
 function determineMode(req) {
+  const allowedParameters = new Set(['q', 'handle', 'cursor', 'page', 'suggest', 'sort', 'availability', 'pricing']);
+  const suppliedParameters = new Set(Object.keys(req.query || {}));
+  try {
+    for (const key of new URL(req.url || '/', 'https://local.invalid').searchParams.keys()) suppliedParameters.add(key);
+  } catch {}
+  if ([...suppliedParameters].some(key => !allowedParameters.has(key))) {
+    throw new PublicApiError(400, 'invalid_parameters', 'The catalog request contains an unsupported parameter.');
+  }
   const rawQuery = requestParameter(req, 'q');
   const rawHandle = requestParameter(req, 'handle');
   const rawCursor = requestParameter(req, 'cursor');
   const rawPage = requestParameter(req, 'page');
-  const supplied = [rawQuery !== undefined, rawHandle !== undefined, rawCursor !== undefined, rawPage !== undefined].filter(Boolean).length;
-  if (supplied > 1) throw new PublicApiError(400, 'invalid_parameters', 'Use only one catalog mode per request.');
+  const rawSuggest = requestParameter(req, 'suggest');
+  const rawSort = requestParameter(req, 'sort');
+  const rawAvailability = requestParameter(req, 'availability');
+  const rawPricing = requestParameter(req, 'pricing');
+  const hasSearchOption = [rawSuggest, rawSort, rawAvailability, rawPricing].some(value => value !== undefined);
 
   if (rawQuery !== undefined) {
     const query = cleanSingleParameter(rawQuery, 81);
     const length = Array.from(query).length;
     if (length < 2 || length > 80) throw new PublicApiError(400, 'invalid_query', 'Search queries must contain between 2 and 80 characters.');
-    return { mode: 'search', query };
+    if (rawHandle !== undefined || rawCursor !== undefined) {
+      throw new PublicApiError(400, 'invalid_parameters', 'Search cannot be combined with a product handle or catalog cursor.');
+    }
+    if (rawSuggest !== undefined) {
+      if (Array.isArray(rawSuggest) || String(rawSuggest).trim() !== '1'
+        || rawPage !== undefined || rawSort !== undefined || rawAvailability !== undefined || rawPricing !== undefined) {
+        throw new PublicApiError(400, 'invalid_parameters', 'Suggestions accept only q and suggest=1.');
+      }
+      return { mode: 'suggest', query };
+    }
+    return {
+      mode: 'search',
+      query,
+      page: positivePage(rawPage, 1),
+      sort: enumParameter(rawSort, SEARCH_SORTS, 'relevance', 'invalid_sort', 'The requested search sort is not supported.'),
+      availability: enumParameter(rawAvailability, SEARCH_AVAILABILITY_FILTERS, 'all', 'invalid_availability', 'The requested availability filter is not supported.'),
+      pricing: enumParameter(rawPricing, SEARCH_PRICING_FILTERS, 'all', 'invalid_pricing', 'The requested pricing filter is not supported.')
+    };
   }
+
+  if (hasSearchOption) throw new PublicApiError(400, 'invalid_parameters', 'Search options require a search query.');
+
+  const supplied = [rawHandle !== undefined, rawCursor !== undefined, rawPage !== undefined].filter(Boolean).length;
+  if (supplied > 1) throw new PublicApiError(400, 'invalid_parameters', 'Use only one catalog mode per request.');
 
   if (rawHandle !== undefined) {
     const raw = Array.isArray(rawHandle) ? '' : String(rawHandle).trim();
@@ -565,10 +835,7 @@ function determineMode(req) {
   }
 
   if (rawPage !== undefined) {
-    const text = Array.isArray(rawPage) ? '' : String(rawPage).trim();
-    const page = /^\d+$/.test(text) ? safeInteger(text, 1, 10_000_000) : null;
-    if (page === null) throw new PublicApiError(400, 'invalid_page', 'Catalog pages must be positive whole numbers.');
-    return { mode: 'browse', page };
+    return { mode: 'browse', page: positivePage(rawPage) };
   }
 
   return { mode: 'browse', ...decodeCursor(rawCursor) };
@@ -627,23 +894,295 @@ function metaFor(index, count, extra = {}) {
   };
 }
 
-async function searchCatalog(fetchImpl, index, query) {
-  const url = new URL('/search/suggest.json', SHOPIFY_ORIGIN);
-  url.searchParams.set('q', query);
-  url.searchParams.set('resources[type]', 'product');
-  url.searchParams.set('resources[limit]', String(MAX_SEARCH_RESULTS));
-  url.searchParams.set('resources[options][unavailable_products]', 'last');
-  url.searchParams.set('resources[options][fields]', 'title,product_type,variants.title,variants.sku,vendor');
-  const payload = await fetchJson(fetchImpl, url.toString(), { maxBytes: 1_500_000 });
-  const source = payload?.resources?.results?.products;
-  const items = (Array.isArray(source) ? source : [])
-    .slice(0, MAX_SEARCH_RESULTS)
-    .map(product => normalizeSearchProduct(product, index))
-    .filter(Boolean);
+function lowerBound(values, target) {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (values[middle] < target) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+function prefixTerms(provider, prefix) {
+  const matches = [];
+  const start = lowerBound(provider.vocabulary, prefix);
+  for (let index = start; index < provider.vocabulary.length; index += 1) {
+    const term = provider.vocabulary[index];
+    if (!term.startsWith(prefix)) break;
+    matches.push(term);
+  }
+  matches.sort((left, right) => {
+    if (left === prefix) return -1;
+    if (right === prefix) return 1;
+    const countDifference = provider.termCount(right) - provider.termCount(left);
+    return countDifference || left.length - right.length || (left < right ? -1 : 1);
+  });
+  return matches.slice(0, MAX_PREFIX_TERMS_PER_TOKEN);
+}
+
+function damerauLevenshteinWithin(left, right, maximum) {
+  const leftCharacters = Array.from(left);
+  const rightCharacters = Array.from(right);
+  if (Math.abs(leftCharacters.length - rightCharacters.length) > maximum) return maximum + 1;
+  let previousPrevious = null;
+  let previous = Array.from({ length: rightCharacters.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= leftCharacters.length; leftIndex += 1) {
+    const current = [leftIndex];
+    let rowMinimum = current[0];
+    for (let rightIndex = 1; rightIndex <= rightCharacters.length; rightIndex += 1) {
+      const substitution = previous[rightIndex - 1] + (leftCharacters[leftIndex - 1] === rightCharacters[rightIndex - 1] ? 0 : 1);
+      let distance = Math.min(previous[rightIndex] + 1, current[rightIndex - 1] + 1, substitution);
+      if (previousPrevious && leftIndex > 1 && rightIndex > 1
+        && leftCharacters[leftIndex - 1] === rightCharacters[rightIndex - 2]
+        && leftCharacters[leftIndex - 2] === rightCharacters[rightIndex - 1]) {
+        distance = Math.min(distance, previousPrevious[rightIndex - 2] + 1);
+      }
+      current[rightIndex] = distance;
+      rowMinimum = Math.min(rowMinimum, distance);
+    }
+    if (rowMinimum > maximum) return maximum + 1;
+    previousPrevious = previous;
+    previous = current;
+  }
+  return previous[rightCharacters.length];
+}
+
+function correctedToken(provider, token) {
+  if (provider.termCount(token) > 0 || prefixTerms(provider, token).length > 0 || Array.from(token).length < 3) return token;
+  const length = Array.from(token).length;
+  const maximum = length >= 8 ? 2 : 1;
+  const firstCharacter = Array.from(token)[0];
+  let best = null;
+  for (const candidate of provider.vocabulary) {
+    const candidateCharacters = Array.from(candidate);
+    if (candidateCharacters[0] !== firstCharacter || Math.abs(candidateCharacters.length - length) > maximum) continue;
+    const distance = damerauLevenshteinWithin(token, candidate, maximum);
+    if (distance > maximum) continue;
+    const frequency = provider.termCount(candidate);
+    if (!best || distance < best.distance
+      || (distance === best.distance && frequency > best.frequency)
+      || (distance === best.distance && frequency === best.frequency && candidate < best.term)) {
+      best = { term: candidate, distance, frequency };
+    }
+  }
+  return best?.term || token;
+}
+
+function unionPostingLists(lists) {
+  if (!lists.length) return [];
+  if (lists.length === 1) return [...lists[0]];
+  const values = new Set();
+  for (const list of lists) for (const documentId of list) values.add(documentId);
+  return [...values].sort((left, right) => left - right);
+}
+
+function intersectPostingLists(lists) {
+  if (!lists.length || lists.some(list => !list.length)) return [];
+  const sorted = [...lists].sort((left, right) => left.length - right.length);
+  let result = [...sorted[0]];
+  for (let listIndex = 1; listIndex < sorted.length && result.length; listIndex += 1) {
+    const next = sorted[listIndex];
+    const intersection = [];
+    let leftIndex = 0;
+    let rightIndex = 0;
+    while (leftIndex < result.length && rightIndex < next.length) {
+      if (result[leftIndex] === next[rightIndex]) {
+        intersection.push(result[leftIndex]);
+        leftIndex += 1;
+        rightIndex += 1;
+      } else if (result[leftIndex] < next[rightIndex]) leftIndex += 1;
+      else rightIndex += 1;
+    }
+    result = intersection;
+  }
+  return result;
+}
+
+function searchPlan(provider, query) {
+  const normalizedQuery = normalizeSearchText(query);
+  const originalTokens = searchTokens(normalizedQuery);
+  if (!originalTokens.length || originalTokens.length > MAX_QUERY_TOKENS) {
+    throw new PublicApiError(400, 'invalid_query', `Search queries may contain up to ${MAX_QUERY_TOKENS} searchable words.`);
+  }
+  const canonicalTokens = originalTokens.map(token => correctedToken(provider, token));
+  const corrections = originalTokens
+    .map((from, index) => ({ from, to: canonicalTokens[index] }))
+    .filter(value => value.from !== value.to);
+  const tokenGroups = canonicalTokens.map(token => {
+    const terms = prefixTerms(provider, token);
+    if (!terms.length && provider.termCount(token)) terms.push(token);
+    return unionPostingLists(terms.map(term => provider.termPostings(term)));
+  });
+  const exactGroups = canonicalTokens.map(token => provider.termPostings(token));
+  return {
+    query,
+    normalizedQuery,
+    originalTokens,
+    canonicalTokens,
+    canonicalQuery: canonicalTokens.join(' '),
+    corrected: corrections.length > 0,
+    corrections,
+    tokenGroups,
+    exactGroups
+  };
+}
+
+function availabilityCodeForSearch(index, stock) {
+  return index.stockSnapshotFresh && stock ? stock.code : 'check_availability';
+}
+
+function availabilityMatches(filter, code) {
+  if (filter === 'all') return true;
+  if (filter === 'available') return code === 'in_stock' || code === 'supplier_stock';
+  if (filter === 'in_stock') return code === 'in_stock';
+  if (filter === 'supplier_stock') return code === 'supplier_stock';
+  if (filter === 'check') return code === 'check_availability';
+  return code === 'out_of_stock';
+}
+
+function rankedSearchDocuments(provider, index, plan, { sort, availability, pricing }) {
+  const candidates = unionPostingLists(plan.tokenGroups);
+  const matchedTokenCounts = new Uint8Array(provider.productCount);
+  for (const group of plan.tokenGroups) for (const documentId of group) matchedTokenCounts[documentId] += 1;
+  const allPrefix = new Uint8Array(provider.productCount);
+  for (const documentId of intersectPostingLists(plan.tokenGroups)) allPrefix[documentId] = 1;
+  const allExact = new Uint8Array(provider.productCount);
+  for (const documentId of intersectPostingLists(plan.exactGroups)) allExact[documentId] = 1;
+  const phrase = new Uint8Array(provider.productCount);
+  if (plan.canonicalTokens.length === 1) {
+    for (const documentId of plan.exactGroups[0]) phrase[documentId] = 1;
+  } else {
+    const pairs = [];
+    for (let index = 0; index + 1 < plan.canonicalTokens.length; index += 1) {
+      pairs.push(provider.pairPostings(plan.canonicalTokens[index], plan.canonicalTokens[index + 1]));
+    }
+    for (const documentId of intersectPostingLists(pairs)) phrase[documentId] = 1;
+  }
+
+  const records = [];
+  for (const documentId of candidates) {
+    const metadata = provider.metadata(documentId);
+    const stock = stockForKey(index, metadata.stockKey);
+    const availabilityCode = availabilityCodeForSearch(index, stock);
+    if (!availabilityMatches(availability, availabilityCode)) continue;
+    const priced = Boolean(stock);
+    if ((pricing === 'priced' && !priced) || (pricing === 'request_price' && priced)) continue;
+    records.push({
+      documentId,
+      nameRank: metadata.nameRank,
+      price: stock?.minPence ?? null,
+      relevanceTier: phrase[documentId] ? 0 : (allExact[documentId] ? 1 : (allPrefix[documentId] ? 2 : 3)),
+      matchedTokens: matchedTokenCounts[documentId]
+    });
+  }
+
+  records.sort((left, right) => {
+    if (sort === 'name_asc') return left.nameRank - right.nameRank || left.documentId - right.documentId;
+    if (sort === 'name_desc') return right.nameRank - left.nameRank || left.documentId - right.documentId;
+    if (sort === 'price_asc' || sort === 'price_desc') {
+      if (left.price === null && right.price !== null) return 1;
+      if (right.price === null && left.price !== null) return -1;
+      if (left.price !== null && right.price !== null && left.price !== right.price) {
+        return sort === 'price_asc' ? left.price - right.price : right.price - left.price;
+      }
+      return left.nameRank - right.nameRank || left.documentId - right.documentId;
+    }
+    return left.relevanceTier - right.relevanceTier
+      || right.matchedTokens - left.matchedTokens
+      || left.nameRank - right.nameRank
+      || left.documentId - right.documentId;
+  });
+  return records;
+}
+
+function documentPosition(summary, documentId) {
+  let remaining = documentId;
+  for (let shardIndex = 0; shardIndex < summary.shardProductCounts.length; shardIndex += 1) {
+    if (remaining < summary.shardProductCounts[shardIndex]) return { shardIndex, offset: remaining };
+    remaining -= summary.shardProductCounts[shardIndex];
+  }
+  throw new Error('invalid_search_document');
+}
+
+async function cardsForDocumentIds(documentIds, index, summary, catalogLoader) {
+  const groups = new Map();
+  for (const documentId of documentIds) {
+    const position = documentPosition(summary, documentId);
+    if (!groups.has(position.shardIndex)) groups.set(position.shardIndex, []);
+    groups.get(position.shardIndex).push({ documentId, offset: position.offset });
+  }
+  if (groups.size > MAX_SEARCH_CARD_SHARDS) throw new Error('search_card_shard_limit_exceeded');
+  const cards = new Map();
+  for (const [shardIndex, positions] of groups) {
+    const products = validateCatalogShard(await catalogLoader(shardIndex));
+    for (const position of positions) {
+      const product = products[position.offset];
+      if (!product) throw new Error('invalid_search_document');
+      cards.set(position.documentId, baseCard({
+        handle: product.handle,
+        title: product.title,
+        vendor: null,
+        category: null,
+        image: product.imageUrl,
+        officialMin: null,
+        officialMax: null,
+        officialAvailable: null
+      }, index));
+    }
+  }
+  return documentIds.map(documentId => cards.get(documentId));
+}
+
+async function searchCatalog(provider, index, summary, request, catalogLoader) {
+  const plan = searchPlan(provider, request.query);
+  const ranked = rankedSearchDocuments(provider, index, plan, request);
+  const totalResults = ranked.length;
+  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+  if (request.page > Math.max(1, totalPages)) {
+    throw new PublicApiError(400, 'invalid_page', 'The requested search page does not exist.');
+  }
+  const start = (request.page - 1) * PAGE_SIZE;
+  const pageIds = ranked.slice(start, start + PAGE_SIZE).map(record => record.documentId);
+  const items = await cardsForDocumentIds(pageIds, index, summary, catalogLoader);
   return {
     mode: 'search',
     items,
-    meta: metaFor(index, items.length, { query }),
+    meta: metaFor(index, items.length, {
+      query: request.query,
+      canonicalQuery: plan.canonicalQuery,
+      corrected: plan.corrected,
+      corrections: plan.corrections,
+      page: request.page,
+      pageSize: PAGE_SIZE,
+      totalResults,
+      totalPages,
+      sort: request.sort,
+      availability: request.availability,
+      pricing: request.pricing
+    }),
+    nextCursor: null
+  };
+}
+
+async function suggestCatalog(provider, index, summary, query, catalogLoader) {
+  const plan = searchPlan(provider, query);
+  const ranked = rankedSearchDocuments(provider, index, plan, {
+    sort: 'relevance', availability: 'all', pricing: 'all'
+  });
+  const documentIds = ranked.slice(0, SEARCH_SUGGESTION_LIMIT).map(record => record.documentId);
+  const cards = await cardsForDocumentIds(documentIds, index, summary, catalogLoader);
+  return {
+    mode: 'suggest',
+    suggestions: cards.map(card => ({ query: card.title, label: card.title, kind: 'product', handle: card.handle })),
+    correction: {
+      query,
+      canonicalQuery: plan.canonicalQuery,
+      corrected: plan.corrected,
+      corrections: plan.corrections
+    },
+    meta: { count: cards.length, limit: SEARCH_SUGGESTION_LIMIT },
     nextCursor: null
   };
 }
@@ -766,9 +1305,41 @@ async function detailCatalog(fetchImpl, index, handle) {
   };
 }
 
-export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, sitemapManifest, catalogSummary, catalogLoader = loadDefaultCatalogShard, now = () => Date.now(), logger = console } = {}) {
+function createSearchRateLimiter(now, { limit = SEARCH_RATE_LIMIT, windowMs = SEARCH_RATE_WINDOW_MS } = {}) {
+  if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(windowMs) || windowMs < 1_000) throw new Error('invalid_search_rate_limit');
+  const buckets = new Map();
+  return req => {
+    const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+    const identity = forwarded || String(req.headers?.host || req.headers?.['x-forwarded-host'] || 'anonymous');
+    const key = createHash('sha256').update(identity, 'utf8').digest('base64url').slice(0, 16);
+    const timestamp = Number(now());
+    const current = buckets.get(key);
+    const bucket = !current || timestamp >= current.resetAt
+      ? { count: 0, resetAt: timestamp + windowMs }
+      : current;
+    bucket.count += 1;
+    buckets.delete(key);
+    buckets.set(key, bucket);
+    while (buckets.size > SEARCH_RATE_BUCKETS) buckets.delete(buckets.keys().next().value);
+    return { allowed: bucket.count <= limit, retryAfter: Math.max(1, Math.ceil((bucket.resetAt - timestamp) / 1_000)), limit, windowMs };
+  };
+}
+
+export function createTegiwaCatalogHandler({
+  fetchImpl = globalThis.fetch,
+  stockIndex,
+  sitemapManifest,
+  catalogSummary,
+  catalogLoader = loadDefaultCatalogShard,
+  searchIndex,
+  searchProviderLoader = loadDefaultSearchProvider,
+  searchRateLimit,
+  now = () => Date.now(),
+  logger = console
+} = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required.');
   if (typeof catalogLoader !== 'function') throw new TypeError('A catalog loader is required.');
+  if (typeof searchProviderLoader !== 'function') throw new TypeError('A search-index loader is required.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   const index = stockIndex ? validateStockIndex(stockIndex) : loadDefaultStockIndex();
   const sitemaps = sitemapManifest ? validateSitemapManifest({ version: 1, sitemaps: sitemapManifest }) : loadDefaultSitemapManifest();
@@ -776,6 +1347,14 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
     ? validateCatalogSummary(catalogSummary)
     : (stockIndex ? { productCount: index.productCount, shardProductCounts: null } : loadDefaultCatalogSummary());
   if (summary.shardProductCounts && summary.shardProductCounts.length !== sitemaps.length) throw new Error('invalid_catalog_summary');
+  let provider = searchIndex ? injectedSearchProvider(searchIndex) : null;
+  const rateLimit = createSearchRateLimiter(now, searchRateLimit);
+  const searchProvider = () => {
+    if (!provider) provider = searchProviderLoader();
+    if (!provider || provider.productCount !== summary.productCount) throw new Error('search_catalog_count_mismatch');
+    if (!Array.isArray(summary.shardProductCounts)) throw new Error('search_catalog_page_index_unavailable');
+    return provider;
+  };
 
   return async function tegiwaCatalogHandler(req, res) {
     if (req.method !== 'GET') {
@@ -788,7 +1367,18 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
       const request = determineMode(req);
       const requestIndex = { ...index, catalogProductCount: summary.productCount, stockSnapshotFresh: stockSnapshotIsFresh(index, Number(now())) };
       let body;
-      if (request.mode === 'search') body = await searchCatalog(fetchImpl, requestIndex, request.query);
+      if (request.mode === 'search' || request.mode === 'suggest') {
+        const rate = rateLimit(req);
+        res.setHeader('RateLimit-Policy', `${rate.limit};w=${Math.ceil(rate.windowMs / 1_000)}`);
+        if (!rate.allowed) {
+          res.setHeader('Retry-After', String(rate.retryAfter));
+          return sendError(res, 429, 'rate_limited', 'Too many catalog searches were requested. Please try again shortly.');
+        }
+        const localProvider = searchProvider();
+        body = request.mode === 'search'
+          ? await searchCatalog(localProvider, requestIndex, summary, request, catalogLoader)
+          : await suggestCatalog(localProvider, requestIndex, summary, request.query, catalogLoader);
+      }
       else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);
       else {
         const position = request.page === undefined

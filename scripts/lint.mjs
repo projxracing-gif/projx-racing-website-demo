@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
-  'assets/app.js', 'assets/data.js', 'assets/site-config.js',
+  'assets/app.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'api/enquiry.js', 'api/tegiwa-catalog.js',
   'scripts/build.mjs', 'scripts/validate.mjs', 'scripts/serve.mjs',
   'scripts/test-api.mjs', 'scripts/test-tegiwa-catalog-api.mjs', 'scripts/lint.mjs',
   'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs',
-  'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/build-tegiwa-catalog-snapshot.mjs', 'sw.js'
+  'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/build-tegiwa-catalog-snapshot.mjs',
+  'scripts/build-tegiwa-search-index.mjs',
+  'scripts/scrape-tegiwa-vehicle-directory.mjs', 'scripts/validate-tegiwa-vehicle-directory.mjs', 'sw.js'
 ];
 
 const failures = [];

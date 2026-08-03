@@ -8,7 +8,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(repo, 'dist');
 const template = fs.readFileSync(path.join(repo, 'template.html'), 'utf8');
 const assetVersion = crypto.createHash('sha256')
-  .update(['assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/i18n/en.js', 'assets/i18n/ar.js', 'assets/app.js']
+  .update(['assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/i18n/en.js', 'assets/i18n/ar.js', 'assets/app.js']
     .map(file => fs.readFileSync(path.join(repo, file)))
     .reduce((buffer, part) => Buffer.concat([buffer, part]), Buffer.from('')))
   .update(String(process.env.CLERK_PUBLISHABLE_KEY || ''))
@@ -18,7 +18,7 @@ const assetVersion = crypto.createHash('sha256')
 function loadProjectData() {
   const context = { window: {} };
   vm.createContext(context);
-  for (const file of ['assets/data.js', 'assets/site-config.js', 'assets/i18n/en.js', 'assets/i18n/ar.js']) {
+  for (const file of ['assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/i18n/en.js', 'assets/i18n/ar.js']) {
     vm.runInContext(fs.readFileSync(path.join(repo, file), 'utf8'), context, { filename: file });
   }
   return {

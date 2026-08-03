@@ -73,119 +73,214 @@ assert.equal((await invoke(validationHandler, { query: { q: 'brake', cursor: 'ab
 assert.equal((await invoke(validationHandler, { query: { page: '0' } })).body.error.code, 'invalid_page');
 assert.equal((await invoke(validationHandler, { query: { page: '1.5' } })).body.error.code, 'invalid_page');
 assert.equal((await invoke(validationHandler, { query: { page: ['1', '2'] } })).body.error.code, 'invalid_page');
-assert.equal((await invoke(validationHandler, { query: { q: 'brake', page: '1' } })).body.error.code, 'invalid_parameters');
+assert.equal((await invoke(validationHandler, { query: { q: 'brake', suggest: '1', page: '1' } })).body.error.code, 'invalid_parameters');
+assert.equal((await invoke(validationHandler, { query: { sort: 'relevance' } })).body.error.code, 'invalid_parameters');
+assert.equal((await invoke(validationHandler, { query: { q: 'brake', sort: 'newest' } })).body.error.code, 'invalid_sort');
+assert.equal((await invoke(validationHandler, { query: { q: 'brake', availability: 'maybe' } })).body.error.code, 'invalid_availability');
+assert.equal((await invoke(validationHandler, { query: { q: 'brake', pricing: 'trade' } })).body.error.code, 'invalid_pricing');
+assert.equal((await invoke(validationHandler, { query: { q: 'brake', debug: '1' } })).body.error.code, 'invalid_parameters');
 assert.equal((await invoke(validationHandler, {
   query: { q: 'brake' },
   headers: { host: 'preview.projxracing.com', origin: 'https://attacker.example' }
 })).status, 403);
 
-let searchRequestUrl;
+function normalizeSearch(value) {
+  return String(value).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function makeSearchIndex(records) {
+  const terms = Object.create(null);
+  const pairs = Object.create(null);
+  const names = [];
+  const stockKeys = [];
+  const add = (object, key, documentId) => {
+    if (!object[key]) object[key] = [];
+    if (object[key].at(-1) !== documentId) object[key].push(documentId);
+  };
+  records.forEach((record, documentId) => {
+    const titleTokens = normalizeSearch(record[1]).split(' ').filter(Boolean);
+    const combined = normalizeSearch(`${record[1]} ${record[0].replace(/[-_]+/g, ' ')}`).split(' ').filter(Boolean);
+    for (const token of new Set(combined)) add(terms, token, documentId);
+    for (let index = 0; index + 1 < titleTokens.length; index += 1) add(pairs, `${titleTokens[index]}\u0001${titleTokens[index + 1]}`, documentId);
+    names.push({ documentId, key: `${normalizeSearch(record[1])}\u0000${record[0]}` });
+    stockKeys.push(stockKeyForTitle(record[1]));
+  });
+  names.sort((left, right) => left.key.localeCompare(right.key) || left.documentId - right.documentId);
+  const nameRanks = new Array(records.length);
+  names.forEach((entry, rank) => { nameRanks[entry.documentId] = rank; });
+  return { version: 1, productCount: records.length, terms, pairs, nameRanks, stockKeys };
+}
+
+const searchRecords = [
+  ...Array.from({ length: 135 }, (_, index) => [
+    `engine-management-ecu-${String(index + 1).padStart(3, '0')}`,
+    `Link Engine Management ECU Controller ${String(index + 1).padStart(3, '0')}`,
+    `https://cdn.shopify.com/s/files/1/0000/engine-${index + 1}.jpg`
+  ]),
+  ...Array.from({ length: 100 }, (_, index) => [
+    `ecu-engine-management-${String(index + 136).padStart(3, '0')}`,
+    `Link ECU Engine Management Module ${String(index + 136).padStart(3, '0')}`,
+    `https://cdn.shopify.com/s/files/1/0000/engine-${index + 136}.jpg`
+  ]),
+  ...Array.from({ length: 8 }, (_, index) => [
+    `performance-brake-pads-${String(index + 1).padStart(3, '0')}`,
+    `Performance Brake Pads ${String(index + 1).padStart(3, '0')}`,
+    `https://cdn.shopify.com/s/files/1/0000/brake-${index + 1}.jpg`
+  ])
+];
+const searchCatalogShards = [searchRecords.slice(0, 80), searchRecords.slice(80, 170), searchRecords.slice(170)];
+const searchCatalogSummary = {
+  version: 1,
+  shardCount: searchCatalogShards.length,
+  shardProductCounts: searchCatalogShards.map(shard => shard.length),
+  productCount: searchRecords.length
+};
+const searchSitemaps = searchCatalogShards.map((shard, index) =>
+  `https://www.tegiwa.com/sitemap_products_${index + 1}.xml?from=${index}&to=${index + shard.length}`);
+const searchProducts = Object.create(null);
+let searchAvailableCount = 0;
+searchRecords.forEach((record, index) => {
+  const status = index % 5;
+  if (status === 4) return;
+  searchProducts[stockKeyForTitle(record[1])] = [10_000 + index, 10_500 + index, status, 0];
+  if (status === 1 || status === 2) searchAvailableCount += 1;
+});
+const searchStockIndex = {
+  version: 1,
+  checkedAt: '2026-08-03',
+  productCount: searchRecords.length,
+  availableProductCount: searchAvailableCount,
+  leadTimes: [''],
+  products: searchProducts
+};
+const localSearchIndex = makeSearchIndex(searchRecords);
 const searchHandler = createTegiwaCatalogHandler({
-  stockIndex,
+  stockIndex: searchStockIndex,
+  sitemapManifest: searchSitemaps,
+  catalogSummary: searchCatalogSummary,
+  catalogLoader: async index => searchCatalogShards[index],
+  searchIndex: localSearchIndex,
   now: () => FIXED_NOW,
-  fetchImpl: async url => {
-    searchRequestUrl = new URL(url);
-    assert.equal(searchRequestUrl.origin, 'https://tegiwa.myshopify.com');
-    assert.equal(searchRequestUrl.pathname, '/search/suggest.json');
-    return jsonResponse({
-      resources: {
-        results: {
-          products: [{
-            id: 999,
-            handle: 'tegiwa-bmw-b58-service-kit',
-            title: '<b>TEGIWA</b> BMW B58 Service Kit',
-            vendor: '<i>Tegiwa</i>',
-            type: 'Service <strong>Kits</strong>',
-            price: '99.00',
-            compare_at_price: '199.00',
-            available: true,
-            inventory_quantity: 83,
-            sku: 'PRIVATE-SKU',
-            featured_image: {
-              url: 'https://cdn.shopify.com/s/files/1/0000/product.jpg',
-              width: 1200,
-              height: 800,
-              alt: '<em>B58 service kit</em>'
-            },
-            url: '/products/tegiwa-bmw-b58-service-kit'
-          }]
-        }
-      }
-    });
-  }
+  fetchImpl: noFetch
 });
 
-const search = await invoke(searchHandler, { query: { q: 'B58 service kit' } });
-assert.equal(search.status, 200);
-assert.equal(search.body.mode, 'search');
-assert.equal(search.body.items.length, 1);
-assert.equal(search.body.items[0].title, 'TEGIWA BMW B58 Service Kit');
-assert.equal(search.body.items[0].vendor, 'Tegiwa');
-assert.equal(search.body.items[0].category, 'Service Kits');
-assert.deepEqual(search.body.items[0].price, { currency: 'GBP', min: 117.96, max: 129.99, note: 'RRP' });
-assert.deepEqual(search.body.items[0].availability, {
-  code: 'in_stock', checkedAt: '2026-08-03', leadTime: '2-3 working days', snapshotStale: false
-});
-assert.equal(search.body.items[0].image.src, 'https://cdn.shopify.com/s/files/1/0000/product.jpg');
-assert.equal(search.body.items[0].sourceUrl, 'https://www.tegiwa.com/products/tegiwa-bmw-b58-service-kit');
-assert.equal(search.body.meta.catalogProductCount, 4_218);
-assert.equal(search.body.meta.stockIndexedProductCount, 4_218);
-assert.equal(search.body.meta.availableProductCount, 2_601);
-assert.equal(search.body.nextCursor, null);
-assert.equal(searchRequestUrl.searchParams.get('q'), 'B58 service kit');
-assert.equal(searchRequestUrl.searchParams.get('resources[limit]'), '10');
-assert.match(searchRequestUrl.searchParams.get('resources[options][fields]'), /variants\.sku/);
-assert.match(search.headers['cache-control'], /s-maxage=300/);
-assert.equal(search.headers['x-content-type-options'], 'nosniff');
-assert.equal(search.headers['cross-origin-resource-policy'], 'same-origin');
-assert.equal(search.headers['access-control-allow-origin'], undefined);
+const searchPageOne = await invoke(searchHandler, { query: { q: 'engine management ecu' } });
+assert.equal(searchPageOne.status, 200);
+assert.equal(searchPageOne.body.mode, 'search');
+assert.equal(searchPageOne.body.items.length, 100);
+assert.equal(searchPageOne.body.meta.totalResults, 235);
+assert.equal(searchPageOne.body.meta.totalPages, 3);
+assert.equal(searchPageOne.body.meta.pageSize, 100);
+assert.equal(searchPageOne.body.meta.canonicalQuery, 'engine management ecu');
+assert.equal(searchPageOne.body.meta.corrected, false);
+assert.equal(searchPageOne.body.items[0].title, 'Link Engine Management ECU Controller 001');
+assert.equal(searchPageOne.body.items[0].vendor, null);
+assert.equal(searchPageOne.body.items[0].category, null);
+assert.match(searchPageOne.headers['cache-control'], /s-maxage=300/);
+assert.equal(searchPageOne.headers['x-content-type-options'], 'nosniff');
+assert.equal(searchPageOne.headers['cross-origin-resource-policy'], 'same-origin');
+assert.equal(searchPageOne.headers['access-control-allow-origin'], undefined);
+assert.equal(searchPageOne.headers['ratelimit-policy'], '120;w=60');
 
-const publicPriceHandler = createTegiwaCatalogHandler({
-  stockIndex: { ...stockIndex, products: {} },
-  now: () => FIXED_NOW,
-  fetchImpl: async () => jsonResponse({
-    resources: {
-      results: {
-        products: [{
-          available: true,
-          handle: 'public-price-range',
-          title: 'Public price range',
-          price: '89.00',
-          price_min: '89.00',
-          price_max: '109.00',
-          compare_at_price_min: '149.00',
-          compare_at_price_max: '169.00'
-        }]
-      }
-    }
-  })
-});
-const publicPrice = await invoke(publicPriceHandler, { query: { q: 'public price range' } });
-assert.deepEqual(publicPrice.body.items[0].price, {
-  currency: 'GBP', min: 89, max: 109, note: 'Tegiwa online price'
-});
+const searchPageTwo = await invoke(searchHandler, { query: { q: 'engine management ecu', page: '2' } });
+const searchPageThree = await invoke(searchHandler, { query: { q: 'engine management ecu', page: '3' } });
+assert.equal(searchPageTwo.body.items.length, 100);
+assert.equal(searchPageThree.body.items.length, 35);
+const allSearchHandles = [searchPageOne, searchPageTwo, searchPageThree].flatMap(result => result.body.items.map(item => item.handle));
+assert.equal(allSearchHandles.length, 235);
+assert.equal(new Set(allSearchHandles).size, 235);
+assert.equal((await invoke(searchHandler, { query: { q: 'engine management ecu', page: '4' } })).body.error.code, 'invalid_page');
+
+const typoSearch = await invoke(searchHandler, { query: { q: 'engien managment ecu' } });
+assert.equal(typoSearch.body.meta.canonicalQuery, 'engine management ecu');
+assert.equal(typoSearch.body.meta.corrected, true);
+assert.deepEqual(typoSearch.body.meta.corrections, [
+  { from: 'engien', to: 'engine' }, { from: 'managment', to: 'management' }
+]);
+assert.deepEqual(typoSearch.body.items.map(item => item.handle), searchPageOne.body.items.map(item => item.handle));
+
+const brakeSearch = await invoke(searchHandler, { query: { q: 'brake pads' } });
+assert.equal(brakeSearch.body.meta.totalResults, 8);
+assert.equal(brakeSearch.body.items.length, 8);
+assert.ok(brakeSearch.body.items.every(item => /Brake Pads/.test(item.title)));
+
+const suggestions = await invoke(searchHandler, { query: { q: 'engine manag', suggest: '1' } });
+assert.equal(suggestions.body.mode, 'suggest');
+assert.equal(suggestions.body.suggestions.length, 8);
+assert.ok(suggestions.body.suggestions.every(item => item.kind === 'product' && item.handle && item.label === item.query));
+assert.equal(suggestions.body.correction.canonicalQuery, 'engine manag');
+assert.equal(suggestions.body.meta.limit, 8);
+
+const arabicSafe = await invoke(searchHandler, { query: { q: 'محرك سباق' } });
+assert.equal(arabicSafe.status, 200);
+assert.equal(arabicSafe.body.items.length, 0);
+assert.equal(arabicSafe.body.meta.totalResults, 0);
+assert.equal(arabicSafe.body.meta.totalPages, 0);
+
+const xssSafe = await invoke(searchHandler, { query: { q: '<img src=x onerror=alert(1)>engine' } });
+assert.equal(xssSafe.status, 200);
+assert.equal(xssSafe.body.meta.query, 'engine');
+assert.equal(JSON.stringify(xssSafe.body).includes('<img'), false);
+
+const allAvailability = await invoke(searchHandler, { query: { q: 'engine management ecu', availability: 'all' } });
+const available = await invoke(searchHandler, { query: { q: 'engine management ecu', availability: 'available' } });
+const inStock = await invoke(searchHandler, { query: { q: 'engine management ecu', availability: 'in_stock' } });
+const supplierStock = await invoke(searchHandler, { query: { q: 'engine management ecu', availability: 'supplier_stock' } });
+const checkAvailability = await invoke(searchHandler, { query: { q: 'engine management ecu', availability: 'check' } });
+const unavailable = await invoke(searchHandler, { query: { q: 'engine management ecu', availability: 'unavailable' } });
+assert.equal(allAvailability.body.meta.totalResults, 235);
+assert.equal(available.body.meta.totalResults, inStock.body.meta.totalResults + supplierStock.body.meta.totalResults);
+assert.ok(inStock.body.items.every(item => item.availability.code === 'in_stock'));
+assert.ok(supplierStock.body.items.every(item => item.availability.code === 'supplier_stock'));
+assert.ok(checkAvailability.body.items.every(item => item.availability.code === 'check_availability'));
+assert.ok(unavailable.body.items.every(item => item.availability.code === 'out_of_stock'));
+
+const priced = await invoke(searchHandler, { query: { q: 'engine management ecu', pricing: 'priced' } });
+const requestPrice = await invoke(searchHandler, { query: { q: 'engine management ecu', pricing: 'request_price' } });
+assert.equal(priced.body.meta.totalResults + requestPrice.body.meta.totalResults, 235);
+assert.ok(priced.body.items.every(item => item.price.min !== null));
+assert.ok(requestPrice.body.items.every(item => item.price.min === null));
+
+const nameAscending = await invoke(searchHandler, { query: { q: 'engine management ecu', sort: 'name_asc' } });
+const nameDescending = await invoke(searchHandler, { query: { q: 'engine management ecu', sort: 'name_desc' } });
+assert.equal(nameAscending.body.meta.sort, 'name_asc');
+assert.equal(nameDescending.body.meta.sort, 'name_desc');
+assert.notEqual(nameAscending.body.items[0].handle, nameDescending.body.items[0].handle);
+const priceAscending = await invoke(searchHandler, { query: { q: 'engine management ecu', sort: 'price_asc' } });
+const priceDescending = await invoke(searchHandler, { query: { q: 'engine management ecu', sort: 'price_desc' } });
+assert.ok(priceAscending.body.items[0].price.min <= priceAscending.body.items[1].price.min);
+assert.ok(priceDescending.body.items[0].price.min >= priceDescending.body.items[1].price.min);
 
 const staleStockHandler = createTegiwaCatalogHandler({
-  stockIndex,
+  stockIndex: searchStockIndex,
+  sitemapManifest: searchSitemaps,
+  catalogSummary: searchCatalogSummary,
+  catalogLoader: async index => searchCatalogShards[index],
+  searchIndex: localSearchIndex,
   now: () => Date.parse('2026-08-12T00:00:00Z'),
-  fetchImpl: async () => jsonResponse({
-    resources: {
-      results: {
-        products: [{
-          available: true,
-          handle: 'tegiwa-bmw-b58-service-kit',
-          title: 'TEGIWA BMW B58 Service Kit',
-          price: '99.00'
-        }]
-      }
-    }
-  })
+  fetchImpl: noFetch
 });
-const staleStock = await invoke(staleStockHandler, { query: { q: 'B58 service kit' } });
-assert.equal(staleStock.body.items[0].availability.code, 'check_availability');
-assert.equal(staleStock.body.items[0].availability.snapshotStale, true);
-assert.equal(staleStock.body.meta.stockSnapshotStale, true);
-assert.deepEqual(staleStock.body.items[0].price, { currency: 'GBP', min: 117.96, max: 129.99, note: 'RRP' });
+const staleStock = await invoke(staleStockHandler, { query: { q: 'brake pads', availability: 'check' } });
+assert.equal(staleStock.body.meta.totalResults, 8);
+assert.ok(staleStock.body.items.every(item => item.availability.code === 'check_availability' && item.availability.snapshotStale));
+
+const limitedSearchHandler = createTegiwaCatalogHandler({
+  stockIndex: searchStockIndex,
+  sitemapManifest: searchSitemaps,
+  catalogSummary: searchCatalogSummary,
+  catalogLoader: async index => searchCatalogShards[index],
+  searchIndex: localSearchIndex,
+  searchRateLimit: { limit: 2, windowMs: 60_000 },
+  now: () => FIXED_NOW,
+  fetchImpl: noFetch
+});
+assert.equal((await invoke(limitedSearchHandler, { query: { q: 'brake pads' } })).status, 200);
+assert.equal((await invoke(limitedSearchHandler, { query: { q: 'engine management' } })).status, 200);
+const rateLimited = await invoke(limitedSearchHandler, { query: { q: 'engine ecu' } });
+assert.equal(rateLimited.status, 429);
+assert.equal(rateLimited.body.error.code, 'rate_limited');
+assert.equal(rateLimited.headers['retry-after'], '60');
 
 function catalogRecord(number) {
   const padded = String(number).padStart(3, '0');
@@ -332,6 +427,27 @@ const productionPageOutOfRange = await invoke(productionHandler, { query: { page
 assert.equal(productionPageOutOfRange.status, 400);
 assert.equal(productionPageOutOfRange.body.error.code, 'invalid_page');
 
+const productionSearch = await invoke(productionHandler, { query: { q: 'engine management ecu' } });
+assert.equal(productionSearch.status, 200);
+assert.equal(productionSearch.body.items.length, 100);
+assert.ok(productionSearch.body.meta.totalResults > 100);
+assert.ok(productionSearch.body.meta.totalPages > 1);
+assert.equal(productionSearch.body.meta.canonicalQuery, 'engine management ecu');
+assert.ok(productionSearch.body.items.every(item => item.handle && item.title && item.image?.src));
+const productionSearchPageTwo = await invoke(productionHandler, { query: { q: 'engine management ecu', page: '2' } });
+assert.equal(productionSearchPageTwo.body.items.length, 100);
+assert.equal(new Set([
+  ...productionSearch.body.items.map(item => item.handle),
+  ...productionSearchPageTwo.body.items.map(item => item.handle)
+]).size, 200);
+const productionTypoSearch = await invoke(productionHandler, { query: { q: 'engien managment ecu' } });
+assert.equal(productionTypoSearch.body.meta.canonicalQuery, 'engine management ecu');
+assert.equal(productionTypoSearch.body.meta.corrected, true);
+assert.deepEqual(productionTypoSearch.body.items.map(item => item.handle), productionSearch.body.items.map(item => item.handle));
+const productionBrakePads = await invoke(productionHandler, { query: { q: 'brake pads' } });
+assert.equal(productionBrakePads.body.items.length, 100);
+assert.ok(productionBrakePads.body.meta.totalResults > 100);
+
 const longHandle = `long-${'performance-part-'.repeat(11)}catalog-item`;
 assert.ok(longHandle.length > 160 && longHandle.length < 256);
 const longHandleBrowse = await invoke(createTegiwaCatalogHandler({
@@ -412,7 +528,7 @@ const failingHandler = createTegiwaCatalogHandler({
   logger: { warn() {} },
   fetchImpl: async () => new Response('Service unavailable', { status: 503 })
 });
-const upstreamFailure = await invoke(failingHandler, { query: { q: 'brakes' } });
+const upstreamFailure = await invoke(failingHandler, { query: { handle: 'brakes' } });
 assert.equal(upstreamFailure.status, 502);
 assert.deepEqual(upstreamFailure.body, {
   error: {
@@ -424,7 +540,10 @@ assert.equal(upstreamFailure.headers['cache-control'], 'no-store');
 
 console.log('PASS: Tegiwa catalog API method, origin and parameter validation');
 console.log('PASS: normalized-title stock/RRP join with the generated-key fixture');
-console.log('PASS: official search normalization and field sanitization');
+console.log('PASS: local full-catalog search, phrase ranking, typo correction and field sanitization');
+console.log('PASS: 100-result search pagination has stable totals and no skips or duplicate products');
+console.log('PASS: full-result stock/pricing filters and relevance/name/price sorts run before pagination');
+console.log('PASS: local autocomplete, Arabic-safe input, XSS rejection and bounded rate limiting');
 console.log('PASS: bundled public-catalog browsing with numbered pages and compatible opaque cursors');
 console.log('PASS: generated 194-shard catalog snapshot loads through the production file path');
 console.log('PASS: product-detail sanitization, image allow-list and variant caps');
