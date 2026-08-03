@@ -86,7 +86,7 @@ const searchHandler = createTegiwaCatalogHandler({
   now: () => FIXED_NOW,
   fetchImpl: async url => {
     searchRequestUrl = new URL(url);
-    assert.equal(searchRequestUrl.origin, 'https://www.tegiwa.com');
+    assert.equal(searchRequestUrl.origin, 'https://tegiwa.myshopify.com');
     assert.equal(searchRequestUrl.pathname, '/search/suggest.json');
     return jsonResponse({
       resources: {
@@ -198,23 +198,22 @@ function sitemapEntry(number) {
   </url>`;
 }
 
-const rootSitemap = `<?xml version="1.0"?><sitemapindex>
-  <sitemap><loc>https://www.tegiwa.com/sitemap_products_1.xml?from=1&amp;to=25</loc></sitemap>
-  <sitemap><loc>https://www.tegiwa.com/sitemap_products_2.xml?from=26&amp;to=28</loc></sitemap>
-  <sitemap><loc>https://evil.example/sitemap_products_3.xml</loc></sitemap>
-</sitemapindex>`;
+const sitemapManifest = [
+  'https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=25',
+  'https://www.tegiwa.com/sitemap_products_2.xml?from=26&to=28'
+];
 const firstProductSitemap = `<?xml version="1.0"?><urlset>${Array.from({ length: 25 }, (_, index) => sitemapEntry(index + 1)).join('')}</urlset>`;
 const secondProductSitemap = `<?xml version="1.0"?><urlset>${Array.from({ length: 3 }, (_, index) => sitemapEntry(index + 26)).join('')}</urlset>`;
 
 const sitemapRequests = [];
 const browseHandler = createTegiwaCatalogHandler({
   stockIndex,
+  sitemapManifest,
   now: () => FIXED_NOW,
   fetchImpl: async url => {
     const parsed = new URL(url);
     sitemapRequests.push(parsed.toString());
     assert.equal(parsed.hostname, 'www.tegiwa.com');
-    if (parsed.pathname === '/sitemap.xml') return xmlResponse(rootSitemap);
     if (parsed.pathname === '/sitemap_products_1.xml') return xmlResponse(firstProductSitemap);
     if (parsed.pathname === '/sitemap_products_2.xml') return xmlResponse(secondProductSitemap);
     throw new Error(`Unexpected upstream URL: ${url}`);
@@ -301,6 +300,7 @@ assert.equal(serializedDetail.includes('<script'), false);
 const failingHandler = createTegiwaCatalogHandler({
   stockIndex,
   now: () => FIXED_NOW,
+  logger: { warn() {} },
   fetchImpl: async () => new Response('Service unavailable', { status: 503 })
 });
 const upstreamFailure = await invoke(failingHandler, { query: { q: 'brakes' } });

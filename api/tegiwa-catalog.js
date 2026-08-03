@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
-const ROOT_SITEMAP_URL = `${OFFICIAL_ORIGIN}/sitemap.xml`;
+const SHOPIFY_ORIGIN = 'https://tegiwa.myshopify.com';
 const PAGE_SIZE = 24;
 const MAX_SEARCH_RESULTS = 10;
 const MAX_SITEMAPS = 512;
@@ -12,11 +12,11 @@ const MAX_DETAIL_IMAGES = 16;
 const MAX_DETAIL_VARIANTS = 50;
 const MAX_STOCK_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const DEFAULT_TIMEOUT_MS = 7_000;
-const ROOT_SITEMAP_BYTES = 1_000_000;
 const PRODUCT_SITEMAP_BYTES = 12_000_000;
 const JSON_RESPONSE_BYTES = 2_000_000;
 const CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=300';
 const STOCK_INDEX_URL = new URL('./data/tegiwa-stock-index.json', import.meta.url);
+const SITEMAP_MANIFEST_URL = new URL('./data/tegiwa-sitemap-manifest.json', import.meta.url);
 
 const STATUS_CODES = Object.freeze({
   0: 'out_of_stock',
@@ -145,6 +145,28 @@ function loadDefaultStockIndex() {
     throw new Error('The public Tegiwa stock index could not be loaded.', { cause: error });
   }
   return defaultStockIndex;
+}
+
+function validateSitemapManifest(candidate) {
+  if (!candidate || typeof candidate !== 'object' || candidate.version !== 1 || !Array.isArray(candidate.sitemaps)) {
+    throw new Error('invalid_sitemap_manifest');
+  }
+  const sitemaps = candidate.sitemaps.map(productSitemapUrl);
+  if (!sitemaps.length || sitemaps.length > MAX_SITEMAPS || sitemaps.some(value => !value) || new Set(sitemaps).size !== sitemaps.length) {
+    throw new Error('invalid_sitemap_manifest');
+  }
+  return sitemaps;
+}
+
+let defaultSitemapManifest;
+function loadDefaultSitemapManifest() {
+  if (defaultSitemapManifest) return defaultSitemapManifest;
+  try {
+    defaultSitemapManifest = validateSitemapManifest(JSON.parse(readFileSync(SITEMAP_MANIFEST_URL, 'utf8')));
+  } catch (error) {
+    throw new Error('The public Tegiwa sitemap manifest could not be loaded.', { cause: error });
+  }
+  return defaultSitemapManifest;
 }
 
 function stockSnapshotIsFresh(index, nowValue) {
@@ -327,19 +349,6 @@ function productSitemapUrl(value) {
   }
 }
 
-function parseProductSitemaps(xml) {
-  const seen = new Set();
-  const result = [];
-  for (const raw of xmlElements(xml, 'loc', MAX_SITEMAPS * 4)) {
-    const url = productSitemapUrl(raw);
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
-    result.push(url);
-    if (result.length === MAX_SITEMAPS) break;
-  }
-  return result;
-}
-
 function titleFromHandle(handle) {
   return handle.split('-').filter(Boolean).map(part => part[0]?.toUpperCase() + part.slice(1)).join(' ');
 }
@@ -380,10 +389,10 @@ function decodeCursor(value) {
 function isAllowedUpstreamUrl(value) {
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' || url.hostname !== 'www.tegiwa.com' || url.username || url.password) return false;
-    return url.pathname === '/sitemap.xml'
-      || url.pathname === '/search/suggest.json'
-      || /^\/sitemap_products[^/]*\.xml$/.test(url.pathname)
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
+    if (url.hostname === 'tegiwa.myshopify.com') return url.pathname === '/search/suggest.json';
+    if (url.hostname !== 'www.tegiwa.com') return false;
+    return /^\/sitemap_products[^/]*\.xml$/.test(url.pathname)
       || /^\/products\/[a-z0-9]+(?:-[a-z0-9]+)*\.js$/.test(url.pathname);
   } catch {
     return false;
@@ -547,7 +556,7 @@ function metaFor(index, count, extra = {}) {
 }
 
 async function searchCatalog(fetchImpl, index, query) {
-  const url = new URL('/search/suggest.json', OFFICIAL_ORIGIN);
+  const url = new URL('/search/suggest.json', SHOPIFY_ORIGIN);
   url.searchParams.set('q', query);
   url.searchParams.set('resources[type]', 'product');
   url.searchParams.set('resources[limit]', String(MAX_SEARCH_RESULTS));
@@ -567,10 +576,7 @@ async function searchCatalog(fetchImpl, index, query) {
   };
 }
 
-async function browseCatalog(fetchImpl, index, sitemapIndex, offset) {
-  const root = await fetchText(fetchImpl, ROOT_SITEMAP_URL, { maxBytes: ROOT_SITEMAP_BYTES });
-  const sitemaps = parseProductSitemaps(root);
-  if (!sitemaps.length) throw new UpstreamError('upstream_invalid_sitemap');
+async function browseCatalog(fetchImpl, index, sitemaps, sitemapIndex, offset) {
   if (sitemapIndex >= sitemaps.length) throw new PublicApiError(400, 'invalid_cursor', 'The catalog cursor is invalid.');
 
   const items = [];
@@ -685,10 +691,11 @@ async function detailCatalog(fetchImpl, index, handle) {
   };
 }
 
-export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, now = () => Date.now() } = {}) {
+export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, sitemapManifest, now = () => Date.now(), logger = console } = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   const index = stockIndex ? validateStockIndex(stockIndex) : loadDefaultStockIndex();
+  const sitemaps = sitemapManifest ? validateSitemapManifest({ version: 1, sitemaps: sitemapManifest }) : loadDefaultSitemapManifest();
 
   return async function tegiwaCatalogHandler(req, res) {
     if (req.method !== 'GET') {
@@ -703,11 +710,12 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
       let body;
       if (request.mode === 'search') body = await searchCatalog(fetchImpl, requestIndex, request.query);
       else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);
-      else body = await browseCatalog(fetchImpl, requestIndex, request.sitemapIndex, request.offset);
+      else body = await browseCatalog(fetchImpl, requestIndex, sitemaps, request.sitemapIndex, request.offset);
       return sendJson(res, 200, body, true);
     } catch (error) {
       if (error instanceof PublicApiError) return sendError(res, error.status, error.code, error.message);
       if (error instanceof UpstreamError) {
+        logger?.warn?.('Tegiwa upstream request failed', { code: error.code, status: error.upstreamStatus || 0 });
         if (error.upstreamStatus === 404) return sendError(res, 404, 'product_not_found', 'The requested Tegiwa product was not found.');
         if (error.code === 'upstream_timeout') return sendError(res, 504, 'upstream_timeout', 'The official Tegiwa catalog took too long to respond.');
         return sendError(res, 502, 'upstream_unavailable', 'The official Tegiwa catalog is temporarily unavailable.');

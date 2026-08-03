@@ -9,7 +9,8 @@ const files = [
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'api/enquiry.js', 'api/tegiwa-catalog.js',
   'scripts/build.mjs', 'scripts/validate.mjs', 'scripts/serve.mjs',
   'scripts/test-api.mjs', 'scripts/test-tegiwa-catalog-api.mjs', 'scripts/lint.mjs',
-  'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs', 'sw.js'
+  'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs',
+  'scripts/build-tegiwa-sitemap-manifest.mjs', 'sw.js'
 ];
 
 const failures = [];

@@ -28,7 +28,8 @@ The tool rejects raw-size batches, private fields, remote/hotlinked images, miss
 
 Tegiwa's catalogue is too large for `assets/data.js` and static per-product routes. The preview therefore uses a restricted server-side catalogue endpoint:
 
-- `api/tegiwa-catalog.js` reads only Tegiwa's official public sitemap, predictive-search JSON and validated product JSON URLs.
+- `api/tegiwa-catalog.js` reads only Tegiwa's official public product sitemaps, Shopify predictive-search JSON and validated product JSON URLs.
+- `api/data/tegiwa-sitemap-manifest.json` bundles the small public list of official product-sitemap URLs, avoiding a fragile root-sitemap request on every browse page.
 - Browse results are sanitised and returned 24 at a time with opaque cursor pagination; search follows Shopify's official 10-product predictive-search limit and includes variant-SKU matching.
 - The parts page fetches results only when it is open, so the full catalogue does not slow down the rest of the website.
 - Product names stay in their official technical English form in both locales; the interface, status labels and quote workflow are bilingual.
@@ -55,3 +56,5 @@ It never means the item is physically stocked at Projx Racing. Every result also
 Availability badges automatically fall back to **confirm availability** once the stock snapshot is more than seven days old. GBP RRP remains visible as a reference, but stale inventory and lead-time claims are never presented as current.
 
 To refresh the snapshot, download the authorised feed privately, rerun the generator with the new check date, run all checks, inspect the aggregate counts and privacy assertions, then deploy only the generated anonymous index. Never commit the raw feed.
+
+Refresh the public sitemap manifest independently with `npm run catalog:tegiwa-sitemaps -- YYYY-MM-DD`. It contains only official public sitemap URLs—not product data, account data or dealer credentials.

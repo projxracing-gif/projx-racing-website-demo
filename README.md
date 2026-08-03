@@ -33,7 +33,7 @@ The retired interactive calculation and visualization module is not included in 
 api/
   enquiry.js                 Secure Vercel enquiry-email endpoint
   tegiwa-catalog.js          Restricted Tegiwa search/browse/detail proxy
-  data/                      Anonymous customer-safe stock/RRP index
+  data/                      Anonymous stock/RRP index and public sitemap manifest
 assets/
   app.js                     Page rendering and interactions
   data.js                    Verified shared business/content records
@@ -50,6 +50,7 @@ scripts/
   test-api.mjs               Enquiry endpoint tests
   test-tegiwa-catalog-api.mjs Tegiwa API security and contract tests
   build-tegiwa-stock-index.mjs Private-feed to public-safe index builder
+  build-tegiwa-sitemap-manifest.mjs Official public product-sitemap manifest builder
   serve.mjs                  Local static preview server
 template.html                Shared production HTML shell
 manifest.webmanifest         Web-app metadata
