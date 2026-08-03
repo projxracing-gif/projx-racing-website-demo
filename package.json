@@ -15,6 +15,6 @@
     "preview": "node scripts/serve.mjs dist 4173"
   },
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   }
 }
