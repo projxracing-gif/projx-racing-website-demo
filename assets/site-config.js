@@ -21,6 +21,7 @@ window.PROJX_CONFIG = {
   formEndpoint: "api/enquiry",
   formMode: "auto",
   clerkPublishableKey: "__CLERK_PUBLISHABLE_KEY__",
+  assetVersion: "__ASSET_VERSION__",
   logoHeader: "assets/brand/projx-racing-logo-header.png",
   defaultLocale: "en",
   supportedLocales: ["en", "ar"],

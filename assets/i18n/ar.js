@@ -579,7 +579,7 @@ window.PROJX_TRANSLATIONS.ar = {
         ],
         [
           "الخدمات الخارجية",
-          "WhatsApp وInstagram وخدمات Google تعمل وفق شروط الخصوصية الخاصة بها عند فتحها."
+          "قد تُحمّل صور كتالوج القطع تلقائياً من خدمة صور تابعة للمورد، والتي تستقبل بيانات الاتصال المعتادة مثل عنوان IP ومعلومات المتصفح. تعمل خدمات WhatsApp وInstagram وGoogle وفق شروط الخصوصية الخاصة بها عند فتحها."
         ],
         [
           "التواصل",
@@ -1445,7 +1445,7 @@ window.PROJX_TRANSLATIONS.ar = {
       "note": "مواصفات البورترين ورقم Dyno لهذه السيارة غير متوفرة."
     },
     "offroad-competition-chassis": {
-      "title": "Off-Road Competition Chassis Build",
+      "title": "بناء شاصي لمنافسات الطرق الوعرة",
       "vehicle": "Custom Competition Vehicle",
       "category": "مشروع متكامل",
       "summary": "مشروع Off-Road Competition يوضح تجهيز شاصي عاري وتغليف السسبنشن وتجميع Rolling Chassis كامل.",

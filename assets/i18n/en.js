@@ -499,7 +499,7 @@
           ["Information submitted", "Enquiry forms may collect contact details, vehicle information and project notes. The public website prepares a WhatsApp message unless secure email delivery is configured."],
           ["File handling", "Files selected in the browser are not uploaded by the static website. Customers receive instructions for an approved transfer method."],
           ["Local preferences", "Language, theme and selected quote items may be stored in the browser on the visitor's device."],
-          ["External services", "WhatsApp, Instagram and Google services operate under their own privacy terms when opened."],
+          ["External services", "Parts-catalogue images may load automatically from a supplier image service, which receives standard connection data such as the visitor's IP address and browser information. WhatsApp, Instagram and Google operate under their own privacy terms when opened."],
           ["Contact", "Questions about website information can be sent to the verified Projx Racing telephone or WhatsApp number."]
         ]
       },

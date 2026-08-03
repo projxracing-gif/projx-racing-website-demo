@@ -212,11 +212,27 @@ assert.ok(suggestions.body.suggestions.every(item => item.kind === 'product' && 
 assert.equal(suggestions.body.correction.canonicalQuery, 'engine manag');
 assert.equal(suggestions.body.meta.limit, 8);
 
-const arabicSafe = await invoke(searchHandler, { query: { q: 'محرك سباق' } });
-assert.equal(arabicSafe.status, 200);
-assert.equal(arabicSafe.body.items.length, 0);
-assert.equal(arabicSafe.body.meta.totalResults, 0);
-assert.equal(arabicSafe.body.meta.totalPages, 0);
+const arabicBrake = await invoke(searchHandler, { query: { q: 'قطع فحمات فرامل' } });
+assert.equal(arabicBrake.status, 200);
+assert.equal(arabicBrake.body.items.length, 8);
+assert.equal(arabicBrake.body.meta.totalResults, 8);
+assert.equal(arabicBrake.body.meta.canonicalQuery, 'brake pads');
+assert.equal(arabicBrake.body.meta.corrected, true);
+assert.equal(arabicBrake.body.meta.translated, true);
+assert.ok(arabicBrake.body.meta.corrections.some(item => item.from === 'فحمات' && item.to === 'brake pads'));
+
+const arabicSuggestions = await invoke(searchHandler, { query: { q: 'فرامل', suggest: '1' } });
+assert.equal(arabicSuggestions.status, 200);
+assert.equal(arabicSuggestions.body.suggestions.length, 8);
+assert.equal(arabicSuggestions.body.correction.canonicalQuery, 'brake');
+assert.equal(arabicSuggestions.body.correction.corrected, true);
+assert.equal(arabicSuggestions.body.correction.translated, true);
+
+const unknownArabic = await invoke(searchHandler, { query: { q: 'عبارة غير معروفة' } });
+assert.equal(unknownArabic.status, 200);
+assert.equal(unknownArabic.body.items.length, 0);
+assert.equal(unknownArabic.body.meta.totalResults, 0);
+assert.equal(unknownArabic.body.meta.translated, false);
 
 const xssSafe = await invoke(searchHandler, { query: { q: '<img src=x onerror=alert(1)>engine' } });
 assert.equal(xssSafe.status, 200);
@@ -447,6 +463,12 @@ assert.deepEqual(productionTypoSearch.body.items.map(item => item.handle), produ
 const productionBrakePads = await invoke(productionHandler, { query: { q: 'brake pads' } });
 assert.equal(productionBrakePads.body.items.length, 100);
 assert.ok(productionBrakePads.body.meta.totalResults > 100);
+const productionArabicBrakePads = await invoke(productionHandler, { query: { q: 'قطع فحمات فرامل' } });
+assert.equal(productionArabicBrakePads.status, 200);
+assert.equal(productionArabicBrakePads.body.meta.canonicalQuery, 'brake pads');
+assert.equal(productionArabicBrakePads.body.meta.translated, true);
+assert.equal(productionArabicBrakePads.body.meta.totalResults, productionBrakePads.body.meta.totalResults);
+assert.deepEqual(productionArabicBrakePads.body.items.map(item => item.handle), productionBrakePads.body.items.map(item => item.handle));
 
 const longHandle = `long-${'performance-part-'.repeat(11)}catalog-item`;
 assert.ok(longHandle.length > 160 && longHandle.length < 256);
@@ -543,7 +565,7 @@ console.log('PASS: normalized-title stock/RRP join with the generated-key fixtur
 console.log('PASS: local full-catalog search, phrase ranking, typo correction and field sanitization');
 console.log('PASS: 100-result search pagination has stable totals and no skips or duplicate products');
 console.log('PASS: full-result stock/pricing filters and relevance/name/price sorts run before pagination');
-console.log('PASS: local autocomplete, Arabic-safe input, XSS rejection and bounded rate limiting');
+console.log('PASS: local autocomplete, Arabic/Kuwaiti aliases, unknown Arabic safety, XSS rejection and bounded rate limiting');
 console.log('PASS: bundled public-catalog browsing with numbered pages and compatible opaque cursors');
 console.log('PASS: generated 194-shard catalog snapshot loads through the production file path');
 console.log('PASS: product-detail sanitization, image allow-list and variant caps');

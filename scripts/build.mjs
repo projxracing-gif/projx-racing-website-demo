@@ -7,10 +7,23 @@ import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(repo, 'dist');
 const template = fs.readFileSync(path.join(repo, 'template.html'), 'utf8');
-const assetVersion = crypto.createHash('sha256')
-  .update(['assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/i18n/en.js', 'assets/i18n/ar.js', 'assets/app.js']
-    .map(file => fs.readFileSync(path.join(repo, file)))
-    .reduce((buffer, part) => Buffer.concat([buffer, part]), Buffer.from('')))
+
+function versionedFiles(relativeDirectory) {
+  const directory = path.join(repo, relativeDirectory);
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const relative = path.join(relativeDirectory, entry.name);
+    return entry.isDirectory() ? versionedFiles(relative) : [relative];
+  });
+}
+
+const assetVersionFiles = [
+  'assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js',
+  'assets/i18n/en.js', 'assets/i18n/ar.js', 'assets/app.js',
+  ...versionedFiles('assets/brand'), ...versionedFiles('assets/media'), ...versionedFiles('assets/products')
+].sort();
+const assetVersionHash = crypto.createHash('sha256');
+for (const file of assetVersionFiles) assetVersionHash.update(file.replaceAll(path.sep, '/')).update('\0').update(fs.readFileSync(path.join(repo, file)));
+const assetVersion = assetVersionHash
   .update(String(process.env.CLERK_PUBLISHABLE_KEY || ''))
   .digest('hex')
   .slice(0, 12);
@@ -163,7 +176,7 @@ for (const service of DATA.services.filter(item => !['online-tuning', 'engine-bu
 add('/tuning', locale => {
   const page = T[locale].pages.tuning;
   return {
-    title: page.title, h1: page.heading, description: page.description, eyebrow: page.eyebrow, hero: 36,
+    title: page.title, h1: page.heading, description: page.description, eyebrow: page.eyebrow, hero: 60,
     details: Object.values(DATA.tuningPlatforms).map(platform => {
       const local = localizedPlatform(locale, platform);
       return `${local.short} — ${local.supportedScope}`;
@@ -190,7 +203,7 @@ for (const platform of Object.values(DATA.tuningPlatforms)) {
 add('/engine-building', locale => {
   const page = T[locale].pages.engineBuilding;
   return {
-    title: page.title, h1: page.heading, description: page.description, eyebrow: page.eyebrow, hero: 19,
+    title: page.title, h1: page.heading, description: page.description, eyebrow: page.eyebrow, hero: 53,
     details: page.options.map(([title]) => title),
     links: [[T[locale].ui.actions.engineConsultation, '/contact'], [T[locale].ui.nav.projects, '/projects']],
     schema: [{ '@type': 'Service', name: page.heading, serviceType: 'Engine building', description: page.description, provider: { '@id': `${siteUrl}#business` }, areaServed: 'Kuwait', inLanguage: T[locale].locale, url: canonical(locale, '/engine-building') }]
@@ -249,6 +262,7 @@ for (const product of (DATA.storeProducts || [])) {
       description: local.summary,
       eyebrow: locale === 'ar' ? 'منتج كتالوج تمت مراجعته' : 'Reviewed catalogue product',
       hero: 27,
+      preloadImage: product.images[0].src,
       primaryImage: new URL(product.images[0].src, siteUrl).href,
       details: [local.category, local.brand, product.sku || product.mpn, local.status],
       links: [[T[locale].ui.nav.parts, '/parts'], [T[locale].ui.actions.contactWorkshop, '/contact']],
@@ -260,7 +274,7 @@ for (const product of (DATA.storeProducts || [])) {
 for (const key of ['parts', 'brands', 'gallery', 'reviews', 'about', 'contact', 'faq']) {
   add(`/${key}`, locale => {
     const page = T[locale].pages[key];
-    const heroes = { parts: 27, brands: 30, gallery: 35, reviews: 20, about: 15, contact: 20, faq: 36 };
+    const heroes = { parts: 68, brands: 30, gallery: 52, reviews: 73, about: 15, contact: 60, faq: 53 };
     let details = [];
     if (key === 'parts') details = [...T[locale].parts.map(part => `${part.brand || ''} — ${part.title}`), ...(DATA.storeProducts || []).map(product => localizedStoreProduct(locale, product).title)];
     if (key === 'brands') details = DATA.brands.slice(0, 20).map(brand => brand.name);
@@ -278,7 +292,7 @@ add('/account', locale => ({
   h1: locale === 'ar' ? 'تسجيل الدخول أو إنشاء حساب' : 'Sign in or create an account',
   description: locale === 'ar' ? 'دخول آمن لعملاء Projx Racing وإنشاء حساب جديد.' : 'Secure customer sign-in and account registration for Projx Racing.',
   eyebrow: locale === 'ar' ? 'حساب العميل' : 'Customer account',
-  hero: 20,
+  hero: 53,
   details: locale === 'ar' ? ['تسجيل دخول آمن', 'إنشاء حساب جديد', 'إدارة بيانات الحساب'] : ['Secure sign-in', 'New account registration', 'Account profile management'],
   links: [[T[locale].ui.actions.contactWorkshop, '/contact']]
 }));
@@ -303,10 +317,28 @@ function structuredData(locale, route, page) {
   return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 }
 
+function versionedAssetUrl(value) {
+  const url = String(value || '');
+  if (!/^assets\/(?:brand|media|products)\//.test(url)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}v=${assetVersion}`;
+}
+
 function render(locale, route, page) {
   const segmentDepth = route === '/' ? 0 : route.split('/').filter(Boolean).length;
   const base = '../'.repeat(segmentDepth + 1);
   const canonicalUrl = canonical(locale, route);
+  const heroRecord = media(page.hero || 35);
+  const heroPreloadUrl = versionedAssetUrl(page.preloadImage || heroRecord.full);
+  const heroPreloadType = /\.webp(?:$|\?)/i.test(heroPreloadUrl) ? 'image/webp'
+    : /\.png(?:$|\?)/i.test(heroPreloadUrl) ? 'image/png'
+      : /\.jpe?g(?:$|\?)/i.test(heroPreloadUrl) ? 'image/jpeg' : '';
+  const heroWidth = Number(heroRecord.width) || 1600;
+  const heroBasename = path.basename(heroRecord.full, path.extname(heroRecord.full));
+  const heroSrcset = page.preloadImage ? '' : [
+    `${versionedAssetUrl(`assets/media/responsive/${heroBasename}-480.webp`)} ${Math.min(480, heroWidth)}w`,
+    ...(heroWidth > 960 ? [`${versionedAssetUrl(`assets/media/responsive/${heroBasename}-960.webp`)} 960w`] : []),
+    `${versionedAssetUrl(heroRecord.full)} ${heroWidth}w`
+  ].join(', ');
   const replacements = {
     LANG: T[locale].lang,
     DIR: T[locale].dir,
@@ -323,9 +355,9 @@ function render(locale, route, page) {
     OG_LOCALE: locale === 'ar' ? 'ar_KW' : 'en_KW',
     OG_ALT_LOCALE: locale === 'ar' ? 'en_KW' : 'ar_KW',
     OG_TYPE: page.ogType || 'website',
-    OG_IMAGE: new URL('assets/media/og/projx-racing-og.jpg', siteUrl).href,
+    OG_IMAGE: new URL(`assets/media/og/projx-racing-og.jpg?v=${assetVersion}`, siteUrl).href,
     OG_ALT: locale === 'ar' ? `${page.h1} — Projx Racing الكويت` : `${page.h1} — Projx Racing Kuwait`,
-    HERO_IMAGE: media(page.hero || 35).full,
+    HERO_PRELOAD: `<link rel="preload" href="${esc(heroPreloadUrl)}" as="image"${heroPreloadType ? ` type="${heroPreloadType}"` : ''}${heroSrcset ? ` imagesrcset="${esc(heroSrcset)}" imagesizes="100vw"` : ''} fetchpriority="high">`,
     STRUCTURED_DATA: structuredData(locale, route, page),
     FALLBACK_CONTENT: fallback(locale, page),
     SKIP_TEXT: T[locale].ui.skipToContent,
@@ -342,9 +374,14 @@ fs.cpSync(path.join(repo, 'assets'), path.join(dist, 'assets'), { recursive: tru
 const clerkPublishableKey = String(process.env.CLERK_PUBLISHABLE_KEY || '').trim();
 if (clerkPublishableKey && !/^pk_(?:test|live)_[A-Za-z0-9_-]+$/.test(clerkPublishableKey)) throw new Error('CLERK_PUBLISHABLE_KEY has an invalid format.');
 const builtConfigPath = path.join(dist, 'assets', 'site-config.js');
-const builtConfig = fs.readFileSync(builtConfigPath, 'utf8').replace('__CLERK_PUBLISHABLE_KEY__', clerkPublishableKey);
+const builtConfig = fs.readFileSync(builtConfigPath, 'utf8')
+  .replace('__CLERK_PUBLISHABLE_KEY__', clerkPublishableKey)
+  .replace('__ASSET_VERSION__', assetVersion);
 fs.writeFileSync(builtConfigPath, builtConfig);
-for (const file of ['manifest.webmanifest', 'sw.js']) fs.copyFileSync(path.join(repo, file), path.join(dist, file));
+fs.copyFileSync(path.join(repo, 'manifest.webmanifest'), path.join(dist, 'manifest.webmanifest'));
+const serviceWorkerSource = fs.readFileSync(path.join(repo, 'sw.js'), 'utf8');
+if (!serviceWorkerSource.includes('__ASSET_VERSION__')) throw new Error('Service-worker asset-version placeholder is missing.');
+fs.writeFileSync(path.join(dist, 'sw.js'), serviceWorkerSource.replaceAll('__ASSET_VERSION__', assetVersion));
 fs.writeFileSync(path.join(dist, '.nojekyll'), '');
 
 const manifest = [];
@@ -360,7 +397,7 @@ for (const route of routes) {
   }
 }
 
-const rootHtml = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow"><link rel="canonical" href="${canonical('en', '/')}"><link rel="alternate" hreflang="en-KW" href="${canonical('en', '/')}"><link rel="alternate" hreflang="ar-KW" href="${canonical('ar', '/')}"><link rel="alternate" hreflang="x-default" href="${canonical('en', '/')}"><meta name="description" content="Projx Racing motorsport workshop in Kuwait. Choose English or Arabic."><title>Projx Racing Kuwait</title><link rel="stylesheet" href="assets/styles.css?v=${assetVersion}"><script>try{const l=localStorage.getItem('projxLanguage');location.replace(l==='ar'?'./ar/':'./en/')}catch{location.replace('./en/')}</script></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png" width="354" height="146" alt="Projx Racing Motorsports"><h1>Projx Racing Kuwait</h1><p>Choose a language · اختر اللغة</p><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
+const rootHtml = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow"><link rel="canonical" href="${canonical('en', '/')}"><link rel="alternate" hreflang="en-KW" href="${canonical('en', '/')}"><link rel="alternate" hreflang="ar-KW" href="${canonical('ar', '/')}"><link rel="alternate" hreflang="x-default" href="${canonical('en', '/')}"><meta name="description" content="Projx Racing motorsport workshop in Kuwait. Choose English or Arabic."><title>Projx Racing Kuwait</title><link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png?v=${assetVersion}"><link rel="stylesheet" href="assets/styles.css?v=${assetVersion}"><script>try{const l=localStorage.getItem('projxLanguage');location.replace(l==='ar'?'./ar/':'./en/')}catch{location.replace('./en/')}</script></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png?v=${assetVersion}" width="354" height="146" alt="Projx Racing Motorsports"><h1>Projx Racing Kuwait</h1><p>Choose a language · اختر اللغة</p><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
 fs.writeFileSync(path.join(dist, 'index.html'), rootHtml);
 
 const xhtml = 'http://www.w3.org/1999/xhtml';
@@ -376,7 +413,7 @@ const sitemapRows = routes.map(({ route }) => {
 fs.writeFileSync(path.join(dist, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="${xhtml}">\n${sitemapRows}\n</urlset>\n`);
 fs.writeFileSync(path.join(dist, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${new URL('sitemap.xml', siteUrl).href}\n`);
 
-const notFound = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="description" content="The requested Projx Racing page could not be found. Choose English or Arabic to continue."><link rel="stylesheet" href="assets/styles.css?v=${assetVersion}"><title>Page Not Found | Projx Racing</title></head><body><main class="language-entry"><img src="assets/brand/projx-racing-logo-header.png" width="354" height="146" alt="Projx Racing Motorsports"><span class="eyebrow">404</span><h1>Page not found · الصفحة غير موجودة</h1><div class="btn-row"><a class="btn" href="en/">English</a><a class="btn btn-outline" href="ar/" lang="ar" dir="rtl">العربية</a></div></main></body></html>`;
+const notFound = `<!doctype html><html lang="en-KW" dir="ltr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="description" content="The requested Projx Racing page could not be found. Choose English or Arabic to continue."><script>(()=>{const a=/^\\/ar(?:\\/|$)/.test(location.pathname);document.documentElement.lang=a?'ar-KW':'en-KW';document.documentElement.dir=a?'rtl':'ltr'})()</script><link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32.png?v=${assetVersion}"><link rel="stylesheet" href="/assets/styles.css?v=${assetVersion}"><title>Page Not Found | Projx Racing</title></head><body><main class="language-entry"><img src="/assets/brand/projx-racing-logo-header.png?v=${assetVersion}" width="354" height="146" alt="Projx Racing Motorsports"><span class="eyebrow">404</span><h1 id="not-found-title">Page not found.</h1><p id="not-found-text">The requested page does not exist or has moved.</p><div class="btn-row"><a class="btn" href="/en/">English</a><a class="btn btn-outline" href="/ar/" lang="ar" dir="rtl">العربية</a></div></main><script>(()=>{if(document.documentElement.dir!=='rtl')return;document.title='الصفحة غير موجودة | Projx Racing';document.getElementById('not-found-title').textContent='الصفحة غير موجودة.';document.getElementById('not-found-text').textContent='الصفحة المطلوبة غير موجودة أو تم نقلها.'})()</script></body></html>`;
 fs.writeFileSync(path.join(dist, '404.html'), notFound);
 fs.writeFileSync(path.join(dist, 'route-manifest.json'), JSON.stringify(manifest, null, 2));
 

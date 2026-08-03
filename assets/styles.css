@@ -14,7 +14,7 @@
   --line: rgba(255, 255, 255, .11);
   --line-strong: rgba(255, 255, 255, .24);
   --red: #e21b23;
-  --red-hover: #f42a32;
+  --red-hover: #d71920;
   --red-deep: #921117;
   --red-label: #ff5259;
   --green: #4ed28a;
@@ -76,6 +76,7 @@ html {
   min-width: 320px;
   width: 100%;
   max-width: 100%;
+  overflow-x: clip;
   background: var(--bg);
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--header-h) + var(--safe-top) + 18px);
@@ -1252,7 +1253,7 @@ html[dir="rtl"] .drawer-panel { transform: translateX(-105%); }
 .lightbox-caption span { color: rgba(255,255,255,.65); font-size: .8rem; }
 .floating-actions { position: fixed; inset-inline-end: max(18px, var(--safe-right)); inset-block-end: max(18px, var(--safe-bottom)); z-index: 190; display: grid; gap: 9px; }
 .floating-btn { position: relative; display: grid; width: 52px; height: 52px; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--surface-glass); box-shadow: var(--shadow-sm); cursor: pointer; backdrop-filter: blur(16px); }
-.floating-btn.whatsapp { color: #fff; background: #25d366; border-color: #25d366; }
+.floating-btn.whatsapp { color: #07120b; background: #25d366; border-color: #08783b; }
 .floating-count { position: absolute; inset-block-start: -4px; inset-inline-end: -2px; display: grid; min-width: 20px; height: 20px; padding-inline: 4px; place-items: center; border-radius: 999px; color: #fff; background: var(--red); font-size: .65rem; font-weight: 900; }
 .mobile-action-bar { display: none; }
 .toast-root { position: fixed; inset-inline-end: max(18px, var(--safe-right)); inset-block-start: calc(var(--header-h) + var(--safe-top) + 18px); z-index: 800; display: grid; gap: 8px; }
@@ -1541,6 +1542,13 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .media-card-overlay { padding: 10px; }
   .media-card-overlay strong { font-size: .77rem; }
   .tegiwa-catalog-stats { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 360px) {
+  .brand-logo-frame { width: 104px; }
+  .header-inner { gap: 6px; }
+  .header-tools { gap: 4px; }
+  .header-contact { display: none; }
 }
 
 @media (min-width: 1700px) {

@@ -57,10 +57,10 @@ window.PROJX_DATA = {
         "Track"
       ],
       "full": "assets/media/full/projx-01.webp",
-      "thumb": "assets/media/full/projx-01.jpg",
+      "thumb": "assets/media/responsive/projx-01-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 2,
@@ -76,10 +76,10 @@ window.PROJX_DATA = {
         "Competition"
       ],
       "full": "assets/media/full/projx-02.webp",
-      "thumb": "assets/media/full/projx-02.jpg",
+      "thumb": "assets/media/responsive/projx-02-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 3,
@@ -95,10 +95,10 @@ window.PROJX_DATA = {
         "Workshop"
       ],
       "full": "assets/media/full/projx-03.webp",
-      "thumb": "assets/media/full/projx-03.jpg",
+      "thumb": "assets/media/responsive/projx-03-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 4,
@@ -115,10 +115,10 @@ window.PROJX_DATA = {
         "Inspection"
       ],
       "full": "assets/media/full/projx-04.webp",
-      "thumb": "assets/media/full/projx-04.jpg",
+      "thumb": "assets/media/responsive/projx-04-480.webp",
       "width": 1800,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 5,
@@ -135,10 +135,10 @@ window.PROJX_DATA = {
         "Engine Building"
       ],
       "full": "assets/media/full/projx-05.webp",
-      "thumb": "assets/media/full/projx-05.jpg",
+      "thumb": "assets/media/responsive/projx-05-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 6,
@@ -155,10 +155,10 @@ window.PROJX_DATA = {
         "HP Tuners"
       ],
       "full": "assets/media/full/projx-06.webp",
-      "thumb": "assets/media/full/projx-06.jpg",
+      "thumb": "assets/media/responsive/projx-06-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 7,
@@ -175,10 +175,10 @@ window.PROJX_DATA = {
         "Tuning"
       ],
       "full": "assets/media/full/projx-07.webp",
-      "thumb": "assets/media/full/projx-07.jpg",
+      "thumb": "assets/media/responsive/projx-07-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 8,
@@ -195,10 +195,10 @@ window.PROJX_DATA = {
         "Engine Block"
       ],
       "full": "assets/media/full/projx-08.webp",
-      "thumb": "assets/media/full/projx-08.jpg",
+      "thumb": "assets/media/responsive/projx-08-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 9,
@@ -215,10 +215,10 @@ window.PROJX_DATA = {
         "Motorsport"
       ],
       "full": "assets/media/full/projx-09.webp",
-      "thumb": "assets/media/full/projx-09.jpg",
+      "thumb": "assets/media/responsive/projx-09-480.webp",
       "width": 1800,
       "height": 1800,
-      "thumbSprite": true,
+      "thumbSprite": false,
       "showInGallery": false
     },
     {
@@ -236,10 +236,10 @@ window.PROJX_DATA = {
         "Workshop"
       ],
       "full": "assets/media/full/projx-10.webp",
-      "thumb": "assets/media/full/projx-10.jpg",
+      "thumb": "assets/media/responsive/projx-10-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 11,
@@ -256,10 +256,10 @@ window.PROJX_DATA = {
         "Suspension"
       ],
       "full": "assets/media/full/projx-11.webp",
-      "thumb": "assets/media/full/projx-11.jpg",
+      "thumb": "assets/media/responsive/projx-11-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 12,
@@ -275,10 +275,10 @@ window.PROJX_DATA = {
         "Race Build"
       ],
       "full": "assets/media/full/projx-12.webp",
-      "thumb": "assets/media/full/projx-12.jpg",
+      "thumb": "assets/media/responsive/projx-12-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 13,
@@ -295,10 +295,10 @@ window.PROJX_DATA = {
         "Aero"
       ],
       "full": "assets/media/full/projx-13.webp",
-      "thumb": "assets/media/full/projx-13.jpg",
+      "thumb": "assets/media/responsive/projx-13-480.webp",
       "width": 1013,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 14,
@@ -315,10 +315,10 @@ window.PROJX_DATA = {
         "Track"
       ],
       "full": "assets/media/full/projx-14.webp",
-      "thumb": "assets/media/full/projx-14.jpg",
+      "thumb": "assets/media/responsive/projx-14-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 15,
@@ -334,10 +334,10 @@ window.PROJX_DATA = {
         "Facility"
       ],
       "full": "assets/media/full/projx-15.webp",
-      "thumb": "assets/media/full/projx-15.jpg",
+      "thumb": "assets/media/responsive/projx-15-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 16,
@@ -354,10 +354,10 @@ window.PROJX_DATA = {
         "Cockpit"
       ],
       "full": "assets/media/full/projx-16.webp",
-      "thumb": "assets/media/full/projx-16.jpg",
+      "thumb": "assets/media/responsive/projx-16-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 17,
@@ -374,10 +374,10 @@ window.PROJX_DATA = {
         "Competition"
       ],
       "full": "assets/media/full/projx-17.webp",
-      "thumb": "assets/media/full/projx-17.jpg",
+      "thumb": "assets/media/responsive/projx-17-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 18,
@@ -394,10 +394,10 @@ window.PROJX_DATA = {
         "Engine"
       ],
       "full": "assets/media/full/projx-18.webp",
-      "thumb": "assets/media/full/projx-18.jpg",
+      "thumb": "assets/media/responsive/projx-18-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 19,
@@ -414,10 +414,10 @@ window.PROJX_DATA = {
         "Assembly"
       ],
       "full": "assets/media/full/projx-19.webp",
-      "thumb": "assets/media/full/projx-19.jpg",
+      "thumb": "assets/media/responsive/projx-19-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 20,
@@ -433,10 +433,10 @@ window.PROJX_DATA = {
         "Facility"
       ],
       "full": "assets/media/full/projx-20.webp",
-      "thumb": "assets/media/full/projx-20.jpg",
+      "thumb": "assets/media/responsive/projx-20-480.webp",
       "width": 1013,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 21,
@@ -453,10 +453,10 @@ window.PROJX_DATA = {
         "Race Build"
       ],
       "full": "assets/media/full/projx-21.webp",
-      "thumb": "assets/media/full/projx-21.jpg",
+      "thumb": "assets/media/responsive/projx-21-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 22,
@@ -473,10 +473,10 @@ window.PROJX_DATA = {
         "Service"
       ],
       "full": "assets/media/full/projx-22.webp",
-      "thumb": "assets/media/full/projx-22.jpg",
+      "thumb": "assets/media/responsive/projx-22-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 23,
@@ -493,10 +493,10 @@ window.PROJX_DATA = {
         "Chassis Setup"
       ],
       "full": "assets/media/full/projx-23.webp",
-      "thumb": "assets/media/full/projx-23.jpg",
+      "thumb": "assets/media/responsive/projx-23-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 24,
@@ -513,10 +513,10 @@ window.PROJX_DATA = {
         "Dyno"
       ],
       "full": "assets/media/full/projx-24.webp",
-      "thumb": "assets/media/full/projx-24.jpg",
+      "thumb": "assets/media/responsive/projx-24-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 25,
@@ -533,10 +533,10 @@ window.PROJX_DATA = {
         "Wheels"
       ],
       "full": "assets/media/full/projx-25.webp",
-      "thumb": "assets/media/full/projx-25.jpg",
+      "thumb": "assets/media/responsive/projx-25-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 26,
@@ -553,10 +553,10 @@ window.PROJX_DATA = {
         "Edelbrock"
       ],
       "full": "assets/media/full/projx-26.webp",
-      "thumb": "assets/media/full/projx-26.jpg",
+      "thumb": "assets/media/responsive/projx-26-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 27,
@@ -572,10 +572,10 @@ window.PROJX_DATA = {
         "Workshop"
       ],
       "full": "assets/media/full/projx-27.webp",
-      "thumb": "assets/media/full/projx-27.jpg",
+      "thumb": "assets/media/responsive/projx-27-480.webp",
       "width": 1013,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 28,
@@ -592,10 +592,10 @@ window.PROJX_DATA = {
         "Race Build"
       ],
       "full": "assets/media/full/projx-28.webp",
-      "thumb": "assets/media/full/projx-28.jpg",
+      "thumb": "assets/media/responsive/projx-28-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 29,
@@ -612,10 +612,10 @@ window.PROJX_DATA = {
         "Motorsport"
       ],
       "full": "assets/media/full/projx-29.webp",
-      "thumb": "assets/media/full/projx-29.jpg",
+      "thumb": "assets/media/responsive/projx-29-480.webp",
       "width": 936,
       "height": 731,
-      "thumbSprite": true,
+      "thumbSprite": false,
       "showInGallery": false
     },
     {
@@ -632,10 +632,10 @@ window.PROJX_DATA = {
         "Corvette"
       ],
       "full": "assets/media/full/projx-30.webp",
-      "thumb": "assets/media/full/projx-30.jpg",
+      "thumb": "assets/media/responsive/projx-30-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 31,
@@ -652,10 +652,10 @@ window.PROJX_DATA = {
         "Workshop"
       ],
       "full": "assets/media/full/projx-31.webp",
-      "thumb": "assets/media/full/projx-31.jpg",
+      "thumb": "assets/media/responsive/projx-31-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 32,
@@ -672,10 +672,10 @@ window.PROJX_DATA = {
         "Service"
       ],
       "full": "assets/media/full/projx-32.webp",
-      "thumb": "assets/media/full/projx-32.jpg",
+      "thumb": "assets/media/responsive/projx-32-480.webp",
       "width": 1013,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 33,
@@ -691,10 +691,10 @@ window.PROJX_DATA = {
         "Forced Induction"
       ],
       "full": "assets/media/full/projx-33.webp",
-      "thumb": "assets/media/full/projx-33.jpg",
+      "thumb": "assets/media/responsive/projx-33-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 34,
@@ -711,10 +711,10 @@ window.PROJX_DATA = {
         "Competition"
       ],
       "full": "assets/media/full/projx-34.webp",
-      "thumb": "assets/media/full/projx-34.jpg",
+      "thumb": "assets/media/responsive/projx-34-480.webp",
       "width": 1800,
       "height": 1013,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 35,
@@ -731,10 +731,10 @@ window.PROJX_DATA = {
         "Podium"
       ],
       "full": "assets/media/full/projx-35.webp",
-      "thumb": "assets/media/full/projx-35.jpg",
+      "thumb": "assets/media/responsive/projx-35-480.webp",
       "width": 1800,
       "height": 1350,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 36,
@@ -751,10 +751,10 @@ window.PROJX_DATA = {
         "Online Tuning"
       ],
       "full": "assets/media/full/projx-36.webp",
-      "thumb": "assets/media/full/projx-36.jpg",
+      "thumb": "assets/media/responsive/projx-36-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 37,
@@ -771,10 +771,10 @@ window.PROJX_DATA = {
         "Installation"
       ],
       "full": "assets/media/full/projx-37.webp",
-      "thumb": "assets/media/full/projx-37.jpg",
+      "thumb": "assets/media/responsive/projx-37-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 38,
@@ -791,10 +791,10 @@ window.PROJX_DATA = {
         "Inspection"
       ],
       "full": "assets/media/full/projx-38.webp",
-      "thumb": "assets/media/full/projx-38.jpg",
+      "thumb": "assets/media/responsive/projx-38-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 39,
@@ -811,10 +811,10 @@ window.PROJX_DATA = {
         "Engine"
       ],
       "full": "assets/media/full/projx-39.webp",
-      "thumb": "assets/media/full/projx-39.jpg",
+      "thumb": "assets/media/responsive/projx-39-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 40,
@@ -831,10 +831,10 @@ window.PROJX_DATA = {
         "ECU"
       ],
       "full": "assets/media/full/projx-40.webp",
-      "thumb": "assets/media/full/projx-40.jpg",
+      "thumb": "assets/media/responsive/projx-40-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 41,
@@ -851,10 +851,10 @@ window.PROJX_DATA = {
         "Drift"
       ],
       "full": "assets/media/full/projx-41.webp",
-      "thumb": "assets/media/full/projx-41.jpg",
+      "thumb": "assets/media/responsive/projx-41-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 42,
@@ -871,10 +871,10 @@ window.PROJX_DATA = {
         "Track"
       ],
       "full": "assets/media/full/projx-42.webp",
-      "thumb": "assets/media/full/projx-42.jpg",
+      "thumb": "assets/media/responsive/projx-42-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 43,
@@ -891,10 +891,10 @@ window.PROJX_DATA = {
         "Installation"
       ],
       "full": "assets/media/full/projx-43.webp",
-      "thumb": "assets/media/full/projx-43.jpg",
+      "thumb": "assets/media/responsive/projx-43-480.webp",
       "width": 1350,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 44,
@@ -911,10 +911,10 @@ window.PROJX_DATA = {
         "Engine Swap"
       ],
       "full": "assets/media/full/projx-44.webp",
-      "thumb": "assets/media/full/projx-44.jpg",
+      "thumb": "assets/media/responsive/projx-44-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 45,
@@ -931,10 +931,10 @@ window.PROJX_DATA = {
         "Header"
       ],
       "full": "assets/media/full/projx-45.webp",
-      "thumb": "assets/media/full/projx-45.jpg",
+      "thumb": "assets/media/responsive/projx-45-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 46,
@@ -951,10 +951,10 @@ window.PROJX_DATA = {
         "Powertrain"
       ],
       "full": "assets/media/full/projx-46.webp",
-      "thumb": "assets/media/full/projx-46.jpg",
+      "thumb": "assets/media/responsive/projx-46-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 47,
@@ -971,10 +971,10 @@ window.PROJX_DATA = {
         "Packaging"
       ],
       "full": "assets/media/full/projx-47.webp",
-      "thumb": "assets/media/full/projx-47.jpg",
+      "thumb": "assets/media/responsive/projx-47-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 48,
@@ -991,10 +991,10 @@ window.PROJX_DATA = {
         "Race Car"
       ],
       "full": "assets/media/full/projx-48.webp",
-      "thumb": "assets/media/full/projx-48.jpg",
+      "thumb": "assets/media/responsive/projx-48-480.webp",
       "width": 1270,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 49,
@@ -1011,10 +1011,10 @@ window.PROJX_DATA = {
         "Fuel System"
       ],
       "full": "assets/media/full/projx-49.webp",
-      "thumb": "assets/media/full/projx-49.jpg",
+      "thumb": "assets/media/responsive/projx-49-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     {
       "id": 50,
@@ -1031,10 +1031,10 @@ window.PROJX_DATA = {
         "Motorsport"
       ],
       "full": "assets/media/full/projx-50.webp",
-      "thumb": "assets/media/full/projx-50.jpg",
+      "thumb": "assets/media/responsive/projx-50-480.webp",
       "width": 1012,
       "height": 1800,
-      "thumbSprite": true
+      "thumbSprite": false
     },
     { "id": 51, "title": "Circuit race car", "alt": "Race car photographed at speed on circuit", "caption": "Race car photographed at speed on circuit", "vehicle": "Toyota 86 / GR86", "make": "Toyota", "category": "Circuit Racing", "tags": ["Toyota", "Circuit Racing", "Toyota 86 / GR86"], "full": "assets/media/uploads/projx-upload-51.webp", "width": 1279, "height": 1600, "showInGallery": false },
     { "id": 52, "title": "BMW circuit car", "alt": "BMW race car during a circuit session", "caption": "BMW race car during a circuit session", "vehicle": "BMW race car", "make": "BMW", "category": "Circuit Racing", "tags": ["BMW", "Circuit Racing", "BMW race car"], "full": "assets/media/uploads/projx-upload-52.webp", "width": 1600, "height": 898 },

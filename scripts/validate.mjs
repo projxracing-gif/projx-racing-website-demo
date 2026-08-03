@@ -47,6 +47,14 @@ if (!fs.existsSync(dist)) {
 
 const htmlFiles = filesRecursive(dist).filter(file => file.endsWith('.html'));
 const distFiles = filesRecursive(dist);
+const notFoundHtml = fs.readFileSync(path.join(dist, '404.html'), 'utf8');
+assert(/href="\/assets\/brand\/favicon-32\.png\?v=[a-f0-9]{12}"/.test(notFoundHtml)
+  && /href="\/assets\/styles\.css\?v=[a-f0-9]{12}"/.test(notFoundHtml)
+  && /src="\/assets\/brand\/projx-racing-logo-header\.png\?v=[a-f0-9]{12}"/.test(notFoundHtml)
+  && /href="\/en\/"/.test(notFoundHtml)
+  && /href="\/ar\/"/.test(notFoundHtml)
+  && /location\.pathname/.test(notFoundHtml)
+  && /document\.documentElement\.dir=a\?'rtl':'ltr'/.test(notFoundHtml), 'Nested 404 recovery assets, locale direction or language links are invalid.');
 
 const titlesByLocale = { en: new Map(), ar: new Map() };
 const canonicals = new Map();
@@ -92,7 +100,9 @@ for (const file of htmlFiles) {
     assert(/hreflang="ar-KW"/i.test(html), `${rel}: missing ar-KW hreflang.`);
     assert(/hreflang="x-default"/i.test(html), `${rel}: missing x-default hreflang.`);
     assert(/application\/ld\+json/i.test(html), `${rel}: missing structured data.`);
-    assert(/assets\/i18n\/en\.js/i.test(html) && /assets\/i18n\/ar\.js/i.test(html), `${rel}: translation dictionaries are not loaded.`);
+    const expectedLocaleBundle = new RegExp(`assets/i18n/${locale}\\.js`, 'i');
+    const otherLocaleBundle = new RegExp(`assets/i18n/${locale === 'ar' ? 'en' : 'ar'}\\.js`, 'i');
+    assert(expectedLocaleBundle.test(html) && !otherLocaleBundle.test(html), `${rel}: the route-specific translation dictionary is not loaded cleanly.`);
     assert(/dataset\.theme/i.test(html) && /projxTheme/i.test(html), `${rel}: early theme bootstrap is missing.`);
 
     if (title) {
@@ -357,6 +367,13 @@ for (const dealerName of ['xHP Flashtool', 'Motion Raceworks', 'ECS Tuning']) {
 for (const logo of brandLogoPaths) {
   assert(fs.existsSync(path.join(repo, logo)), `Brand logo asset is missing: ${logo}`);
   assert(fs.existsSync(path.join(dist, logo)), `Brand logo was not copied to production: ${logo}`);
+  const bytes = fs.readFileSync(path.join(repo, logo));
+  const extension = path.extname(logo).toLowerCase();
+  const signatureMatches = extension === '.png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    : extension === '.webp' ? bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+      : extension === '.jpg' || extension === '.jpeg' ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+        : extension === '.svg' ? /<svg[\s>]/i.test(bytes.toString('utf8').slice(0, 1000)) : true;
+  assert(signatureMatches, `Brand logo extension does not match its encoded format: ${logo}`);
 }
 assert(data.tuningPlatforms.mhd.tuneTypes.includes('xHP Transmission Tune — Compatibility Review'), 'MHD/xHP transmission tune option is missing.');
 assert(translations.ar.tuning.mhd.tuneTypes.includes('برمجة قير xHP — مراجعة التوافق'), 'Arabic MHD/xHP transmission tune option is missing.');
@@ -436,7 +453,19 @@ for (const item of data.media) {
   const file = path.join(repo, item.full);
   assert(fs.existsSync(file), `Media ${item.id} missing: ${item.full}`);
   assert(Number(item.width) > 0 && Number(item.height) > 0, `Media ${item.id} missing intrinsic dimensions.`);
+  if (item.thumb) {
+    assert(fs.existsSync(path.join(repo, item.thumb)), `Media ${item.id} thumbnail metadata points to a missing file.`);
+    assert(fs.existsSync(path.join(dist, item.thumb)), `Media ${item.id} thumbnail was not copied to production.`);
+  }
+  const basename = path.basename(item.full, path.extname(item.full));
+  for (const width of [480, 960]) {
+    const responsive = path.join('assets', 'media', 'responsive', `${basename}-${width}.webp`);
+    assert(fs.existsSync(path.join(repo, responsive)), `Media ${item.id} missing ${width}px responsive derivative.`);
+    assert(fs.existsSync(path.join(dist, responsive)), `Media ${item.id} ${width}px derivative was not copied to production.`);
+  }
 }
+
+assert(appSource.includes('assets/media/responsive/') && appSource.includes('srcset='), 'Responsive local-media srcsets are not integrated into rendered images.');
 
 for (const required of [
   'assets/styles.css', 'assets/app.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js',
@@ -446,7 +475,21 @@ for (const required of [
 ]) assert(fs.existsSync(path.join(dist, required)), `Missing production asset: ${required}`);
 
 const productionConfig = fs.readFileSync(path.join(dist, 'assets/site-config.js'), 'utf8');
-assert(!productionConfig.includes('__CLERK_PUBLISHABLE_KEY__'), 'Unresolved Clerk build placeholder remains in production config.');
+assert(!productionConfig.includes('__CLERK_PUBLISHABLE_KEY__') && !productionConfig.includes('__ASSET_VERSION__'), 'Unresolved build placeholder remains in production config.');
+const productionServiceWorker = fs.readFileSync(path.join(dist, 'sw.js'), 'utf8');
+assert(!productionServiceWorker.includes('__ASSET_VERSION__')
+  && /const ASSET_VERSION = "[a-f0-9]{12}"/.test(productionServiceWorker)
+  && productionServiceWorker.includes('assets/app.js?v=${ASSET_VERSION}'), 'Service-worker core assets are not tied to the current build version.');
+const productionAssetVersion = productionServiceWorker.match(/const ASSET_VERSION = "([a-f0-9]{12})"/)?.[1] || '';
+assert(productionConfig.includes(`assetVersion: "${productionAssetVersion}"`), 'Runtime asset version does not match the service-worker build version.');
+const productionServiceWorkerCore = productionServiceWorker.match(/const CORE_ASSETS = \[([\s\S]*?)\];/)?.[1] || '';
+assert(!productionServiceWorkerCore.includes('assets/i18n/'), 'Service-worker install still downloads both locale bundles.');
+assert(productionServiceWorker.includes('key.startsWith("projx-racing-bilingual-")')
+  && productionServiceWorker.includes('await cache.put(event.request, response.clone())')
+  && productionServiceWorker.includes('Response.redirect(new URL(fallbackPath, self.registration.scope).href, 302)'), 'Service-worker cache or offline-navigation safeguards are missing.');
+const productionEnglishHome = fs.readFileSync(path.join(dist, 'en', 'index.html'), 'utf8');
+assert(new RegExp(`href="assets/media/[^"]+\\?v=${productionAssetVersion}`).test(productionEnglishHome)
+  && appSource.includes('function versionedAsset('), 'Versioned local-media delivery is not integrated into HTML and runtime rendering.');
 
 const css = fs.readFileSync(path.join(repo, 'assets/styles.css'), 'utf8');
 assert(/:root\[data-theme="light"\]/.test(css), 'Light-theme design tokens are missing.');

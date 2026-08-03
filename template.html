@@ -52,18 +52,17 @@
   <title>{{TITLE}}</title>
 
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/favicon-16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png">
-  <link rel="preload" href="assets/brand/projx-racing-logo-header.png" as="image" type="image/png">
-  <link rel="preload" href="{{HERO_IMAGE}}" as="image" type="image/webp" fetchpriority="high">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png?v={{ASSET_VERSION}}">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/favicon-16.png?v={{ASSET_VERSION}}">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v={{ASSET_VERSION}}">
+  <link rel="preload" href="assets/brand/projx-racing-logo-header.png?v={{ASSET_VERSION}}" as="image" type="image/png">
+  {{HERO_PRELOAD}}
   <link rel="stylesheet" href="assets/styles.css?v={{ASSET_VERSION}}">
   <script id="projx-structured-data" type="application/ld+json">{{STRUCTURED_DATA}}</script>
   <script defer src="assets/site-config.js?v={{ASSET_VERSION}}"></script>
   <script defer src="assets/data.js?v={{ASSET_VERSION}}"></script>
   <script defer src="assets/tegiwa-vehicle-directory.js?v={{ASSET_VERSION}}"></script>
-  <script defer src="assets/i18n/en.js?v={{ASSET_VERSION}}"></script>
-  <script defer src="assets/i18n/ar.js?v={{ASSET_VERSION}}"></script>
+  <script defer src="assets/i18n/{{LOCALE}}.js?v={{ASSET_VERSION}}"></script>
   <script defer src="assets/app.js?v={{ASSET_VERSION}}"></script>
 </head>
 <body data-route="{{ROUTE}}" data-locale="{{LOCALE}}" data-preview="false">

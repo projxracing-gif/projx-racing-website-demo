@@ -7,6 +7,9 @@
   const TEGIWA_VEHICLE_DIRECTORY = window.PROJX_TEGIWA_VEHICLE_DIRECTORY || { makes: [], counts: { makes: 0, models: 0 } };
   const SUPPLIER_DIRECTORY_GENERATION = "supplier-directory";
   const SUPPLIER_CONFIRM_ENGINE = "confirm-engine";
+  const TEGIWA_PRODUCT_QUERY = "product";
+  const TEGIWA_PRODUCT_HISTORY_KEY = "projxSupplierProduct";
+  const TEGIWA_PRODUCT_HANDLE_LIMIT = 255;
   const main = document.getElementById("main-content");
   const header = document.getElementById("site-header");
   const footer = document.getElementById("site-footer");
@@ -110,6 +113,7 @@
       pricing: "all",
       controller: null,
       detailController: null,
+      detailHandle: "",
       suggestionController: null,
       suggestionTimer: null,
       activeSuggestion: -1,
@@ -236,7 +240,9 @@
       tegiwaSearchSuggestions: "اقتراحات البحث",
       tegiwaDidYouMean: "هل تقصد «{query}»؟",
       tegiwaCorrectedSearch: "تم تصحيح البحث من «{from}» إلى «{to}».",
-      tegiwaPaginationLabel: "صفحات كتالوج Tegiwa",
+      tegiwaSearchEquivalent: "ابحث في كتالوج المورد عن «{query}»",
+      tegiwaTranslatedSearch: "تمت مطابقة «{from}» مع مصطلح الكتالوج «{to}».",
+      tegiwaPaginationLabel: "صفحات كتالوج القطع",
       tegiwaPageOf: "الصفحة {page} من {total}",
       tegiwaGoToPage: "انتقل إلى الصفحة {page}",
       tegiwaShowingRange: "عرض {start}–{end} من {total} منتج",
@@ -364,7 +370,9 @@
       tegiwaSearchSuggestions: "Search suggestions",
       tegiwaDidYouMean: "Did you mean “{query}”?",
       tegiwaCorrectedSearch: "Search corrected from “{from}” to “{to}”.",
-      tegiwaPaginationLabel: "Tegiwa catalogue pages",
+      tegiwaSearchEquivalent: "Search supplier catalogue for “{query}”",
+      tegiwaTranslatedSearch: "Matched “{from}” to supplier catalogue term “{to}”.",
+      tegiwaPaginationLabel: "Parts catalogue pages",
       tegiwaPageOf: "Page {page} of {total}",
       tegiwaGoToPage: "Go to page {page}",
       tegiwaShowingRange: "Showing {start}–{end} of {total} products",
@@ -529,6 +537,12 @@
   function cleanText(value = "", limit = 3000) {
     return String(value).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim().slice(0, limit);
   }
+  function versionedAsset(value = "") {
+    const asset = String(value || "");
+    const version = String(CONFIG.assetVersion || "").trim();
+    if (!/^assets\/(?:brand|media|products)\//.test(asset) || !/^[a-f0-9]{12}$/.test(version) || /(?:\?|&)v=/.test(asset)) return asset;
+    return `${asset}${asset.includes("?") ? "&" : "?"}v=${version}`;
+  }
   function slugify(value = "") {
     return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
@@ -543,6 +557,67 @@
     if (PREVIEW_MODE) return `#/${locale}${route === "/" ? "" : route}${query}`;
     return `${locale}/${route === "/" ? "" : `${route.slice(1)}/`}${query}`;
   }
+  function tegiwaProductHandle(value = "") {
+    const handle = String(value ?? "").trim();
+    if (!handle || handle.length > TEGIWA_PRODUCT_HANDLE_LIMIT) return "";
+    return /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(String(handle || "")) ? handle : "";
+  }
+  function currentRouteQueryParams() {
+    if (!PREVIEW_MODE) return new URLSearchParams(location.search);
+    const hash = location.hash.replace(/^#\/?/, "");
+    const queryIndex = hash.indexOf("?");
+    return new URLSearchParams(queryIndex >= 0 ? hash.slice(queryIndex + 1) : "");
+  }
+  function routeWithQuery(path, params) {
+    const query = params.toString();
+    return `${normalizeRoute(path)}${query ? `?${query}` : ""}`;
+  }
+  function absoluteRouteUrl(path, locale = state.locale) {
+    return new URL(routeUrl(path, locale), PREVIEW_MODE ? location.href : document.baseURI).href;
+  }
+  function localizedCurrentRouteUrl(locale = state.locale) {
+    const params = currentRouteQueryParams();
+    const product = tegiwaProductHandle(params.get(TEGIWA_PRODUCT_QUERY));
+    if (currentPath() !== "/parts" || !product) params.delete(TEGIWA_PRODUCT_QUERY);
+    else params.set(TEGIWA_PRODUCT_QUERY, product);
+    return routeUrl(routeWithQuery(currentPath(), params), locale);
+  }
+  function tegiwaProductUrl(value, locale = state.locale) {
+    const handle = tegiwaProductHandle(value);
+    const params = currentRouteQueryParams();
+    if (handle) params.set(TEGIWA_PRODUCT_QUERY, handle);
+    else params.delete(TEGIWA_PRODUCT_QUERY);
+    return routeUrl(routeWithQuery("/parts", params), locale);
+  }
+  function tegiwaHistoryState(handle = "") {
+    const current = history.state && typeof history.state === "object" ? { ...history.state } : {};
+    if (handle) current[TEGIWA_PRODUCT_HISTORY_KEY] = handle;
+    else delete current[TEGIWA_PRODUCT_HISTORY_KEY];
+    return current;
+  }
+  function updateLanguageRouteLinks() {
+    const href = localizedCurrentRouteUrl(alternateLocale());
+    document.querySelectorAll("a[data-language]").forEach(link => link.setAttribute("href", href));
+  }
+  function updateTegiwaProductUrl(value, { replace = false } = {}) {
+    const handle = tegiwaProductHandle(value);
+    if (!handle || currentPath() !== "/parts") return false;
+    const params = currentRouteQueryParams();
+    if (tegiwaProductHandle(params.get(TEGIWA_PRODUCT_QUERY)) === handle) return false;
+    params.set(TEGIWA_PRODUCT_QUERY, handle);
+    const url = absoluteRouteUrl(routeWithQuery("/parts", params));
+    history[replace ? "replaceState" : "pushState"](tegiwaHistoryState(handle), "", url);
+    updateLanguageRouteLinks();
+    return true;
+  }
+  function removeTegiwaProductUrl() {
+    const params = currentRouteQueryParams();
+    if (!params.has(TEGIWA_PRODUCT_QUERY)) return false;
+    params.delete(TEGIWA_PRODUCT_QUERY);
+    history.replaceState(tegiwaHistoryState(), "", absoluteRouteUrl(routeWithQuery(currentPath(), params)));
+    updateLanguageRouteLinks();
+    return true;
+  }
   function navigate(path = "/", locale = state.locale) {
     storage.set("projxLanguage", locale);
     if (PREVIEW_MODE) {
@@ -554,6 +629,12 @@
   function currentPath() { return state.route; }
   function alternateLocale() { return state.locale === "ar" ? "en" : "ar"; }
   function isRtl() { return state.locale === "ar"; }
+  function prefersReducedMotion() { return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches); }
+  function motionBehavior() { return prefersReducedMotion() ? "auto" : "smooth"; }
+  function motionDelay(milliseconds = 450) { return prefersReducedMotion() ? 0 : milliseconds; }
+  function scrollElementIntoView(element, block = "start") {
+    element?.scrollIntoView({ behavior: motionBehavior(), block });
+  }
   function year() { return new Date().getFullYear(); }
   function compactNumber(number) { return String(number).padStart(2, "0"); }
   function randomRef(prefix = "WEB") {
@@ -669,17 +750,48 @@
     loading = "lazy",
     className = "",
     alt = "",
-    sizes = "(max-width: 680px) 100vw, 50vw",
-    fetchpriority = "auto"
+    sizes = "",
+    fetchpriority = "auto",
+    thumb = false
   } = {}) {
     const media = mediaItem(id);
     if (!media) return "";
-    // Use the original WebP for every placement. The former 256 px square
-    // sprite tiles became soft and were distorted inside 16:10 and 4:3 cards.
-    // Real images retain their intrinsic ratio; the layout crops them safely
-    // with object-fit while native lazy loading limits initial bandwidth.
     const position = /^(?:left|center|right|top|bottom|[0-9]{1,3}%)(?:\s+(?:left|center|right|top|bottom|[0-9]{1,3}%))?$/.test(media.position || "") ? media.position : "center";
-    return `<img class="${esc(className)}" src="${esc(media.full)}" alt="${esc(alt || media.alt)}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" sizes="${esc(sizes)}" width="${Number(media.width) || 1600}" height="${Number(media.height) || 1200}" style="object-position:${esc(position)}">`;
+    const width = Number(media.width) || 1600;
+    const height = Number(media.height) || 1200;
+    const basename = String(media.full || "").match(/\/([^/]+)\.webp$/i)?.[1] || "";
+    const responsive = basename && String(media.full).startsWith("assets/media/");
+    const smallWidth = Math.min(480, width);
+    const mediumWidth = Math.min(960, width);
+    const sources = responsive
+      ? [
+          `${versionedAsset(`assets/media/responsive/${basename}-480.webp`)} ${smallWidth}w`,
+          ...(mediumWidth > smallWidth && mediumWidth < width ? [`${versionedAsset(`assets/media/responsive/${basename}-960.webp`)} ${mediumWidth}w`] : []),
+          `${versionedAsset(media.full)} ${width}w`
+        ]
+      : [];
+    const effectiveSizes = sizes || (thumb ? "(max-width:680px) 100vw, (max-width:1100px) 50vw, 390px" : "(max-width:680px) 100vw, 50vw");
+    const srcset = sources.length > 1 ? ` srcset="${esc(sources.join(", "))}"` : "";
+    return `<img class="${esc(className)}" src="${esc(versionedAsset(media.full))}"${srcset} alt="${esc(alt || media.alt)}" loading="${loading}" decoding="async" fetchpriority="${fetchpriority}" sizes="${esc(effectiveSizes)}" width="${width}" height="${height}" style="object-position:${esc(position)}">`;
+  }
+
+  function updateMediaImageSource(image, media, sizes = "(max-width:680px) 100vw, 50vw") {
+    if (!image || !media) return;
+    const width = Number(media.width) || 1600;
+    const basename = String(media.full || "").match(/\/([^/]+)\.webp$/i)?.[1] || "";
+    const smallWidth = Math.min(480, width);
+    const mediumWidth = Math.min(960, width);
+    const sources = basename && String(media.full).startsWith("assets/media/")
+      ? [
+          `${versionedAsset(`assets/media/responsive/${basename}-480.webp`)} ${smallWidth}w`,
+          ...(mediumWidth > smallWidth && mediumWidth < width ? [`${versionedAsset(`assets/media/responsive/${basename}-960.webp`)} ${mediumWidth}w`] : []),
+          `${versionedAsset(media.full)} ${width}w`
+        ]
+      : [];
+    image.src = versionedAsset(media.full);
+    if (sources.length > 1) image.srcset = sources.join(", ");
+    else image.removeAttribute("srcset");
+    image.sizes = sizes;
   }
 
   function button(label, href, { variant = "", external = false, icon = icons.arrow, attrs = "" } = {}) {
@@ -831,7 +943,7 @@
     const search = [local.title, local.category, local.subcategory, local.brand, local.sku, local.mpn, local.summary].join(" ").toLowerCase();
     const fitment = fitmentMakes(product).map(normalizedBrandWords).flat().join("|");
     const pricing = product.quoteOnly ? "quote" : "published";
-    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-availability="${esc(local.status)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(image?.src || "")}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(local.status)}</span></a><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
+    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-availability="${esc(local.status)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(local.status)}</span></a><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function partCard(part, index) {
@@ -858,7 +970,7 @@
       const initials = brand.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase();
       return `<${tag} class="brand-mark${compactClass}" aria-hidden="true">${esc(initials)}</${tag}>`;
     }
-    return `<${tag} class="brand-mark brand-logo-mark${compactClass}${pairClass}" aria-hidden="true">${logos.map(source => `<img src="${esc(source)}" alt="" loading="lazy" decoding="async">`).join("")}</${tag}>`;
+    return `<${tag} class="brand-mark brand-logo-mark${compactClass}${pairClass}" aria-hidden="true">${logos.map(source => `<img src="${esc(versionedAsset(source))}" alt="" loading="lazy" decoding="async">`).join("")}</${tag}>`;
   }
 
   function platformCard(platform) {
@@ -874,10 +986,10 @@
       const label = ui.nav[key];
       const active = routeActive(path);
       if (key === "services") {
-        return `<details class="nav-dropdown"><summary class="nav-link ${active ? "is-active" : ""}">${esc(label)}<span aria-hidden="true">⌄</span></summary><div class="nav-dropdown-panel"><a href="${routeUrl("/services")}">${esc(ui.actions.viewAllServices)}</a>${services.map(service => `<a href="${routeUrl(serviceHref(service.slug))}">${esc(service.title)}</a>`).join("")}</div></details>`;
+        return `<details class="nav-dropdown"><summary class="nav-link ${active ? "is-active" : ""}">${esc(label)}<span aria-hidden="true">⌄</span></summary><div class="nav-dropdown-panel"><a href="${routeUrl("/services")}"${currentPath() === "/services" ? ' aria-current="page"' : ""}>${esc(ui.actions.viewAllServices)}</a>${services.map(service => { const servicePath = serviceHref(service.slug); return `<a href="${routeUrl(servicePath)}"${currentPath() === normalizeRoute(servicePath) ? ' aria-current="page"' : ""}>${esc(service.title)}</a>`; }).join("")}</div></details>`;
       }
       if (key === "tuning") {
-        return `<details class="nav-dropdown"><summary class="nav-link ${active ? "is-active" : ""}">${esc(label)}<span aria-hidden="true">⌄</span></summary><div class="nav-dropdown-panel"><a href="${routeUrl("/tuning")}">${esc(label)}</a>${tuning.map(platform => `<a href="${routeUrl(`/tuning/${platform.slug}`)}">${esc(platform.short)}</a>`).join("")}</div></details>`;
+        return `<details class="nav-dropdown"><summary class="nav-link ${active ? "is-active" : ""}">${esc(label)}<span aria-hidden="true">⌄</span></summary><div class="nav-dropdown-panel"><a href="${routeUrl("/tuning")}"${currentPath() === "/tuning" ? ' aria-current="page"' : ""}>${esc(label)}</a>${tuning.map(platform => { const platformPath = `/tuning/${platform.slug}`; return `<a href="${routeUrl(platformPath)}"${currentPath() === normalizeRoute(platformPath) ? ' aria-current="page"' : ""}>${esc(platform.short)}</a>`; }).join("")}</div></details>`;
       }
       return `<a class="nav-link ${active ? "is-active" : ""}" href="${routeUrl(path)}" ${active ? 'aria-current="page"' : ""}>${esc(label)}</a>`;
     }).join("");
@@ -894,15 +1006,20 @@
     ].map(([label, path, child]) => `<a class="mobile-nav-link ${child ? "is-child" : ""} ${routeActive(path) ? "is-active" : ""}" href="${routeUrl(path)}" ${routeActive(path) ? 'aria-current="page"' : ""}>${esc(label)}</a>`).join("");
 
     const alternate = alternateLocale();
+    const alternateShortName = alternate === "ar" ? "AR" : "EN";
+    const alternateName = alternate === "ar" ? "العربية" : "English";
+    const alternateRoute = localizedCurrentRouteUrl(alternate);
     const theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-    return `<div class="header-shell"><div class="container header-inner"><a class="brand-logo" href="${routeUrl("/")}" aria-label="Projx Racing"><span class="brand-logo-frame"><img src="${esc(CONFIG.logoHeader || "assets/brand/projx-racing-logo-header.png")}" alt="Projx Racing Motorsports" width="354" height="146"></span></a><nav class="desktop-nav" aria-label="${esc(ui.menu)}">${nav}</nav><div class="header-tools"><a class="tool-button language-button" href="${routeUrl(currentPath(), alternate)}" data-language="${alternate}" aria-label="${esc(ui.accessibility.languageButton)}">${icons.globe}<span>${esc(TRANSLATIONS[alternate]?.shortName || alternate.toUpperCase())}</span></a><button class="tool-button theme-button" type="button" data-action="toggle-theme" aria-label="${esc(ui.accessibility.themeButton)}">${theme === "dark" ? icons.sun : icons.moon}<span class="tool-label">${esc(theme === "dark" ? ui.lightTheme : ui.darkTheme)}</span></button><a class="header-contact" href="${waUrl(state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن سيارتي." : "Hello Projx Racing, I would like to discuss my vehicle.")}" target="_blank" rel="noopener" aria-label="${esc(ui.actions.whatsapp)}">${icons.whatsapp}<span>${esc(ui.actions.whatsapp)}</span></a><button class="menu-button" type="button" data-action="toggle-menu" aria-expanded="${state.mobileOpen}" aria-controls="mobile-navigation" aria-label="${esc(state.mobileOpen ? ui.closeMenu : ui.accessibility.openMenu)}">${state.mobileOpen ? icons.close : icons.menu}</button></div></div></div><div class="mobile-menu-backdrop ${state.mobileOpen ? "is-open" : ""}" data-action="close-menu" aria-hidden="true"></div><aside id="mobile-navigation" class="mobile-nav ${state.mobileOpen ? "is-open" : ""}" aria-hidden="${!state.mobileOpen}" ${state.mobileOpen ? "" : "inert"}><div class="mobile-nav-head"><strong>${esc(ui.menu)}</strong><button class="icon-btn" type="button" data-action="close-menu" aria-label="${esc(ui.closeMenu)}">${icons.close}</button></div><nav aria-label="${esc(ui.menu)}">${mobileLinks}</nav><div class="mobile-nav-settings"><a class="setting-row" href="${routeUrl(currentPath(), alternate)}" data-language="${alternate}">${icons.globe}<span>${esc(ui.language)}</span><strong>${esc(TRANSLATIONS[alternate]?.name || alternate)}</strong></a><button class="setting-row" type="button" data-action="toggle-theme">${theme === "dark" ? icons.sun : icons.moon}<span>${esc(ui.theme)}</span><strong>${esc(theme === "dark" ? ui.lightTheme : ui.darkTheme)}</strong></button></div><div class="mobile-nav-actions"><a class="btn" href="${waUrl(state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن سيارتي." : "Hello Projx Racing, I would like to discuss my vehicle.")}" target="_blank" rel="noopener">${esc(ui.actions.whatsapp)}${icons.whatsapp}</a><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="General Quote">${esc(ui.actions.requestQuote)}${icons.quote}</button></div></aside>`;
+    const logoUrl = versionedAsset(CONFIG.logoHeader || "assets/brand/projx-racing-logo-header.png");
+    return `<div class="header-shell"><div class="container header-inner"><a class="brand-logo" href="${routeUrl("/")}" aria-label="Projx Racing"><span class="brand-logo-frame"><img src="${esc(logoUrl)}" alt="Projx Racing Motorsports" width="354" height="146"></span></a><nav class="desktop-nav" aria-label="${esc(ui.menu)}">${nav}</nav><div class="header-tools"><a class="tool-button language-button" href="${esc(alternateRoute)}" data-language="${alternate}" aria-label="${esc(ui.accessibility.languageButton)}">${icons.globe}<span>${esc(alternateShortName)}</span></a><button class="tool-button theme-button" type="button" data-action="toggle-theme" aria-label="${esc(ui.accessibility.themeButton)}">${theme === "dark" ? icons.sun : icons.moon}<span class="tool-label">${esc(theme === "dark" ? ui.lightTheme : ui.darkTheme)}</span></button><a class="header-contact" href="${waUrl(state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن سيارتي." : "Hello Projx Racing, I would like to discuss my vehicle.")}" target="_blank" rel="noopener" aria-label="${esc(ui.actions.whatsapp)}">${icons.whatsapp}<span>${esc(ui.actions.whatsapp)}</span></a><button class="menu-button" type="button" data-action="toggle-menu" aria-expanded="${state.mobileOpen}" aria-controls="mobile-navigation" aria-label="${esc(state.mobileOpen ? ui.closeMenu : ui.accessibility.openMenu)}">${state.mobileOpen ? icons.close : icons.menu}</button></div></div></div><div class="mobile-menu-backdrop ${state.mobileOpen ? "is-open" : ""}" data-action="close-menu" aria-hidden="true"></div><aside id="mobile-navigation" class="mobile-nav ${state.mobileOpen ? "is-open" : ""}" aria-hidden="${!state.mobileOpen}" ${state.mobileOpen ? "" : "inert"}><div class="mobile-nav-head"><strong>${esc(ui.menu)}</strong><button class="icon-btn" type="button" data-action="close-menu" aria-label="${esc(ui.closeMenu)}">${icons.close}</button></div><nav aria-label="${esc(ui.menu)}">${mobileLinks}</nav><div class="mobile-nav-settings"><a class="setting-row" href="${esc(alternateRoute)}" data-language="${alternate}">${icons.globe}<span>${esc(ui.language)}</span><strong>${esc(alternateName)}</strong></a><button class="setting-row" type="button" data-action="toggle-theme">${theme === "dark" ? icons.sun : icons.moon}<span>${esc(ui.theme)}</span><strong>${esc(theme === "dark" ? ui.lightTheme : ui.darkTheme)}</strong></button></div><div class="mobile-nav-actions"><a class="btn" href="${waUrl(state.locale === "ar" ? "هلا Projx Racing، حاب أستفسر عن سيارتي." : "Hello Projx Racing, I would like to discuss my vehicle.")}" target="_blank" rel="noopener">${esc(ui.actions.whatsapp)}${icons.whatsapp}</a><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="General Quote">${esc(ui.actions.requestQuote)}${icons.quote}</button></div></aside>`;
   }
 
   function footerHtml() {
     const ui = U();
     const services = DATA.services.filter(item => ["ecu-dyno-tuning", "online-tuning", "engine-building", "race-car-preparation"].includes(item.slug)).map(localizedService);
     const yearText = new Date().getFullYear();
-    return `<div class="footer-main"><div class="container footer-grid footer-grid-simple"><div class="footer-brand"><span class="brand-logo-frame footer-logo"><img src="${esc(CONFIG.logoHeader || "assets/brand/projx-racing-logo-header.png")}" alt="Projx Racing Motorsports" width="354" height="146"></span><div class="footer-social"><a href="${CONFIG.instagramUrl}" target="_blank" rel="noopener" aria-label="Instagram">${icons.instagram}</a><a href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener" aria-label="${esc(ui.actions.directions)}">${icons.map}</a></div></div><div><h2>${esc(ui.nav.services)}</h2>${services.map(service => `<a href="${routeUrl(serviceHref(service.slug))}">${esc(service.title)}</a>`).join("")}<a href="${routeUrl("/projects")}">${esc(ui.nav.projects)}</a></div><div><h2>${esc(ui.nav.contact)}</h2><p>${esc(CONFIG.addressLine1)}<br>${esc(CONFIG.addressLine2)}<br>${esc(CONFIG.cityCountry)}</p><a href="${telUrl()}"><bdi>${esc(CONFIG.phoneDisplay)}</bdi></a><a href="${waUrl()}" target="_blank" rel="noopener">WhatsApp</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener">${esc(ui.actions.directions)}</a></div></div></div><div class="footer-bottom"><div class="container"><p>© ${yearText} Projx Racing Co.</p></div></div>`;
+    const logoUrl = versionedAsset(CONFIG.logoHeader || "assets/brand/projx-racing-logo-header.png");
+    return `<div class="footer-main"><div class="container footer-grid footer-grid-simple"><div class="footer-brand"><span class="brand-logo-frame footer-logo"><img src="${esc(logoUrl)}" alt="Projx Racing Motorsports" width="354" height="146"></span><div class="footer-social"><a href="${CONFIG.instagramUrl}" target="_blank" rel="noopener" aria-label="Instagram">${icons.instagram}</a><a href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener" aria-label="${esc(ui.actions.directions)}">${icons.map}</a></div></div><div><h2>${esc(ui.nav.services)}</h2>${services.map(service => `<a href="${routeUrl(serviceHref(service.slug))}">${esc(service.title)}</a>`).join("")}<a href="${routeUrl("/projects")}">${esc(ui.nav.projects)}</a></div><div><h2>${esc(ui.nav.contact)}</h2><p>${esc(CONFIG.addressLine1)}<br>${esc(CONFIG.addressLine2)}<br>${esc(CONFIG.cityCountry)}</p><a href="${telUrl()}"><bdi>${esc(CONFIG.phoneDisplay)}</bdi></a><a href="${waUrl()}" target="_blank" rel="noopener">WhatsApp</a><a href="${CONFIG.mapsUrl}" target="_blank" rel="noopener">${esc(ui.actions.directions)}</a></div></div></div><div class="footer-bottom"><div class="container"><p>© ${yearText} Projx Racing Co.</p></div></div>`;
   }
 
   function renderHeader() {
@@ -1308,15 +1425,15 @@
       <div class="engine-selector-shell">
         ${enginePhotoFrame(firstPhotoKey)}
         <div class="engine-selector-fields"><span class="engine-form-step">${esc(isAr ? "الخطوة 1 · اختر المحرك والبناء" : "Step 1 · Choose the engine and build")}</span><div class="form-grid">
-          <div class="form-group"><label class="required" for="engine-family">${esc(isAr ? "عائلة المحرك" : "Engine family")}</label><select id="engine-family" class="select" name="platform" required data-role="engine-family">${optionList(families.map(item => item.value), family.value)}</select></div>
-          <div class="form-group"><label class="required" for="engine-variant">${esc(isAr ? "النوع أو الجيل" : "Variant or generation")}</label><select id="engine-variant" class="select" name="engine" required data-role="engine-variant">${optionList(family.variants || [])}</select></div>
-          <div class="form-group"><label class="required" for="engine-service">${esc(ui.forms.service)}</label><select id="engine-service" class="select" name="service" required data-role="engine-service">${optionList(services, firstService)}</select></div>
-          <div class="form-group"><label for="engine-package">${esc(isAr ? "باقة On-Shelf أو المواصفة" : "On-shelf package or specification")}</label><select id="engine-package" class="select" name="package" data-role="engine-package">${optionList(packages, packagePrompt)}</select></div>
+          <div class="form-group"><label class="required" for="engine-family">${esc(isAr ? "عائلة المحرك" : "Engine family")}</label><select id="engine-family" class="select${isAr ? " ltr-input" : ""}" name="platform" required data-role="engine-family"${isAr ? ' dir="ltr"' : ""}>${optionList(families.map(item => item.value), family.value)}</select></div>
+          <div class="form-group"><label class="required" for="engine-variant">${esc(isAr ? "النوع أو الجيل" : "Variant or generation")}</label><select id="engine-variant" class="select${isAr ? " ltr-input" : ""}" name="engine" required data-role="engine-variant"${isAr ? ' dir="ltr"' : ""}>${optionList(family.variants || [])}</select></div>
+          <div class="form-group"><label class="required" for="engine-service">${esc(ui.forms.service)}</label><select id="engine-service" class="select${isAr ? " ltr-input" : ""}" name="service" required data-role="engine-service"${isAr ? ' dir="ltr"' : ""}>${optionList(services, firstService)}</select></div>
+          <div class="form-group"><label for="engine-package">${esc(isAr ? "باقة On-Shelf أو المواصفة" : "On-shelf package or specification")}</label><select id="engine-package" class="select${isAr ? " ltr-input" : ""}" name="package" data-role="engine-package"${isAr ? ' dir="ltr"' : ""}>${optionList(packages, packagePrompt)}</select></div>
           <div class="form-group full"><label class="required" for="engine-vehicle">${esc(ui.forms.vehicle)}</label><input id="engine-vehicle" class="input" name="vehicle" required placeholder="${esc(isAr ? "السنة، الشركة، الموديل" : "Year, make and model")}"></div>
           <div class="form-group full"><label for="engine-fuel">${esc(isAr ? "الوقود ونظام الشحن" : "Fuel and induction")}</label><input id="engine-fuel" class="input" name="fuel" placeholder="${esc(isAr ? "98 RON، Naturally Aspirated، Turbo، Supercharger..." : "98 RON, naturally aspirated, turbo, supercharger...")}"></div>
           <div class="form-group full"><label class="required" for="engine-mods">${esc(isAr ? "حالة المحرك الحالية" : "Current engine condition")}</label><textarea id="engine-mods" class="textarea" name="modifications" required placeholder="${esc(isAr ? "حالة التشغيل أو العطل والقطع الحالية والقطع المطلوب إعادة استخدامها" : "Running condition or failure, existing parts and anything intended for reuse")}"></textarea></div>
           <div class="form-group full"><label class="required" for="engine-target">${esc(isAr ? "الاستخدام والهدف" : "Intended use and objective")}</label><textarea id="engine-target" class="textarea" name="message" required placeholder="${esc(isAr ? "شارع أو Drag أو Circuit، الهدف، الاعتمادية والوقت المطلوب" : "Street, drag or circuit use, objective, reliability priority and required timing")}"></textarea></div>
-          <div class="form-group full"><label for="engine-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="engine-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.txt"><small class="form-help">${esc(ui.forms.fileNote)}</small></div>
+          <div class="form-group full"><label for="engine-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="engine-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.txt" aria-describedby="engine-files-help"><small class="form-help" id="engine-files-help">${esc(ui.forms.fileNote)}</small></div>
         </div></div>
       </div>
       <fieldset class="engine-customer-step"><legend><span class="engine-form-step">${esc(isAr ? "الخطوة الأخيرة · بيانات العميل" : "Final step · Customer details")}</span><strong>${esc(isAr ? "كيف نتواصل معك؟" : "How should we contact you?")}</strong></legend><p>${esc(isAr ? "بعد تحديد المحرك والبناء، أرسل بياناتك حتى يراجع الفريق الطلب ويتواصل معك." : "After choosing the engine and build, send your details so the team can review the request and contact you.")}</p><div class="form-grid">
@@ -1351,7 +1468,7 @@
     const item = mediaItem(enginePhotoMediaId(key));
     const image = photo.querySelector("img");
     if (image && item) {
-      image.src = item.full;
+      updateMediaImageSource(image, item, "(max-width: 760px) 100vw, 42vw");
       image.alt = label;
       image.width = Number(item.width) || 1600;
       image.height = Number(item.height) || 1200;
@@ -1508,7 +1625,7 @@
     const matchFilter = document.querySelector('[data-filter-select="parts"][data-filter-match="vehicle"]');
     if (matchFilter) matchFilter.disabled = false;
     showToast(P().parts.finder.vehicleSaved, partsVehicleLabel());
-    document.getElementById("parts-categories")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollElementIntoView(document.getElementById("parts-categories"));
   }
 
   function updatePartsVehicleCascades(form, changed = "") {
@@ -1556,7 +1673,7 @@
     return `<section class="section store-product-page"><div class="container">
       ${breadcrumbs([[U().nav.parts, "/parts"], [local.title]])}
       <div class="store-detail-layout">
-        <figure class="store-detail-media store-product-detail-media"><img src="${esc(image.src)}" width="${Number(image.width)}" height="${Number(image.height)}" alt="${esc(image.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure>
+        <figure class="store-detail-media store-product-detail-media"><img src="${esc(versionedAsset(image.src))}" width="${Number(image.width)}" height="${Number(image.height)}" alt="${esc(image.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure>
         <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(local.status)}</div><dl class="store-facts"><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(local.status)}</dd></div></dl><div class="store-price"><small>${esc(local.priceNote || U().common.quotation)}</small><strong>${esc(storeProductPrice(product))}</strong></div><label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></div></aside>
       </div>
     </div></section><section class="section section-tone"><div class="container narrow"><div class="notice notice-info"><strong>${esc(labels.shippingHeading)}</strong> ${esc(labels.shippingText)}</div></div></section>`;
@@ -1598,13 +1715,17 @@
 
   function tegiwaProductCard(item) {
     const labels = storeText();
+    const handle = tegiwaProductHandle(item.handle);
     const availability = tegiwaAvailability(item.availability);
     const checked = tegiwaCheckedLabel(item.availability?.checkedAt);
     const vendor = cleanText(item.vendor || "", 120);
     const category = cleanText(item.category || "", 120);
     const cardLabel = category || labels.tegiwaEyebrow;
     const detail = [vendor, category, tegiwaPriceLabel(item.price), availability.label].filter(Boolean).join(" • ");
-    return `<article class="tegiwa-product-card"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3>${esc(item.title)}</h3><dl>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer"><button class="btn btn-sm" type="button" data-action="view-tegiwa-product" data-handle="${esc(item.handle)}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</button><button class="icon-action" type="button" data-action="add-quote" data-id="tegiwa-${esc(item.handle)}" data-kind="Tegiwa Parts Product" data-title="${esc(item.title)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
+    const productLink = handle
+      ? `<a class="btn btn-sm" href="${esc(tegiwaProductUrl(handle))}" data-action="view-tegiwa-product" data-handle="${esc(handle)}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`
+      : `<a class="btn btn-sm" href="${esc(routeUrl("/parts"))}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`;
+    return `<article class="tegiwa-product-card"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3>${esc(item.title)}</h3><dl>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}<button class="icon-action" type="button" data-action="add-quote" data-id="tegiwa-${esc(handle || item.handle)}" data-kind="Tegiwa Parts Product" data-title="${esc(item.title)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function tegiwaLoadingCards() {
@@ -1712,7 +1833,8 @@
     const correction = payload.correction || {};
     const canonicalQuery = cleanText(correction.canonicalQuery || "", 80);
     if (correction.corrected && canonicalQuery) {
-      entries.push({ query: canonicalQuery, label: tegiwaTemplate(labels.tegiwaDidYouMean, { query: canonicalQuery }), kind: "correction" });
+      const correctionLabel = correction.translated ? labels.tegiwaSearchEquivalent : labels.tegiwaDidYouMean;
+      entries.push({ query: canonicalQuery, label: tegiwaTemplate(correctionLabel, { query: canonicalQuery }), kind: "correction" });
       seen.add(canonicalQuery.toLocaleLowerCase());
     }
     for (const suggestion of Array.isArray(payload.suggestions) ? payload.suggestions : []) {
@@ -1754,7 +1876,7 @@
       const controller = new AbortController();
       state.tegiwaCatalog.suggestionController = controller;
       try {
-        const endpoint = new URL("/api/tegiwa-catalog", location.origin);
+        const endpoint = new URL("/api/tegiwa-catalog/", location.origin);
         endpoint.searchParams.set("q", query);
         endpoint.searchParams.set("suggest", "1");
         const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
@@ -1882,8 +2004,9 @@
       const from = cleanText(meta.query || state.tegiwaCatalog.query, 80);
       const to = cleanText(meta.canonicalQuery || "", 80);
       const corrected = Boolean(isSearch && meta.corrected && from && to && from.toLocaleLowerCase() !== to.toLocaleLowerCase());
+      const correctionLabel = meta.translated ? labels.tegiwaTranslatedSearch : labels.tegiwaCorrectedSearch;
       correction.hidden = !corrected;
-      correction.innerHTML = corrected ? `${icons.check}<span>${esc(tegiwaTemplate(labels.tegiwaCorrectedSearch, { from, to }))}</span>` : "";
+      correction.innerHTML = corrected ? `${icons.check}<span>${esc(tegiwaTemplate(correctionLabel, { from, to }))}</span>` : "";
     }
     const pagination = root.querySelector("[data-tegiwa-pagination]");
     const pageList = root.querySelector("[data-tegiwa-pages]");
@@ -1925,7 +2048,7 @@
     if (correction) { correction.hidden = true; correction.replaceChildren(); }
     controls.forEach(control => { control.disabled = true; });
     try {
-      const endpoint = new URL("/api/tegiwa-catalog", location.origin);
+      const endpoint = new URL("/api/tegiwa-catalog/", location.origin);
       if (normalizedQuery) {
         endpoint.searchParams.set("q", normalizedQuery);
         endpoint.searchParams.set("page", String(requestedPage));
@@ -2034,10 +2157,14 @@
     addButton.setAttribute("aria-label", `${storeText().addToQuote}: ${addButton.dataset.productTitle} — ${optionTitle}`);
   }
 
-  async function openTegiwaProduct(handle, opener) {
-    if (!/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))) return;
+  async function openTegiwaProduct(value, opener, { updateUrl = true } = {}) {
+    const handle = tegiwaProductHandle(value);
+    if (!handle || currentPath() !== "/parts") return;
+    if (updateUrl) updateTegiwaProductUrl(handle);
     const labels = storeText();
-    state.formContext = { opener };
+    const existingOpener = state.tegiwaCatalog.detailHandle === handle ? state.formContext?.opener : null;
+    state.formContext = { opener: existingOpener || opener || null };
+    state.tegiwaCatalog.detailHandle = handle;
     state.tegiwaCatalog.detailController?.abort();
     const detailController = new AbortController();
     state.tegiwaCatalog.detailController = detailController;
@@ -2045,7 +2172,7 @@
     document.body.classList.add("modal-open");
     requestAnimationFrame(() => modalRoot.querySelector('[data-action="close-modal"]')?.focus());
     try {
-      const endpoint = new URL("/api/tegiwa-catalog", location.origin);
+      const endpoint = new URL("/api/tegiwa-catalog/", location.origin);
       endpoint.searchParams.set("handle", handle);
       const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: detailController.signal });
       const payload = await response.json().catch(() => ({}));
@@ -2085,6 +2212,24 @@
     } finally {
       if (state.tegiwaCatalog.detailController === detailController) state.tegiwaCatalog.detailController = null;
     }
+  }
+
+  function syncTegiwaProductFromUrl() {
+    updateLanguageRouteLinks();
+    const params = currentRouteQueryParams();
+    const hasProduct = params.has(TEGIWA_PRODUCT_QUERY);
+    const handle = tegiwaProductHandle(params.get(TEGIWA_PRODUCT_QUERY));
+    if (currentPath() !== "/parts" || (hasProduct && !handle)) {
+      if (hasProduct) removeTegiwaProductUrl();
+      if (state.tegiwaCatalog.detailHandle) closeModal({ syncProductUrl: false });
+      return;
+    }
+    if (!handle) {
+      if (state.tegiwaCatalog.detailHandle) closeModal({ syncProductUrl: false });
+      return;
+    }
+    if (state.tegiwaCatalog.detailHandle === handle && modalRoot.querySelector(".tegiwa-detail-modal")) return;
+    openTegiwaProduct(handle, null, { updateUrl: false });
   }
 
   function partsCatalogueDirectory() {
@@ -2176,7 +2321,7 @@
           <nav class="tegiwa-pagination" data-tegiwa-pagination aria-label="${esc(labels.tegiwaPaginationLabel)}" hidden><button class="btn btn-outline" type="button" data-action="tegiwa-previous" data-tegiwa-control disabled>${icons.arrow}<span>${esc(labels.tegiwaPrevious)}</span></button><div class="tegiwa-pagination-center"><div class="tegiwa-page-list" data-tegiwa-pages dir="ltr"></div><button class="text-link" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaReset)}</button></div><button class="btn btn-outline" type="button" data-action="tegiwa-next" data-tegiwa-control disabled><span>${esc(labels.tegiwaNext)}</span>${icons.arrow}</button></nav>
         </div></div></section>
         <section class="section section-tone" id="parts-results"><div class="container">
-          ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
+          ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count" role="status" aria-live="polite" aria-atomic="true"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
           <div class="store-catalogue-status"><article><span>${String(products.length).padStart(2, "0")}</span><div><strong>${esc(labels.verifiedProducts)}</strong><small>${esc(labels.verifiedProductsText)}</small></div></article><article><span>${String(parts.length).padStart(2, "0")}</span><div><strong>${esc(labels.configuredPackage)}</strong><small>${esc(labels.exactProductRule)}</small></div></article></div>
           ${products.length ? "" : `<div class="notice notice-info store-catalogue-gate"><strong>${esc(labels.cataloguePending)}.</strong> ${esc(labels.cataloguePendingText)}</div>`}
           <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
@@ -2227,7 +2372,7 @@
       media: 20,
       crumbs: [[isAr ? "حساب العميل" : "Customer account"]],
       actions: `<a class="btn" href="${routeUrl("/contact")}">${esc(U().actions.contactWorkshop)}${icons.arrow}</a>`
-    })}<section class="section account-section"><div class="container account-layout"><aside class="account-intro"><span class="eyebrow">${esc(isAr ? "دخول آمن" : "Secure access")}</span><h2>${esc(isAr ? "حساب واحد للتواصل مع Projx Racing." : "One account for your Projx Racing access.")}</h2><p>${esc(isAr ? "التسجيل وتسجيل الدخول والتحقق من البريد واستعادة كلمة المرور تتم من خلال مزود هوية آمن. فريق الورشة ما يشوف كلمة المرور." : "Registration, sign-in, email verification and password recovery are handled by a secure identity provider. The workshop never sees your password.")}</p><ul class="feature-list"><li>${icons.check}<span>${esc(isAr ? "إنشاء حساب جديد أو تسجيل الدخول" : "Create a new account or sign in")}</span></li><li>${icons.check}<span>${esc(isAr ? "إدارة بيانات الحساب بأمان" : "Manage account details securely")}</span></li><li>${icons.check}<span>${esc(isAr ? "الاستفسارات متاحة بدون حساب" : "Enquiries remain available without an account")}</span></li></ul></aside><div class="account-panel"><div class="account-tabs" role="tablist" aria-label="${esc(isAr ? "خيارات الحساب" : "Account options")}"><button class="is-active" type="button" role="tab" aria-selected="true" data-action="account-mode" data-account-mode="sign-in">${esc(isAr ? "تسجيل الدخول" : "Sign in")}</button><button type="button" role="tab" aria-selected="false" data-action="account-mode" data-account-mode="sign-up">${esc(isAr ? "إنشاء حساب" : "Register")}</button></div><div id="account-auth-root" class="account-auth-root" data-account-mode="sign-in"><div class="account-loading" role="status">${esc(isAr ? "جاري تحميل بوابة الحساب الآمنة..." : "Loading the secure account portal...")}</div></div></div></div></section>`;
+    })}<section class="section account-section"><div class="container account-layout"><aside class="account-intro"><span class="eyebrow">${esc(isAr ? "دخول آمن" : "Secure access")}</span><h2>${esc(isAr ? "حساب واحد للتواصل مع Projx Racing." : "One account for your Projx Racing access.")}</h2><p>${esc(isAr ? "التسجيل وتسجيل الدخول والتحقق من البريد واستعادة كلمة المرور تتم من خلال مزود هوية آمن. فريق الورشة ما يشوف كلمة المرور." : "Registration, sign-in, email verification and password recovery are handled by a secure identity provider. The workshop never sees your password.")}</p><ul class="feature-list"><li>${icons.check}<span>${esc(isAr ? "إنشاء حساب جديد أو تسجيل الدخول" : "Create a new account or sign in")}</span></li><li>${icons.check}<span>${esc(isAr ? "إدارة بيانات الحساب بأمان" : "Manage account details securely")}</span></li><li>${icons.check}<span>${esc(isAr ? "الاستفسارات متاحة بدون حساب" : "Enquiries remain available without an account")}</span></li></ul></aside><div class="account-panel"><div class="account-tabs" role="tablist" aria-label="${esc(isAr ? "خيارات الحساب" : "Account options")}" aria-orientation="horizontal"><button id="account-tab-sign-in" class="is-active" type="button" role="tab" aria-selected="true" aria-controls="account-auth-root" tabindex="0" data-action="account-mode" data-account-mode="sign-in">${esc(isAr ? "تسجيل الدخول" : "Sign in")}</button><button id="account-tab-sign-up" type="button" role="tab" aria-selected="false" aria-controls="account-auth-root" tabindex="-1" data-action="account-mode" data-account-mode="sign-up">${esc(isAr ? "إنشاء حساب" : "Register")}</button></div><div id="account-auth-root" class="account-auth-root" role="tabpanel" aria-labelledby="account-tab-sign-in" tabindex="0" data-account-mode="sign-in"><div class="account-loading" role="status">${esc(isAr ? "جاري تحميل بوابة الحساب الآمنة..." : "Loading the secure account portal...")}</div></div></div></div></section>`;
   }
 
   let clerkLoadPromise = null;
@@ -2268,6 +2413,7 @@
     const root = document.getElementById("account-auth-root");
     if (!root) return;
     root.dataset.accountMode = mode;
+    root.setAttribute("aria-labelledby", `account-tab-${mode}`);
     root.innerHTML = `<div class="account-loading" role="status">${esc(state.locale === "ar" ? "جاري تحميل بوابة الحساب الآمنة..." : "Loading the secure account portal...")}</div>`;
     try {
       const clerk = await loadClerk();
@@ -2294,7 +2440,7 @@
     const id = `form-${slugify(type)}-${Math.random().toString(36).slice(2, 6)}`;
     const partsFlow = /Parts/.test(type) || (type === "General Quote" && state.quote.some(item => /Parts/.test(item.kind)));
     const shippingFields = partsFlow ? `<fieldset class="form-group full shipping-fields"><legend>${esc(labels.shippingHeading)}</legend><p>${esc(labels.shippingText)}</p><div class="form-grid"><div class="form-group"><label class="required" for="${id}-country">${esc(labels.destinationCountry)}</label><input id="${id}-country" class="input" name="country" required autocomplete="country-name"></div><div class="form-group"><label class="required" for="${id}-city">${esc(labels.destinationCity)}</label><input id="${id}-city" class="input" name="city" required autocomplete="address-level2"></div><div class="form-group"><label for="${id}-postcode">${esc(labels.postcode)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-postcode" class="input ltr-input" name="postcode" autocomplete="postal-code"></div><div class="form-group"><label for="${id}-fulfilment">${esc(labels.fulfilment)}</label><select id="${id}-fulfilment" class="select" name="fulfilment"><option>${esc(labels.courier)}</option><option>${esc(labels.workshop)}</option></select></div><div class="form-group full"><label for="${id}-vin">${esc(labels.vin)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-vin" class="input ltr-input" name="vin" maxlength="24"></div></div></fieldset>` : "";
-    return `<form class="enquiry-form" data-enquiry-form data-form-type="${esc(type)}" data-context="${esc(context)}" novalidate><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><div class="form-grid"><div class="form-group"><label class="required" for="${id}-name">${esc(ui.forms.name)}</label><input id="${id}-name" class="input" name="name" required autocomplete="name" placeholder="${esc(ui.forms.placeholders.name)}"></div><div class="form-group"><label class="required" for="${id}-phone">${esc(ui.forms.phone)}</label><input id="${id}-phone" class="input ltr-input" name="phone" required inputmode="tel" autocomplete="tel" placeholder="${esc(ui.forms.placeholders.phone)}"></div><div class="form-group"><label for="${id}-email">${esc(ui.forms.email)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-email" class="input ltr-input" name="email" type="email" autocomplete="email" placeholder="${esc(ui.forms.placeholders.email)}"></div><div class="form-group"><label for="${id}-contact">${esc(ui.forms.preferredContact)}</label><select id="${id}-contact" class="select" name="preferredContact">${ui.forms.contactMethods.map(item => `<option>${esc(item)}</option>`).join("")}</select></div><div class="form-group full"><label class="required" for="${id}-vehicle">${esc(ui.forms.vehicle)}</label><input id="${id}-vehicle" class="input" name="vehicle" required placeholder="${esc(ui.forms.placeholders.vehicle)}"></div><div class="form-group"><label for="${id}-engine">${esc(ui.forms.engine)}</label><input id="${id}-engine" class="input" name="engine" placeholder="${esc(ui.forms.placeholders.engine)}"></div><div class="form-group"><label for="${id}-service">${esc(ui.forms.service)}</label><input id="${id}-service" class="input" name="service" value="${esc(context || type)}"></div>${shippingFields}<div class="form-group full"><label for="${id}-mods">${esc(ui.forms.modifications)} <small>${esc(ui.forms.optional)}</small></label><textarea id="${id}-mods" class="textarea" name="modifications" placeholder="${esc(ui.forms.placeholders.modifications)}"></textarea></div><div class="form-group full"><label class="required" for="${id}-message">${esc(ui.forms.message)}</label><textarea id="${id}-message" class="textarea" name="message" required placeholder="${esc(ui.forms.placeholders.message)}"></textarea></div><div class="form-group full"><label for="${id}-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.log,.txt"><small class="form-help">${esc(ui.forms.fileNote)}</small></div><label class="checkbox form-group full"><input type="checkbox" name="consent" required><span>${esc(ui.forms.consent)}</span></label></div><button class="btn btn-block" type="submit">${esc(ui.actions.submit)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
+    return `<form class="enquiry-form" data-enquiry-form data-form-type="${esc(type)}" data-context="${esc(context)}" novalidate><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><div class="form-grid"><div class="form-group"><label class="required" for="${id}-name">${esc(ui.forms.name)}</label><input id="${id}-name" class="input" name="name" required autocomplete="name" placeholder="${esc(ui.forms.placeholders.name)}"></div><div class="form-group"><label class="required" for="${id}-phone">${esc(ui.forms.phone)}</label><input id="${id}-phone" class="input ltr-input" name="phone" required inputmode="tel" autocomplete="tel" placeholder="${esc(ui.forms.placeholders.phone)}"></div><div class="form-group"><label for="${id}-email">${esc(ui.forms.email)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-email" class="input ltr-input" name="email" type="email" autocomplete="email" placeholder="${esc(ui.forms.placeholders.email)}"></div><div class="form-group"><label for="${id}-contact">${esc(ui.forms.preferredContact)}</label><select id="${id}-contact" class="select" name="preferredContact">${ui.forms.contactMethods.map(item => `<option>${esc(item)}</option>`).join("")}</select></div><div class="form-group full"><label class="required" for="${id}-vehicle">${esc(ui.forms.vehicle)}</label><input id="${id}-vehicle" class="input" name="vehicle" required placeholder="${esc(ui.forms.placeholders.vehicle)}"></div><div class="form-group"><label for="${id}-engine">${esc(ui.forms.engine)}</label><input id="${id}-engine" class="input" name="engine" placeholder="${esc(ui.forms.placeholders.engine)}"></div><div class="form-group"><label for="${id}-service">${esc(ui.forms.service)}</label><input id="${id}-service" class="input" name="service" value="${esc(context || type)}"></div>${shippingFields}<div class="form-group full"><label for="${id}-mods">${esc(ui.forms.modifications)} <small>${esc(ui.forms.optional)}</small></label><textarea id="${id}-mods" class="textarea" name="modifications" placeholder="${esc(ui.forms.placeholders.modifications)}"></textarea></div><div class="form-group full"><label class="required" for="${id}-message">${esc(ui.forms.message)}</label><textarea id="${id}-message" class="textarea" name="message" required placeholder="${esc(ui.forms.placeholders.message)}"></textarea></div><div class="form-group full"><label for="${id}-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.log,.txt" aria-describedby="${id}-files-help"><small class="form-help" id="${id}-files-help">${esc(ui.forms.fileNote)}</small></div><label class="checkbox form-group full"><input type="checkbox" name="consent" required><span>${esc(ui.forms.consent)}</span></label></div><button class="btn btn-block" type="submit">${esc(ui.actions.submit)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
   }
 
   function contactPage() {
@@ -2316,6 +2462,18 @@
   function notFoundPage() {
     const page = P().notFound;
     return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 15, crumbs: [[page.heading]], actions: `<a class="btn" href="${routeUrl("/")}">${esc(U().actions.backHome)}${icons.arrow}</a><a class="btn btn-outline-light" href="${routeUrl("/contact")}">${esc(U().actions.contactWorkshop)}${icons.arrow}</a>` })}`;
+  }
+
+  function connectUploadHelp(root) {
+    root.querySelectorAll('input[type="file"]').forEach((input, index) => {
+      const help = input.parentElement?.querySelector(".form-help");
+      if (!help) return;
+      const helpId = help.id || `${input.id || `file-upload-${index + 1}`}-help`;
+      help.id = helpId;
+      const descriptions = new Set((input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+      descriptions.add(helpId);
+      input.setAttribute("aria-describedby", [...descriptions].join(" "));
+    });
   }
 
   function renderPage() {
@@ -2347,6 +2505,7 @@
     else if (path.startsWith("/legal/")) html = legalPage(path.split("/")[2]);
     else html = notFoundPage();
     main.innerHTML = html;
+    connectUploadHelp(main);
     renderHeader();
     renderFooter();
     updateThemeControls();
@@ -2354,6 +2513,7 @@
     setupPartsStore();
     setupTegiwaCatalog();
     setupTuningFinder();
+    syncTegiwaProductFromUrl();
     if (path === "/account") mountAccountPortal("sign-in");
     state.galleries["home-capability"] = [20, 19, 24, 23];
     state.galleries["about-facility"] = [20, 19, 24, 23, 17];
@@ -2441,7 +2601,7 @@
     if (!select) return;
     select.value = select.value === value ? "" : value;
     select.dispatchEvent(new Event("change", { bubbles: true }));
-    document.getElementById("parts-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollElementIntoView(document.getElementById("parts-results"));
   }
 
   function searchTegiwaDirectory(query, trigger) {
@@ -2526,13 +2686,21 @@
     requestAnimationFrame(() => modalRoot.querySelector("input:not(.honeypot)")?.focus());
   }
 
-  function closeModal() {
+  function closeModal({ syncProductUrl = true } = {}) {
+    const productHandle = state.tegiwaCatalog.detailHandle;
+    const queryHandle = tegiwaProductHandle(currentRouteQueryParams().get(TEGIWA_PRODUCT_QUERY));
+    const historyHandle = tegiwaProductHandle(history.state?.[TEGIWA_PRODUCT_HISTORY_KEY]);
+    const returnToPreviousEntry = Boolean(syncProductUrl && productHandle && queryHandle === productHandle && historyHandle === productHandle);
     state.tegiwaCatalog.detailController?.abort();
     state.tegiwaCatalog.detailController = null;
+    state.tegiwaCatalog.detailHandle = "";
     modalRoot.innerHTML = "";
     document.body.classList.remove("modal-open");
     state.formContext?.opener?.focus?.();
     state.formContext = null;
+    if (!syncProductUrl || !productHandle) return;
+    if (returnToPreviousEntry) history.back();
+    else removeTegiwaProductUrl();
   }
 
   function renderQuoteDrawer() {
@@ -2604,7 +2772,7 @@
     mainButton.dataset.mediaId = String(id);
     mainButton.setAttribute("aria-label", `${U().accessibility.openImage}: ${item.title}`);
     const image = component.querySelector(".gallery-active-image");
-    image.src = item.full;
+    updateMediaImageSource(image, item, "100vw");
     image.alt = item.alt;
     component.querySelector(".gallery-photo-caption strong").textContent = item.title;
     component.querySelector(".gallery-photo-caption span").textContent = item.caption;
@@ -2744,8 +2912,8 @@
       const section = document.getElementById(localHash.slice(1));
       if (section) {
         event.preventDefault();
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
-        if (localHash === "#main-content") window.setTimeout(() => section.focus({ preventScroll: true }), 450);
+        scrollElementIntoView(section);
+        if (localHash === "#main-content") window.setTimeout(() => section.focus({ preventScroll: true }), motionDelay());
       }
       return;
     }
@@ -2765,7 +2933,7 @@
     if (action === "close-menu") { setMobileOpen(false); return; }
     if (action === "toggle-theme") { applyTheme(currentTheme() === "dark" ? "light" : "dark"); renderHeader(); return; }
     if (action === "scroll-to") {
-      document.getElementById(target.dataset.target || "")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollElementIntoView(document.getElementById(target.dataset.target || ""));
       return;
     }
     if (action === "account-mode") {
@@ -2774,6 +2942,7 @@
         const active = button === target;
         button.classList.toggle("is-active", active);
         button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
       });
       mountAccountPortal(mode);
       return;
@@ -2781,15 +2950,15 @@
     if (action === "select-engine-family") {
       const select = document.querySelector('[data-role="engine-family"]');
       if (select) { select.value = target.dataset.engineFamily || select.value; updateEngineFamilyForm(select); }
-      document.getElementById("engine-consultation")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.setTimeout(() => select?.focus(), 450);
+      scrollElementIntoView(document.getElementById("engine-consultation"));
+      window.setTimeout(() => select?.focus(), motionDelay());
       return;
     }
     if (action === "select-engine-service") {
       const select = document.querySelector('[data-role="engine-service"]');
       if (select) { select.value = target.dataset.engineService || select.value; updateEngineSelectionPhoto(select.closest("[data-engine-consultation]")); }
-      document.getElementById("engine-consultation")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.setTimeout(() => select?.focus(), 450);
+      scrollElementIntoView(document.getElementById("engine-consultation"));
+      window.setTimeout(() => select?.focus(), motionDelay());
       return;
     }
     if (action === "select-engine-package") {
@@ -2800,8 +2969,8 @@
       if (familySelect && target.dataset.engineFamily) { familySelect.value = target.dataset.engineFamily; updateEngineFamilyForm(familySelect); }
       if (serviceSelect && target.dataset.engineService) serviceSelect.value = target.dataset.engineService;
       updateEngineSelectionPhoto(packageSelect?.closest("[data-engine-consultation]"));
-      document.getElementById("engine-consultation")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.setTimeout(() => packageSelect?.focus(), 450);
+      scrollElementIntoView(document.getElementById("engine-consultation"));
+      window.setTimeout(() => packageSelect?.focus(), motionDelay());
       return;
     }
     if (action === "select-parts-category") { selectPartsFilter("category", target.dataset.partsCategory || ""); return; }
@@ -2818,7 +2987,14 @@
       return;
     }
     if (action === "tegiwa-clear-filters") { resetTegiwaFilters(); return; }
-    if (action === "view-tegiwa-product") { openTegiwaProduct(target.dataset.handle || "", target); return; }
+    if (action === "view-tegiwa-product") {
+      const handle = tegiwaProductHandle(target.dataset.handle);
+      if (!handle) return;
+      if (target.matches("a") && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return;
+      event.preventDefault();
+      openTegiwaProduct(handle, target);
+      return;
+    }
     if (action === "tegiwa-next") {
       if (state.tegiwaCatalog.currentPage < state.tegiwaCatalog.totalPages) loadTegiwaCatalog({ page: state.tegiwaCatalog.currentPage + 1, scrollResults: true });
       return;
@@ -2950,6 +3126,25 @@
   });
 
   document.addEventListener("keydown", event => {
+    const accountTab = event.target.closest?.('[role="tab"][data-action="account-mode"]');
+    if (accountTab && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      const tabs = [...document.querySelectorAll('.account-tabs [role="tab"][data-action="account-mode"]')];
+      const currentIndex = tabs.indexOf(accountTab);
+      if (currentIndex >= 0 && tabs.length) {
+        let nextIndex;
+        if (event.key === "Home") nextIndex = 0;
+        else if (event.key === "End") nextIndex = tabs.length - 1;
+        else {
+          const visualStep = event.key === "ArrowRight" ? 1 : -1;
+          const directionStep = isRtl() ? -visualStep : visualStep;
+          nextIndex = (currentIndex + directionStep + tabs.length) % tabs.length;
+        }
+        event.preventDefault();
+        tabs[nextIndex].focus();
+        tabs[nextIndex].click();
+        return;
+      }
+    }
     const tegiwaSearchInput = event.target.closest("[data-tegiwa-search-input]");
     if (tegiwaSearchInput && handleTegiwaSuggestionKeydown(event, tegiwaSearchInput)) return;
     if (event.key === "Escape") {
@@ -2964,6 +3159,10 @@
     if (state.lightbox && event.key === "ArrowRight") moveLightbox(isRtl() ? -1 : 1);
   });
 
+  window.addEventListener("popstate", () => {
+    if (!PREVIEW_MODE) syncTegiwaProductFromUrl();
+  });
+
   window.addEventListener("hashchange", () => {
     if (!PREVIEW_MODE) return;
     parsePreviewLocation();
@@ -2973,6 +3172,7 @@
   window.addEventListener("pageshow", () => {
     const stored = storage.get("projxTheme");
     if (stored) applyTheme(stored, false);
+    syncTegiwaProductFromUrl();
   });
 
   document.documentElement.classList.add("js");

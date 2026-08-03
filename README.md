@@ -8,7 +8,7 @@ This version keeps the verified workshop, tuning, engine-building, wiring, fabri
 
 - English routes using `en-KW` content
 - Arabic routes using `ar-KW` content and native RTL layout
-- 59 logical pages in each language: 118 localized pages in total
+- 58 logical pages in each language: 116 localized pages in total
 - Dark and light themes with system-preference detection and saved user choice
 - Responsive layouts from 320 px through large desktop screens
 - 13 workshop-service records and detailed service pages
@@ -52,7 +52,7 @@ scripts/
   build-tegiwa-stock-index.mjs Private-feed to public-safe index builder
   build-tegiwa-sitemap-manifest.mjs Official public product-sitemap manifest builder
   build-tegiwa-catalog-snapshot.mjs Official sitemap to sanitized browse-shard builder
-  serve.mjs                  Local static preview server
+  serve.mjs                  Local preview server with the read-only catalogue API
 template.html                Shared production HTML shell
 manifest.webmanifest         Web-app metadata
 sw.js                        Static asset cache support

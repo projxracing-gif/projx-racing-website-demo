@@ -229,6 +229,57 @@ function searchTokens(value) {
   return normalizeSearchText(value).split(' ').filter(Boolean);
 }
 
+// The supplier catalogue is English-only, while the storefront is bilingual.
+// Keep this list deliberately limited to common automotive terms used by
+// customers in Kuwait; it changes only the search query, never product data.
+const LOCALIZED_SEARCH_ALIASES = new Map([
+  ['فرامل', ['brake']], ['مكابح', ['brake']], ['بريك', ['brake']],
+  ['فحمات', ['brake', 'pads']], ['دسكات', ['brake', 'discs']], ['هوبات', ['brake', 'discs']],
+  ['تعليق', ['suspension']], ['سسبنشن', ['suspension']], ['مساعدات', ['shock', 'absorbers']],
+  ['يايات', ['springs']], ['كويلوفر', ['coilovers']], ['كويلوفرز', ['coilovers']],
+  ['سحب', ['intake']], ['انتيك', ['intake']], ['فلتر', ['filter']], ['فلاتر', ['filters']],
+  ['عادم', ['exhaust']], ['اكزوز', ['exhaust']], ['هدرز', ['headers']], ['مانيفولد', ['manifold']],
+  ['محرك', ['engine']], ['مكينة', ['engine']], ['مكينه', ['engine']],
+  ['قير', ['transmission']], ['جير', ['transmission']], ['ناقل', ['transmission']],
+  ['كلتش', ['clutch']], ['دفرنس', ['differential']], ['درايفشافت', ['driveshaft']],
+  ['تبريد', ['cooling']], ['رديتر', ['radiator']], ['راديتر', ['radiator']],
+  ['انتركولر', ['intercooler']], ['ثرموستات', ['thermostat']], ['خراطيم', ['hoses']],
+  ['زيت', ['oil']], ['وقود', ['fuel']], ['بنزين', ['fuel']], ['بترول', ['fuel']],
+  ['بخاخ', ['injector']], ['بخاخات', ['injectors']], ['طرمبة', ['pump']], ['طلمبة', ['pump']],
+  ['تيربو', ['turbo']], ['توربو', ['turbo']], ['سوبرتشارجر', ['supercharger']],
+  ['برمجة', ['tuning']], ['كمبيوتر', ['ecu']], ['حساس', ['sensor']], ['حساسات', ['sensors']],
+  ['عداد', ['gauge']], ['عدادات', ['gauges']], ['داتا', ['data']], ['لوقر', ['logger']],
+  ['جنوط', ['wheels']], ['رنجات', ['wheels']], ['كفرات', ['tyres']], ['تواير', ['tyres']],
+  ['اطارات', ['tyres']], ['إطارات', ['tyres']], ['بواجي', ['spark', 'plugs']], ['كويلات', ['coilpacks']],
+  ['كام', ['camshaft']], ['كامات', ['camshafts']], ['كرنك', ['crankshaft']],
+  ['بستم', ['piston']], ['بساتم', ['pistons']], ['رودات', ['rods']], ['جوانات', ['gaskets']],
+  ['مسامير', ['bolts']], ['رولكيج', ['roll', 'cage']], ['خوذة', ['helmet']], ['خوذ', ['helmets']],
+  ['مقاعد', ['seats']], ['احزمة', ['harnesses']], ['أحزمة', ['harnesses']],
+  ['جناح', ['wing']], ['سبويلر', ['spoiler']], ['ايرو', ['aero']],
+  ['حلبة', ['motorsport']], ['سباق', ['racing']], ['درفت', ['drift']], ['دريفت', ['drift']],
+  ['صيانة', ['service']], ['سيرفس', ['service']], ['طقم', ['kit']], ['كت', ['kit']]
+].map(([source, targets]) => [normalizeSearchText(source), targets]));
+
+const LOCALIZED_SEARCH_STOP_WORDS = new Set([
+  'قطع', 'قطعة', 'غيار', 'سيارة', 'سيارات', 'للسيارة', 'للسيارات', 'حق', 'مال'
+].map(normalizeSearchText));
+
+function localizedSearchTokens(tokens) {
+  const expanded = [];
+  const corrections = [];
+  for (const token of tokens) {
+    if (LOCALIZED_SEARCH_STOP_WORDS.has(token)) continue;
+    const alias = LOCALIZED_SEARCH_ALIASES.get(token);
+    if (!alias) {
+      expanded.push(token);
+      continue;
+    }
+    expanded.push(...alias);
+    corrections.push({ from: token, to: alias.join(' ') });
+  }
+  return { tokens: [...new Set(expanded)], corrections };
+}
+
 function fnv1a64(value) {
   let hash = 0xcbf29ce484222325n;
   for (const byte of Buffer.from(value, 'utf8')) {
@@ -1006,10 +1057,14 @@ function searchPlan(provider, query) {
   if (!originalTokens.length || originalTokens.length > MAX_QUERY_TOKENS) {
     throw new PublicApiError(400, 'invalid_query', `Search queries may contain up to ${MAX_QUERY_TOKENS} searchable words.`);
   }
-  const canonicalTokens = originalTokens.map(token => correctedToken(provider, token));
-  const corrections = originalTokens
+  const localized = localizedSearchTokens(originalTokens);
+  if (!localized.tokens.length || localized.tokens.length > MAX_QUERY_TOKENS) {
+    throw new PublicApiError(400, 'invalid_query', `Search queries may contain up to ${MAX_QUERY_TOKENS} searchable words.`);
+  }
+  const canonicalTokens = localized.tokens.map(token => correctedToken(provider, token));
+  const corrections = localized.corrections.concat(localized.tokens
     .map((from, index) => ({ from, to: canonicalTokens[index] }))
-    .filter(value => value.from !== value.to);
+    .filter(value => value.from !== value.to));
   const tokenGroups = canonicalTokens.map(token => {
     const terms = prefixTerms(provider, token);
     if (!terms.length && provider.termCount(token)) terms.push(token);
@@ -1022,6 +1077,7 @@ function searchPlan(provider, query) {
     originalTokens,
     canonicalTokens,
     canonicalQuery: canonicalTokens.join(' '),
+    translated: localized.corrections.length > 0,
     corrected: corrections.length > 0,
     corrections,
     tokenGroups,
@@ -1152,6 +1208,7 @@ async function searchCatalog(provider, index, summary, request, catalogLoader) {
     meta: metaFor(index, items.length, {
       query: request.query,
       canonicalQuery: plan.canonicalQuery,
+      translated: plan.translated,
       corrected: plan.corrected,
       corrections: plan.corrections,
       page: request.page,
@@ -1179,6 +1236,7 @@ async function suggestCatalog(provider, index, summary, query, catalogLoader) {
     correction: {
       query,
       canonicalQuery: plan.canonicalQuery,
+      translated: plan.translated,
       corrected: plan.corrected,
       corrections: plan.corrections
     },
