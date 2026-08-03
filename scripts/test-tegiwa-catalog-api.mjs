@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  default as productionHandler,
   createTegiwaCatalogHandler,
   normalizeTitleForStock,
   stockKeyForTitle
@@ -124,6 +125,7 @@ assert.deepEqual(search.body.items[0].availability, {
 assert.equal(search.body.items[0].image.src, 'https://cdn.shopify.com/s/files/1/0000/product.jpg');
 assert.equal(search.body.items[0].sourceUrl, 'https://www.tegiwa.com/products/tegiwa-bmw-b58-service-kit');
 assert.equal(search.body.meta.catalogProductCount, 4_218);
+assert.equal(search.body.meta.stockIndexedProductCount, 4_218);
 assert.equal(search.body.meta.availableProductCount, 2_601);
 assert.equal(search.body.nextCursor, null);
 assert.equal(searchRequestUrl.searchParams.get('q'), 'B58 service kit');
@@ -234,6 +236,12 @@ assert.equal(bundledBrowse.body.mode, 'browse');
 assert.equal(bundledBrowse.body.items.length, 24);
 assert.match(bundledBrowse.body.nextCursor, /^[A-Za-z0-9_-]+$/);
 assert.ok(bundledBrowse.body.items.every(item => item.handle && item.title && item.sourceUrl.startsWith('https://www.tegiwa.com/products/')));
+
+const productionBrowse = await invoke(productionHandler);
+assert.equal(productionBrowse.status, 200);
+assert.equal(productionBrowse.body.meta.catalogProductCount, 193_253);
+assert.equal(productionBrowse.body.meta.stockIndexedProductCount, 193_844);
+assert.equal(productionBrowse.body.meta.availableProductCount, 26_349);
 
 const longHandle = `long-${'performance-part-'.repeat(11)}catalog-item`;
 assert.ok(longHandle.length > 160 && longHandle.length < 256);

@@ -18,6 +18,7 @@ const JSON_RESPONSE_BYTES = 2_000_000;
 const CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=300';
 const STOCK_INDEX_URL = new URL('./data/tegiwa-stock-index.json', import.meta.url);
 const SITEMAP_MANIFEST_URL = new URL('./data/tegiwa-sitemap-manifest.json', import.meta.url);
+const CATALOG_SUMMARY_URL = new URL('./data/tegiwa-catalog-summary.json', import.meta.url);
 const CATALOG_SHARD_DIRECTORY_URL = new URL('./data/tegiwa-catalog-pages/', import.meta.url);
 
 const STATUS_CODES = Object.freeze({
@@ -169,6 +170,23 @@ function loadDefaultSitemapManifest() {
     throw new Error('The public Tegiwa sitemap manifest could not be loaded.', { cause: error });
   }
   return defaultSitemapManifest;
+}
+
+function validateCatalogSummary(candidate) {
+  const productCount = safeInteger(candidate?.productCount, 1, 10_000_000);
+  if (!candidate || candidate.version !== 1 || productCount === null) throw new Error('invalid_catalog_summary');
+  return { productCount };
+}
+
+let defaultCatalogSummary;
+function loadDefaultCatalogSummary() {
+  if (defaultCatalogSummary) return defaultCatalogSummary;
+  try {
+    defaultCatalogSummary = validateCatalogSummary(JSON.parse(readFileSync(CATALOG_SUMMARY_URL, 'utf8')));
+  } catch (error) {
+    throw new Error('The public Tegiwa catalog summary could not be loaded.', { cause: error });
+  }
+  return defaultCatalogSummary;
 }
 
 function stockSnapshotIsFresh(index, nowValue) {
@@ -556,7 +574,8 @@ function metaFor(index, count, extra = {}) {
     count,
     checkedAt: index.checkedAt,
     stockSnapshotStale: Boolean(index.checkedAt && !index.stockSnapshotFresh),
-    catalogProductCount: index.productCount,
+    catalogProductCount: index.catalogProductCount,
+    stockIndexedProductCount: index.productCount,
     availableProductCount: index.availableProductCount,
     ...extra
   };
@@ -697,12 +716,15 @@ async function detailCatalog(fetchImpl, index, handle) {
   };
 }
 
-export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, sitemapManifest, catalogLoader = loadDefaultCatalogShard, now = () => Date.now(), logger = console } = {}) {
+export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, sitemapManifest, catalogSummary, catalogLoader = loadDefaultCatalogShard, now = () => Date.now(), logger = console } = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required.');
   if (typeof catalogLoader !== 'function') throw new TypeError('A catalog loader is required.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   const index = stockIndex ? validateStockIndex(stockIndex) : loadDefaultStockIndex();
   const sitemaps = sitemapManifest ? validateSitemapManifest({ version: 1, sitemaps: sitemapManifest }) : loadDefaultSitemapManifest();
+  const summary = catalogSummary
+    ? validateCatalogSummary(catalogSummary)
+    : (stockIndex ? { productCount: index.productCount } : loadDefaultCatalogSummary());
 
   return async function tegiwaCatalogHandler(req, res) {
     if (req.method !== 'GET') {
@@ -713,7 +735,7 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
 
     try {
       const request = determineMode(req);
-      const requestIndex = { ...index, stockSnapshotFresh: stockSnapshotIsFresh(index, Number(now())) };
+      const requestIndex = { ...index, catalogProductCount: summary.productCount, stockSnapshotFresh: stockSnapshotIsFresh(index, Number(now())) };
       let body;
       if (request.mode === 'search') body = await searchCatalog(fetchImpl, requestIndex, request.query);
       else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);
