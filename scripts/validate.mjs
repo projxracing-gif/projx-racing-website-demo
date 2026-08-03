@@ -29,7 +29,9 @@ function loadProjectData() {
 for (const file of [
   'assets/app.js', 'assets/data.js', 'assets/site-config.js', 'assets/styles.css',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'template.html', 'sw.js',
-  'api/enquiry.js', 'scripts/build.mjs', 'manifest.webmanifest'
+  'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/data/tegiwa-stock-index.json',
+  'scripts/build.mjs', 'scripts/build-tegiwa-stock-index.mjs', 'scripts/test-tegiwa-catalog-api.mjs',
+  'manifest.webmanifest'
 ]) assert(fs.existsSync(path.join(repo, file)), `Missing source file: ${file}`);
 
 assert(fs.existsSync(dist), 'dist/ does not exist; run npm run build first.');
@@ -121,6 +123,26 @@ for (const locale of ['en', 'ar']) {
 
 const { PROJX_DATA: data, PROJX_TRANSLATIONS: translations } = loadProjectData();
 const appSource = fs.readFileSync(path.join(repo, 'assets/app.js'), 'utf8');
+const tegiwaApiSource = fs.readFileSync(path.join(repo, 'api/tegiwa-catalog.js'), 'utf8');
+const tegiwaIndexSource = fs.readFileSync(path.join(repo, 'api/data/tegiwa-stock-index.json'), 'utf8');
+const tegiwaIndex = JSON.parse(tegiwaIndexSource);
+const tegiwaEntries = Object.entries(tegiwaIndex.products || {});
+const tegiwaLeadTimes = Array.isArray(tegiwaIndex.leadTimes) ? tegiwaIndex.leadTimes : [];
+assert(tegiwaIndex.version === 1, 'Tegiwa public stock-index version is invalid.');
+assert(/^\d{4}-\d{2}-\d{2}$/.test(tegiwaIndex.checkedAt || ''), 'Tegiwa stock-index check date is missing.');
+assert(tegiwaEntries.length === tegiwaIndex.productCount && tegiwaEntries.length > 100_000, 'Tegiwa stock-index product count is incomplete.');
+assert(Number(tegiwaIndex.availableProductCount) > 0 && tegiwaIndex.availableProductCount <= tegiwaIndex.productCount, 'Tegiwa available-product count is invalid.');
+assert(tegiwaLeadTimes.length > 0 && tegiwaLeadTimes.every(value => typeof value === 'string' && value.length <= 120), 'Tegiwa public lead-time table is invalid.');
+assert(tegiwaEntries.every(([key, value]) => /^[A-Za-z0-9_-]{16}$/.test(key)
+  && Array.isArray(value) && value.length === 4
+  && Number.isInteger(value[0]) && value[0] >= 0
+  && Number.isInteger(value[1]) && value[1] >= value[0]
+  && [0, 1, 2, 3].includes(value[2])
+  && Number.isInteger(value[3]) && value[3] >= 0 && value[3] < tegiwaLeadTimes.length), 'Tegiwa public stock-index record contract is invalid.');
+assert(tegiwaEntries.filter(([, value]) => value[2] === 1 || value[2] === 2).length === tegiwaIndex.availableProductCount, 'Tegiwa available-product aggregate does not match its records.');
+assert(!/(?:Variant SKU|Inventory Qty|External Supplier Stock|dealer.?cost|wholesale|password|credential|api.?key)/i.test(tegiwaIndexSource), 'Private dealer fields leaked into the Tegiwa public stock index.');
+assert(tegiwaApiSource.includes("const OFFICIAL_ORIGIN = 'https://www.tegiwa.com'") && tegiwaApiSource.includes('MAX_SITEMAPS = 512'), 'Tegiwa API origin restriction or full-sitemap cap is missing.');
+assert(tegiwaApiSource.includes("digest('base64url').slice(0, 16)"), 'Tegiwa API stock-key contract does not match the feed-index builder.');
 const brandLogoBlock = appSource.match(/const BRAND_LOGOS = Object\.freeze\(\{([\s\S]*?)\n\s*\}\);/)?.[1] || '';
 const brandLogoNames = new Set([...brandLogoBlock.matchAll(/^\s+"([^"]+)":/gm)].map(match => JSON.parse(`"${match[1]}"`)));
 const brandLogoPaths = [...new Set([...brandLogoBlock.matchAll(/"(assets\/brand\/partners\/[^"]+)"/g)].map(match => match[1]))];
@@ -180,6 +202,9 @@ for (const logo of brandLogoPaths) {
 assert(data.tuningPlatforms.mhd.tuneTypes.includes('xHP Transmission Tune — Compatibility Review'), 'MHD/xHP transmission tune option is missing.');
 assert(translations.ar.tuning.mhd.tuneTypes.includes('برمجة قير xHP — مراجعة التوافق'), 'Arabic MHD/xHP transmission tune option is missing.');
 assert(appSource.includes('data-parts-shop') && appSource.includes('data-parts-vehicle-form'), 'Vehicle-first parts finder is missing.');
+assert(appSource.includes('<select id="parts-vehicle-year"') && appSource.includes('name="year" required'), 'Required vehicle-year dropdown is missing.');
+assert(appSource.includes('new Date().getFullYear() + 1') && appSource.includes('const oldestModelYear = 1950'), 'Vehicle-year dropdown range is not current-model-year aware or does not reach 1950.');
+assert(appSource.includes('data-tegiwa-catalog') && appSource.includes('/api/tegiwa-catalog') && appSource.includes('data-action="tegiwa-next"'), 'Paginated Tegiwa storefront integration is missing.');
 assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
 assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
 assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
@@ -193,7 +218,7 @@ for (const locale of ['en', 'ar']) {
   assert(Object.keys(t.projects || {}).length === data.projects.length, `${locale}: incomplete project translations.`);
   if (locale === 'ar') assert(Object.keys(t.media || {}).length === data.media.length, `${locale}: incomplete media translations.`);
   assert((t.parts || []).length === data.parts.length, `${locale}: incomplete parts translations.`);
-  assert(t.pages?.parts?.finder?.byVehicle && t.pages?.parts?.finder?.byCategory && t.pages?.parts?.finder?.byBrand, `${locale}: incomplete parts-finder translations.`);
+  assert(t.pages?.parts?.finder?.byVehicle && t.pages?.parts?.finder?.byCategory && t.pages?.parts?.finder?.byBrand && t.pages?.parts?.finder?.chooseYear, `${locale}: incomplete parts-finder translations.`);
   assert(Object.keys(t.tuning || {}).length === Object.keys(data.tuningPlatforms).length, `${locale}: incomplete tuning translations.`);
 }
 

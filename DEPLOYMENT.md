@@ -2,7 +2,7 @@
 
 ## 1. Local verification
 
-Install Node.js 20 or newer, extract the source project, then run:
+Install Node.js 24.x, extract the source project, then run:
 
 ```bash
 npm ci
@@ -20,7 +20,7 @@ http://127.0.0.1:4173/
 
 ## 2. GitHub repository upload
 
-The editable source package contains fewer than 100 files when generated screenshots are excluded, so it can be uploaded through GitHub’s browser interface.
+The repository is maintained with Git. Do not upload raw dealer feeds, generated ZIP files or `node_modules` through GitHub’s browser interface.
 
 1. Create an empty repository.
 2. Extract the source ZIP.
@@ -61,7 +61,7 @@ deploy Pages artifact
 
 Because the site is generated, do not select a raw branch folder as the publishing source.
 
-GitHub Pages is suitable for the static website and WhatsApp form handoff. The optional serverless email endpoint requires Vercel or another backend host.
+GitHub Pages is suitable only for the static website and WhatsApp form handoff. The serverless email delivery and live Tegiwa catalogue require Vercel or another compatible backend host.
 
 ## 4. Vercel
 
@@ -72,11 +72,11 @@ GitHub Pages is suitable for the static website and WhatsApp form handoff. The o
 Framework preset: Other
 Build command: npm run build
 Output directory: dist
-Node.js: 20 or newer
+Node.js: 24.x
 ```
 
 3. Deploy the preview.
-4. Test `/en/`, `/ar/`, direct nested-route refreshes, forms, media and mobile navigation.
+4. Test `/en/`, `/ar/`, direct nested-route refreshes, forms, media, mobile navigation and the Tegiwa catalogue search/browse/detail API.
 5. Add the approved public domain.
 
 ## 5. Final domain configuration

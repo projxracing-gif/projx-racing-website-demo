@@ -449,7 +449,7 @@ window.PROJX_TRANSLATIONS.ar = {
         "make": "الشركة",
         "model": "الموديل",
         "engine": "المحرك / الفئة",
-        "yearPlaceholder": "مثال: 2021",
+        "chooseYear": "اختر سنة الموديل",
         "chooseMake": "اختر الشركة",
         "otherMake": "شركة ثانية",
         "modelPlaceholder": "مثال: M3",

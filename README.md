@@ -8,16 +8,17 @@ This version keeps the verified workshop, tuning, engine-building, wiring, fabri
 
 - English routes using `en-KW` content
 - Arabic routes using `ar-KW` content and native RTL layout
-- 42 logical pages in each language: 84 localized pages in total
+- 59 logical pages in each language: 118 localized pages in total
 - Dark and light themes with system-preference detection and saved user choice
 - Responsive layouts from 320 px through large desktop screens
 - 13 workshop-service records and detailed service pages
 - MHD, COBB and HP Tuners compatibility-review flows
 - Real engine-building service information and a direct technical consultation form
 - 12 verified project records based on supplied company information and media
-- 44 brands, suppliers and technical-platform records with relationship labels
+- 46 brands, suppliers and technical-platform records with relationship labels
 - 80 verified Projx Racing photographs, including 30 newly selected high-resolution workshop, engine, dyno and track images
 - Searchable services, projects, parts, brands and gallery sections
+- A paginated full-range Tegiwa preview catalogue using official product data, GBP prices and a customer-safe stock snapshot without exposing exact dealer inventory
 - Quote basket, enquiry forms, secure customer-account portal shell, mobile navigation, lightbox and FAQ controls
 - Verified telephone, WhatsApp, Instagram and map actions
 - Localized metadata, canonical URLs, hreflang, structured data, sitemap and robots rules
@@ -31,6 +32,8 @@ The retired interactive calculation and visualization module is not included in 
 ```text
 api/
   enquiry.js                 Secure Vercel enquiry-email endpoint
+  tegiwa-catalog.js          Restricted Tegiwa search/browse/detail proxy
+  data/                      Anonymous customer-safe stock/RRP index
 assets/
   app.js                     Page rendering and interactions
   data.js                    Verified shared business/content records
@@ -45,6 +48,8 @@ scripts/
   lint.mjs                   JavaScript/source checks
   validate.mjs               Route, metadata, content and asset validation
   test-api.mjs               Enquiry endpoint tests
+  test-tegiwa-catalog-api.mjs Tegiwa API security and contract tests
+  build-tegiwa-stock-index.mjs Private-feed to public-safe index builder
   serve.mjs                  Local static preview server
 template.html                Shared production HTML shell
 manifest.webmanifest         Web-app metadata
@@ -57,7 +62,7 @@ vercel.json                  Vercel build, routes and security headers
 
 ## Local setup
 
-Requires Node.js 20 or newer.
+Requires Node.js 24.x.
 
 ```bash
 npm ci
@@ -84,7 +89,7 @@ The root page directs visitors to English or Arabic. The primary routes are:
 npm run lint        # JavaScript/source checks
 npm run build       # Generate dist/
 npm run validate    # Validate routes, translations, metadata and media
-npm run test:api    # Test the optional enquiry endpoint
+npm run test:api    # Test the enquiry and Tegiwa catalogue endpoints
 npm run check       # Run all checks in sequence
 npm run preview     # Serve dist/ locally
 ```
@@ -96,6 +101,7 @@ npm run preview     # Serve dist/ locally
 - Arabic/Kuwaiti visible copy and metadata: `assets/i18n/ar.js`
 - Contact and deployment settings: `assets/site-config.js`
 - Visual design: `assets/styles.css`
+- Tegiwa catalogue import and privacy contract: `CATALOG_IMPORT_README.md`
 
 Keep brand names, engine codes, product names, software names, units, email addresses and phone numbers in their approved form. Do not add prices, warranties, results, dealer claims or technical limits without written approval.
 

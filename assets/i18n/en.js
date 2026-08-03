@@ -389,7 +389,7 @@
           make: "Make",
           model: "Model",
           engine: "Engine / trim",
-          yearPlaceholder: "e.g. 2021",
+          chooseYear: "Choose year",
           chooseMake: "Choose make",
           otherMake: "Other make",
           modelPlaceholder: "e.g. M3",

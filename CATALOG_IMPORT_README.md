@@ -1,8 +1,10 @@
-# Private catalogue import contract
+# Catalogue import contract
 
-Raw supplier CSV, XLS/XLSX, XML, JSON, image archives and portal exports belong under `private-imports/`, which is ignored by Git. Never place a complete dealer stockfeed in `assets/`, `dist/` or a commit.
+Raw supplier CSV, XLS/XLSX, XML, JSON, image archives and portal exports belong under `private-imports/` or another ignored local location. Never place a complete dealer stockfeed in `assets/`, `dist/` or a commit.
 
-The public site uses the small `storeProducts` array in `assets/data.js`. A product may be copied into that array only after a human confirms:
+## Reviewed Projx catalogue records
+
+The public site keeps a small reviewed `storeProducts` array in `assets/data.js`. A product may be copied into that array only after a human confirms:
 
 - one stable slug and one canonical brand plus SKU/MPN identity;
 - an exact local product image with confirmed publication rights and intrinsic dimensions;
@@ -21,3 +23,35 @@ npm run catalog:prepare -- private-imports/curated-candidates.json
 ```
 
 The tool rejects raw-size batches, private fields, remote/hotlinked images, missing original-currency/quote-only pricing and incomplete fitment. It writes only to ignored `private-imports/sanitized/catalog-products.json`. It never publishes products automatically.
+
+## Full Tegiwa preview catalogue
+
+Tegiwa's catalogue is too large for `assets/data.js` and static per-product routes. The preview therefore uses a restricted server-side catalogue endpoint:
+
+- `api/tegiwa-catalog.js` reads only Tegiwa's official public sitemap, predictive-search JSON and validated product JSON URLs.
+- Browse results are sanitised and returned 24 at a time with opaque cursor pagination; search follows Shopify's official 10-product predictive-search limit and includes variant-SKU matching.
+- The parts page fetches results only when it is open, so the full catalogue does not slow down the rest of the website.
+- Product names stay in their official technical English form in both locales; the interface, status labels and quote workflow are bilingual.
+- Product images use the official live catalogue source in this preview. Production image copies require confirmed dealer publication rights and an approved storage workflow.
+- Vehicle fitment is not inferred from titles. Projx Racing must confirm fitment before quotation or order.
+
+The customer-safe availability index is generated from an authorised Tegiwa stockfeed with:
+
+```text
+node scripts/build-tegiwa-stock-index.mjs <private-stock.csv> YYYY-MM-DD
+```
+
+The generated `api/data/tegiwa-stock-index.json` contains only anonymous title hashes, GBP RRP ranges, broad availability codes and safe lead-time buckets. It never contains product titles, SKUs, exact stock quantities, account details, credentials or trade costs. Conflicting variants, missing SKUs and invalid/zero prices are quarantined instead of guessed.
+
+Public availability means one of:
+
+- at least one variant in stock at Tegiwa;
+- at least one variant with supplier stock indicated;
+- availability confirmation required; or
+- currently out of stock.
+
+It never means the item is physically stocked at Projx Racing. Every result also carries the stockfeed check date, and the final Projx quotation confirms price, fitment, shipping, Kuwait duties and delivery timing.
+
+Availability badges automatically fall back to **confirm availability** once the stock snapshot is more than seven days old. GBP RRP remains visible as a reference, but stale inventory and lead-time claims are never presented as current.
+
+To refresh the snapshot, download the authorised feed privately, rerun the generator with the new check date, run all checks, inspect the aggregate counts and privacy assertions, then deploy only the generated anonymous index. Never commit the raw feed.
