@@ -152,6 +152,7 @@ const tegiwaCatalogShardFiles = fs.existsSync(tegiwaCatalogDirectory)
   : [];
 assert(tegiwaCatalogShardFiles.length === tegiwaManifest.sitemapCount, 'Tegiwa public catalog shard count does not match its manifest.');
 const tegiwaCatalogHandles = new Set();
+const tegiwaCatalogShardCounts = [];
 let tegiwaCatalogProductCount = 0;
 let tegiwaCatalogImageCount = 0;
 let tegiwaCatalogRecordsValid = true;
@@ -162,6 +163,7 @@ for (const [shardIndex, filename] of tegiwaCatalogShardFiles.entries()) {
     tegiwaCatalogRecordsValid = false;
     continue;
   }
+  tegiwaCatalogShardCounts.push(shard.length);
   for (const record of shard) {
     if (!Array.isArray(record) || record.length !== 3
       || !/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(record[0] || '')
@@ -181,6 +183,9 @@ assert(tegiwaCatalogRecordsValid, 'Tegiwa public catalog shards contain invalid 
 assert(tegiwaCatalogProductCount > 100_000 && tegiwaCatalogHandles.size === tegiwaCatalogProductCount, 'Tegiwa public catalog snapshot is incomplete.');
 assert(tegiwaCatalogSummary.version === 1
   && tegiwaCatalogSummary.shardCount === tegiwaCatalogShardFiles.length
+  && Array.isArray(tegiwaCatalogSummary.shardProductCounts)
+  && tegiwaCatalogSummary.shardProductCounts.length === tegiwaCatalogShardCounts.length
+  && tegiwaCatalogSummary.shardProductCounts.every((count, index) => count === tegiwaCatalogShardCounts[index])
   && tegiwaCatalogSummary.productCount === tegiwaCatalogProductCount
   && tegiwaCatalogSummary.imageCount === tegiwaCatalogImageCount
   && tegiwaCatalogSummary.uniqueHandleCount === tegiwaCatalogHandles.size, 'Tegiwa public catalog summary does not match its shards.');
@@ -249,7 +254,12 @@ assert(translations.ar.tuning.mhd.tuneTypes.includes('برمجة قير xHP — 
 assert(appSource.includes('data-parts-shop') && appSource.includes('data-parts-vehicle-form'), 'Vehicle-first parts finder is missing.');
 assert(appSource.includes('<select id="parts-vehicle-year"') && appSource.includes('name="year" required'), 'Required vehicle-year dropdown is missing.');
 assert(appSource.includes('new Date().getFullYear() + 1') && appSource.includes('const oldestModelYear = 1950'), 'Vehicle-year dropdown range is not current-model-year aware or does not reach 1950.');
-assert(appSource.includes('data-tegiwa-catalog') && appSource.includes('/api/tegiwa-catalog') && appSource.includes('data-action="tegiwa-next"'), 'Paginated Tegiwa storefront integration is missing.');
+assert(appSource.includes('data-tegiwa-catalog')
+  && appSource.includes('/api/tegiwa-catalog')
+  && appSource.includes('endpoint.searchParams.set("page"')
+  && appSource.includes('data-tegiwa-pages')
+  && appSource.includes('data-action="tegiwa-page"')
+  && appSource.includes('aria-current="page"'), 'Numbered Tegiwa storefront pagination is missing.');
 assert(appSource.includes(`data-tegiwa-catalog-count>${tegiwaCatalogSummary.productCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback count does not match the public catalog summary.');
 assert(appSource.includes(`data-tegiwa-available-count>${tegiwaIndex.availableProductCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback availability count does not match the stock index.');
 assert(appSource.includes('(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))'), 'Tegiwa storefront product-detail guard does not support all validated official handles.');

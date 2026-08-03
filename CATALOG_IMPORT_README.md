@@ -31,8 +31,8 @@ Tegiwa's catalogue is too large for `assets/data.js` and static per-product rout
 - `api/tegiwa-catalog.js` loads bundled public browse shards and calls only Tegiwa's official Shopify predictive-search JSON and validated product JSON URLs at request time.
 - `api/data/tegiwa-sitemap-manifest.json` records the validated official product-sitemap sources used to create the browse snapshot.
 - `api/data/tegiwa-catalog-pages/` contains 194 compact public-data shards with only product handle, title and allowlisted image URL. It contains no SKU, exact quantity, dealer pricing or account data.
-- `api/data/tegiwa-catalog-summary.json` records snapshot counts and generation time so validation can detect partial or mismatched updates.
-- Browse results are sanitised and returned 24 at a time with opaque cursor pagination; search follows Shopify's official 10-product predictive-search limit and includes variant-SKU matching.
+- `api/data/tegiwa-catalog-summary.json` records snapshot counts, per-shard product counts and generation time so validation can detect partial or mismatched updates and resolve numbered pages without scanning preceding shards.
+- Browse results are sanitised and returned 100 at a time. The endpoint accepts validated `?page=N` requests for direct numbered navigation, retains opaque cursor compatibility, and returns current-page, page-size and total-page metadata. Search follows Shopify's official 10-product predictive-search limit and includes variant-SKU matching.
 - The parts page fetches results only when it is open, so the full catalogue does not slow down the rest of the website.
 - Product names stay in their official technical English form in both locales; the interface, status labels and quote workflow are bilingual.
 - Product images use the official live catalogue source in this preview. Production image copies require confirmed dealer publication rights and an approved storage workflow.

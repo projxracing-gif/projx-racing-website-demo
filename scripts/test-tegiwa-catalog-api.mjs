@@ -70,6 +70,10 @@ assert.equal((await invoke(validationHandler, { query: { q: ['brake', 'engine'] 
 assert.equal((await invoke(validationHandler, { query: { handle: 'Upper-Case-Handle' } })).body.error.code, 'invalid_handle');
 assert.equal((await invoke(validationHandler, { query: { handle: 'a'.repeat(256) } })).body.error.code, 'invalid_handle');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', cursor: 'abcd' } })).body.error.code, 'invalid_parameters');
+assert.equal((await invoke(validationHandler, { query: { page: '0' } })).body.error.code, 'invalid_page');
+assert.equal((await invoke(validationHandler, { query: { page: '1.5' } })).body.error.code, 'invalid_page');
+assert.equal((await invoke(validationHandler, { query: { page: ['1', '2'] } })).body.error.code, 'invalid_page');
+assert.equal((await invoke(validationHandler, { query: { q: 'brake', page: '1' } })).body.error.code, 'invalid_parameters');
 assert.equal((await invoke(validationHandler, {
   query: { q: 'brake' },
   headers: { host: 'preview.projxracing.com', origin: 'https://attacker.example' }
@@ -184,7 +188,7 @@ assert.equal(staleStock.body.meta.stockSnapshotStale, true);
 assert.deepEqual(staleStock.body.items[0].price, { currency: 'GBP', min: 117.96, max: 129.99, note: 'RRP' });
 
 function catalogRecord(number) {
-  const padded = String(number).padStart(2, '0');
+  const padded = String(number).padStart(3, '0');
   return [
     `product-${padded}`,
     `Official Product ${padded}`,
@@ -193,18 +197,33 @@ function catalogRecord(number) {
 }
 
 const sitemapManifest = [
-  'https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=25',
-  'https://www.tegiwa.com/sitemap_products_2.xml?from=26&to=28'
+  'https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=75',
+  'https://www.tegiwa.com/sitemap_products_2.xml?from=76&to=165',
+  'https://www.tegiwa.com/sitemap_products_3.xml?from=166&to=206'
 ];
 const catalogShards = [
-  Array.from({ length: 25 }, (_, index) => catalogRecord(index + 1)),
-  Array.from({ length: 3 }, (_, index) => catalogRecord(index + 26))
+  Array.from({ length: 75 }, (_, index) => catalogRecord(index + 1)),
+  Array.from({ length: 90 }, (_, index) => catalogRecord(index + 76)),
+  Array.from({ length: 41 }, (_, index) => catalogRecord(index + 166))
 ];
+const catalogSummary = {
+  version: 1,
+  shardCount: 3,
+  shardProductCounts: catalogShards.map(shard => shard.length),
+  productCount: 206
+};
+assert.throws(() => createTegiwaCatalogHandler({
+  stockIndex,
+  sitemapManifest,
+  catalogSummary: { ...catalogSummary, shardProductCounts: [75, 90, 40] },
+  fetchImpl: noFetch
+}), /invalid_catalog_summary/);
 
 const catalogShardRequests = [];
 const browseHandler = createTegiwaCatalogHandler({
   stockIndex,
   sitemapManifest,
+  catalogSummary,
   now: () => FIXED_NOW,
   fetchImpl: noFetch,
   catalogLoader: async shardIndex => {
@@ -213,35 +232,105 @@ const browseHandler = createTegiwaCatalogHandler({
   }
 });
 
-const browsePageOne = await invoke(browseHandler);
+const browsePageOne = await invoke(browseHandler, { query: { page: '1' } });
 assert.equal(browsePageOne.status, 200);
 assert.equal(browsePageOne.body.mode, 'browse');
-assert.equal(browsePageOne.body.items.length, 24);
-assert.equal(browsePageOne.body.items[0].handle, 'product-01');
-assert.equal(browsePageOne.body.items[23].handle, 'product-24');
+assert.equal(browsePageOne.body.items.length, 100);
+assert.equal(browsePageOne.body.items[0].handle, 'product-001');
+assert.equal(browsePageOne.body.items[99].handle, 'product-100');
+assert.deepEqual(browsePageOne.body.meta, {
+  count: 100,
+  checkedAt: '2026-08-03',
+  stockSnapshotStale: false,
+  catalogProductCount: 206,
+  stockIndexedProductCount: 4_218,
+  availableProductCount: 2_601,
+  page: 1,
+  pageSize: 100,
+  totalPages: 3
+});
 assert.match(browsePageOne.body.nextCursor, /^[A-Za-z0-9_-]+$/);
-assert.equal(browsePageOne.body.items[0].image.src, 'https://cdn.shopify.com/s/files/1/0000/product-01.jpg');
+assert.equal(browsePageOne.body.items[0].image.src, 'https://cdn.shopify.com/s/files/1/0000/product-001.jpg');
 
-const browsePageTwo = await invoke(browseHandler, { query: { cursor: browsePageOne.body.nextCursor } });
+const browsePageTwo = await invoke(browseHandler, { query: { page: '2' } });
 assert.equal(browsePageTwo.status, 200);
-assert.deepEqual(browsePageTwo.body.items.map(item => item.handle), ['product-25', 'product-26', 'product-27', 'product-28']);
-assert.equal(browsePageTwo.body.nextCursor, null);
-assert.deepEqual(catalogShardRequests, [0, 0, 1]);
+assert.equal(browsePageTwo.body.items.length, 100);
+assert.equal(browsePageTwo.body.items[0].handle, 'product-101');
+assert.equal(browsePageTwo.body.items[99].handle, 'product-200');
+assert.equal(browsePageTwo.body.meta.page, 2);
+assert.equal(browsePageTwo.body.meta.pageSize, 100);
+assert.equal(browsePageTwo.body.meta.totalPages, 3);
+assert.match(browsePageTwo.body.nextCursor, /^[A-Za-z0-9_-]+$/);
+
+const browseFinalPage = await invoke(browseHandler, { query: { page: '3' } });
+assert.equal(browseFinalPage.status, 200);
+assert.deepEqual(browseFinalPage.body.items.map(item => item.handle), [
+  'product-201', 'product-202', 'product-203', 'product-204', 'product-205', 'product-206'
+]);
+assert.equal(browseFinalPage.body.meta.page, 3);
+assert.equal(browseFinalPage.body.meta.count, 6);
+assert.equal(browseFinalPage.body.meta.totalPages, 3);
+assert.equal(browseFinalPage.body.nextCursor, null);
+
+const allBrowseHandles = [browsePageOne, browsePageTwo, browseFinalPage]
+  .flatMap(page => page.body.items.map(item => item.handle));
+assert.deepEqual(allBrowseHandles, Array.from({ length: 206 }, (_, index) => catalogRecord(index + 1)[0]));
+assert.equal(new Set(allBrowseHandles).size, 206);
+assert.equal((await invoke(browseHandler, { query: { page: '4' } })).body.error.code, 'invalid_page');
+
+const browsePageTwoByCursor = await invoke(browseHandler, { query: { cursor: browsePageOne.body.nextCursor } });
+assert.deepEqual(browsePageTwoByCursor.body.items, browsePageTwo.body.items);
+assert.equal(browsePageTwoByCursor.body.meta.page, 2);
+assert.equal(browsePageTwoByCursor.body.meta.pageSize, 100);
+assert.equal(browsePageTwoByCursor.body.meta.totalPages, 3);
+assert.equal(browsePageTwoByCursor.body.nextCursor, browsePageTwo.body.nextCursor);
+
+assert.deepEqual(catalogShardRequests.slice(0, 5), [0, 1, 1, 2, 2]);
+assert.deepEqual(catalogShardRequests.slice(5), [1, 2]);
+assert.equal(browsePageTwoByCursor.body.nextCursor === null, false);
+assert.equal(browseFinalPage.body.nextCursor, null);
 assert.equal((await invoke(browseHandler, { query: { cursor: 'not-a-valid-cursor' } })).body.error.code, 'invalid_cursor');
 
 const bundledBrowseHandler = createTegiwaCatalogHandler({ stockIndex, now: () => FIXED_NOW, fetchImpl: noFetch });
 const bundledBrowse = await invoke(bundledBrowseHandler);
 assert.equal(bundledBrowse.status, 200);
 assert.equal(bundledBrowse.body.mode, 'browse');
-assert.equal(bundledBrowse.body.items.length, 24);
+assert.equal(bundledBrowse.body.items.length, 100);
 assert.match(bundledBrowse.body.nextCursor, /^[A-Za-z0-9_-]+$/);
 assert.ok(bundledBrowse.body.items.every(item => item.handle && item.title && item.sourceUrl.startsWith('https://www.tegiwa.com/products/')));
 
 const productionBrowse = await invoke(productionHandler);
 assert.equal(productionBrowse.status, 200);
+assert.equal(productionBrowse.body.items.length, 100);
 assert.equal(productionBrowse.body.meta.catalogProductCount, 193_253);
 assert.equal(productionBrowse.body.meta.stockIndexedProductCount, 193_844);
 assert.equal(productionBrowse.body.meta.availableProductCount, 26_349);
+assert.equal(productionBrowse.body.meta.page, 1);
+assert.equal(productionBrowse.body.meta.pageSize, 100);
+assert.equal(productionBrowse.body.meta.totalPages, 1_933);
+
+const productionPageTwo = await invoke(productionHandler, { query: { page: '2' } });
+assert.equal(productionPageTwo.status, 200);
+assert.equal(productionPageTwo.body.items.length, 100);
+assert.equal(productionPageTwo.body.meta.page, 2);
+assert.equal(productionPageTwo.body.meta.pageSize, 100);
+assert.equal(productionPageTwo.body.meta.totalPages, 1_933);
+assert.equal(new Set([
+  ...productionBrowse.body.items.map(item => item.handle),
+  ...productionPageTwo.body.items.map(item => item.handle)
+]).size, 200);
+
+const productionFinalPage = await invoke(productionHandler, { query: { page: '1933' } });
+assert.equal(productionFinalPage.status, 200);
+assert.equal(productionFinalPage.body.items.length, 53);
+assert.equal(productionFinalPage.body.meta.page, 1_933);
+assert.equal(productionFinalPage.body.meta.count, 53);
+assert.equal(productionFinalPage.body.meta.totalPages, 1_933);
+assert.equal(productionFinalPage.body.nextCursor, null);
+
+const productionPageOutOfRange = await invoke(productionHandler, { query: { page: '1934' } });
+assert.equal(productionPageOutOfRange.status, 400);
+assert.equal(productionPageOutOfRange.body.error.code, 'invalid_page');
 
 const longHandle = `long-${'performance-part-'.repeat(11)}catalog-item`;
 assert.ok(longHandle.length > 160 && longHandle.length < 256);
@@ -336,7 +425,7 @@ assert.equal(upstreamFailure.headers['cache-control'], 'no-store');
 console.log('PASS: Tegiwa catalog API method, origin and parameter validation');
 console.log('PASS: normalized-title stock/RRP join with the generated-key fixture');
 console.log('PASS: official search normalization and field sanitization');
-console.log('PASS: bundled public-catalog browsing with opaque pagination');
+console.log('PASS: bundled public-catalog browsing with numbered pages and compatible opaque cursors');
 console.log('PASS: generated 194-shard catalog snapshot loads through the production file path');
 console.log('PASS: product-detail sanitization, image allow-list and variant caps');
 console.log('PASS: upstream failures return structured, non-cacheable errors');

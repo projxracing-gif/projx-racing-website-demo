@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
 const SHOPIFY_ORIGIN = 'https://tegiwa.myshopify.com';
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 100;
 const MAX_SEARCH_RESULTS = 10;
 const MAX_SITEMAPS = 512;
 const MAX_SITEMAP_PRODUCTS = 50_000;
@@ -174,8 +174,17 @@ function loadDefaultSitemapManifest() {
 
 function validateCatalogSummary(candidate) {
   const productCount = safeInteger(candidate?.productCount, 1, 10_000_000);
-  if (!candidate || candidate.version !== 1 || productCount === null) throw new Error('invalid_catalog_summary');
-  return { productCount };
+  const shardCount = safeInteger(candidate?.shardCount, 1, MAX_SITEMAPS);
+  const shardProductCounts = Array.isArray(candidate?.shardProductCounts)
+    ? candidate.shardProductCounts.map(value => safeInteger(value, 1, MAX_SITEMAP_PRODUCTS))
+    : null;
+  if (!candidate || candidate.version !== 1 || productCount === null || shardCount === null
+    || !shardProductCounts || shardProductCounts.length !== shardCount
+    || shardProductCounts.some(value => value === null)
+    || shardProductCounts.reduce((total, value) => total + value, 0) !== productCount) {
+    throw new Error('invalid_catalog_summary');
+  }
+  return { productCount, shardProductCounts };
 }
 
 let defaultCatalogSummary;
@@ -412,6 +421,35 @@ function decodeCursor(value) {
   }
 }
 
+function catalogPositionForPage(summary, page, sitemapCount) {
+  const totalPages = Math.ceil(summary.productCount / PAGE_SIZE);
+  if (page > totalPages) throw new PublicApiError(400, 'invalid_page', 'The requested catalog page does not exist.');
+  if (!Array.isArray(summary.shardProductCounts) || summary.shardProductCounts.length !== sitemapCount) {
+    throw new Error('catalog_page_index_unavailable');
+  }
+
+  let remaining = (page - 1) * PAGE_SIZE;
+  for (let sitemapIndex = 0; sitemapIndex < summary.shardProductCounts.length; sitemapIndex += 1) {
+    const shardProductCount = summary.shardProductCounts[sitemapIndex];
+    if (remaining < shardProductCount) return { sitemapIndex, offset: remaining };
+    remaining -= shardProductCount;
+  }
+  throw new PublicApiError(400, 'invalid_page', 'The requested catalog page does not exist.');
+}
+
+function catalogPageForPosition(summary, sitemapIndex, offset, sitemapCount) {
+  if (!Array.isArray(summary.shardProductCounts)) return null;
+  if (summary.shardProductCounts.length !== sitemapCount) throw new Error('catalog_page_index_unavailable');
+  const shardProductCount = summary.shardProductCounts[sitemapIndex];
+  if (!Number.isInteger(shardProductCount) || offset > shardProductCount) {
+    throw new PublicApiError(400, 'invalid_cursor', 'The catalog cursor is invalid.');
+  }
+  const absoluteOffset = summary.shardProductCounts
+    .slice(0, sitemapIndex)
+    .reduce((total, value) => total + value, offset);
+  return Math.floor(absoluteOffset / PAGE_SIZE) + 1;
+}
+
 function isAllowedUpstreamUrl(value) {
   try {
     const url = new URL(value);
@@ -509,7 +547,8 @@ function determineMode(req) {
   const rawQuery = requestParameter(req, 'q');
   const rawHandle = requestParameter(req, 'handle');
   const rawCursor = requestParameter(req, 'cursor');
-  const supplied = [rawQuery !== undefined, rawHandle !== undefined, rawCursor !== undefined].filter(Boolean).length;
+  const rawPage = requestParameter(req, 'page');
+  const supplied = [rawQuery !== undefined, rawHandle !== undefined, rawCursor !== undefined, rawPage !== undefined].filter(Boolean).length;
   if (supplied > 1) throw new PublicApiError(400, 'invalid_parameters', 'Use only one catalog mode per request.');
 
   if (rawQuery !== undefined) {
@@ -523,6 +562,13 @@ function determineMode(req) {
     const raw = Array.isArray(rawHandle) ? '' : String(rawHandle).trim();
     if (raw.length > MAX_PRODUCT_HANDLE_LENGTH || !productHandle(raw)) throw new PublicApiError(400, 'invalid_handle', 'The product handle is invalid.');
     return { mode: 'detail', handle: raw };
+  }
+
+  if (rawPage !== undefined) {
+    const text = Array.isArray(rawPage) ? '' : String(rawPage).trim();
+    const page = /^\d+$/.test(text) ? safeInteger(text, 1, 10_000_000) : null;
+    if (page === null) throw new PublicApiError(400, 'invalid_page', 'Catalog pages must be positive whole numbers.');
+    return { mode: 'browse', page };
   }
 
   return { mode: 'browse', ...decodeCursor(rawCursor) };
@@ -602,7 +648,7 @@ async function searchCatalog(fetchImpl, index, query) {
   };
 }
 
-async function browseCatalog(index, sitemaps, sitemapIndex, offset, catalogLoader) {
+async function browseCatalog(index, sitemaps, sitemapIndex, offset, page, catalogLoader) {
   if (sitemapIndex >= sitemaps.length) throw new PublicApiError(400, 'invalid_cursor', 'The catalog cursor is invalid.');
 
   const items = [];
@@ -644,7 +690,11 @@ async function browseCatalog(index, sitemaps, sitemapIndex, offset, catalogLoade
   return {
     mode: 'browse',
     items,
-    meta: metaFor(index, items.length),
+    meta: metaFor(index, items.length, {
+      page,
+      pageSize: PAGE_SIZE,
+      totalPages: Math.ceil(index.catalogProductCount / PAGE_SIZE)
+    }),
     nextCursor
   };
 }
@@ -724,7 +774,8 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
   const sitemaps = sitemapManifest ? validateSitemapManifest({ version: 1, sitemaps: sitemapManifest }) : loadDefaultSitemapManifest();
   const summary = catalogSummary
     ? validateCatalogSummary(catalogSummary)
-    : (stockIndex ? { productCount: index.productCount } : loadDefaultCatalogSummary());
+    : (stockIndex ? { productCount: index.productCount, shardProductCounts: null } : loadDefaultCatalogSummary());
+  if (summary.shardProductCounts && summary.shardProductCounts.length !== sitemaps.length) throw new Error('invalid_catalog_summary');
 
   return async function tegiwaCatalogHandler(req, res) {
     if (req.method !== 'GET') {
@@ -739,7 +790,13 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
       let body;
       if (request.mode === 'search') body = await searchCatalog(fetchImpl, requestIndex, request.query);
       else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);
-      else body = await browseCatalog(requestIndex, sitemaps, request.sitemapIndex, request.offset, catalogLoader);
+      else {
+        const position = request.page === undefined
+          ? { sitemapIndex: request.sitemapIndex, offset: request.offset }
+          : catalogPositionForPage(summary, request.page, sitemaps.length);
+        const page = request.page ?? catalogPageForPosition(summary, position.sitemapIndex, position.offset, sitemaps.length);
+        body = await browseCatalog(requestIndex, sitemaps, position.sitemapIndex, position.offset, page, catalogLoader);
+      }
       return sendJson(res, 200, body, true);
     } catch (error) {
       if (error instanceof PublicApiError) return sendError(res, error.status, error.code, error.message);

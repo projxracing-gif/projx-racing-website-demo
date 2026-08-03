@@ -241,6 +241,7 @@ const backupDirectory = path.join(dataDirectory, `.tegiwa-catalog-pages.backup-$
 const temporarySummary = path.join(dataDirectory, `.tegiwa-catalog-summary.tmp-${runToken}.json`);
 const backupSummary = path.join(dataDirectory, `.tegiwa-catalog-summary.backup-${runToken}.json`);
 const globalHandles = new Set();
+const shardProductCounts = [];
 let productCount = 0;
 let imageCount = 0;
 
@@ -249,6 +250,7 @@ try {
   for (let index = 0; index < manifest.sitemaps.length; index += 1) {
     const input = inputFileForShard(index, manifest.sitemaps[index]);
     const products = parseShard(input, index + 1, globalHandles);
+    shardProductCounts.push(products.length);
     productCount += products.length;
     imageCount += products.filter(product => Boolean(product[2])).length;
     const filename = `${String(index).padStart(3, '0')}.json`;
@@ -262,6 +264,7 @@ try {
     version: 1,
     generatedAt,
     shardCount: manifest.sitemaps.length,
+    shardProductCounts,
     productCount,
     imageCount,
     uniqueHandleCount: globalHandles.size,

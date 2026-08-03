@@ -96,7 +96,7 @@
     galleries: Object.create(null),
     formContext: null,
     mapLoaded: false,
-    tegiwaCatalog: { currentCursor: "", nextCursor: "", history: [], query: "", controller: null, detailController: null, lastRequest: {} }
+    tegiwaCatalog: { currentPage: 1, totalPages: 1, pageSize: 100, query: "", controller: null, detailController: null, lastRequest: {} }
   };
 
   function parsePreviewLocation() {
@@ -183,6 +183,10 @@
       tegiwaNoResults: "ما لقينا منتجات مطابقة. جرّب اسم قطعة أو علامة أو سيارة بشكل أدق.",
       tegiwaResults: "منتجات ظاهرة",
       tegiwaSearchResults: "أفضل نتائج مطابقة ظاهرة — دقّق البحث لنتيجة أدق",
+      tegiwaPaginationLabel: "صفحات كتالوج Tegiwa",
+      tegiwaPageOf: "الصفحة {page} من {total}",
+      tegiwaGoToPage: "انتقل إلى الصفحة {page}",
+      tegiwaShowingRange: "عرض {start}–{end} من {total} منتج",
       tegiwaCatalogCount: "منتج في كتالوج المخزون",
       tegiwaAvailableCount: "منتج عليه توفر مؤكد أو من المورد",
       tegiwaViewProduct: "شوف المنتج",
@@ -269,6 +273,10 @@
       tegiwaNoResults: "No matching products were found. Try a more specific product, brand, vehicle or engine.",
       tegiwaResults: "products shown",
       tegiwaSearchResults: "best matches shown — refine the search for more precise results",
+      tegiwaPaginationLabel: "Tegiwa catalogue pages",
+      tegiwaPageOf: "Page {page} of {total}",
+      tegiwaGoToPage: "Go to page {page}",
+      tegiwaShowingRange: "Showing {start}–{end} of {total} products",
       tegiwaCatalogCount: "products in the stock catalogue",
       tegiwaAvailableCount: "products with direct or supplier availability",
       tegiwaViewProduct: "View product",
@@ -1347,6 +1355,31 @@
     return Array.from({ length: 6 }, () => `<article class="tegiwa-product-card is-loading" aria-hidden="true"><div class="tegiwa-product-media"></div><div class="tegiwa-product-body"><span></span><h3></h3><p></p><p></p></div></article>`).join("");
   }
 
+  function tegiwaNumber(value) {
+    return new Intl.NumberFormat(state.locale === "ar" ? "ar-KW" : "en-GB").format(Math.max(0, Number(value) || 0));
+  }
+
+  function tegiwaTemplate(template, values = {}) {
+    return String(template || "").replace(/\{([a-z]+)\}/gi, (match, key) => Object.hasOwn(values, key) ? values[key] : match);
+  }
+
+  function tegiwaPageTokens(currentPage, totalPages) {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+    if (currentPage <= 4) return [1, 2, 3, 4, 5, "ellipsis", totalPages];
+    if (currentPage >= totalPages - 3) return [1, "ellipsis", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages];
+  }
+
+  function tegiwaPaginationMarkup(currentPage, totalPages, labels) {
+    return tegiwaPageTokens(currentPage, totalPages).map((token, index) => {
+      if (token === "ellipsis") return `<span class="tegiwa-page-ellipsis" aria-hidden="true" data-ellipsis-index="${index}">…</span>`;
+      const formattedPage = tegiwaNumber(token);
+      const current = token === currentPage;
+      const ariaLabel = tegiwaTemplate(labels.tegiwaGoToPage, { page: formattedPage });
+      return `<button class="tegiwa-page-button${current ? " is-current" : ""}" type="button" data-action="tegiwa-page" data-page="${token}" data-tegiwa-control aria-label="${esc(ariaLabel)}"${current ? ' aria-current="page"' : ""}>${esc(formattedPage)}</button>`;
+    }).join("");
+  }
+
   function renderTegiwaControls(payload = {}) {
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root) return;
@@ -1355,22 +1388,43 @@
     const meta = payload.meta || {};
     const count = Number(meta.catalogProductCount);
     const available = Number(meta.availableProductCount);
+    const isSearch = payload.mode === "search";
+    const pageSize = Math.max(1, Number.parseInt(meta.pageSize, 10) || state.tegiwaCatalog.pageSize || 100);
+    const calculatedPages = Number.isFinite(count) && count > 0 ? Math.ceil(count / pageSize) : 1;
+    const totalPages = isSearch ? 1 : Math.max(1, Number.parseInt(meta.totalPages ?? meta.pageCount, 10) || calculatedPages);
+    const requestedPage = Number.parseInt(meta.page ?? meta.currentPage, 10) || state.tegiwaCatalog.currentPage || 1;
+    const currentPage = isSearch ? 1 : Math.min(totalPages, Math.max(1, requestedPage));
     const grid = root.querySelector("[data-tegiwa-results]");
     const status = root.querySelector("[data-tegiwa-status]");
     if (grid) grid.innerHTML = items.length ? items.map(tegiwaProductCard).join("") : `<div class="empty-state tegiwa-empty"><p>${esc(labels.tegiwaNoResults)}</p></div>`;
-    if (status) status.textContent = `${items.length} ${payload.mode === "search" ? labels.tegiwaSearchResults : labels.tegiwaResults}`;
+    if (status) {
+      if (isSearch) status.textContent = `${tegiwaNumber(items.length)} ${labels.tegiwaSearchResults}`;
+      else if (Number.isFinite(count) && count > 0 && items.length) {
+        const start = ((currentPage - 1) * pageSize) + 1;
+        const end = Math.min(count, start + items.length - 1);
+        const range = tegiwaTemplate(labels.tegiwaShowingRange, { start: tegiwaNumber(start), end: tegiwaNumber(end), total: tegiwaNumber(count) });
+        const page = tegiwaTemplate(labels.tegiwaPageOf, { page: tegiwaNumber(currentPage), total: tegiwaNumber(totalPages) });
+        status.textContent = `${range} • ${page}`;
+      } else status.textContent = `${tegiwaNumber(items.length)} ${labels.tegiwaResults}`;
+    }
     const catalogueStat = root.querySelector("[data-tegiwa-catalog-count]");
     const availableStat = root.querySelector("[data-tegiwa-available-count]");
-    if (catalogueStat && Number.isFinite(count) && count > 0) catalogueStat.textContent = new Intl.NumberFormat(state.locale === "ar" ? "ar-KW" : "en-GB").format(count);
-    if (availableStat && Number.isFinite(available) && available > 0) availableStat.textContent = new Intl.NumberFormat(state.locale === "ar" ? "ar-KW" : "en-GB").format(available);
-    state.tegiwaCatalog.nextCursor = payload.nextCursor || "";
+    if (catalogueStat && Number.isFinite(count) && count > 0) catalogueStat.textContent = tegiwaNumber(count);
+    if (availableStat && Number.isFinite(available) && available > 0) availableStat.textContent = tegiwaNumber(available);
+    state.tegiwaCatalog.currentPage = currentPage;
+    state.tegiwaCatalog.totalPages = totalPages;
+    state.tegiwaCatalog.pageSize = pageSize;
+    const pagination = root.querySelector("[data-tegiwa-pagination]");
+    const pageList = root.querySelector("[data-tegiwa-pages]");
+    if (pagination) pagination.hidden = isSearch || !items.length;
+    if (pageList) pageList.innerHTML = isSearch ? "" : tegiwaPaginationMarkup(currentPage, totalPages, labels);
     const previous = root.querySelector('[data-action="tegiwa-previous"]');
     const next = root.querySelector('[data-action="tegiwa-next"]');
-    if (previous) previous.disabled = state.tegiwaCatalog.history.length === 0 || payload.mode === "search";
-    if (next) next.disabled = !state.tegiwaCatalog.nextCursor || payload.mode === "search";
+    if (previous) previous.disabled = isSearch || currentPage <= 1;
+    if (next) next.disabled = isSearch || currentPage >= totalPages;
   }
 
-  async function loadTegiwaCatalog({ query = "", cursor = "", pushHistory = false, preserveHistory = false } = {}) {
+  async function loadTegiwaCatalog({ query = "", page = 1, scrollResults = false } = {}) {
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root) return;
     const labels = storeText();
@@ -1378,9 +1432,8 @@
     const controller = new AbortController();
     state.tegiwaCatalog.controller = controller;
     const normalizedQuery = cleanText(query, 80);
-    if (!preserveHistory && normalizedQuery) state.tegiwaCatalog.history = [];
-    if (pushHistory) state.tegiwaCatalog.history.push(state.tegiwaCatalog.currentCursor || "");
-    state.tegiwaCatalog.lastRequest = normalizedQuery ? { query: normalizedQuery } : { cursor, preserveHistory: true };
+    const requestedPage = normalizedQuery ? 1 : Math.max(1, Number.parseInt(page, 10) || 1);
+    state.tegiwaCatalog.lastRequest = normalizedQuery ? { query: normalizedQuery } : { page: requestedPage, scrollResults };
     const grid = root.querySelector("[data-tegiwa-results]");
     const status = root.querySelector("[data-tegiwa-status]");
     const controls = root.querySelectorAll("[data-tegiwa-control]");
@@ -1390,13 +1443,17 @@
     try {
       const endpoint = new URL("/api/tegiwa-catalog", location.origin);
       if (normalizedQuery) endpoint.searchParams.set("q", normalizedQuery);
-      else if (cursor) endpoint.searchParams.set("cursor", cursor);
+      else endpoint.searchParams.set("page", String(requestedPage));
       const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !Array.isArray(payload.items)) throw new Error(payload.error || "catalogue_unavailable");
-      state.tegiwaCatalog.currentCursor = normalizedQuery ? "" : cursor;
+      state.tegiwaCatalog.currentPage = normalizedQuery ? 1 : requestedPage;
       state.tegiwaCatalog.query = normalizedQuery;
       renderTegiwaControls(payload);
+      if (scrollResults) requestAnimationFrame(() => {
+        const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+        root.querySelector("[data-tegiwa-results]")?.scrollIntoView({ behavior, block: "start" });
+      });
     } catch (error) {
       if (error?.name === "AbortError") return;
       if (grid) grid.innerHTML = `<div class="notice notice-info tegiwa-error"><strong>${esc(labels.tegiwaLoadError)}</strong><button class="btn btn-sm" type="button" data-action="tegiwa-retry">${esc(labels.tegiwaRetry)}${icons.arrow}</button></div>`;
@@ -1407,8 +1464,8 @@
         controls.forEach(control => { control.disabled = false; });
         const previous = root.querySelector('[data-action="tegiwa-previous"]');
         const next = root.querySelector('[data-action="tegiwa-next"]');
-        if (previous) previous.disabled = state.tegiwaCatalog.history.length === 0 || Boolean(state.tegiwaCatalog.query);
-        if (next) next.disabled = !state.tegiwaCatalog.nextCursor || Boolean(state.tegiwaCatalog.query);
+        if (previous) previous.disabled = Boolean(state.tegiwaCatalog.query) || state.tegiwaCatalog.currentPage <= 1;
+        if (next) next.disabled = Boolean(state.tegiwaCatalog.query) || state.tegiwaCatalog.currentPage >= state.tegiwaCatalog.totalPages;
       }
     }
   }
@@ -1417,11 +1474,11 @@
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root || root.dataset.ready === "true") return;
     root.dataset.ready = "true";
-    state.tegiwaCatalog.currentCursor = "";
-    state.tegiwaCatalog.nextCursor = "";
-    state.tegiwaCatalog.history = [];
+    state.tegiwaCatalog.currentPage = 1;
+    state.tegiwaCatalog.totalPages = 1;
+    state.tegiwaCatalog.pageSize = 100;
     state.tegiwaCatalog.query = "";
-    loadTegiwaCatalog();
+    loadTegiwaCatalog({ page: 1 });
   }
 
   async function openTegiwaProduct(handle, opener) {
@@ -1511,7 +1568,7 @@
           <p class="tegiwa-source-note">${icons.check}<span>${esc(labels.tegiwaSourceNote)}</span></p>
           <div class="tegiwa-catalog-status" data-tegiwa-status role="status" aria-live="polite">${esc(labels.tegiwaLoading)}</div>
           <div class="tegiwa-product-grid" data-tegiwa-results>${tegiwaLoadingCards()}</div>
-          <nav class="tegiwa-pagination" aria-label="${esc(labels.tegiwaEyebrow)}"><button class="btn btn-outline" type="button" data-action="tegiwa-previous" data-tegiwa-control disabled>${icons.arrow}<span>${esc(labels.tegiwaPrevious)}</span></button><button class="text-link" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaReset)}</button><button class="btn btn-outline" type="button" data-action="tegiwa-next" data-tegiwa-control disabled><span>${esc(labels.tegiwaNext)}</span>${icons.arrow}</button></nav>
+          <nav class="tegiwa-pagination" data-tegiwa-pagination aria-label="${esc(labels.tegiwaPaginationLabel)}" hidden><button class="btn btn-outline" type="button" data-action="tegiwa-previous" data-tegiwa-control disabled>${icons.arrow}<span>${esc(labels.tegiwaPrevious)}</span></button><div class="tegiwa-pagination-center"><div class="tegiwa-page-list" data-tegiwa-pages dir="ltr"></div><button class="text-link" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaReset)}</button></div><button class="btn btn-outline" type="button" data-action="tegiwa-next" data-tegiwa-control disabled><span>${esc(labels.tegiwaNext)}</span>${icons.arrow}</button></nav>
         </div></div></section>
         <section class="section section-tone" id="parts-results"><div class="container">
           ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
@@ -2128,19 +2185,22 @@
     if (action === "clear-parts-filters") { clearPartsFilters(); return; }
     if (action === "view-tegiwa-product") { openTegiwaProduct(target.dataset.handle || "", target); return; }
     if (action === "tegiwa-next") {
-      if (state.tegiwaCatalog.nextCursor) loadTegiwaCatalog({ cursor: state.tegiwaCatalog.nextCursor, pushHistory: true, preserveHistory: true });
+      if (state.tegiwaCatalog.currentPage < state.tegiwaCatalog.totalPages) loadTegiwaCatalog({ page: state.tegiwaCatalog.currentPage + 1, scrollResults: true });
       return;
     }
     if (action === "tegiwa-previous") {
-      const previousCursor = state.tegiwaCatalog.history.pop();
-      if (previousCursor !== undefined) loadTegiwaCatalog({ cursor: previousCursor, preserveHistory: true });
+      if (state.tegiwaCatalog.currentPage > 1) loadTegiwaCatalog({ page: state.tegiwaCatalog.currentPage - 1, scrollResults: true });
+      return;
+    }
+    if (action === "tegiwa-page") {
+      const requestedPage = Number.parseInt(target.dataset.page, 10);
+      if (Number.isInteger(requestedPage) && requestedPage > 0 && requestedPage <= state.tegiwaCatalog.totalPages && requestedPage !== state.tegiwaCatalog.currentPage) loadTegiwaCatalog({ page: requestedPage, scrollResults: true });
       return;
     }
     if (action === "tegiwa-reset") {
       const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
       if (search) search.value = "";
-      state.tegiwaCatalog.history = [];
-      loadTegiwaCatalog();
+      loadTegiwaCatalog({ page: 1, scrollResults: true });
       return;
     }
     if (action === "tegiwa-retry") { loadTegiwaCatalog(state.tegiwaCatalog.lastRequest); return; }
@@ -2210,8 +2270,7 @@
       event.preventDefault();
       if (!tegiwaSearch.reportValidity()) return;
       const query = cleanText(new FormData(tegiwaSearch).get("q"), 80);
-      state.tegiwaCatalog.history = [];
-      loadTegiwaCatalog(query ? { query } : {});
+      loadTegiwaCatalog(query ? { query } : { page: 1 });
       return;
     }
     const vehicleForm = event.target.closest("[data-parts-vehicle-form]");
