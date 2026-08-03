@@ -250,6 +250,8 @@ assert(appSource.includes('data-parts-shop') && appSource.includes('data-parts-v
 assert(appSource.includes('<select id="parts-vehicle-year"') && appSource.includes('name="year" required'), 'Required vehicle-year dropdown is missing.');
 assert(appSource.includes('new Date().getFullYear() + 1') && appSource.includes('const oldestModelYear = 1950'), 'Vehicle-year dropdown range is not current-model-year aware or does not reach 1950.');
 assert(appSource.includes('data-tegiwa-catalog') && appSource.includes('/api/tegiwa-catalog') && appSource.includes('data-action="tegiwa-next"'), 'Paginated Tegiwa storefront integration is missing.');
+assert(appSource.includes(`data-tegiwa-catalog-count>${tegiwaCatalogSummary.productCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback count does not match the public catalog summary.');
+assert(appSource.includes(`data-tegiwa-available-count>${tegiwaIndex.availableProductCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback availability count does not match the stock index.');
 assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
 assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
 assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
