@@ -166,6 +166,14 @@
       includedReview: "ما تتم الموافقة عليه بعد المراجعة",
       fitmentDirectoryNote: "قائمة السيارات مبنية فقط على التطبيقات المذكورة في الكتالوج الحالي. اختيار السيارة يساعد بالمراجعة ولا يعتبر تأكيد تركيب.",
       exactProductRule: "كل منتج يحتاج صورة مطابقة ومصرح بها ورقم قطعة ونطاق توافق، مع سعر موثق بعملة المورد الأصلية أو حالة سعر حسب الطلب.",
+      shopByPart: "تصفح حسب نوع القطعة",
+      shopByPartText: "اختر نوع القطعة للبحث مباشرة في كتالوج المورد",
+      partDirectoryEyebrow: "دليل أنواع القطع",
+      partDirectoryHeading: "دور القطعة حسب نوعها.",
+      partDirectoryText: "اختر الفئة أو نوع القطعة علشان نبحث مباشرة في كتالوج المورد. النتائج تساعدك بالتصفح، والتوفر والتوافق والسعر النهائي يحتاجون تأكيد من Projx Racing.",
+      partDirectoryNote: "هذا دليل بحث، وليس قائمة تأكيد بأن كل فئة متوفرة حالياً.",
+      partDirectoryLabel: "دليل البحث حسب نوع القطعة",
+      partDirectorySearch: "ابحث في الكتالوج عن {term}",
       tegiwaEyebrow: "كتالوج Tegiwa المباشر",
       tegiwaHeading: "تصفح كامل كتالوج Tegiwa.",
       tegiwaText: "ابحث باسم القطعة أو العلامة أو السيارة أو المحرك أو رقم القطعة، أو تصفح المنتجات بالتدريج. تظهر الأسعار بالجنيه الإسترليني وحالة التوفر الآمنة من آخر Stockfeed.",
@@ -194,6 +202,9 @@
       tegiwaProductDetails: "تفاصيل المنتج",
       tegiwaDescription: "الوصف",
       tegiwaVariants: "الخيارات",
+      tegiwaSelectedOption: "الخيار المحدد",
+      tegiwaChooseVariant: "اختر خياراً لتحديث السعر والتوفر قبل الإضافة لطلب السعر.",
+      tegiwaOnlinePrice: "سعر Tegiwa الإلكتروني (GBP)",
       tegiwaChecked: "تم فحص المخزون",
       tegiwaPriceNote: "سعر Tegiwa بالجنيه الإسترليني شامل VAT حسب المصدر؛ السعر النهائي والشحن يتم تأكيدهم من Projx Racing.",
       tegiwaInStock: "بعض الخيارات متوفرة لدى Tegiwa",
@@ -201,7 +212,7 @@
       tegiwaCheckAvailability: "يتطلب تأكيد التوفر",
       tegiwaStockStale: "تحديث المخزون قديم — يرجى تأكيد التوفر",
       tegiwaOutOfStock: "غير متوفر حالياً",
-      tegiwaVariantAvailable: "متوفر",
+      tegiwaVariantAvailable: "متاح للطلب",
       tegiwaVariantUnavailable: "يحتاج تأكيد",
       tegiwaNoImage: "لا توجد صورة للمنتج"
     } : {
@@ -256,6 +267,14 @@
       includedReview: "Confirmed after review",
       fitmentDirectoryNote: "The vehicle list is derived only from applications stated in the current catalogue. Saving a vehicle supports review; it is not automatic fitment confirmation.",
       exactProductRule: "Every product needs an exact authorised image, part identity and fitment scope, plus either a verified price in the supplier's original currency or an explicit Request price state.",
+      shopByPart: "Shop by part type",
+      shopByPartText: "Choose a part type to search the supplier catalogue directly",
+      partDirectoryEyebrow: "Part type directory",
+      partDirectoryHeading: "Start with the part you need.",
+      partDirectoryText: "Choose a group or part type to search the supplier catalogue directly. Results support browsing; Projx Racing still confirms live availability, exact fitment and the final price.",
+      partDirectoryNote: "This is a catalogue search directory, not a claim that every category is currently stocked.",
+      partDirectoryLabel: "Shop by part catalogue search directory",
+      partDirectorySearch: "Search the catalogue for {term}",
       tegiwaEyebrow: "Live Tegiwa catalogue",
       tegiwaHeading: "Browse the complete Tegiwa catalogue.",
       tegiwaText: "Search by product, brand, vehicle, engine or part number, or browse the catalogue in manageable pages. Prices remain in GBP and every card shows a customer-safe availability state from the latest stockfeed.",
@@ -284,6 +303,9 @@
       tegiwaProductDetails: "Product details",
       tegiwaDescription: "Description",
       tegiwaVariants: "Options",
+      tegiwaSelectedOption: "Selected option",
+      tegiwaChooseVariant: "Select an option to update its price and availability before adding it to your quote.",
+      tegiwaOnlinePrice: "Tegiwa online price (GBP)",
       tegiwaChecked: "Stock checked",
       tegiwaPriceNote: "Tegiwa GBP price including VAT where stated; Projx Racing confirms final price and shipping.",
       tegiwaInStock: "Selected variants in stock at Tegiwa",
@@ -291,11 +313,142 @@
       tegiwaCheckAvailability: "Confirm availability",
       tegiwaStockStale: "Stock snapshot expired — confirm availability",
       tegiwaOutOfStock: "Currently out of stock",
-      tegiwaVariantAvailable: "Available",
+      tegiwaVariantAvailable: "Available to order",
       tegiwaVariantUnavailable: "Confirm availability",
       tegiwaNoImage: "No product image available"
     };
   }
+
+  const PARTS_CATALOGUE_DIRECTORY = [
+    {
+      query: "brake", en: "Brakes", ar: "الفرامل", items: [
+        ["brake discs", "Brake Discs", "ديسكات الفرامل"], ["brake pads", "Brake Pads", "فحمات الفرامل"], ["big brake kit", "Big Brake Kits", "أنظمة فرامل كبيرة"],
+        ["brake fluid", "Brake Fluid", "زيت الفرامل"], ["brake lines", "Brake Lines", "ليّات الفرامل"], ["brake pedals", "Brake Pedals", "دواسات الفرامل"]
+      ]
+    },
+    {
+      query: "suspension", en: "Suspension", ar: "نظام التعليق", items: [
+        ["coilovers", "Coilovers", "كويل أوفر"], ["control arms", "Control Arms", "أذرعة تحكم"], ["chassis braces", "Chassis Braces", "دعامات الشاصي"],
+        ["suspension bushes", "Bushes", "جلب التعليق"], ["anti roll bars", "Anti-Roll Bars", "قضبان مانعة للانقلاب"], ["drop links", "Drop Links", "وصلات الميزان"],
+        ["lowering springs", "Lowering Springs", "يايات تنزيل"], ["steering arms", "Steering Arms", "أذرعة التوجيه"], ["wheel bearings", "Wheel Bearings", "رمانات العجل"],
+        ["shock absorbers", "Shock Absorbers", "مساعدات"]
+      ]
+    },
+    {
+      query: "intake", en: "Intake", ar: "سحب الهواء", items: [
+        ["induction kit", "Induction Kits", "أنظمة سحب الهواء"], ["intake manifolds", "Intake Manifolds", "منافولد السحب"], ["throttle bodies", "Throttle Bodies", "بوابات الهواء"],
+        ["intake pipes", "Intake Pipes", "أنابيب السحب"], ["panel filters", "Panel Filters", "فلاتر هواء"]
+      ]
+    },
+    {
+      query: "engine", en: "Engine", ar: "المحرك", items: [
+        ["spark plugs", "Spark Plugs", "بواجي"], ["ignition coils", "Ignition Coils", "كويلات"], ["engine mounts", "Engine Mounts", "قواعد المحرك"],
+        ["camshafts", "Camshafts", "أعمدة كامات"], ["pistons rods", "Pistons & Rods", "بساتم وأذرعة"], ["crankshafts", "Crankshafts", "أعمدة كرنك"],
+        ["engine bearings", "Bearings", "سبايك المحرك"], ["gaskets seals", "Gaskets & Seals", "جوانات وصوف"], ["oil pumps sumps", "Oil Pumps & Sumps", "مضخات وأحواض الزيت"]
+      ]
+    },
+    {
+      query: "drivetrain", en: "Drivetrain", ar: "نظام نقل الحركة", items: [
+        ["clutch flywheel", "Clutch & Flywheel", "كلتش وفلاي ويل"], ["clutch lines", "Clutch Lines", "ليّات الكلتش"], ["driveshafts", "Driveshafts", "أعمدة دوران"],
+        ["short shifter", "Short Shifters", "شيفتر قصير"], ["limited slip differential", "Limited Slip Differentials", "دفرنس محدود الانزلاق"], ["final drive gears", "Gear Sets & Final Drives", "تروس ونسب دفرنس"],
+        ["wheel bearings", "Wheel Bearings", "رمانات العجل"]
+      ]
+    },
+    {
+      query: "cooling", en: "Cooling", ar: "التبريد", items: [
+        ["coolant", "Coolant", "سائل تبريد"], ["cooling fans", "Cooling Fans", "مراوح تبريد"], ["cooling fittings", "Fittings", "وصلات تبريد"],
+        ["silicone hoses", "Hose Kits", "أطقم ليّات"], ["intercoolers", "Intercoolers", "إنتركولرات"], ["radiators", "Radiators", "رديترات"],
+        ["cooling sensors", "Sensors", "حساسات تبريد"], ["thermostats", "Thermostats", "ثرموستات"], ["oil coolers", "Oil Coolers", "مبردات زيت"]
+      ]
+    },
+    {
+      query: "fuel", en: "Fueling", ar: "نظام الوقود", items: [
+        ["fuel injectors", "Fuel Injectors", "بخاخات وقود"], ["fuel pumps", "Fuel Pumps", "طرمبات وقود"], ["fuel pressure regulator", "Fuel Pressure Regulators", "منظمات ضغط الوقود"],
+        ["fuel cells", "Fuel Cells", "خزانات وقود سباق"], ["fuel rails", "Fuel Rails", "قضبان الوقود"], ["fuel lines fittings", "Lines & Fittings", "ليّات ووصلات الوقود"]
+      ]
+    },
+    {
+      query: "exhaust", en: "Exhaust", ar: "العادم", items: [
+        ["exhaust manifold header", "Manifolds & Headers", "منافولدات وهيدرز"], ["oxygen sensor", "O2 Sensors", "حساسات أوكسجين"], ["heat wrap", "Heat Wrap", "عوازل حرارية"],
+        ["exhaust gaskets clamps", "Gaskets & Clamps", "جوانات وكلبسات"], ["exhaust system", "Exhaust Systems", "أنظمة عادم"], ["sports catalytic converter", "Sports Catalysts", "كتلايزر رياضي"]
+      ]
+    },
+    {
+      query: "interior", en: "Interior", ar: "المقصورة", items: [
+        ["gauge mounts", "Gauges & Mounts", "عدادات وقواعد"], ["seats rails", "Seats & Rails", "كراسي وقواعد"], ["short shifter", "Short Shifters", "شيفتر قصير"],
+        ["steering wheels", "Steering Wheels", "دركسون رياضي"], ["steering boss kit", "Boss Kits", "قواعد دركسون"], ["gear knobs", "Gear Knobs", "مقابض قير"],
+        ["racing harness", "Harnesses", "أحزمة سباق"], ["digital display", "Digital Displays", "شاشات رقمية"], ["interior trim", "Interior Trim", "تطعيمات داخلية"]
+      ]
+    },
+    {
+      query: "exterior", en: "Exterior", ar: "الهيكل الخارجي", items: [
+        ["body panels", "Body Panels", "ألواح الهيكل"], ["splitters", "Splitters", "سبليترات"], ["body kits bumpers", "Bumpers & Body Kits", "صدامات وبودي كت"],
+        ["spoilers", "Spoilers", "جناحات"], ["mirrors", "Mirrors", "مرايا"], ["canards", "Canards", "كنارد"],
+        ["tow hooks", "Tow Hooks", "خطافات سحب"], ["safety catches", "Safety Catches", "أقفال أمان"], ["decals stickers", "Decals & Stickers", "ملصقات"]
+      ]
+    },
+    {
+      query: "oil filter fluid", en: "Fluids & Filters", ar: "سوائل وفلاتر", items: [
+        ["coolant", "Coolant", "سائل تبريد"], ["gear oil", "Gear Oil", "زيت قير"], ["engine oil", "Engine Oil", "زيت محرك"],
+        ["sump plug", "Sump Plugs", "صواميل حوض الزيت"], ["oil filters", "Oil Filters", "فلاتر زيت"], ["fuel additives", "Additives & Treatments", "إضافات ومعالجات"]
+      ]
+    },
+    {
+      query: "electronics", en: "Electronics", ar: "إلكترونيات", items: [
+        ["cameras", "Cameras", "كاميرات"], ["engine management ecu", "Engine Management (ECU)", "إدارة المحرك ECU"], ["digital display", "Digital Displays", "شاشات رقمية"],
+        ["gauges", "Gauges", "عدادات"], ["wiring harness", "Wiring Harnesses", "ضفائر كهرباء"], ["sensors connectors", "Sensors & Connectors", "حساسات ووصلات"]
+      ]
+    },
+    {
+      query: "turbo supercharger", en: "Forced Induction", ar: "الشحن الجبري", items: [
+        ["blow off valve", "Blow-Off Valves", "بلف تنفيس"], ["wastegates", "Wastegates", "ويست غيت"], ["turbo heat management", "Thermal Management", "إدارة حرارة التيربو"],
+        ["supercharger kit", "Supercharger Kits", "أطقم سوبرتشارجر"], ["turbocharger kit", "Turbocharger Kits", "أطقم تيربو"]
+      ]
+    },
+    {
+      query: "dress up", en: "Dress-Up", ar: "تجميل", items: [
+        ["dress up washers bolts", "Washers, Bolts & Nuts", "واشرات وبراغي وصواميل"], ["engine bay dress up", "Engine Bay", "تجميل حجرة المحرك"], ["carbon fibre", "Carbon Fibre", "كاربون فايبر"],
+        ["engine caps covers", "Caps & Covers", "أغطية وغطاءات"]
+      ]
+    },
+    {
+      query: "detailing cleaning", en: "Cleaning & Detailing", ar: "تنظيف وعناية", items: [
+        ["exterior cleaning", "Exterior Cleaning", "تنظيف خارجي"], ["polish wax", "Polish, Wax & Finishing", "تلميع وواكس"], ["interior cleaning", "Interior Cleaning", "تنظيف داخلي"],
+        ["detailing accessories", "Detailing Accessories", "إكسسوارات عناية"]
+      ]
+    },
+    {
+      query: "wheels tyres", en: "Wheels & Tyres", ar: "عجلات وإطارات", items: [
+        ["alloy wheels", "Alloy Wheels", "رنقات ألمنيوم"], ["wheel nuts studs", "Wheel Nuts & Studs", "صواميل ومسامير عجل"], ["wheel spacers", "Wheel Spacers", "سبيسرات عجل"],
+        ["tyres", "Tyres", "إطارات"], ["centre caps", "Centre Caps", "أغطية وسط الرنق"]
+      ]
+    },
+    {
+      query: "motorsport", en: "Motorsport", ar: "رياضة المحركات", items: [
+        ["roll cages", "Roll Cages", "رول كيج"], ["fire extinguishers", "Fire Extinguishers", "طفايات حريق"], ["lap timers", "Lap Timers", "مؤقتات لفات"],
+        ["racing harness", "Harnesses", "أحزمة سباق"], ["motorsport cameras", "Cameras", "كاميرات سباق"], ["data logger", "Data Loggers", "مسجلات بيانات"],
+        ["motorsport tools", "Tools", "أدوات حلبة"]
+      ]
+    },
+    {
+      query: "racewear", en: "Racewear", ar: "ملابس السباق", items: [
+        ["racing helmets", "Helmets", "خوذ سباق"], ["race suits", "Race Suits", "بدلات سباق"], ["racing boots", "Racing Boots", "أحذية سباق"],
+        ["racing gloves", "Racing Gloves", "قفازات سباق"], ["race underwear", "Race Underwear", "ملابس داخلية للسباق"], ["HANS device", "HANS Devices", "أجهزة HANS"]
+      ]
+    },
+    {
+      query: "merchandise", en: "Merchandise", ar: "منتجات وإكسسوارات", items: [
+        ["t shirts", "T-Shirts", "تي شيرت"], ["hoodies", "Hoodies", "هودي"], ["hats caps", "Hats & Caps", "قبعات"],
+        ["decals stickers", "Decals & Stickers", "ملصقات"], ["lanyards keyrings", "Lanyards & Keyrings", "تعليقات مفاتيح"], ["workshop banners", "Workshop Banners", "لافتات ورشة"]
+      ]
+    },
+    {
+      query: "service kit", en: "Service Kits", ar: "أطقم الصيانة", items: [
+        ["oil service kit", "Oil Service Kits", "أطقم صيانة زيت"], ["brake service kit", "Brake Service Kits", "أطقم صيانة فرامل"], ["timing service kit", "Timing Service Kits", "أطقم تايمنغ"],
+        ["filter service kit", "Filter Kits", "أطقم فلاتر"], ["track service kit", "Track Service Kits", "أطقم تجهيز حلبة"]
+      ]
+    }
+  ];
   function esc(value = "") {
     return String(value).replace(/[&<>'"]/g, character => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
@@ -1481,6 +1634,61 @@
     loadTegiwaCatalog({ page: 1 });
   }
 
+  function tegiwaVariantAvailability(variant = {}) {
+    const labels = storeText();
+    return variant.available
+      ? { label: labels.tegiwaVariantAvailable, className: "orderable" }
+      : { label: labels.tegiwaVariantUnavailable, className: "check" };
+  }
+
+  function tegiwaVariantQuoteDetails(product, variant, availabilityLabel) {
+    const labels = storeText();
+    return [
+      cleanText(product.vendor || "Tegiwa", 120),
+      cleanText(product.category || labels.productType, 120),
+      `${labels.tegiwaSelectedOption}: ${cleanText(variant.title || labels.tegiwaProductDetails, 200)}`,
+      `${labels.price}: ${tegiwaPriceLabel(variant.price || {})}`,
+      `${labels.availability}: ${availabilityLabel}`
+    ].filter(Boolean).join(" • ");
+  }
+
+  function updateTegiwaVariantSelection(input) {
+    if (!input?.matches?.("[data-tegiwa-variant]") || !input.checked) return;
+    const panel = input.closest(".tegiwa-detail-modal");
+    if (!panel) return;
+    panel.querySelectorAll(".tegiwa-variant-option").forEach(option => {
+      option.classList.toggle("is-selected", option.contains(input));
+    });
+    const price = input.dataset.variantPrice || storeText().requestPrice;
+    const availabilityLabel = input.dataset.variantAvailability || storeText().tegiwaVariantUnavailable;
+    const available = input.dataset.variantAvailable === "true";
+    const priceValue = panel.querySelector("[data-tegiwa-selected-price]");
+    if (priceValue) priceValue.textContent = price;
+    const availabilityValue = panel.querySelector("[data-tegiwa-selected-availability-value]");
+    if (availabilityValue) {
+      const leadTime = availabilityValue.dataset.leadTime || "";
+      availabilityValue.textContent = [availabilityLabel, leadTime].filter(Boolean).join(" • ");
+    }
+    const availabilityBadge = panel.querySelector("[data-tegiwa-selected-availability]");
+    if (availabilityBadge) {
+      availabilityBadge.className = `tegiwa-stock-badge is-${available ? "orderable" : "check"}`;
+      availabilityBadge.textContent = availabilityLabel;
+    }
+    const addButton = panel.querySelector("[data-tegiwa-variant-quote]");
+    if (!addButton) return;
+    const optionTitle = input.dataset.variantTitle || storeText().tegiwaProductDetails;
+    const baseDetails = addButton.dataset.baseDetails || "";
+    addButton.dataset.id = `${addButton.dataset.baseId}-variant-${input.dataset.variantKey}`;
+    addButton.dataset.details = [
+      baseDetails,
+      `${storeText().tegiwaSelectedOption}: ${optionTitle}`,
+      `${storeText().price}: ${price}`,
+      `${storeText().availability}: ${availabilityLabel}`
+    ].filter(Boolean).join(" • ");
+    addButton.disabled = false;
+    addButton.setAttribute("aria-label", `${storeText().addToQuote}: ${addButton.dataset.productTitle} — ${optionTitle}`);
+  }
+
   async function openTegiwaProduct(handle, opener) {
     if (!/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))) return;
     const labels = storeText();
@@ -1501,9 +1709,29 @@
       const product = payload.product;
       const availability = tegiwaAvailability(product.availability);
       const checked = tegiwaCheckedLabel(product.availability?.checkedAt);
-      const variants = (product.variants || []).slice(0, 24).map(variant => `<li><span>${esc(variant.title || labels.tegiwaProductDetails)}</span><strong><bdi>${esc(tegiwaPriceLabel(variant.price || {}))}</bdi></strong><small class="${variant.available ? "is-available" : ""}">${esc(variant.available ? labels.tegiwaVariantAvailable : labels.tegiwaVariantUnavailable)}</small></li>`).join("");
-      const details = [product.vendor, product.category, tegiwaPriceLabel(product.price), availability.label].filter(Boolean).join(" • ");
-      modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span><p>${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor || "Tegiwa")}</bdi></dd></div><div><dt>${esc(labels.productType)}</dt><dd>${esc(product.category || labels.productType)}</dd></div><div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(product.price))}</bdi></dd></div>${product.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(product.availability.leadTime)}</bdi></dd></div>` : ""}${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="tegiwa-${esc(product.handle)}" data-kind="Tegiwa Parts Product" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.tegiwaSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow">${esc(labels.tegiwaVariants)}</span><ul>${variants}</ul></section>` : ""}</section>`;
+      const variantOptions = (product.variants || []).slice(0, 50);
+      const selectedVariantIndex = variantOptions.length === 1 ? 0 : -1;
+      const selectedVariant = selectedVariantIndex >= 0 ? variantOptions[selectedVariantIndex] : null;
+      const selectedAvailability = selectedVariant ? tegiwaVariantAvailability(selectedVariant) : availability;
+      const selectedPrice = selectedVariant ? tegiwaPriceLabel(selectedVariant.price || {}) : tegiwaPriceLabel(product.price);
+      const leadTime = cleanText(product.availability?.leadTime || "", 120);
+      const baseDetails = [cleanText(product.vendor || "Tegiwa", 120), cleanText(product.category || labels.productType, 120)].filter(Boolean).join(" • ");
+      const details = selectedVariant
+        ? tegiwaVariantQuoteDetails(product, selectedVariant, selectedAvailability.label)
+        : [baseDetails, `${labels.price}: ${selectedPrice}`, `${labels.availability}: ${selectedAvailability.label}`].filter(Boolean).join(" • ");
+      const variants = variantOptions.map((variant, index) => {
+        const title = cleanText(variant.title || labels.tegiwaProductDetails, 200);
+        const price = tegiwaPriceLabel(variant.price || {});
+        const variantAvailability = tegiwaVariantAvailability(variant);
+        const selected = index === selectedVariantIndex;
+        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong><small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
+      }).join("");
+      const availabilityText = [selectedAvailability.label, leadTime].filter(Boolean).join(" • ");
+      const variantQuoteAttributes = `data-base-id="tegiwa-${esc(product.handle)}" data-base-details="${esc(baseDetails)}" data-product-title="${esc(product.title)}" data-tegiwa-variant-quote`;
+      const quoteButtonAttributes = variantOptions.length
+        ? `${selectedVariant ? `data-id="tegiwa-${esc(product.handle)}-variant-${selectedVariantIndex + 1}" aria-label="${esc(`${labels.addToQuote}: ${product.title} — ${selectedVariant.title || labels.tegiwaProductDetails}`)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} ${variantQuoteAttributes}`
+        : `data-id="tegiwa-${esc(product.handle)}"`;
+      modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><span class="tegiwa-stock-badge is-${esc(selectedAvailability.className)}" data-tegiwa-selected-availability>${esc(selectedAvailability.label)}</span><p>${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor || "Tegiwa")}</bdi></dd></div><div><dt>${esc(labels.productType)}</dt><dd>${esc(product.category || labels.productType)}</dd></div><div><dt>${esc(variantOptions.length ? labels.tegiwaOnlinePrice : labels.price)}</dt><dd><bdi data-tegiwa-selected-price aria-live="polite">${esc(selectedPrice)}</bdi></dd></div><div><dt>${esc(labels.availability)}</dt><dd><bdi data-tegiwa-selected-availability-value data-lead-time="${esc(leadTime)}" aria-live="polite">${esc(availabilityText)}</bdi></dd></div>${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="Tegiwa Parts Product" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.tegiwaSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow" id="tegiwa-variant-heading">${esc(labels.tegiwaVariants)}</span><p class="tegiwa-variant-instruction" id="tegiwa-variant-instruction">${esc(labels.tegiwaChooseVariant)}</p><ul role="radiogroup" aria-labelledby="tegiwa-variant-heading" aria-describedby="tegiwa-variant-instruction">${variants}</ul></section>` : ""}</section>`;
       requestAnimationFrame(() => modalRoot.querySelector('[data-action="close-modal"]')?.focus());
     } catch (error) {
       if (error?.name === "AbortError" || detailController.signal.aborted || state.tegiwaCatalog.detailController !== detailController) return;
@@ -1512,6 +1740,22 @@
     } finally {
       if (state.tegiwaCatalog.detailController === detailController) state.tegiwaCatalog.detailController = null;
     }
+  }
+
+  function partsCatalogueDirectory() {
+    const labels = storeText();
+    const localeKey = state.locale === "ar" ? "ar" : "en";
+    const groups = PARTS_CATALOGUE_DIRECTORY.map((group, groupIndex) => {
+      const groupLabel = group[localeKey] || group.en;
+      const groupAria = tegiwaTemplate(labels.partDirectorySearch, { term: groupLabel });
+      const links = group.items.map(([query, en, ar]) => {
+        const label = localeKey === "ar" ? ar : en;
+        const ariaLabel = tegiwaTemplate(labels.partDirectorySearch, { term: label });
+        return `<li><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" aria-label="${esc(ariaLabel)}" aria-pressed="false"><span>${esc(label)}</span>${icons.arrow}</button></li>`;
+      }).join("");
+      return `<article class="parts-directory-group"><button class="parts-directory-group-action" type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(group.query)}" aria-label="${esc(groupAria)}" aria-pressed="false"><span class="parts-directory-index">${compactNumber(groupIndex + 1)}</span><strong>${esc(groupLabel)}</strong>${icons.arrow}</button><ul>${links}</ul></article>`;
+    }).join("");
+    return `<section class="section parts-directory-section" id="parts-directory"><div class="container"><div class="parts-directory-shell" data-tegiwa-directory>${sectionHead(labels.partDirectoryEyebrow, labels.partDirectoryHeading, labels.partDirectoryText)}<p class="parts-directory-disclaimer" id="parts-directory-note">${icons.check}<span>${esc(labels.partDirectoryNote)}</span></p><div class="parts-directory-grid" role="navigation" aria-label="${esc(labels.partDirectoryLabel)}" aria-describedby="parts-directory-note">${groups}</div></div></div></section>`;
   }
 
   function partsPage() {
@@ -1543,8 +1787,9 @@
           ${sectionHead(finder.overviewEyebrow, finder.overviewHeading, finder.overviewText)}
           <nav class="parts-paths" aria-label="${esc(finder.overviewEyebrow)}">
             <a href="#parts-vehicle"><span>01</span><strong>${esc(finder.byVehicle)}</strong><small>${esc(finder.vehiclePathText)}</small>${icons.arrow}</a>
-            <a href="#parts-categories"><span>02</span><strong>${esc(finder.byCategory)}</strong><small>${esc(finder.categoryPathText)}</small>${icons.arrow}</a>
-            <a href="#parts-brands"><span>03</span><strong>${esc(finder.byBrand)}</strong><small>${esc(finder.brandPathText)}</small>${icons.arrow}</a>
+            <a href="#parts-directory"><span>02</span><strong>${esc(labels.shopByPart)}</strong><small>${esc(labels.shopByPartText)}</small>${icons.arrow}</a>
+            <a href="#parts-categories"><span>03</span><strong>${esc(finder.byCategory)}</strong><small>${esc(finder.categoryPathText)}</small>${icons.arrow}</a>
+            <a href="#parts-brands"><span>04</span><strong>${esc(finder.byBrand)}</strong><small>${esc(finder.brandPathText)}</small>${icons.arrow}</a>
           </nav>
           <div class="parts-vehicle-panel" id="parts-vehicle">
             <div class="parts-vehicle-copy"><span class="mini-label">${esc(finder.vehicleEyebrow)}</span><h2>${esc(finder.vehicleHeading)}</h2><p>${esc(finder.vehicleText)}</p></div>
@@ -1560,6 +1805,7 @@
             <p class="parts-directory-note">${icons.check}<span>${esc(labels.fitmentDirectoryNote)}</span></p>
           </div>
         </div></section>
+        ${partsCatalogueDirectory()}
         <section class="section section-tone" id="parts-categories"><div class="container">${sectionHead(finder.categoryEyebrow, finder.categoryHeading, finder.categoryText)}<div class="parts-category-grid">${categoryTiles}</div></div></section>
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
         <section class="section tegiwa-catalog-section" id="tegiwa-catalog"><div class="container"><div class="tegiwa-catalog-shell" data-tegiwa-catalog>
@@ -1837,6 +2083,23 @@
     select.value = select.value === value ? "" : value;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     document.getElementById("parts-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function searchTegiwaDirectory(query, trigger) {
+    const normalizedQuery = cleanText(query, 80);
+    if (normalizedQuery.length < 2) return;
+    const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
+    if (searchInput) searchInput.value = normalizedQuery;
+    document.querySelectorAll("[data-tegiwa-directory-query]").forEach(button => {
+      const active = button === trigger;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    const catalogue = document.getElementById("tegiwa-catalog");
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    catalogue?.scrollIntoView({ behavior, block: "start" });
+    loadTegiwaCatalog({ query: normalizedQuery });
+    window.setTimeout(() => searchInput?.focus({ preventScroll: true }), behavior === "smooth" ? 450 : 0);
   }
 
   function clearPartsFilters() {
@@ -2182,6 +2445,7 @@
     }
     if (action === "select-parts-category") { selectPartsFilter("category", target.dataset.partsCategory || ""); return; }
     if (action === "select-parts-brand") { selectPartsFilter("brand", target.dataset.partsBrand || ""); return; }
+    if (action === "search-tegiwa-directory") { searchTegiwaDirectory(target.dataset.tegiwaDirectoryQuery || "", target); return; }
     if (action === "clear-parts-filters") { clearPartsFilters(); return; }
     if (action === "view-tegiwa-product") { openTegiwaProduct(target.dataset.handle || "", target); return; }
     if (action === "tegiwa-next") {
@@ -2286,6 +2550,8 @@
   });
 
   document.addEventListener("change", event => {
+    const tegiwaVariant = event.target.closest("[data-tegiwa-variant]");
+    if (tegiwaVariant) updateTegiwaVariantSelection(tegiwaVariant);
     const partsVehicleField = event.target.closest("[data-parts-vehicle-field]");
     if (partsVehicleField) updatePartsVehicleCascades(partsVehicleField.form, partsVehicleField.name);
     const engineSelect = event.target.closest('[data-role="platform-engine"]');

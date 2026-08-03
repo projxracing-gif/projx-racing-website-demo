@@ -263,9 +263,24 @@ assert(appSource.includes('data-tegiwa-catalog')
 assert(appSource.includes(`data-tegiwa-catalog-count>${tegiwaCatalogSummary.productCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback count does not match the public catalog summary.');
 assert(appSource.includes(`data-tegiwa-available-count>${tegiwaIndex.availableProductCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback availability count does not match the stock index.');
 assert(appSource.includes('(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))'), 'Tegiwa storefront product-detail guard does not support all validated official handles.');
+assert(appSource.includes('type="radio"')
+  && appSource.includes('data-tegiwa-variant')
+  && appSource.includes('data-tegiwa-selected-price')
+  && appSource.includes('data-tegiwa-selected-availability')
+  && appSource.includes('updateTegiwaVariantSelection')
+  && appSource.includes('data-tegiwa-variant-quote')
+  && appSource.includes('-variant-${input.dataset.variantKey}'), 'Tegiwa product options are not accessible, selectable, or variant-specific in quote requests.');
 assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
 assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
 assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
+assert(appSource.includes('PARTS_CATALOGUE_DIRECTORY')
+  && appSource.includes('data-tegiwa-directory')
+  && appSource.includes('data-action="search-tegiwa-directory"')
+  && appSource.includes('searchTegiwaDirectory'), 'Interactive Shop by Part catalogue directory is missing.');
+for (const group of ['Brakes', 'Suspension', 'Intake', 'Engine', 'Drivetrain', 'Cooling', 'Fueling', 'Exhaust', 'Interior', 'Exterior', 'Fluids & Filters', 'Electronics', 'Forced Induction', 'Wheels & Tyres', 'Motorsport', 'Racewear', 'Merchandise', 'Service Kits']) {
+  assert(appSource.includes(`en: "${group}"`), `Shop by Part directory is missing the ${group} group.`);
+}
+assert(appSource.includes('الفرامل') && appSource.includes('رياضة المحركات') && appSource.includes('أطقم الصيانة'), 'Shop by Part Arabic labels are incomplete.');
 assert(appSource.includes('Parts Shipping Quote') && appSource.includes('data-fitment-makes'), 'Shipping quote or preliminary fitment workflow is missing.');
 
 for (const locale of ['en', 'ar']) {

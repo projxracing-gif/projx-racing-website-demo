@@ -764,7 +764,7 @@ html[lang^="ar"] .review-toolbar-title, html[lang^="ar"] .review-key, html[lang^
 .part-body dd { margin: 0; color: var(--text); font-size: .78rem; font-weight: 700; text-align: end; }
 .parts-entry-section { padding-bottom: clamp(72px, 8vw, 112px); }
 [data-parts-shop] [id] { scroll-margin-top: calc(var(--header-h) + 18px); }
-.parts-paths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 30px; }
+.parts-paths { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 30px; }
 .parts-paths a {
   position: relative;
   display: grid;
@@ -827,6 +827,24 @@ html[lang^="ar"] .parts-vehicle-copy h2 { line-height: 1.16; letter-spacing: 0; 
 .parts-selected-vehicle .text-link { padding: 8px; border: 0; color: var(--muted); background: transparent; cursor: pointer; }
 .parts-directory-note { display: flex; margin: 0; grid-column: 2; align-items: flex-start; gap: 8px; color: var(--muted); font-size: .72rem; line-height: 1.5; }
 .parts-directory-note svg { width: 17px; min-width: 17px; color: var(--red-label); }
+.parts-directory-section { background: linear-gradient(165deg, color-mix(in srgb, var(--red) 3%, var(--bg)), var(--bg) 54%); }
+.parts-directory-shell { display: grid; padding: clamp(24px, 4vw, 46px); gap: 22px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+.parts-directory-shell > .section-head { margin-bottom: 0; }
+.parts-directory-disclaimer { display: flex; width: fit-content; max-width: 760px; margin: 0; padding: 11px 14px; align-items: flex-start; gap: 9px; border: 1px solid color-mix(in srgb, var(--red) 20%, var(--line)); border-radius: var(--radius-sm); color: var(--muted); background: color-mix(in srgb, var(--red) 3%, var(--surface-2)); font-size: .72rem; line-height: 1.55; }
+.parts-directory-disclaimer svg { width: 18px; min-width: 18px; color: var(--red-label); }
+.parts-directory-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.parts-directory-group { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-block-start: 3px solid var(--red); border-radius: var(--radius-sm); background: var(--surface-2); box-shadow: var(--shadow-sm); }
+.parts-directory-group-action { display: grid; width: 100%; min-height: 68px; padding: 13px 14px; grid-template-columns: 34px minmax(0, 1fr) 18px; gap: 11px; align-items: center; border: 0; border-block-end: 1px solid var(--line); color: var(--text-strong); background: var(--surface); cursor: pointer; font: inherit; text-align: start; transition: color var(--transition), background-color var(--transition); }
+.parts-directory-group-action:hover, .parts-directory-group-action.is-active { color: var(--red-label); background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+.parts-directory-index { display: inline-grid; width: 34px; height: 34px; place-items: center; border: 1px solid color-mix(in srgb, var(--red) 28%, var(--line)); border-radius: 50%; color: var(--red-label); background: color-mix(in srgb, var(--red) 5%, var(--surface-2)); font-size: .65rem; font-weight: 950; font-variant-numeric: tabular-nums; }
+.parts-directory-group-action strong { min-width: 0; font-size: .94rem; line-height: 1.2; }
+.parts-directory-group-action > svg { width: 18px; }
+.parts-directory-group ul { display: grid; margin: 0; padding: 9px; gap: 2px; list-style: none; }
+.parts-directory-group li { min-width: 0; }
+.parts-directory-group li button { display: flex; width: 100%; min-height: 44px; padding: 8px 9px; align-items: center; justify-content: space-between; gap: 9px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; cursor: pointer; font: inherit; font-size: .76rem; line-height: 1.3; text-align: start; transition: color var(--transition), background-color var(--transition); }
+.parts-directory-group li button:hover, .parts-directory-group li button.is-active { color: var(--text-strong); background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+.parts-directory-group li button > span { min-width: 0; overflow-wrap: anywhere; }
+.parts-directory-group li button > svg { width: 14px; min-width: 14px; color: var(--red-label); opacity: .72; }
 .parts-category-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .parts-category-card {
   display: grid;
@@ -907,7 +925,7 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-image-empty svg { width: 30px; }
 .tegiwa-stock-badge { display: inline-flex; width: max-content; max-width: 100%; padding: 7px 9px; align-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface); font-size: .66rem; font-weight: 850; line-height: 1.2; }
 .tegiwa-product-media > .tegiwa-stock-badge { position: absolute; inset-inline-start: 12px; inset-block-end: 12px; box-shadow: 0 7px 20px rgba(10,14,20,.12); }
-.tegiwa-stock-badge.is-in-stock, .tegiwa-stock-badge.is-supplier-stock { border-color: color-mix(in srgb, var(--green) 38%, var(--line)); color: color-mix(in srgb, var(--green) 80%, var(--text-strong)); background: color-mix(in srgb, var(--green) 8%, var(--surface)); }
+.tegiwa-stock-badge.is-in-stock, .tegiwa-stock-badge.is-supplier-stock, .tegiwa-stock-badge.is-orderable { border-color: color-mix(in srgb, var(--green) 38%, var(--line)); color: color-mix(in srgb, var(--green) 80%, var(--text-strong)); background: color-mix(in srgb, var(--green) 8%, var(--surface)); }
 .tegiwa-stock-badge.is-check { border-color: color-mix(in srgb, #d59a21 45%, var(--line)); color: var(--text-strong); background: color-mix(in srgb, #d59a21 9%, var(--surface)); }
 .tegiwa-stock-badge.is-out-of-stock { color: var(--muted); background: var(--surface-2); }
 .tegiwa-product-body { display: grid; min-width: 0; padding: 18px; align-content: start; gap: 12px; }
@@ -952,12 +970,21 @@ html[dir="rtl"] .tegiwa-pagination button[data-action="tegiwa-previous"] .direct
 .tegiwa-detail-copy dd { margin: 0; color: var(--text); font-size: .78rem; font-weight: 760; text-align: end; }
 .tegiwa-detail-copy > small { color: var(--muted); line-height: 1.5; }
 .tegiwa-variants { padding: 0 clamp(18px, 3vw, 30px) clamp(18px, 3vw, 30px); }
+.tegiwa-variant-instruction { margin: 8px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
 .tegiwa-variants ul { display: grid; margin: 12px 0 0; padding: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; list-style: none; }
-.tegiwa-variants li { display: grid; padding: 12px; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
-.tegiwa-variants li span { color: var(--text-strong); font-size: .75rem; font-weight: 780; }
-.tegiwa-variants li strong { color: var(--text); font-size: .75rem; }
-.tegiwa-variants li small { grid-column: 1 / -1; color: var(--muted); font-size: .66rem; }
-.tegiwa-variants li small.is-available { color: var(--green); }
+.tegiwa-variants li { min-width: 0; }
+.tegiwa-variant-option { position: relative; display: grid; min-height: 72px; padding: 13px 46px 13px 13px; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; align-content: center; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+html[dir="rtl"] .tegiwa-variant-option { padding: 13px 13px 13px 46px; }
+.tegiwa-variant-option:hover { border-color: color-mix(in srgb, var(--red) 48%, var(--line)); }
+.tegiwa-variant-option.is-selected, .tegiwa-variant-option:has(input:checked) { border-color: var(--red); background: color-mix(in srgb, var(--red) 7%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 65%, transparent); }
+.tegiwa-variant-option:has(input:focus-visible) { outline: 3px solid color-mix(in srgb, var(--red) 38%, transparent); outline-offset: 2px; }
+.tegiwa-variant-title { color: var(--text-strong); font-size: .75rem; font-weight: 780; }
+.tegiwa-variant-option strong { color: var(--text); font-size: .75rem; text-align: end; }
+.tegiwa-variant-option small { grid-column: 1 / -1; color: var(--muted); font-size: .66rem; }
+.tegiwa-variant-option small.is-available { color: var(--green); }
+.tegiwa-variant-check { position: absolute; inset-inline-end: 13px; inset-block-start: 50%; display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: transparent; background: var(--surface); transform: translateY(-50%); }
+.tegiwa-variant-check svg { width: 13px; }
+.tegiwa-variant-option.is-selected .tegiwa-variant-check, .tegiwa-variant-option:has(input:checked) .tegiwa-variant-check { border-color: var(--red); color: #fff; background: var(--red); }
 .tegiwa-detail-loading { padding: 24px; }
 .tegiwa-detail-loading .tegiwa-product-card { max-width: 340px; margin-inline: auto; }
 .store-catalogue-status { display: grid; margin-bottom: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -1269,6 +1296,8 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .card-grid, .project-grid, .parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brands-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brand-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .parts-paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parts-directory-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .parts-brand-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .tegiwa-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .process-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1284,6 +1313,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .parts-vehicle-panel { grid-template-columns: 1fr; }
   .parts-selected-vehicle { grid-column: 1; }
   .parts-directory-note { grid-column: 1; }
+  .parts-directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .store-detail-layout { grid-template-columns: 1fr; }
   .store-detail-media { position: static; }
   .parts-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1362,6 +1392,8 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .parts-vehicle-form .btn { width: 100%; grid-column: auto; }
   .parts-selected-vehicle { grid-template-columns: 22px minmax(0, 1fr); }
   .parts-selected-vehicle .text-link { grid-column: 2; justify-self: start; }
+  .parts-directory-shell { padding: 20px 16px; }
+  .parts-directory-grid { grid-template-columns: 1fr; }
   .parts-category-grid { gap: 8px; }
   .parts-category-card { min-height: 142px; padding: 16px; }
   .parts-brand-grid { grid-template-columns: 1fr; }
