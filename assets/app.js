@@ -698,7 +698,7 @@
     const highResolutionHeroByRoute = {
       "/tuning": 60,
       "/parts": 68,
-      "/gallery": 51,
+      "/gallery": 52,
       "/reviews": 73,
       "/contact": 60,
       "/faq": 53,
@@ -1727,7 +1727,14 @@
       hideTegiwaSuggestions();
       return;
     }
-    listbox.innerHTML = entries.map((entry, index) => `<button id="tegiwa-suggestion-${index}" class="tegiwa-suggestion${entry.kind === "correction" ? " is-correction" : ""}" type="button" role="option" aria-selected="false" data-action="tegiwa-suggestion" data-tegiwa-suggestion data-query="${esc(entry.query)}"><span aria-hidden="true">${entry.kind === "correction" ? icons.check : icons.search}</span><strong>${esc(entry.label)}</strong>${entry.label !== entry.query && entry.kind !== "correction" ? `<small>${esc(entry.query)}</small>` : ""}</button>`).join("");
+    listbox.innerHTML = entries.map((entry, index) => {
+      const labelKey = entry.label.toLocaleLowerCase();
+      const queryKey = entry.query.toLocaleLowerCase();
+      const secondary = entry.kind !== "correction" && labelKey !== queryKey && !labelKey.startsWith(queryKey)
+        ? `<small>${esc(entry.query)}</small>`
+        : "";
+      return `<button id="tegiwa-suggestion-${index}" class="tegiwa-suggestion${entry.kind === "correction" ? " is-correction" : ""}" type="button" role="option" aria-selected="false" data-action="tegiwa-suggestion" data-tegiwa-suggestion data-query="${esc(entry.query)}"><span aria-hidden="true">${entry.kind === "correction" ? icons.check : icons.search}</span><strong>${esc(entry.label)}</strong>${secondary}</button>`;
+    }).join("");
     listbox.hidden = false;
     input.setAttribute("aria-expanded", "true");
     input.removeAttribute("aria-activedescendant");
@@ -1789,9 +1796,15 @@
       setTegiwaSuggestionActive(start);
       return true;
     }
-    if (event.key === "Enter" && state.tegiwaCatalog.activeSuggestion >= 0) {
+    if (event.key === "Enter") {
       event.preventDefault();
-      chooseTegiwaSuggestion(options[state.tegiwaCatalog.activeSuggestion]);
+      if (state.tegiwaCatalog.activeSuggestion >= 0) {
+        chooseTegiwaSuggestion(options[state.tegiwaCatalog.activeSuggestion]);
+      } else {
+        hideTegiwaSuggestions();
+        const form = input.closest("[data-tegiwa-search]");
+        if (form?.reportValidity()) form.requestSubmit();
+      }
       return true;
     }
     if (event.key === "Tab") hideTegiwaSuggestions();

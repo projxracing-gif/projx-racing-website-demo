@@ -1036,7 +1036,7 @@ window.PROJX_DATA = {
       "height": 1800,
       "thumbSprite": true
     },
-    { "id": 51, "title": "Circuit race car", "alt": "Race car photographed at speed on circuit", "caption": "Race car photographed at speed on circuit", "vehicle": "Toyota 86 / GR86", "make": "Toyota", "category": "Circuit Racing", "tags": ["Toyota", "Circuit Racing", "Toyota 86 / GR86"], "full": "assets/media/uploads/projx-upload-51.webp", "width": 1279, "height": 1600 },
+    { "id": 51, "title": "Circuit race car", "alt": "Race car photographed at speed on circuit", "caption": "Race car photographed at speed on circuit", "vehicle": "Toyota 86 / GR86", "make": "Toyota", "category": "Circuit Racing", "tags": ["Toyota", "Circuit Racing", "Toyota 86 / GR86"], "full": "assets/media/uploads/projx-upload-51.webp", "width": 1279, "height": 1600, "showInGallery": false },
     { "id": 52, "title": "BMW circuit car", "alt": "BMW race car during a circuit session", "caption": "BMW race car during a circuit session", "vehicle": "BMW race car", "make": "BMW", "category": "Circuit Racing", "tags": ["BMW", "Circuit Racing", "BMW race car"], "full": "assets/media/uploads/projx-upload-52.webp", "width": 1600, "height": 898 },
     { "id": 53, "title": "GM LS cylinder head", "alt": "GM LS cylinder head and valvetrain assembly in the engine room", "caption": "GM LS cylinder head and valvetrain assembly in the engine room", "vehicle": "GM LS", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM LS"], "full": "assets/media/uploads/projx-upload-53.webp", "width": 2400, "height": 1350 },
     { "id": 54, "title": "GM LS long block", "alt": "GM LS long-block assembly prepared in the engine room", "caption": "GM LS long-block assembly prepared in the engine room", "vehicle": "GM LS", "make": "GM", "category": "Engine Building", "tags": ["GM", "Engine Building", "GM LS"], "full": "assets/media/uploads/projx-upload-54.webp", "width": 1350, "height": 2400 },
@@ -2399,36 +2399,6 @@ window.PROJX_DATA = {
       ],
       "images": [
         { "src": "assets/products/tegiwa/honda-civic-eg-ek-radiator.jpg", "width": 1000, "height": 1000, "alt": "Tegiwa aluminium alloy radiator for Honda Civic EG and EK", "altAr": "رديتر ألمنيوم Tegiwa لسيارات Honda Civic EG وEK" }
-      ]
-    },
-    {
-      "slug": "tegiwa-honda-k20a-oil-sump-baffle-kit",
-      "catalogType": "product",
-      "title": "Tegiwa Oil Sump Baffle Kit",
-      "titleAr": "طقم حواجز كرتير الزيت Tegiwa",
-      "summary": "Supplier-listed oil sump baffle kit for Honda Civic Type R EP3 and Integra Type R DC5 K20A applications. Exact engine and sump compatibility are confirmed before quotation.",
-      "summaryAr": "طقم حواجز كرتير زيت مدرج من المورد لتطبيقات Honda Civic Type R EP3 وIntegra Type R DC5 بمحرك K20A. يتم تأكيد توافق المحرك والكرتير قبل عرض السعر.",
-      "brand": "Tegiwa Motorsports",
-      "category": "Engine / Oiling",
-      "categoryAr": "المحرك / التزييت",
-      "sku": "T-4035007",
-      "mpn": "",
-      "quoteOnly": false,
-      "priceCurrency": "GBP",
-      "priceAmount": 88.94,
-      "priceVerifiedAt": "2026-08-03",
-      "priceNote": "Supplier RRP incl. VAT · checked 2026-08-03",
-      "priceNoteAr": "سعر التجزئة المقترح من المورد شامل ضريبة القيمة المضافة · تم الفحص 2026-08-03",
-      "status": "Supplier stock indicated — checked 2026-08-03",
-      "statusAr": "المورد يشير إلى توفر مخزون — تم الفحص 2026-08-03",
-      "checkedAt": "2026-08-03",
-      "fitmentStatus": "supplier-title-confirm",
-      "fitments": [
-        { "make": "Honda", "model": "Civic Type R", "generation": "EP3", "engines": ["K20A"] },
-        { "make": "Honda", "model": "Integra Type R", "generation": "DC5", "engines": ["K20A"] }
-      ],
-      "images": [
-        { "src": "assets/products/tegiwa/honda-k20-sump-baffle.jpg", "width": 1000, "height": 1000, "alt": "Tegiwa oil sump baffle kit for Honda K20A applications", "altAr": "طقم حواجز كرتير الزيت Tegiwa لتطبيقات Honda K20A" }
       ]
     }
   ],
