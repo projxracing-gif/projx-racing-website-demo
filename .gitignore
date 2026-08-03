@@ -31,3 +31,12 @@ desktop.ini
 *.zip
 *.7z
 *.rar
+
+# Private supplier imports and dealer data
+private-imports/
+dealer-imports/
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.xml

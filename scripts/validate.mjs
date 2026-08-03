@@ -128,7 +128,47 @@ assert(data.media.length >= 50, `Expected at least 50 supplied media records; fo
 assert(data.services.length === 13, `Expected 13 service records; found ${data.services.length}.`);
 assert(data.projects.length === 12, `Expected 12 project records; found ${data.projects.length}.`);
 assert(data.brands.length >= 44, `Expected at least 44 brand records; found ${data.brands.length}.`);
+assert(Array.isArray(data.storeProducts), 'Verified store-products model is missing.');
 assert(!Object.hasOwn(data, 'engineProducts'), 'Removed engine-product catalogue remains in data.js.');
+
+const catalogueSlugs = new Set();
+for (const [index, part] of data.parts.entries()) {
+  assert(part.catalogType === 'quote-package', `Quote package ${index + 1} has an invalid catalogue type.`);
+  assert(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(part.slug || ''), `Quote package ${index + 1} has an invalid slug.`);
+  assert(!catalogueSlugs.has(part.slug), `Duplicate catalogue slug: ${part.slug}`);
+  catalogueSlugs.add(part.slug);
+  assert(['confirm', 'universal-confirm'].includes(part.fitmentStatus), `${part.slug}: quote package overstates or omits fitment status.`);
+  assert(Array.isArray(part.applications), `${part.slug}: package applications must be a structured array.`);
+}
+
+for (const product of data.storeProducts) {
+  assert(product.catalogType === 'product', `${product.slug || 'Unnamed product'}: invalid catalogue type.`);
+  assert(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(product.slug || ''), `${product.title || 'Product'}: invalid slug.`);
+  assert(!catalogueSlugs.has(product.slug), `Duplicate catalogue slug: ${product.slug}`);
+  catalogueSlugs.add(product.slug);
+  for (const field of ['title', 'titleAr', 'summary', 'summaryAr', 'brand', 'category', 'status', 'statusAr', 'sku']) {
+    assert(String(product[field] || '').trim(), `${product.slug}: missing ${field}.`);
+  }
+  for (const privateField of ['sourceUrl', 'sourceCurrency', 'sourceRrp', 'vatIncluded', 'imageProvenance', 'tradeCost', 'wholesalePrice']) assert(!Object.hasOwn(product, privateField), `${product.slug}: private supplier field exposed in public data: ${privateField}.`);
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(product.checkedAt || ''), `${product.slug}: missing source check date.`);
+  assert(['supplier-title-confirm', 'universal-confirm', 'verified'].includes(product.fitmentStatus), `${product.slug}: invalid fitment status.`);
+  assert(Array.isArray(product.fitments) && product.fitments.length > 0, `${product.slug}: structured fitment is missing.`);
+  assert(product.fitments?.every(fitment => fitment.make && fitment.model && fitment.generation && Array.isArray(fitment.engines) && fitment.engines.length), `${product.slug}: incomplete fitment record.`);
+  const hasVerifiedPrice = /^[A-Z]{3}$/.test(product.priceCurrency || '') && Number(product.priceAmount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(product.priceVerifiedAt || '');
+  assert(product.quoteOnly === true || hasVerifiedPrice, `${product.slug}: use request-price state or a verified price in the supplier's original currency.`);
+  if (hasVerifiedPrice) assert(String(product.priceNote || '').trim() && String(product.priceNoteAr || '').trim(), `${product.slug}: priced products need a bilingual currency/tax note.`);
+  assert(Array.isArray(product.images) && product.images.length > 0, `${product.slug}: exact product image is missing.`);
+  for (const image of (product.images || [])) {
+    assert(/^assets\/(?:products|catalog)\/[A-Za-z0-9_./-]+\.(?:avif|jpe?g|png|webp)$/i.test(image.src || ''), `${product.slug}: image must be an approved local catalogue asset.`);
+    assert(!/^https?:/i.test(image.src || ''), `${product.slug}: image hotlink is not allowed.`);
+    assert(fs.existsSync(path.join(repo, image.src || '')), `${product.slug}: product image is missing: ${image.src}`);
+    assert(fs.existsSync(path.join(dist, image.src || '')), `${product.slug}: product image was not copied to production: ${image.src}`);
+    assert(Number(image.width) > 0 && Number(image.height) > 0, `${product.slug}: product image dimensions are missing.`);
+    assert(String(image.alt || '').trim().length >= 8 && String(image.altAr || '').trim().length >= 8, `${product.slug}: bilingual product image text is incomplete.`);
+  }
+  for (const locale of ['en', 'ar']) assert(routeManifest.some(page => page.locale === locale && page.route === `/parts/${product.slug}`), `${product.slug}: missing ${locale} product route.`);
+}
+for (const part of data.parts) for (const locale of ['en', 'ar']) assert(routeManifest.some(page => page.locale === locale && page.route === `/parts/${part.slug}`), `${part.slug}: missing ${locale} package route.`);
 for (const brand of data.brands) assert(brandLogoNames.has(brand.name), `Brand logo mapping is missing: ${brand.name}`);
 for (const dealerName of ['xHP Flashtool', 'Motion Raceworks', 'ECS Tuning']) {
   assert(data.brands.some(brand => brand.name === dealerName && brand.relationship === 'Dealer'), `${dealerName} is not marked as a dealer.`);
@@ -142,6 +182,8 @@ assert(translations.ar.tuning.mhd.tuneTypes.includes('برمجة قير xHP — 
 assert(appSource.includes('data-parts-shop') && appSource.includes('data-parts-vehicle-form'), 'Vehicle-first parts finder is missing.');
 assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
 assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
+assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
+assert(appSource.includes('Parts Shipping Quote') && appSource.includes('data-fitment-makes'), 'Shipping quote or preliminary fitment workflow is missing.');
 
 for (const locale of ['en', 'ar']) {
   const t = translations[locale];
@@ -195,7 +237,7 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`Validation passed: ${routeManifest.length / 2} routes × 2 languages, ${htmlFiles.length} HTML files and ${distFiles.length} production files.`);
-console.log(`Content passed: ${data.services.length} services, ${data.projects.length} verified projects, ${data.brands.length} brands and ${data.media.length} supplied images.`);
+console.log(`Content passed: ${data.services.length} services, ${data.projects.length} verified projects, ${data.brands.length} brands, ${data.storeProducts.length} reviewed catalogue products and ${data.media.length} supplied images.`);
 console.log(`Brand logos passed: ${brandLogoNames.size} mapped brands and ${brandLogoPaths.length} local logo assets.`);
 console.log('Themes passed: complete light/dark token sets, early theme bootstrap and RTL-specific layout rules detected.');
 console.log(`Source package passed: ${sourceFiles.length} files, ready for Git-based GitHub upload.`);

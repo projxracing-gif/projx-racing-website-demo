@@ -8,7 +8,7 @@ const files = [
   'assets/app.js', 'assets/data.js', 'assets/site-config.js',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'api/enquiry.js',
   'scripts/build.mjs', 'scripts/validate.mjs', 'scripts/serve.mjs',
-  'scripts/test-api.mjs', 'scripts/lint.mjs', 'sw.js'
+  'scripts/test-api.mjs', 'scripts/lint.mjs', 'scripts/catalog-import.mjs', 'sw.js'
 ];
 
 const failures = [];

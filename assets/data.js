@@ -2129,6 +2129,8 @@ window.PROJX_DATA = {
   ],
   "parts": [
     {
+      "slug": "custom-ecu-electronics-package",
+      "catalogType": "quote-package",
       "title": "Custom ECU & Electronics Package",
       "category": "Engine Management",
       "brand": "Supported Platforms",
@@ -2136,9 +2138,13 @@ window.PROJX_DATA = {
       "status": "Compatibility Check Required",
       "summary": "ECU, PDM, display, sensors and integration scoped around the vehicle.",
       "media": 36,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": []
     },
     {
+      "slug": "motorsport-harness-package",
+      "catalogType": "quote-package",
       "title": "Motorsport Harness Package",
       "category": "Motorsport Wiring",
       "brand": "Projx Racing",
@@ -2146,9 +2152,13 @@ window.PROJX_DATA = {
       "status": "Built to Order",
       "summary": "Engine or chassis harness consultation, materials, construction and installation.",
       "media": 33,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "universal-confirm",
+      "applications": []
     },
     {
+      "slug": "competition-brake-package",
+      "catalogType": "quote-package",
       "title": "Competition Brake Package",
       "category": "Brakes",
       "brand": "AP Racing / Essex / Ferodo / Pagid",
@@ -2156,9 +2166,13 @@ window.PROJX_DATA = {
       "status": "Confirm Availability",
       "summary": "Calipers, rotors, pads, lines, fluid and cooling configured for the use.",
       "media": 25,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": []
     },
     {
+      "slug": "track-suspension-package",
+      "catalogType": "quote-package",
       "title": "Track Suspension Package",
       "category": "Suspension",
       "brand": "KW / Nitron / Supported Brands",
@@ -2166,9 +2180,13 @@ window.PROJX_DATA = {
       "status": "Confirm Availability",
       "summary": "Coilovers, arms, bushings, installation, alignment and setup.",
       "media": 11,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": []
     },
     {
+      "slug": "cooling-thermal-package",
+      "catalogType": "quote-package",
       "title": "Cooling & Thermal Package",
       "category": "Cooling",
       "brand": "CSF / do88",
@@ -2176,9 +2194,13 @@ window.PROJX_DATA = {
       "status": "Confirm Availability",
       "summary": "Radiator, oil, charge-air and hose solutions for sustained performance.",
       "media": 43,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": []
     },
     {
+      "slug": "ls-lt-valvetrain-package",
+      "catalogType": "quote-package",
       "title": "LS/LT Valvetrain Package",
       "category": "Engine Components",
       "brand": "Brian Tooley Racing / Brian Crower",
@@ -2186,9 +2208,15 @@ window.PROJX_DATA = {
       "status": "Technical Review Required",
       "summary": "Camshaft, springs, retainers, lifters and related components specified for the build.",
       "media": 5,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": [
+        { "make": "Chevrolet / GM", "model": "LS/LT applications", "generation": "Confirm chassis", "engines": ["LS", "LT"] }
+      ]
     },
     {
+      "slug": "bmw-mhd-tuning-hardware",
+      "catalogType": "quote-package",
       "title": "BMW MHD Tuning Hardware",
       "category": "Engine Management",
       "brand": "MHD Tuning",
@@ -2196,9 +2224,16 @@ window.PROJX_DATA = {
       "status": "Compatibility Check Required",
       "summary": "Required licence, adapter and unlock workflow reviewed for S55, B58 and S58.",
       "media": 36,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": [
+        { "make": "BMW", "model": "Supported BMW applications", "generation": "Confirm chassis", "engines": ["S55", "B58", "S58"] },
+        { "make": "Toyota", "model": "GR Supra", "generation": "Confirm chassis", "engines": ["B58"] }
+      ]
     },
     {
+      "slug": "porsche-cobb-accessport-package",
+      "catalogType": "quote-package",
       "title": "Porsche COBB Accessport Package",
       "category": "Engine Management",
       "brand": "COBB Tuning",
@@ -2206,9 +2241,15 @@ window.PROJX_DATA = {
       "status": "Compatibility Check Required",
       "summary": "Accessport part-number, ECU and PDK support reviewed before order.",
       "media": 36,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": [
+        { "make": "Porsche", "model": "Selected Porsche applications", "generation": "Confirm generation", "engines": ["Confirm engine"] }
+      ]
     },
     {
+      "slug": "gm-hp-tuners-remote-package",
+      "catalogType": "quote-package",
       "title": "GM HP Tuners Remote Package",
       "category": "Engine Management",
       "brand": "HP Tuners",
@@ -2216,9 +2257,15 @@ window.PROJX_DATA = {
       "status": "Compatibility Check Required",
       "summary": "RTD/MPVI, credits and controller services reviewed per vehicle.",
       "media": 36,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": [
+        { "make": "Chevrolet / GM", "model": "LS/LT V8 applications", "generation": "Confirm chassis", "engines": ["LS", "LT"] }
+      ]
     },
     {
+      "slug": "aerodynamics-underbody-package",
+      "catalogType": "quote-package",
       "title": "Aerodynamics & Underbody Package",
       "category": "Aero",
       "brand": "Verus Engineering / ST Track Parts",
@@ -2226,9 +2273,13 @@ window.PROJX_DATA = {
       "status": "Confirm Availability",
       "summary": "Splitter, diffuser, wing and mounting consultation with chassis setup.",
       "media": 13,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": []
     },
     {
+      "slug": "honda-k-swap-integration",
+      "catalogType": "quote-package",
       "title": "Honda K-Swap Integration",
       "category": "Drivetrain",
       "brand": "KPower Industries / Tegiwa",
@@ -2236,9 +2287,17 @@ window.PROJX_DATA = {
       "status": "Technical Review Required",
       "summary": "Swap hardware, engine management, cooling, exhaust, wiring and commissioning.",
       "media": 27,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": [
+        { "make": "Honda", "model": "Supported Honda applications", "generation": "Confirm chassis", "engines": ["K-series"] },
+        { "make": "Toyota", "model": "86", "generation": "Confirm generation", "engines": ["K-series swap"] },
+        { "make": "Subaru", "model": "BRZ", "generation": "Confirm generation", "engines": ["K-series swap"] }
+      ]
     },
     {
+      "slug": "motorsport-wheel-package",
+      "catalogType": "quote-package",
       "title": "Motorsport Wheel Package",
       "category": "Wheels and Tires",
       "brand": "Apex Wheels / Supported Brands",
@@ -2246,7 +2305,131 @@ window.PROJX_DATA = {
       "status": "Fitment Check Required",
       "summary": "Wheel size, brake clearance, tire sizing and alignment package.",
       "media": 25,
-      "price": "Quoted after compatibility review"
+      "price": "Quoted after compatibility review",
+      "fitmentStatus": "confirm",
+      "applications": []
+    }
+  ],
+  "storeProducts": [
+    {
+      "slug": "tegiwa-bmw-b58-service-kit",
+      "catalogType": "product",
+      "title": "Tegiwa BMW B58 Service Kit",
+      "titleAr": "طقم صيانة Tegiwa لمحرك BMW B58",
+      "summary": "Supplier-listed B58 service kit for BMW M140i, M240i, M340i and M440i applications. Contents and exact vehicle compatibility are confirmed before quotation.",
+      "summaryAr": "طقم صيانة B58 مدرج من المورد لتطبيقات BMW M140i وM240i وM340i وM440i. يتم تأكيد المحتويات وتوافق السيارة بالضبط قبل عرض السعر.",
+      "brand": "Tegiwa Motorsports",
+      "category": "Service Kits",
+      "categoryAr": "أطقم صيانة",
+      "sku": "T-B58-SERVICE-KIT",
+      "mpn": "",
+      "quoteOnly": false,
+      "priceCurrency": "GBP",
+      "priceAmount": 117.96,
+      "priceVerifiedAt": "2026-08-03",
+      "priceNote": "Supplier RRP incl. VAT · checked 2026-08-03",
+      "priceNoteAr": "سعر التجزئة المقترح من المورد شامل ضريبة القيمة المضافة · تم الفحص 2026-08-03",
+      "status": "Supplier stock indicated — checked 2026-08-03",
+      "statusAr": "المورد يشير إلى توفر مخزون — تم الفحص 2026-08-03",
+      "checkedAt": "2026-08-03",
+      "fitmentStatus": "supplier-title-confirm",
+      "fitments": [
+        { "make": "BMW", "model": "M140i", "generation": "Confirm chassis", "engines": ["B58"] },
+        { "make": "BMW", "model": "M240i", "generation": "Confirm chassis", "engines": ["B58"] },
+        { "make": "BMW", "model": "M340i", "generation": "Confirm chassis", "engines": ["B58"] },
+        { "make": "BMW", "model": "M440i", "generation": "Confirm chassis", "engines": ["B58"] }
+      ],
+      "images": [
+        { "src": "assets/products/tegiwa/b58-service-kit.jpg", "width": 1411, "height": 1411, "alt": "Tegiwa BMW B58 service kit product contents", "altAr": "محتويات طقم صيانة Tegiwa لمحرك BMW B58" }
+      ]
+    },
+    {
+      "slug": "tegiwa-magnust-gr-yaris-gopro-headrest-mount-lhd",
+      "catalogType": "product",
+      "title": "Tegiwa × MagnusT GoPro Headrest Mount — LHD",
+      "titleAr": "قاعدة GoPro لمسند الرأس Tegiwa × MagnusT — مقود يسار",
+      "summary": "Supplier-listed GoPro headrest mount for left-hand-drive Toyota GR Yaris models from 2020. Seat and vehicle compatibility are confirmed before quotation.",
+      "summaryAr": "قاعدة GoPro لمسند الرأس مدرجة من المورد لسيارات Toyota GR Yaris ذات المقود اليسار من موديل 2020. يتم تأكيد توافق المقعد والسيارة قبل عرض السعر.",
+      "brand": "Tegiwa Motorsports",
+      "category": "Track Accessories",
+      "categoryAr": "إكسسوارات حلبة",
+      "sku": "T-GOPRO-MOUNT-YARISGR-LHD",
+      "mpn": "",
+      "quoteOnly": false,
+      "priceCurrency": "GBP",
+      "priceAmount": 31.19,
+      "priceVerifiedAt": "2026-08-03",
+      "priceNote": "Supplier RRP incl. VAT · checked 2026-08-03",
+      "priceNoteAr": "سعر التجزئة المقترح من المورد شامل ضريبة القيمة المضافة · تم الفحص 2026-08-03",
+      "status": "Supplier stock indicated — checked 2026-08-03",
+      "statusAr": "المورد يشير إلى توفر مخزون — تم الفحص 2026-08-03",
+      "checkedAt": "2026-08-03",
+      "fitmentStatus": "supplier-title-confirm",
+      "fitments": [
+        { "make": "Toyota", "model": "GR Yaris", "generation": "2020+ LHD", "engines": ["Not engine-specific"] }
+      ],
+      "images": [
+        { "src": "assets/products/tegiwa/gr-yaris-gopro-mount-lhd.jpg", "width": 1000, "height": 1000, "alt": "Tegiwa and MagnusT GoPro headrest mount for left-hand-drive Toyota GR Yaris", "altAr": "قاعدة GoPro لمسند الرأس من Tegiwa وMagnusT لسيارة Toyota GR Yaris بمقود يسار" }
+      ]
+    },
+    {
+      "slug": "tegiwa-honda-civic-eg-ek-aluminium-radiator",
+      "catalogType": "product",
+      "title": "Tegiwa Aluminium Alloy Radiator",
+      "titleAr": "رديتر ألمنيوم Tegiwa",
+      "summary": "Supplier-listed aluminium alloy radiator for Honda Civic EG and EK applications from 1992 to 2000. Exact engine and vehicle compatibility are confirmed before quotation.",
+      "summaryAr": "رديتر ألمنيوم مدرج من المورد لتطبيقات Honda Civic EG وEK من 1992 إلى 2000. يتم تأكيد المحرك والسيارة بالضبط قبل عرض السعر.",
+      "brand": "Tegiwa Motorsports",
+      "category": "Cooling",
+      "categoryAr": "تبريد",
+      "sku": "T-4077023",
+      "mpn": "",
+      "quoteOnly": false,
+      "priceCurrency": "GBP",
+      "priceAmount": 145,
+      "priceVerifiedAt": "2026-08-03",
+      "priceNote": "Supplier RRP incl. VAT · checked 2026-08-03",
+      "priceNoteAr": "سعر التجزئة المقترح من المورد شامل ضريبة القيمة المضافة · تم الفحص 2026-08-03",
+      "status": "Supplier stock indicated — checked 2026-08-03",
+      "statusAr": "المورد يشير إلى توفر مخزون — تم الفحص 2026-08-03",
+      "checkedAt": "2026-08-03",
+      "fitmentStatus": "supplier-title-confirm",
+      "fitments": [
+        { "make": "Honda", "model": "Civic", "generation": "EG / EK · 1992–2000", "engines": ["Confirm engine"] }
+      ],
+      "images": [
+        { "src": "assets/products/tegiwa/honda-civic-eg-ek-radiator.jpg", "width": 1000, "height": 1000, "alt": "Tegiwa aluminium alloy radiator for Honda Civic EG and EK", "altAr": "رديتر ألمنيوم Tegiwa لسيارات Honda Civic EG وEK" }
+      ]
+    },
+    {
+      "slug": "tegiwa-honda-k20a-oil-sump-baffle-kit",
+      "catalogType": "product",
+      "title": "Tegiwa Oil Sump Baffle Kit",
+      "titleAr": "طقم حواجز كرتير الزيت Tegiwa",
+      "summary": "Supplier-listed oil sump baffle kit for Honda Civic Type R EP3 and Integra Type R DC5 K20A applications. Exact engine and sump compatibility are confirmed before quotation.",
+      "summaryAr": "طقم حواجز كرتير زيت مدرج من المورد لتطبيقات Honda Civic Type R EP3 وIntegra Type R DC5 بمحرك K20A. يتم تأكيد توافق المحرك والكرتير قبل عرض السعر.",
+      "brand": "Tegiwa Motorsports",
+      "category": "Engine / Oiling",
+      "categoryAr": "المحرك / التزييت",
+      "sku": "T-4035007",
+      "mpn": "",
+      "quoteOnly": false,
+      "priceCurrency": "GBP",
+      "priceAmount": 88.94,
+      "priceVerifiedAt": "2026-08-03",
+      "priceNote": "Supplier RRP incl. VAT · checked 2026-08-03",
+      "priceNoteAr": "سعر التجزئة المقترح من المورد شامل ضريبة القيمة المضافة · تم الفحص 2026-08-03",
+      "status": "Supplier stock indicated — checked 2026-08-03",
+      "statusAr": "المورد يشير إلى توفر مخزون — تم الفحص 2026-08-03",
+      "checkedAt": "2026-08-03",
+      "fitmentStatus": "supplier-title-confirm",
+      "fitments": [
+        { "make": "Honda", "model": "Civic Type R", "generation": "EP3", "engines": ["K20A"] },
+        { "make": "Honda", "model": "Integra Type R", "generation": "DC5", "engines": ["K20A"] }
+      ],
+      "images": [
+        { "src": "assets/products/tegiwa/honda-k20-sump-baffle.jpg", "width": 1000, "height": 1000, "alt": "Tegiwa oil sump baffle kit for Honda K20A applications", "altAr": "طقم حواجز كرتير الزيت Tegiwa لتطبيقات Honda K20A" }
+      ]
     }
   ],
   "brands": [

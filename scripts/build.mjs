@@ -42,6 +42,14 @@ const media = id => DATA.media.find(item => Number(item.id) === Number(id)) || D
 const localizedService = (locale, service) => ({ ...service, ...(T[locale].services?.[service.slug] || {}) });
 const localizedProject = (locale, project) => ({ ...project, ...(T[locale].projects?.[project.slug] || {}) });
 const localizedPlatform = (locale, platform) => ({ ...platform, ...(T[locale].tuning?.[platform.slug] || {}) });
+const localizedPart = (locale, part, index) => ({ ...part, ...(T[locale].parts?.[index] || {}) });
+const localizedStoreProduct = (locale, product) => locale === 'ar' ? {
+  ...product,
+  title: product.titleAr || product.title,
+  summary: product.summaryAr || product.summary,
+  category: product.categoryAr || product.category,
+  status: product.statusAr || product.status
+} : product;
 const pathFor = (locale, route = '/') => `${locale}/${cleanRoute(route) === '/' ? '' : `${cleanRoute(route).slice(1)}/`}`;
 const canonical = (locale, route = '/') => new URL(pathFor(locale, route), siteUrl).href;
 const defaultCanonical = route => canonical('en', route);
@@ -205,12 +213,56 @@ for (const project of DATA.projects) {
   });
 }
 
+for (const [index, part] of DATA.parts.entries()) {
+  add(`/parts/${part.slug}`, locale => {
+    const local = localizedPart(locale, part, index);
+    return {
+      title: `${local.title} | Projx Racing Parts`,
+      h1: local.title,
+      description: local.summary,
+      eyebrow: locale === 'ar' ? 'باقة يتم تحديدها حسب السيارة' : 'Vehicle-configured parts package',
+      hero: local.media,
+      details: [local.category, local.brand, local.vehicle, local.status, local.price],
+      links: [[T[locale].ui.nav.parts, '/parts'], [T[locale].ui.actions.contactWorkshop, '/contact']],
+      schema: [{ '@type': 'Service', name: local.title, description: local.summary, provider: { '@id': `${siteUrl}#business` }, areaServed: ['Kuwait', 'GCC'], inLanguage: T[locale].locale, url: canonical(locale, `/parts/${part.slug}`) }]
+    };
+  });
+}
+
+for (const product of (DATA.storeProducts || [])) {
+  add(`/parts/${product.slug}`, locale => {
+    const local = localizedStoreProduct(locale, product);
+    const productSchema = {
+      '@type': 'Product',
+      name: local.title,
+      description: local.summary,
+      image: (product.images || []).map(image => new URL(image.src, siteUrl).href),
+      sku: product.sku,
+      brand: { '@type': 'Brand', name: product.brand },
+      url: canonical(locale, `/parts/${product.slug}`)
+    };
+    if (product.mpn) productSchema.mpn = product.mpn;
+    if (!product.quoteOnly && Number(product.priceAmount) > 0 && /^[A-Z]{3}$/.test(product.priceCurrency || '')) productSchema.offers = { '@type': 'Offer', priceCurrency: product.priceCurrency, price: Number(product.priceAmount).toFixed(2), url: canonical(locale, `/parts/${product.slug}`), availability: 'https://schema.org/LimitedAvailability' };
+    return {
+      title: `${local.title} | Projx Racing Parts`,
+      h1: local.title,
+      description: local.summary,
+      eyebrow: locale === 'ar' ? 'منتج كتالوج تمت مراجعته' : 'Reviewed catalogue product',
+      hero: 27,
+      primaryImage: new URL(product.images[0].src, siteUrl).href,
+      details: [local.category, local.brand, product.sku || product.mpn, local.status],
+      links: [[T[locale].ui.nav.parts, '/parts'], [T[locale].ui.actions.contactWorkshop, '/contact']],
+      schema: [productSchema]
+    };
+  });
+}
+
 for (const key of ['parts', 'brands', 'gallery', 'reviews', 'about', 'contact', 'faq']) {
   add(`/${key}`, locale => {
     const page = T[locale].pages[key];
     const heroes = { parts: 27, brands: 30, gallery: 35, reviews: 20, about: 15, contact: 20, faq: 36 };
     let details = [];
-    if (key === 'parts') details = T[locale].parts.map(part => `${part.brand || ''} — ${part.title}`);
+    if (key === 'parts') details = [...T[locale].parts.map(part => `${part.brand || ''} — ${part.title}`), ...(DATA.storeProducts || []).map(product => localizedStoreProduct(locale, product).title)];
     if (key === 'brands') details = DATA.brands.slice(0, 20).map(brand => brand.name);
     if (key === 'gallery') details = DATA.media.slice(0, 20).map(item => (T[locale].media?.[item.id]?.title || item.title));
     if (key === 'about') details = DATA.services.slice(0, 10).map(service => localizedService(locale, service).title);
@@ -242,7 +294,7 @@ function structuredData(locale, route, page) {
   const graph = [{
     '@type': 'WebPage', '@id': `${canonical(locale, route)}#webpage`, url: canonical(locale, route), name: page.title,
     description: page.description, inLanguage: T[locale].locale, isPartOf: { '@id': `${siteUrl}#website` },
-    about: { '@id': `${siteUrl}#business` }, primaryImageOfPage: { '@type': 'ImageObject', url: mediaUrl(page.hero) }
+    about: { '@id': `${siteUrl}#business` }, primaryImageOfPage: { '@type': 'ImageObject', url: page.primaryImage || mediaUrl(page.hero) }
   }];
   const breadcrumb = breadcrumbJson(locale, route, page.title);
   if (breadcrumb) graph.push(breadcrumb);

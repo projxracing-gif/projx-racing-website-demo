@@ -72,10 +72,18 @@
     try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
   }
 
+  function normalizeQuote(items) {
+    if (!Array.isArray(items)) return [];
+    return items.filter(item => item && typeof item === "object").map(item => ({
+      ...item,
+      quantity: Math.min(99, Math.max(1, Number.parseInt(item.quantity, 10) || 1))
+    }));
+  }
+
   const state = {
     locale: document.body.dataset.locale === "ar" ? "ar" : "en",
     route: normalizeRoute(document.body.dataset.route || "/"),
-    quote: safeParse(storage.get("projxQuote"), []),
+    quote: normalizeQuote(safeParse(storage.get("projxQuote"), [])),
     partsVehicle: safeParse(storage.get("projxPartsVehicle"), null),
     mobileOpen: false,
     lightbox: null,
@@ -98,6 +106,113 @@
   function i18n() { return TRANSLATIONS[state.locale] || TRANSLATIONS.en; }
   function U() { return i18n().ui; }
   function P() { return i18n().pages; }
+  function storeText() {
+    return state.locale === "ar" ? {
+      configuredPackage: "باقة يتم تحديدها حسب السيارة",
+      verifiedProducts: "منتجات كتالوج تمت مراجعتها",
+      verifiedProductsText: "ما ننشر المنتج إلا بعد مراجعة هويته وصورته المصرح بها ونطاق التوافق والسعر. يظهر السعر بعملة المورد الأصلية بشكل واضح، وإلا يكون السعر حسب الطلب.",
+      cataloguePending: "كتالوج المنتجات قيد المراجعة",
+      cataloguePendingText: "حالياً تعرض الصفحة باقات Projx Racing المؤكدة. ما راح ننشر منتج أو سعر أو صورة من مورد قبل التحقق من حقوق الاستخدام وبيانات القطعة.",
+      requestPrice: "اطلب السعر",
+      viewDetails: "شوف التفاصيل",
+      contextImage: "صورة من أعمال الورشة للتوضيح — القطع النهائية تعتمد على عرض السعر",
+      fitment: "التوافق",
+      confirmFitment: "يتطلب تأكيد التوافق",
+      universalConfirm: "عام — يتطلب تأكيد التطبيق",
+      generation: "الجيل / الشاصي",
+      chooseModel: "اختر الموديل",
+      chooseGeneration: "اختر الجيل / الشاصي",
+      chooseEngine: "اختر المحرك",
+      selectedVehicleMatch: "تطابق محتمل مع السيارة المحفوظة",
+      allFitment: "كل حالات التوافق",
+      possibleMatches: "تطبيقات محتملة لسيارتي",
+      availability: "التوفر / الحالة",
+      allAvailability: "كل حالات التوفر",
+      pricing: "التسعير",
+      price: "السعر",
+      allPricing: "كل حالات التسعير",
+      usdPrice: "سعر منشور",
+      quoteOnly: "السعر حسب الطلب",
+      sort: "الترتيب",
+      featured: "المميز أولاً",
+      nameAsc: "الاسم: أ–ي",
+      categoryAsc: "الفئة",
+      brandAsc: "العلامة",
+      productType: "النوع",
+      noSku: "لا يوجد SKU ثابت — يتم تحديد القطع في عرض السعر",
+      quantity: "الكمية",
+      addToQuote: "أضف لطلب السعر",
+      shippingQuote: "اطلب سعر الشحن",
+      shippingHeading: "الشحن بعد مراجعة الوجهة والقطعة",
+      shippingText: "يتم تأكيد شركة الشحن والمدة والرسوم بعد مراجعة الوزن والأبعاد والوجهة والجمارك. الموقع ما يعرض أسعار شحن تقديرية غير مؤكدة.",
+      destinationCountry: "دولة التسليم",
+      destinationCity: "المدينة",
+      postcode: "الرمز البريدي",
+      fulfilment: "طريقة الاستلام",
+      courier: "شحن إلى العنوان",
+      workshop: "استلام أو تركيب في الورشة",
+      vin: "VIN عند الحاجة",
+      decrease: "تقليل الكمية",
+      increase: "زيادة الكمية",
+      items: "قطع",
+      packageDetails: "تفاصيل الباقة",
+      includedReview: "ما تتم الموافقة عليه بعد المراجعة",
+      fitmentDirectoryNote: "قائمة السيارات مبنية فقط على التطبيقات المذكورة في الكتالوج الحالي. اختيار السيارة يساعد بالمراجعة ولا يعتبر تأكيد تركيب.",
+      exactProductRule: "كل منتج يحتاج صورة مطابقة ومصرح بها ورقم قطعة ونطاق توافق، مع سعر موثق بعملة المورد الأصلية أو حالة سعر حسب الطلب."
+    } : {
+      configuredPackage: "Vehicle-configured package",
+      verifiedProducts: "Reviewed catalogue products",
+      verifiedProductsText: "Products are published only after identity, authorised imagery, fitment scope and price are reviewed. Prices remain in the supplier's verified original currency; otherwise the item remains Request price.",
+      cataloguePending: "Verified product catalogue under review",
+      cataloguePendingText: "The current store shows confirmed Projx Racing quote packages. Supplier products, prices and images will not be published until use rights and item records are verified.",
+      requestPrice: "Request price",
+      viewDetails: "View details",
+      contextImage: "Workshop context image — final components are confirmed in the quotation",
+      fitment: "Fitment",
+      confirmFitment: "Fitment confirmation required",
+      universalConfirm: "Universal — application confirmation required",
+      generation: "Generation / chassis",
+      chooseModel: "Choose model",
+      chooseGeneration: "Choose generation / chassis",
+      chooseEngine: "Choose engine",
+      selectedVehicleMatch: "Possible match for saved vehicle",
+      allFitment: "All fitment states",
+      possibleMatches: "Possible matches for my vehicle",
+      availability: "Availability / status",
+      allAvailability: "All availability states",
+      pricing: "Pricing",
+      price: "Price",
+      allPricing: "All pricing states",
+      usdPrice: "Published price",
+      quoteOnly: "Request price",
+      sort: "Sort",
+      featured: "Featured",
+      nameAsc: "Name: A–Z",
+      categoryAsc: "Category",
+      brandAsc: "Brand",
+      productType: "Type",
+      noSku: "No fixed SKU — components are specified in the quotation",
+      quantity: "Quantity",
+      addToQuote: "Add to quote",
+      shippingQuote: "Request shipping quote",
+      shippingHeading: "Shipping is quoted after destination and item review",
+      shippingText: "Carrier, transit time, duties and charges are confirmed after weight, dimensions, destination and customs requirements are reviewed. The site does not show invented shipping rates.",
+      destinationCountry: "Destination country",
+      destinationCity: "City",
+      postcode: "Postcode",
+      fulfilment: "Fulfilment",
+      courier: "Courier delivery",
+      workshop: "Workshop collection or installation",
+      vin: "VIN when required",
+      decrease: "Decrease quantity",
+      increase: "Increase quantity",
+      items: "items",
+      packageDetails: "Package details",
+      includedReview: "Confirmed after review",
+      fitmentDirectoryNote: "The vehicle list is derived only from applications stated in the current catalogue. Saving a vehicle supports review; it is not automatic fitment confirmation.",
+      exactProductRule: "Every product needs an exact authorised image, part identity and fitment scope, plus either a verified price in the supplier's original currency or an explicit Request price state."
+    };
+  }
   function esc(value = "") {
     return String(value).replace(/[&<>'"]/g, character => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
@@ -164,6 +279,21 @@
   function localizedPart(part, index) {
     return { ...part, ...(i18n().parts?.[index] || {}) };
   }
+  function localizedStoreProduct(product) {
+    if (!product) return null;
+    if (state.locale !== "ar") return product;
+    return {
+      ...product,
+      title: product.titleAr || product.title,
+      summary: product.summaryAr || product.summary,
+      category: product.categoryAr || product.category,
+      subcategory: product.subcategoryAr || product.subcategory,
+      status: product.statusAr || product.status,
+      priceNote: product.priceNoteAr || product.priceNote,
+      details: product.detailsAr || product.details,
+      images: (product.images || []).map(image => ({ ...image, alt: image.altAr || image.alt }))
+    };
+  }
   function localizedPlatform(platform) {
     return { ...platform, ...(i18n().tuning?.[platform.slug] || {}) };
   }
@@ -221,6 +351,10 @@
     storage.set("projxQuote", JSON.stringify(state.quote));
     renderHeader();
     renderFloatingActions();
+  }
+
+  function quoteCount() {
+    return state.quote.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
   }
 
   function mediaImage(id, {
@@ -366,11 +500,38 @@
     return DATA.brands.filter(brand => normalizedBrandWords(brand.name).some(word => !generic.has(word) && (word.length >= 3 || allowedShort.has(word)) && sourceWords.has(word)));
   }
 
+  function fitmentMakes(item) {
+    return [...new Set((item.applications || item.fitments || []).map(application => application.make).filter(Boolean))];
+  }
+
+  function fitmentLabel(item) {
+    const labels = storeText();
+    return item.fitmentStatus === "universal-confirm" ? labels.universalConfirm : labels.confirmFitment;
+  }
+
+  function storeProductPrice(product) {
+    const amount = Number(product.priceAmount);
+    const currency = String(product.priceCurrency || "").toUpperCase();
+    if (product.quoteOnly || !Number.isFinite(amount) || !/^[A-Z]{3}$/.test(currency)) return storeText().requestPrice;
+    const locale = state.locale === "ar" ? "ar-KW" : (currency === "GBP" ? "en-GB" : "en-US");
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+  }
+
+  function productCard(product, index) {
+    const local = localizedStoreProduct(product);
+    const image = local.images?.[0];
+    const search = [local.title, local.category, local.subcategory, local.brand, local.sku, local.mpn, local.summary].join(" ").toLowerCase();
+    const fitment = fitmentMakes(product).map(normalizedBrandWords).flat().join("|");
+    const pricing = product.quoteOnly ? "quote" : "published";
+    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-availability="${esc(local.status)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(image?.src || "")}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(local.status)}</span></a><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
+  }
+
   function partCard(part, index) {
     const local = localizedPart(part, index);
     const search = [local.title, local.category, local.brand, local.vehicle, local.summary].join(" ").toLowerCase();
     const brandKeys = brandsForPart(part.brand).map(brand => brand.name.toLowerCase()).join("|");
-    return `<article class="part-card filter-item" data-category="${esc(local.category)}" data-brand="${esc(brandKeys)}" data-search="${esc(search)}"><div class="part-media">${mediaImage(local.media, { thumb: true, className: "cover-img" })}<span>${statusBadge(local.status)}</span></div><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3>${esc(local.title)}</h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(U().common.quotation)}</dt><dd>${esc(local.price)}</dd></div></dl><div class="card-footer"><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry" data-context="${esc(local.title)}">${esc(U().actions.enquire)}${icons.arrow}</button><button class="icon-action" type="button" data-action="add-quote" data-kind="Parts Enquiry" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}" aria-label="${esc(`${U().actions.addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
+    const fitment = fitmentMakes(part).map(normalizedBrandWords).flat().join("|");
+    return `<article class="part-card quote-package-card filter-item" data-item-type="package" data-category="${esc(local.category)}" data-brand="${esc(brandKeys)}" data-availability="${esc(local.status)}" data-pricing="quote" data-fitment-mode="${esc(part.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${1000 + index}" data-search="${esc(search)}"><a class="part-media quote-package-media" href="${routeUrl(`/parts/${part.slug}`)}">${mediaImage(local.media, { thumb: true, className: "contain-img" })}<span>${statusBadge(local.status)}</span><small>${esc(storeText().contextImage)}</small></a><div class="part-body"><span class="mini-label">${esc(storeText().configuredPackage)} · ${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${part.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(storeText().fitment)}</dt><dd>${esc(fitmentLabel(part))}</dd></div><div><dt>${esc(U().common.quotation)}</dt><dd>${esc(storeText().requestPrice)}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${part.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function brandCard(brand) {
@@ -452,12 +613,13 @@
     const ui = U();
     const desktop = document.createElement("div");
     desktop.className = "floating-actions";
-    desktop.innerHTML = `<a class="floating-btn whatsapp" href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><button class="floating-btn" type="button" data-action="open-quote" aria-label="${esc(ui.actions.openQuote)}">${icons.quote}${state.quote.length ? `<span class="floating-count">${state.quote.length}</span>` : ""}</button>`;
+    const count = quoteCount();
+    desktop.innerHTML = `<a class="floating-btn whatsapp" href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><button class="floating-btn" type="button" data-action="open-quote" aria-label="${esc(ui.actions.openQuote)}">${icons.quote}${count ? `<span class="floating-count">${count}</span>` : ""}</button>`;
     document.body.append(desktop);
     const mobile = document.createElement("nav");
     mobile.className = "mobile-action-bar";
     mobile.setAttribute("aria-label", ui.nav.contact);
-    mobile.innerHTML = `<a href="${telUrl()}">${icons.phone}<span>${esc(state.locale === "ar" ? "اتصال" : "Call")}</span></a><a class="wa" href="${waUrl()}" target="_blank" rel="noopener">${icons.whatsapp}<span>WhatsApp</span></a><button type="button" data-action="open-quote">${icons.quote}<span>${esc(state.locale === "ar" ? "سعر" : "Quote")}${state.quote.length ? ` (${state.quote.length})` : ""}</span></button>`;
+    mobile.innerHTML = `<a href="${telUrl()}">${icons.phone}<span>${esc(state.locale === "ar" ? "اتصال" : "Call")}</span></a><a class="wa" href="${waUrl()}" target="_blank" rel="noopener">${icons.whatsapp}<span>WhatsApp</span></a><button type="button" data-action="open-quote">${icons.quote}<span>${esc(state.locale === "ar" ? "سعر" : "Quote")}${count ? ` (${count})` : ""}</span></button>`;
     document.body.append(mobile);
   }
 
@@ -931,10 +1093,40 @@
     return `${pageHero({ eyebrow: project.category, title: project.title, text: project.summary, media: project.cover, crumbs: [[U().nav.projects, "/projects"], [project.title]], meta: `${statusBadge(project.vehicle)}`, actions: `<button class="btn" type="button" data-action="open-form" data-form-type="Project Consultation" data-context="${esc(project.title)}">${esc(U().actions.discussBuild)}${icons.arrow}</button>` })}<section class="section"><div class="container project-detail-layout"><div>${gallery(project.media || [], `project-${slug}`, project.title, { hero: true })}</div><aside class="project-summary"><div><span>${esc(U().common.vehicle)}</span><strong>${esc(project.vehicle)}</strong></div><div><span>${esc(U().common.category)}</span><strong>${esc(project.category)}</strong></div><div><span>${esc(U().common.projectObjective)}</span><p>${esc(project.objective)}</p></div>${tags(project.tags || [])}</aside></div></section><section class="section section-tone"><div class="container detail-two-column"><article class="content-panel"><span class="eyebrow">${esc(U().common.projectWork)}</span><h2>${state.locale === "ar" ? "الأعمال المؤكدة ضمن المشروع." : "Confirmed work within the project."}</h2>${featureList(project.work || [])}</article><article class="content-panel"><span class="eyebrow">${esc(U().common.recordedResults)}</span><h2>${state.locale === "ar" ? "نتائج موثقة." : "Documented results."}</h2>${featureList(project.results || [])}</article></div></section><section class="section"><div class="container">${sectionHead(U().common.relatedProjects, state.locale === "ar" ? "مشاريع أخرى مرتبطة." : "Other related projects.")}<div class="project-grid">${related.map(projectCard).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? `ناقش مشروع مشابه لـ ${project.vehicle}.` : `Discuss a project similar to the ${project.vehicle}.`, state.locale === "ar" ? "أرسل مواصفات سيارتك الحالية والهدف المطلوب. ما يتم افتراض أن نفس القطع أو النتيجة تناسب سيارة ثانية." : "Submit your current vehicle specification and objective. The same parts or result are not assumed to suit another vehicle.", U().actions.discussBuild, "Project Consultation")}`;
   }
 
+  function partsApplicationDirectory() {
+    const directory = new Map();
+    const items = [...DATA.parts, ...(DATA.storeProducts || [])];
+    for (const item of items) {
+      for (const application of (item.applications || item.fitments || [])) {
+        if (!application.make || !application.model) continue;
+        if (!directory.has(application.make)) directory.set(application.make, new Map());
+        const models = directory.get(application.make);
+        if (!models.has(application.model)) models.set(application.model, new Map());
+        const generations = models.get(application.model);
+        const generation = application.generation || (state.locale === "ar" ? "تأكيد الشاصي" : "Confirm chassis");
+        if (!generations.has(generation)) generations.set(generation, new Set());
+        for (const engine of (application.engines || [])) generations.get(generation).add(engine);
+      }
+    }
+    return directory;
+  }
+
+  function selectOptions(items, placeholder, selected = "") {
+    return `<option value="">${esc(placeholder)}</option>${items.map(item => `<option value="${esc(item)}" ${item === selected ? "selected" : ""}>${esc(item)}</option>`).join("")}`;
+  }
+
+  function setSelectOptions(select, items, placeholder, preferred = "") {
+    const selected = items.includes(preferred) ? preferred : "";
+    select.innerHTML = selectOptions(items, placeholder, selected);
+    select.value = selected;
+    select.disabled = items.length === 0;
+    return selected;
+  }
+
   function partsVehicleLabel() {
     const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : null;
     if (!vehicle) return "";
-    return [vehicle.year, vehicle.make, vehicle.model, vehicle.engine].map(value => cleanText(value || "", 80)).filter(Boolean).join(" · ");
+    return [vehicle.year, vehicle.make, vehicle.model, vehicle.generation, vehicle.engine].map(value => cleanText(value || "", 80)).filter(Boolean).join(" · ");
   }
 
   function partsVehicleSummaryMarkup() {
@@ -958,29 +1150,91 @@
       year: cleanText(fields.get("year"), 4),
       make: cleanText(fields.get("make"), 80),
       model: cleanText(fields.get("model"), 80),
+      generation: cleanText(fields.get("generation"), 80),
       engine: cleanText(fields.get("engine"), 80)
     };
     storage.set("projxPartsVehicle", JSON.stringify(state.partsVehicle));
     renderPartsVehicleSummary();
+    const matchFilter = document.querySelector('[data-filter-select="parts"][data-filter-match="vehicle"]');
+    if (matchFilter) matchFilter.disabled = false;
     showToast(P().parts.finder.vehicleSaved, partsVehicleLabel());
     document.getElementById("parts-categories")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function updatePartsVehicleCascades(form, changed = "") {
+    if (!form) return;
+    const directory = partsApplicationDirectory();
+    const makeSelect = form.elements.make;
+    const modelSelect = form.elements.model;
+    const generationSelect = form.elements.generation;
+    const engineSelect = form.elements.engine;
+    if (!makeSelect || !modelSelect || !generationSelect || !engineSelect) return;
+    const preferred = state.partsVehicle || {};
+    const modelsMap = directory.get(makeSelect.value) || new Map();
+    const model = setSelectOptions(modelSelect, [...modelsMap.keys()], storeText().chooseModel, changed === "make" ? "" : (modelSelect.value || preferred.model));
+    const generationsMap = modelsMap.get(model) || new Map();
+    const generation = setSelectOptions(generationSelect, [...generationsMap.keys()], storeText().chooseGeneration, ["make", "model"].includes(changed) ? "" : (generationSelect.value || preferred.generation));
+    const engines = [...(generationsMap.get(generation) || [])];
+    setSelectOptions(engineSelect, engines, storeText().chooseEngine, ["make", "model", "generation"].includes(changed) ? "" : (engineSelect.value || preferred.engine));
+  }
+
+  function packageDetailPage(slug) {
+    const product = (DATA.storeProducts || []).find(item => item.slug === slug);
+    if (product) return storeProductDetailPage(product);
+    const index = DATA.parts.findIndex(item => item.slug === slug);
+    if (index < 0) return notFoundPage();
+    const part = DATA.parts[index];
+    const local = localizedPart(part, index);
+    const labels = storeText();
+    const vehicleContext = partsVehicleLabel();
+    const context = [local.title, local.brand, local.vehicle, vehicleContext].filter(Boolean).join(" | ");
+    const related = DATA.parts.filter(item => item.slug !== slug && item.category === part.category).slice(0, 3);
+    return `${pageHero({ eyebrow: labels.configuredPackage, title: local.title, text: local.summary, media: local.media, crumbs: [[U().nav.parts, "/parts"], [local.title]], meta: statusBadge(local.status), actions: `<button class="btn" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>` })}
+      <section class="section"><div class="container store-detail-layout">
+        <figure class="store-detail-media">${mediaImage(local.media, { loading: "eager", className: "contain-img", sizes: "(max-width: 980px) 100vw, 55vw" })}<figcaption>${esc(labels.contextImage)}</figcaption></figure>
+        <aside class="store-detail-buy"><span class="mini-label">${esc(labels.productType)}</span><h2>${esc(labels.configuredPackage)}</h2><p>${esc(local.summary)}</p><dl class="store-facts"><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(part))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(local.status)}</dd></div><div><dt>SKU / MPN</dt><dd>${esc(labels.noSku)}</dd></div></dl><div class="store-price"><small>${esc(U().common.quotation)}</small><strong>${esc(labels.requestPrice)}</strong></div><label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></div>${vehicleContext ? `<div class="notice notice-info"><strong>${esc(P().parts.finder.selectedVehicle)}:</strong> <bdi>${esc(vehicleContext)}</bdi></div>` : ""}</aside>
+      </div></section>
+      <section class="section section-tone"><div class="container detail-two-column"><article class="content-panel"><span class="eyebrow">${esc(labels.packageDetails)}</span><h2>${esc(labels.includedReview)}</h2>${featureList([local.summary, `${U().common.brand}: ${local.brand}`, `${U().common.vehicle}: ${local.vehicle}`, `${labels.availability}: ${local.status}`])}</article><article class="content-panel"><span class="eyebrow">${esc(labels.shippingQuote)}</span><h2>${esc(labels.shippingHeading)}</h2><p>${esc(labels.shippingText)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></article></div></section>
+      ${related.length ? `<section class="section"><div class="container">${sectionHead(P().parts.finder.resultsEyebrow, state.locale === "ar" ? "باقات مرتبطة." : "Related packages.")}<div class="parts-grid">${related.map(item => partCard(item, DATA.parts.indexOf(item))).join("")}</div></div></section>` : ""}`;
+  }
+
+  function storeProductDetailPage(product) {
+    const local = localizedStoreProduct(product);
+    const labels = storeText();
+    const image = local.images?.[0];
+    const context = [local.title, local.brand, local.sku || local.mpn, partsVehicleLabel()].filter(Boolean).join(" | ");
+    return `<section class="section store-product-page"><div class="container">
+      ${breadcrumbs([[U().nav.parts, "/parts"], [local.title]])}
+      <div class="store-detail-layout">
+        <figure class="store-detail-media store-product-detail-media"><img src="${esc(image.src)}" width="${Number(image.width)}" height="${Number(image.height)}" alt="${esc(image.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure>
+        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(local.status)}</div><dl class="store-facts"><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(local.status)}</dd></div></dl><div class="store-price"><small>${esc(local.priceNote || U().common.quotation)}</small><strong>${esc(storeProductPrice(product))}</strong></div><label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></div></aside>
+      </div>
+    </div></section><section class="section section-tone"><div class="container narrow"><div class="notice notice-info"><strong>${esc(labels.shippingHeading)}</strong> ${esc(labels.shippingText)}</div></div></section>`;
   }
 
   function partsPage() {
     const page = P().parts;
     const finder = page.finder;
+    const labels = storeText();
     const parts = DATA.parts.map(localizedPart);
-    const categories = [...new Set(parts.map(part => part.category))];
-    const brandCounts = DATA.brands.map(brand => ({ brand, count: DATA.parts.filter(part => brandsForPart(part.brand).some(match => match.name === brand.name)).length })).filter(item => item.count > 0);
+    const products = (DATA.storeProducts || []).map(localizedStoreProduct);
+    const categories = [...new Set([...parts.map(part => part.category), ...products.map(product => product.category)])];
+    const brandCounts = DATA.brands.map(brand => ({ brand, count: DATA.parts.filter(part => brandsForPart(part.brand).some(match => match.name === brand.name)).length + (DATA.storeProducts || []).filter(product => product.brand === brand.name).length })).filter(item => item.count > 0);
+    const statuses = [...new Set([...parts.map(part => part.status), ...products.map(product => product.status)])];
     const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : {};
-    const makes = ["BMW", "Chevrolet / GM", "Ford", "Honda", "Nissan", "Porsche", "Subaru", "Toyota"];
+    const directory = partsApplicationDirectory();
+    const makes = [...directory.keys()];
+    const modelsMap = directory.get(vehicle.make) || new Map();
+    const generationsMap = modelsMap.get(vehicle.model) || new Map();
+    const engines = [...(generationsMap.get(vehicle.generation) || [])];
     const value = key => esc(vehicle[key] || "");
     const categoryTiles = categories.map((category, index) => {
-      const count = parts.filter(part => part.category === category).length;
+      const count = parts.filter(part => part.category === category).length + products.filter(product => product.category === category).length;
       return `<button class="parts-category-card" type="button" data-action="select-parts-category" data-parts-category="${esc(category)}" aria-pressed="false"><span>${compactNumber(index + 1)}</span><strong>${esc(category)}</strong><small>${count} ${esc(finder.items)}</small>${icons.arrow}</button>`;
     }).join("");
     const brandTiles = brandCounts.map(({ brand, count }) => `<button class="parts-brand-card" type="button" data-action="select-parts-brand" data-parts-brand="${esc(brand.name.toLowerCase())}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${count} ${esc(finder.items)}</small></span>${icons.arrow}</button>`).join("");
 
+    const cards = [...(DATA.storeProducts || []).map(productCard), ...DATA.parts.map(partCard)];
     return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<a class="btn" href="#parts-vehicle">${esc(finder.byVehicle)}${icons.arrow}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.quote}</button>` })}
       <div data-parts-shop>
         <section class="section parts-entry-section"><div class="container">
@@ -994,21 +1248,25 @@
             <div class="parts-vehicle-copy"><span class="mini-label">${esc(finder.vehicleEyebrow)}</span><h2>${esc(finder.vehicleHeading)}</h2><p>${esc(finder.vehicleText)}</p></div>
             <form class="parts-vehicle-form" data-parts-vehicle-form>
               <label><span>${esc(finder.year)}</span><input class="input" name="year" value="${value("year")}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="${esc(finder.yearPlaceholder)}" required></label>
-              <label><span>${esc(finder.make)}</span><select class="select" name="make" required><option value="">${esc(finder.chooseMake)}</option>${makes.map(make => `<option value="${esc(make)}" ${vehicle.make === make ? "selected" : ""}>${esc(make)}</option>`).join("")}<option value="Other" ${vehicle.make === "Other" ? "selected" : ""}>${esc(finder.otherMake)}</option></select></label>
-              <label><span>${esc(finder.model)}</span><input class="input" name="model" value="${value("model")}" maxlength="80" placeholder="${esc(finder.modelPlaceholder)}" required></label>
-              <label><span>${esc(finder.engine)}</span><input class="input" name="engine" value="${value("engine")}" maxlength="80" placeholder="${esc(finder.enginePlaceholder)}"></label>
+              <label><span>${esc(finder.make)}</span><select class="select" name="make" data-parts-vehicle-field required>${selectOptions(makes, finder.chooseMake, vehicle.make)}</select></label>
+              <label><span>${esc(finder.model)}</span><select class="select" name="model" data-parts-vehicle-field required ${modelsMap.size ? "" : "disabled"}>${selectOptions([...modelsMap.keys()], labels.chooseModel, vehicle.model)}</select></label>
+              <label><span>${esc(labels.generation)}</span><select class="select" name="generation" data-parts-vehicle-field required ${generationsMap.size ? "" : "disabled"}>${selectOptions([...generationsMap.keys()], labels.chooseGeneration, vehicle.generation)}</select></label>
+              <label><span>${esc(finder.engine)}</span><select class="select" name="engine" data-parts-vehicle-field required ${engines.length ? "" : "disabled"}>${selectOptions(engines, labels.chooseEngine, vehicle.engine)}</select></label>
               <button class="btn" type="submit">${esc(finder.saveVehicle)}${icons.arrow}</button>
             </form>
             <div class="parts-selected-vehicle ${partsVehicleLabel() ? "is-active" : ""}" data-parts-vehicle-summary>${partsVehicleSummaryMarkup()}</div>
+            <p class="parts-directory-note">${icons.check}<span>${esc(labels.fitmentDirectoryNote)}</span></p>
           </div>
         </div></section>
         <section class="section section-tone" id="parts-categories"><div class="container">${sectionHead(finder.categoryEyebrow, finder.categoryHeading, finder.categoryText)}<div class="parts-category-grid">${categoryTiles}</div></div></section>
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
         <section class="section section-tone" id="parts-results"><div class="container">
-          ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count"><span data-parts-result-count>${DATA.parts.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
+          ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
+          <div class="store-catalogue-status"><article><span>${String(products.length).padStart(2, "0")}</span><div><strong>${esc(labels.verifiedProducts)}</strong><small>${esc(labels.verifiedProductsText)}</small></div></article><article><span>${String(parts.length).padStart(2, "0")}</span><div><strong>${esc(labels.configuredPackage)}</strong><small>${esc(labels.exactProductRule)}</small></div></article></div>
+          ${products.length ? "" : `<div class="notice notice-info store-catalogue-gate"><strong>${esc(labels.cataloguePending)}.</strong> ${esc(labels.cataloguePendingText)}</div>`}
           <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
-          <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${brandCounts.map(({ brand }) => `<option value="${esc(brand.name.toLowerCase())}">${esc(brand.name)}</option>`).join("")}</select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
-          <div class="parts-grid" data-filter-grid="parts">${DATA.parts.map(partCard).join("")}</div>
+          <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${brandCounts.map(({ brand }) => `<option value="${esc(brand.name.toLowerCase())}">${esc(brand.name)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="availability" aria-label="${esc(labels.availability)}"><option value="">${esc(labels.allAvailability)}</option>${statuses.map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="pricing" aria-label="${esc(labels.pricing)}"><option value="">${esc(labels.allPricing)}</option><option value="published">${esc(labels.usdPrice)}</option><option value="quote">${esc(labels.quoteOnly)}</option></select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="vehicle" data-filter-match="vehicle" aria-label="${esc(labels.fitment)}" ${partsVehicleLabel() ? "" : "disabled"}><option value="">${esc(labels.allFitment)}</option><option value="possible">${esc(labels.possibleMatches)}</option></select></label><label class="select-control">${icons.filter}<select data-parts-sort aria-label="${esc(labels.sort)}"><option value="featured">${esc(labels.featured)}</option><option value="name">${esc(labels.nameAsc)}</option><option value="category">${esc(labels.categoryAsc)}</option><option value="brand">${esc(labels.brandAsc)}</option></select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
+          <div class="parts-grid" data-filter-grid="parts">${cards.join("")}</div>
           <div class="empty-state" data-filter-empty="parts" hidden><p>${esc(U().common.noResults)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(finder.requestUnlisted)}${icons.arrow}</button></div>
           <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
         </div></section>
@@ -1117,8 +1375,11 @@
 
   function genericForm(type = "General Enquiry", context = "") {
     const ui = U();
+    const labels = storeText();
     const id = `form-${slugify(type)}-${Math.random().toString(36).slice(2, 6)}`;
-    return `<form class="enquiry-form" data-enquiry-form data-form-type="${esc(type)}" data-context="${esc(context)}" novalidate><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><div class="form-grid"><div class="form-group"><label class="required" for="${id}-name">${esc(ui.forms.name)}</label><input id="${id}-name" class="input" name="name" required autocomplete="name" placeholder="${esc(ui.forms.placeholders.name)}"></div><div class="form-group"><label class="required" for="${id}-phone">${esc(ui.forms.phone)}</label><input id="${id}-phone" class="input ltr-input" name="phone" required inputmode="tel" autocomplete="tel" placeholder="${esc(ui.forms.placeholders.phone)}"></div><div class="form-group"><label for="${id}-email">${esc(ui.forms.email)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-email" class="input ltr-input" name="email" type="email" autocomplete="email" placeholder="${esc(ui.forms.placeholders.email)}"></div><div class="form-group"><label for="${id}-contact">${esc(ui.forms.preferredContact)}</label><select id="${id}-contact" class="select" name="preferredContact">${ui.forms.contactMethods.map(item => `<option>${esc(item)}</option>`).join("")}</select></div><div class="form-group full"><label class="required" for="${id}-vehicle">${esc(ui.forms.vehicle)}</label><input id="${id}-vehicle" class="input" name="vehicle" required placeholder="${esc(ui.forms.placeholders.vehicle)}"></div><div class="form-group"><label for="${id}-engine">${esc(ui.forms.engine)}</label><input id="${id}-engine" class="input" name="engine" placeholder="${esc(ui.forms.placeholders.engine)}"></div><div class="form-group"><label for="${id}-service">${esc(ui.forms.service)}</label><input id="${id}-service" class="input" name="service" value="${esc(context || type)}"></div><div class="form-group full"><label for="${id}-mods">${esc(ui.forms.modifications)} <small>${esc(ui.forms.optional)}</small></label><textarea id="${id}-mods" class="textarea" name="modifications" placeholder="${esc(ui.forms.placeholders.modifications)}"></textarea></div><div class="form-group full"><label class="required" for="${id}-message">${esc(ui.forms.message)}</label><textarea id="${id}-message" class="textarea" name="message" required placeholder="${esc(ui.forms.placeholders.message)}"></textarea></div><div class="form-group full"><label for="${id}-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.log,.txt"><small class="form-help">${esc(ui.forms.fileNote)}</small></div><label class="checkbox form-group full"><input type="checkbox" name="consent" required><span>${esc(ui.forms.consent)}</span></label></div><button class="btn btn-block" type="submit">${esc(ui.actions.submit)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
+    const partsFlow = /Parts/.test(type) || (type === "General Quote" && state.quote.some(item => /Parts/.test(item.kind)));
+    const shippingFields = partsFlow ? `<fieldset class="form-group full shipping-fields"><legend>${esc(labels.shippingHeading)}</legend><p>${esc(labels.shippingText)}</p><div class="form-grid"><div class="form-group"><label class="required" for="${id}-country">${esc(labels.destinationCountry)}</label><input id="${id}-country" class="input" name="country" required autocomplete="country-name"></div><div class="form-group"><label class="required" for="${id}-city">${esc(labels.destinationCity)}</label><input id="${id}-city" class="input" name="city" required autocomplete="address-level2"></div><div class="form-group"><label for="${id}-postcode">${esc(labels.postcode)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-postcode" class="input ltr-input" name="postcode" autocomplete="postal-code"></div><div class="form-group"><label for="${id}-fulfilment">${esc(labels.fulfilment)}</label><select id="${id}-fulfilment" class="select" name="fulfilment"><option>${esc(labels.courier)}</option><option>${esc(labels.workshop)}</option></select></div><div class="form-group full"><label for="${id}-vin">${esc(labels.vin)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-vin" class="input ltr-input" name="vin" maxlength="24"></div></div></fieldset>` : "";
+    return `<form class="enquiry-form" data-enquiry-form data-form-type="${esc(type)}" data-context="${esc(context)}" novalidate><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><div class="form-grid"><div class="form-group"><label class="required" for="${id}-name">${esc(ui.forms.name)}</label><input id="${id}-name" class="input" name="name" required autocomplete="name" placeholder="${esc(ui.forms.placeholders.name)}"></div><div class="form-group"><label class="required" for="${id}-phone">${esc(ui.forms.phone)}</label><input id="${id}-phone" class="input ltr-input" name="phone" required inputmode="tel" autocomplete="tel" placeholder="${esc(ui.forms.placeholders.phone)}"></div><div class="form-group"><label for="${id}-email">${esc(ui.forms.email)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-email" class="input ltr-input" name="email" type="email" autocomplete="email" placeholder="${esc(ui.forms.placeholders.email)}"></div><div class="form-group"><label for="${id}-contact">${esc(ui.forms.preferredContact)}</label><select id="${id}-contact" class="select" name="preferredContact">${ui.forms.contactMethods.map(item => `<option>${esc(item)}</option>`).join("")}</select></div><div class="form-group full"><label class="required" for="${id}-vehicle">${esc(ui.forms.vehicle)}</label><input id="${id}-vehicle" class="input" name="vehicle" required placeholder="${esc(ui.forms.placeholders.vehicle)}"></div><div class="form-group"><label for="${id}-engine">${esc(ui.forms.engine)}</label><input id="${id}-engine" class="input" name="engine" placeholder="${esc(ui.forms.placeholders.engine)}"></div><div class="form-group"><label for="${id}-service">${esc(ui.forms.service)}</label><input id="${id}-service" class="input" name="service" value="${esc(context || type)}"></div>${shippingFields}<div class="form-group full"><label for="${id}-mods">${esc(ui.forms.modifications)} <small>${esc(ui.forms.optional)}</small></label><textarea id="${id}-mods" class="textarea" name="modifications" placeholder="${esc(ui.forms.placeholders.modifications)}"></textarea></div><div class="form-group full"><label class="required" for="${id}-message">${esc(ui.forms.message)}</label><textarea id="${id}-message" class="textarea" name="message" required placeholder="${esc(ui.forms.placeholders.message)}"></textarea></div><div class="form-group full"><label for="${id}-files">${esc(ui.forms.files)} <small>${esc(ui.forms.optional)}</small></label><input id="${id}-files" class="input file-input" name="files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.csv,.log,.txt"><small class="form-help">${esc(ui.forms.fileNote)}</small></div><label class="checkbox form-group full"><input type="checkbox" name="consent" required><span>${esc(ui.forms.consent)}</span></label></div><button class="btn btn-block" type="submit">${esc(ui.actions.submit)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
   }
 
   function contactPage() {
@@ -1160,6 +1421,7 @@
     else if (path === "/projects") html = projectsPage();
     else if (path.startsWith("/projects/")) html = projectPage(path.split("/")[2]);
     else if (path === "/parts") html = partsPage();
+    else if (path.startsWith("/parts/")) html = packageDetailPage(path.split("/")[2]);
     else if (path === "/brands") html = brandsPage();
     else if (path === "/gallery") html = galleryPage();
     else if (path === "/reviews") html = reviewsPage();
@@ -1174,6 +1436,7 @@
     renderFooter();
     updateThemeControls();
     setupFilters();
+    setupPartsStore();
     setupTuningFinder();
     if (path === "/account") mountAccountPortal("sign-in");
     state.galleries["home-capability"] = [20, 19, 24, 23];
@@ -1187,6 +1450,12 @@
   function setupFilters() {
     document.querySelectorAll("[data-filter-search]").forEach(input => input.addEventListener("input", applyFilter));
     document.querySelectorAll("[data-filter-select]").forEach(select => select.addEventListener("change", applyFilter));
+  }
+
+  function setupPartsStore() {
+    const form = document.querySelector("[data-parts-vehicle-form]");
+    if (form) updatePartsVehicleCascades(form);
+    document.querySelector("[data-parts-sort]")?.addEventListener("change", sortPartsGrid);
   }
 
   function applyFilter(event) {
@@ -1203,6 +1472,13 @@
         if (!select.value) return true;
         const attribute = select.dataset.filterAttribute;
         const itemValue = item.dataset[attribute] || "";
+        if (select.dataset.filterMatch === "vehicle") {
+          if (select.value !== "possible") return true;
+          if (item.dataset.fitmentMode === "universal-confirm") return true;
+          const selectedMake = new Set(normalizedBrandWords(state.partsVehicle?.make || ""));
+          const fitmentMakes = item.dataset.fitmentMakes || "";
+          return fitmentMakes.split("|").filter(Boolean).some(word => selectedMake.has(word));
+        }
         return select.dataset.filterMatch === "includes" ? itemValue.split("|").includes(select.value) : itemValue === select.value;
       });
       const show = searchMatch && selectMatch;
@@ -1212,6 +1488,19 @@
     const empty = document.querySelector(`[data-filter-empty="${CSS.escape(group)}"]`);
     if (empty) empty.hidden = visible > 0;
     if (group === "parts") updatePartsFilterState(visible);
+  }
+
+  function sortPartsGrid() {
+    const grid = document.querySelector('[data-filter-grid="parts"]');
+    const select = document.querySelector("[data-parts-sort]");
+    if (!grid || !select) return;
+    const key = select.value;
+    const items = [...grid.querySelectorAll(".filter-item")];
+    items.sort((left, right) => {
+      if (key === "featured") return Number(left.dataset.sortIndex || 0) - Number(right.dataset.sortIndex || 0);
+      return String(left.dataset[`sort${key[0].toUpperCase()}${key.slice(1)}`] || "").localeCompare(String(right.dataset[`sort${key[0].toUpperCase()}${key.slice(1)}`] || ""), state.locale);
+    });
+    items.forEach(item => grid.append(item));
   }
 
   function updatePartsFilterState(visible) {
@@ -1241,6 +1530,8 @@
 
   function clearPartsFilters() {
     document.querySelectorAll('[data-filter-search="parts"], [data-filter-select="parts"]').forEach(control => { control.value = ""; });
+    const sort = document.querySelector("[data-parts-sort]");
+    if (sort) { sort.value = "featured"; sortPartsGrid(); }
     const search = document.querySelector('[data-filter-search="parts"]');
     if (search) applyFilter({ currentTarget: search });
   }
@@ -1309,7 +1600,8 @@
 
   function renderQuoteDrawer() {
     const ui = U();
-    drawer.innerHTML = `<div class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="quote-title"><header class="drawer-head"><div><span class="eyebrow">${esc(ui.actions.requestQuote)}</span><h2 id="quote-title">${esc(ui.common.selectedItems)}</h2></div><button class="icon-btn" type="button" data-action="close-quote" aria-label="${esc(ui.actions.close)}">${icons.close}</button></header>${state.quote.length ? `<div class="quote-items">${state.quote.map((item, index) => `<article class="quote-item"><span>${compactNumber(index + 1)}</span><div><small>${esc(item.kind)}</small><strong>${esc(item.title)}</strong><p>${esc(item.details)}</p></div><button type="button" data-action="remove-quote" data-id="${esc(item.id)}" aria-label="${esc(`${ui.actions.remove}: ${item.title}`)}">${icons.close}</button></article>`).join("")}</div><div class="quote-form-wrap">${genericForm("General Quote", state.quote.map(item => item.title).join(", "))}</div>` : `<div class="empty-state"><strong>${esc(ui.common.emptyQuote)}</strong><p>${state.locale === "ar" ? "أضف خدمة أو مشروع أو قطعة أو منصة برمجة حتى تجهز طلب واحد مرتب." : "Add a service, project, part or tuning platform to prepare one structured request."}</p><a class="btn" href="${routeUrl("/services")}" data-action="close-quote">${esc(ui.actions.viewAllServices)}${icons.arrow}</a></div>`}</div>`;
+    const labels = storeText();
+    drawer.innerHTML = `<div class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="quote-title"><header class="drawer-head"><div><span class="eyebrow">${esc(ui.actions.requestQuote)}</span><h2 id="quote-title">${esc(ui.common.selectedItems)}${state.quote.length ? ` · ${quoteCount()}` : ""}</h2></div><button class="icon-btn" type="button" data-action="close-quote" aria-label="${esc(ui.actions.close)}">${icons.close}</button></header>${state.quote.length ? `<div class="quote-items">${state.quote.map((item, index) => `<article class="quote-item"><span>${compactNumber(index + 1)}</span><div class="quote-item-copy"><small>${esc(item.kind)}</small><strong>${esc(item.title)}</strong><p>${esc(item.details)}</p></div><div class="quote-item-actions"><div class="quote-quantity" aria-label="${esc(labels.quantity)}"><button type="button" data-action="adjust-quote-quantity" data-delta="-1" data-id="${esc(item.id)}" aria-label="${esc(`${labels.decrease}: ${item.title}`)}">−</button><bdi>${Number(item.quantity) || 1}</bdi><button type="button" data-action="adjust-quote-quantity" data-delta="1" data-id="${esc(item.id)}" aria-label="${esc(`${labels.increase}: ${item.title}`)}">+</button></div><button class="quote-remove" type="button" data-action="remove-quote" data-id="${esc(item.id)}" aria-label="${esc(`${ui.actions.remove}: ${item.title}`)}">${icons.close}</button></div></article>`).join("")}</div><div class="quote-form-wrap">${genericForm("General Quote", state.quote.map(item => `${item.title} × ${item.quantity || 1}`).join(", "))}</div>` : `<div class="empty-state"><strong>${esc(ui.common.emptyQuote)}</strong><p>${state.locale === "ar" ? "أضف خدمة أو مشروع أو قطعة أو منصة برمجة حتى تجهز طلب واحد مرتب." : "Add a service, project, part or tuning platform to prepare one structured request."}</p><a class="btn" href="${routeUrl("/services")}" data-action="close-quote">${esc(ui.actions.viewAllServices)}${icons.arrow}</a></div>`}</div>`;
   }
 
   function openQuote() {
@@ -1327,7 +1619,10 @@
   }
 
   function addQuote(item) {
-    if (!state.quote.some(existing => existing.id === item.id)) state.quote.push(item);
+    const quantity = Math.min(99, Math.max(1, Number.parseInt(item.quantity, 10) || 1));
+    const existing = state.quote.find(entry => entry.id === item.id);
+    if (existing) existing.quantity = Math.min(99, (Number(existing.quantity) || 1) + quantity);
+    else state.quote.push({ ...item, quantity });
     saveQuote();
     showToast(state.locale === "ar" ? "تمت الإضافة لطلب السعر" : "Added to quote request", item.title);
   }
@@ -1411,7 +1706,7 @@
     const context = form.dataset.context;
     if (context) result.context = context;
     if (form.dataset.platformForm) result.platform = form.dataset.platformForm;
-    if (form.dataset.formType === "General Quote" && state.quote.length) result.selectedItems = state.quote.map(item => `${item.kind}: ${item.title} — ${item.details}`);
+    if (form.dataset.formType === "General Quote" && state.quote.length) result.selectedItems = state.quote.map(item => `${item.kind}: ${item.title} × ${item.quantity || 1} — ${item.details}`);
     return result;
   }
 
@@ -1435,8 +1730,8 @@
   }
 
   function whatsappMessage(type, ref, fields) {
-    const labelsEn = { name: "Name", phone: "Phone / WhatsApp", email: "Email", country: "Country", vehicle: "Vehicle", engine: "Engine", transmission: "Transmission", service: "Service", fuel: "Fuel", modifications: "Current modifications", intendedUse: "Intended use", target: "Target", faults: "Known faults", device: "Device / software", unlock: "Unlock status", message: "Project details", preferredContact: "Preferred contact", year: "Model year", model: "Model", tuneType: "Tune type", files: "Files to attach", context: "Context", platform: "Platform", selectedItems: "Selected items" };
-    const labelsAr = { name: "الاسم", phone: "الهاتف / WhatsApp", email: "البريد", country: "الدولة", vehicle: "السيارة", engine: "المحرك", transmission: "القير", service: "الخدمة", fuel: "الوقود", modifications: "التعديلات الحالية", intendedUse: "الاستخدام", target: "الهدف", faults: "الأعطال", device: "الجهاز / البرنامج", unlock: "حالة Unlock", message: "تفاصيل المشروع", preferredContact: "طريقة التواصل", year: "سنة الموديل", model: "الموديل", tuneType: "نوع البرمجة", files: "ملفات للإرفاق", context: "المرجع", platform: "المنصة", selectedItems: "العناصر المختارة" };
+    const labelsEn = { name: "Name", phone: "Phone / WhatsApp", email: "Email", country: "Country", city: "City", postcode: "Postcode", fulfilment: "Fulfilment", vin: "VIN", vehicle: "Vehicle", engine: "Engine", transmission: "Transmission", service: "Service", fuel: "Fuel", modifications: "Current modifications", intendedUse: "Intended use", target: "Target", faults: "Known faults", device: "Device / software", unlock: "Unlock status", message: "Project details", preferredContact: "Preferred contact", year: "Model year", model: "Model", tuneType: "Tune type", files: "Files to attach", context: "Context", platform: "Platform", selectedItems: "Selected items" };
+    const labelsAr = { name: "الاسم", phone: "الهاتف / WhatsApp", email: "البريد", country: "الدولة", city: "المدينة", postcode: "الرمز البريدي", fulfilment: "طريقة الاستلام", vin: "VIN", vehicle: "السيارة", engine: "المحرك", transmission: "القير", service: "الخدمة", fuel: "الوقود", modifications: "التعديلات الحالية", intendedUse: "الاستخدام", target: "الهدف", faults: "الأعطال", device: "الجهاز / البرنامج", unlock: "حالة Unlock", message: "تفاصيل المشروع", preferredContact: "طريقة التواصل", year: "سنة الموديل", model: "الموديل", tuneType: "نوع البرمجة", files: "ملفات للإرفاق", context: "المرجع", platform: "المنصة", selectedItems: "العناصر المختارة" };
     const labels = state.locale === "ar" ? labelsAr : labelsEn;
     const lines = [state.locale === "ar" ? "*طلب من موقع Projx Racing*" : "*Projx Racing Website Enquiry*", `${U().forms.success.reference}: ${ref}`, `${state.locale === "ar" ? "نوع الطلب" : "Request type"}: ${type}`];
     for (const [key, value] of Object.entries(fields)) {
@@ -1578,13 +1873,25 @@
     if (action === "clear-parts-vehicle") {
       state.partsVehicle = null;
       storage.remove("projxPartsVehicle");
-      document.querySelector("[data-parts-vehicle-form]")?.reset();
+      const vehicleForm = document.querySelector("[data-parts-vehicle-form]");
+      vehicleForm?.reset();
+      if (vehicleForm) {
+        vehicleForm.elements.year.value = "";
+        vehicleForm.elements.make.value = "";
+        updatePartsVehicleCascades(vehicleForm, "make");
+      }
+      const matchFilter = document.querySelector('[data-filter-select="parts"][data-filter-match="vehicle"]');
+      if (matchFilter) {
+        matchFilter.value = "";
+        matchFilter.disabled = true;
+        matchFilter.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       renderPartsVehicleSummary();
       showToast(P().parts.finder.vehicleCleared);
       return;
     }
     if (action === "open-form") {
-      const selectedVehicle = currentPath() === "/parts" && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
+      const selectedVehicle = currentPath().startsWith("/parts") && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
       const context = [target.dataset.context || "", selectedVehicle].filter(Boolean).join(" | ");
       openForm(target.dataset.formType || "General Enquiry", context);
       return;
@@ -1593,8 +1900,17 @@
     if (action === "open-quote") { openQuote(); return; }
     if (action === "close-quote") { closeQuote(); return; }
     if (action === "add-quote") {
-      const selectedVehicle = currentPath() === "/parts" && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
-      addQuote({ id: `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", details: [target.dataset.details || "", selectedVehicle].filter(Boolean).join(" | ") });
+      const selectedVehicle = currentPath().startsWith("/parts") && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
+      const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-quote-quantity]")?.value, 10) || 1;
+      addQuote({ id: target.dataset.id || `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", details: [target.dataset.details || "", selectedVehicle].filter(Boolean).join(" | "), quantity });
+      return;
+    }
+    if (action === "adjust-quote-quantity") {
+      const item = state.quote.find(entry => entry.id === target.dataset.id);
+      if (!item) return;
+      item.quantity = Math.min(99, Math.max(1, (Number(item.quantity) || 1) + (Number(target.dataset.delta) || 0)));
+      saveQuote();
+      renderQuoteDrawer();
       return;
     }
     if (action === "remove-quote") { state.quote = state.quote.filter(item => item.id !== target.dataset.id); saveQuote(); renderQuoteDrawer(); return; }
@@ -1628,6 +1944,8 @@
   });
 
   document.addEventListener("change", event => {
+    const partsVehicleField = event.target.closest("[data-parts-vehicle-field]");
+    if (partsVehicleField) updatePartsVehicleCascades(partsVehicleField.form, partsVehicleField.name);
     const engineSelect = event.target.closest('[data-role="platform-engine"]');
     if (engineSelect) updatePlatformModels(engineSelect);
     const finderSelect = event.target.closest("[data-tuning-finder] select");
