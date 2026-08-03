@@ -10,7 +10,7 @@ const files = [
   'scripts/build.mjs', 'scripts/validate.mjs', 'scripts/serve.mjs',
   'scripts/test-api.mjs', 'scripts/test-tegiwa-catalog-api.mjs', 'scripts/lint.mjs',
   'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs',
-  'scripts/build-tegiwa-sitemap-manifest.mjs', 'sw.js'
+  'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/build-tegiwa-catalog-snapshot.mjs', 'sw.js'
 ];
 
 const failures = [];

@@ -7,16 +7,18 @@ const PAGE_SIZE = 24;
 const MAX_SEARCH_RESULTS = 10;
 const MAX_SITEMAPS = 512;
 const MAX_SITEMAP_PRODUCTS = 50_000;
-const MAX_SITEMAPS_PER_REQUEST = 8;
+const MAX_PRODUCT_HANDLE_LENGTH = 255;
+const MAX_CATALOG_SHARDS_PER_REQUEST = 8;
+const MAX_CACHED_CATALOG_SHARDS = 4;
 const MAX_DETAIL_IMAGES = 16;
 const MAX_DETAIL_VARIANTS = 50;
 const MAX_STOCK_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const DEFAULT_TIMEOUT_MS = 7_000;
-const PRODUCT_SITEMAP_BYTES = 12_000_000;
 const JSON_RESPONSE_BYTES = 2_000_000;
 const CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=300';
 const STOCK_INDEX_URL = new URL('./data/tegiwa-stock-index.json', import.meta.url);
 const SITEMAP_MANIFEST_URL = new URL('./data/tegiwa-sitemap-manifest.json', import.meta.url);
+const CATALOG_SHARD_DIRECTORY_URL = new URL('./data/tegiwa-catalog-pages/', import.meta.url);
 
 const STATUS_CODES = Object.freeze({
   0: 'out_of_stock',
@@ -251,16 +253,18 @@ function officialProductUrl(handle) {
 }
 
 function productHandle(value) {
-  const handle = safeText(value, 160);
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(handle) ? handle : null;
+  const raw = String(value ?? '').trim();
+  if (!raw || raw.length > MAX_PRODUCT_HANDLE_LENGTH) return null;
+  const handle = safeText(raw, MAX_PRODUCT_HANDLE_LENGTH);
+  return /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(handle) ? handle : null;
 }
 
 function handleFromProductUrl(value) {
   try {
     const url = new URL(decodeEntities(value));
     if (url.protocol !== 'https:' || url.hostname !== 'www.tegiwa.com') return null;
-    const match = url.pathname.match(/^\/products\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
-    return match ? match[1] : null;
+    const match = url.pathname.match(/^\/products\/([a-z0-9]+(?:[-_][a-z0-9]+)*)\/?$/);
+    return match ? productHandle(match[1]) : null;
   } catch {
     return null;
   }
@@ -324,19 +328,6 @@ function normalizeSearchProduct(product, index) {
   }, index);
 }
 
-function xmlElements(xml, tagName, limit) {
-  const escaped = tagName.replace(':', '\\:');
-  const pattern = new RegExp(`<${escaped}\\b[^>]*>([\\s\\S]*?)<\\/${escaped}\\s*>`, 'gi');
-  const values = [];
-  let match;
-  while (values.length < limit && (match = pattern.exec(xml))) values.push(match[1]);
-  return values;
-}
-
-function firstXmlText(xml, tagName) {
-  return safeText(xmlElements(xml, tagName, 1)[0], 1_000);
-}
-
 function productSitemapUrl(value) {
   try {
     const url = new URL(decodeEntities(value));
@@ -349,22 +340,39 @@ function productSitemapUrl(value) {
   }
 }
 
-function titleFromHandle(handle) {
-  return handle.split('-').filter(Boolean).map(part => part[0]?.toUpperCase() + part.slice(1)).join(' ');
-}
-
-function parseProductSitemap(xml) {
+function validateCatalogShard(candidate) {
+  if (!Array.isArray(candidate) || candidate.length > MAX_SITEMAP_PRODUCTS) throw new Error('invalid_catalog_shard');
   const products = [];
   const seen = new Set();
-  for (const entry of xmlElements(xml, 'url', MAX_SITEMAP_PRODUCTS)) {
-    const handle = handleFromProductUrl(firstXmlText(entry, 'loc'));
-    if (!handle || seen.has(handle)) continue;
-    const title = firstXmlText(entry, 'image:title') || titleFromHandle(handle);
-    const imageUrl = safeImageUrl(firstXmlText(entry, 'image:loc'));
+  for (const record of candidate) {
+    if (!Array.isArray(record) || record.length !== 3) throw new Error('invalid_catalog_shard');
+    const handle = productHandle(record[0]);
+    const title = safeText(record[1], 300);
+    const imageUrl = record[2] ? safeImageUrl(record[2]) : null;
+    if (!handle || !title || (record[2] && !imageUrl) || seen.has(handle)) throw new Error('invalid_catalog_shard');
     seen.add(handle);
     products.push({ handle, title, imageUrl });
   }
   return products;
+}
+
+const defaultCatalogShardCache = new Map();
+function loadDefaultCatalogShard(shardIndex) {
+  const index = safeInteger(shardIndex, 0, MAX_SITEMAPS - 1);
+  if (index === null) throw new Error('invalid_catalog_shard_index');
+  if (defaultCatalogShardCache.has(index)) return defaultCatalogShardCache.get(index);
+  const filename = `${String(index).padStart(3, '0')}.json`;
+  let records;
+  try {
+    records = JSON.parse(readFileSync(new URL(filename, CATALOG_SHARD_DIRECTORY_URL), 'utf8'));
+  } catch (error) {
+    throw new Error(`The public Tegiwa catalog shard ${filename} could not be loaded.`, { cause: error });
+  }
+  defaultCatalogShardCache.set(index, records);
+  if (defaultCatalogShardCache.size > MAX_CACHED_CATALOG_SHARDS) {
+    defaultCatalogShardCache.delete(defaultCatalogShardCache.keys().next().value);
+  }
+  return records;
 }
 
 function encodeCursor(sitemapIndex, offset) {
@@ -392,8 +400,7 @@ function isAllowedUpstreamUrl(value) {
     if (url.protocol !== 'https:' || url.username || url.password) return false;
     if (url.hostname === 'tegiwa.myshopify.com') return url.pathname === '/search/suggest.json';
     if (url.hostname !== 'www.tegiwa.com') return false;
-    return /^\/sitemap_products[^/]*\.xml$/.test(url.pathname)
-      || /^\/products\/[a-z0-9]+(?:-[a-z0-9]+)*\.js$/.test(url.pathname);
+    return /^\/products\/[a-z0-9]+(?:[-_][a-z0-9]+)*\.js$/.test(url.pathname);
   } catch {
     return false;
   }
@@ -496,7 +503,7 @@ function determineMode(req) {
 
   if (rawHandle !== undefined) {
     const raw = Array.isArray(rawHandle) ? '' : String(rawHandle).trim();
-    if (raw.length > 160 || !productHandle(raw)) throw new PublicApiError(400, 'invalid_handle', 'The product handle is invalid.');
+    if (raw.length > MAX_PRODUCT_HANDLE_LENGTH || !productHandle(raw)) throw new PublicApiError(400, 'invalid_handle', 'The product handle is invalid.');
     return { mode: 'detail', handle: raw };
   }
 
@@ -576,19 +583,18 @@ async function searchCatalog(fetchImpl, index, query) {
   };
 }
 
-async function browseCatalog(fetchImpl, index, sitemaps, sitemapIndex, offset) {
+async function browseCatalog(index, sitemaps, sitemapIndex, offset, catalogLoader) {
   if (sitemapIndex >= sitemaps.length) throw new PublicApiError(400, 'invalid_cursor', 'The catalog cursor is invalid.');
 
   const items = [];
   let currentSitemap = sitemapIndex;
   let currentOffset = offset;
   let nextCursor = null;
-  let sitemapFetches = 0;
+  let shardReads = 0;
 
-  while (items.length < PAGE_SIZE && currentSitemap < sitemaps.length && sitemapFetches < MAX_SITEMAPS_PER_REQUEST) {
-    const xml = await fetchText(fetchImpl, sitemaps[currentSitemap], { maxBytes: PRODUCT_SITEMAP_BYTES, timeoutMs: 10_000 });
-    sitemapFetches += 1;
-    const products = parseProductSitemap(xml);
+  while (items.length < PAGE_SIZE && currentSitemap < sitemaps.length && shardReads < MAX_CATALOG_SHARDS_PER_REQUEST) {
+    const products = validateCatalogShard(await catalogLoader(currentSitemap));
+    shardReads += 1;
     if (currentOffset > products.length) throw new PublicApiError(400, 'invalid_cursor', 'The catalog cursor is invalid.');
 
     const take = products.slice(currentOffset, currentOffset + (PAGE_SIZE - items.length));
@@ -691,8 +697,9 @@ async function detailCatalog(fetchImpl, index, handle) {
   };
 }
 
-export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, sitemapManifest, now = () => Date.now(), logger = console } = {}) {
+export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stockIndex, sitemapManifest, catalogLoader = loadDefaultCatalogShard, now = () => Date.now(), logger = console } = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required.');
+  if (typeof catalogLoader !== 'function') throw new TypeError('A catalog loader is required.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   const index = stockIndex ? validateStockIndex(stockIndex) : loadDefaultStockIndex();
   const sitemaps = sitemapManifest ? validateSitemapManifest({ version: 1, sitemaps: sitemapManifest }) : loadDefaultSitemapManifest();
@@ -710,7 +717,7 @@ export function createTegiwaCatalogHandler({ fetchImpl = globalThis.fetch, stock
       let body;
       if (request.mode === 'search') body = await searchCatalog(fetchImpl, requestIndex, request.query);
       else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);
-      else body = await browseCatalog(fetchImpl, requestIndex, sitemaps, request.sitemapIndex, request.offset);
+      else body = await browseCatalog(requestIndex, sitemaps, request.sitemapIndex, request.offset, catalogLoader);
       return sendJson(res, 200, body, true);
     } catch (error) {
       if (error instanceof PublicApiError) return sendError(res, error.status, error.code, error.message);

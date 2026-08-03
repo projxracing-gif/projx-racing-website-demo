@@ -18,7 +18,7 @@ This version keeps the verified workshop, tuning, engine-building, wiring, fabri
 - 46 brands, suppliers and technical-platform records with relationship labels
 - 80 verified Projx Racing photographs, including 30 newly selected high-resolution workshop, engine, dyno and track images
 - Searchable services, projects, parts, brands and gallery sections
-- A paginated full-range Tegiwa preview catalogue using official product data, GBP prices and a customer-safe stock snapshot without exposing exact dealer inventory
+- A paginated 193,253-product Tegiwa preview catalogue using official public product data, GBP prices and a customer-safe stock snapshot without exposing exact dealer inventory
 - Quote basket, enquiry forms, secure customer-account portal shell, mobile navigation, lightbox and FAQ controls
 - Verified telephone, WhatsApp, Instagram and map actions
 - Localized metadata, canonical URLs, hreflang, structured data, sitemap and robots rules
@@ -32,8 +32,8 @@ The retired interactive calculation and visualization module is not included in 
 ```text
 api/
   enquiry.js                 Secure Vercel enquiry-email endpoint
-  tegiwa-catalog.js          Restricted Tegiwa search/browse/detail proxy
-  data/                      Anonymous stock/RRP index and public sitemap manifest
+  tegiwa-catalog.js          Restricted Tegiwa search/browse/detail endpoint
+  data/                      Anonymous stock/RRP index and sanitized public catalog shards
 assets/
   app.js                     Page rendering and interactions
   data.js                    Verified shared business/content records
@@ -51,6 +51,7 @@ scripts/
   test-tegiwa-catalog-api.mjs Tegiwa API security and contract tests
   build-tegiwa-stock-index.mjs Private-feed to public-safe index builder
   build-tegiwa-sitemap-manifest.mjs Official public product-sitemap manifest builder
+  build-tegiwa-catalog-snapshot.mjs Official sitemap to sanitized browse-shard builder
   serve.mjs                  Local static preview server
 template.html                Shared production HTML shell
 manifest.webmanifest         Web-app metadata

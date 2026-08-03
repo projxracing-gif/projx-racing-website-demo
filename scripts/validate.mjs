@@ -30,8 +30,9 @@ for (const file of [
   'assets/app.js', 'assets/data.js', 'assets/site-config.js', 'assets/styles.css',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'template.html', 'sw.js',
   'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
-  'scripts/build.mjs', 'scripts/build-tegiwa-stock-index.mjs', 'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/test-tegiwa-catalog-api.mjs',
-  'manifest.webmanifest'
+  'api/data/tegiwa-catalog-summary.json', 'scripts/build.mjs', 'scripts/build-tegiwa-stock-index.mjs',
+  'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/build-tegiwa-catalog-snapshot.mjs', 'scripts/test-tegiwa-catalog-api.mjs',
+  'manifest.webmanifest', 'vercel.json'
 ]) assert(fs.existsSync(path.join(repo, file)), `Missing source file: ${file}`);
 
 assert(fs.existsSync(dist), 'dist/ does not exist; run npm run build first.');
@@ -127,6 +128,9 @@ const tegiwaApiSource = fs.readFileSync(path.join(repo, 'api/tegiwa-catalog.js')
 const tegiwaIndexSource = fs.readFileSync(path.join(repo, 'api/data/tegiwa-stock-index.json'), 'utf8');
 const tegiwaIndex = JSON.parse(tegiwaIndexSource);
 const tegiwaManifest = JSON.parse(fs.readFileSync(path.join(repo, 'api/data/tegiwa-sitemap-manifest.json'), 'utf8'));
+const tegiwaCatalogSummary = JSON.parse(fs.readFileSync(path.join(repo, 'api/data/tegiwa-catalog-summary.json'), 'utf8'));
+const tegiwaCatalogDirectory = path.join(repo, 'api/data/tegiwa-catalog-pages');
+const vercelConfig = JSON.parse(fs.readFileSync(path.join(repo, 'vercel.json'), 'utf8'));
 const tegiwaEntries = Object.entries(tegiwaIndex.products || {});
 const tegiwaLeadTimes = Array.isArray(tegiwaIndex.leadTimes) ? tegiwaIndex.leadTimes : [];
 assert(tegiwaIndex.version === 1, 'Tegiwa public stock-index version is invalid.');
@@ -143,6 +147,44 @@ assert(tegiwaEntries.every(([key, value]) => /^[A-Za-z0-9_-]{16}$/.test(key)
 assert(tegiwaEntries.filter(([, value]) => value[2] === 1 || value[2] === 2).length === tegiwaIndex.availableProductCount, 'Tegiwa available-product aggregate does not match its records.');
 assert(tegiwaManifest.version === 1 && tegiwaManifest.sitemapCount === tegiwaManifest.sitemaps?.length && tegiwaManifest.sitemapCount > 100 && tegiwaManifest.sitemapCount <= 512, 'Tegiwa public sitemap manifest is incomplete.');
 assert(tegiwaManifest.sitemaps.every(value => /^https:\/\/www\.tegiwa\.com\/sitemap_products[^/]*\.xml\?/.test(value)), 'Tegiwa sitemap manifest contains an unapproved source.');
+const tegiwaCatalogShardFiles = fs.existsSync(tegiwaCatalogDirectory)
+  ? fs.readdirSync(tegiwaCatalogDirectory).filter(value => /^\d{3}\.json$/.test(value)).sort()
+  : [];
+assert(tegiwaCatalogShardFiles.length === tegiwaManifest.sitemapCount, 'Tegiwa public catalog shard count does not match its manifest.');
+const tegiwaCatalogHandles = new Set();
+let tegiwaCatalogProductCount = 0;
+let tegiwaCatalogImageCount = 0;
+let tegiwaCatalogRecordsValid = true;
+for (const [shardIndex, filename] of tegiwaCatalogShardFiles.entries()) {
+  if (filename !== `${String(shardIndex).padStart(3, '0')}.json`) tegiwaCatalogRecordsValid = false;
+  const shard = JSON.parse(fs.readFileSync(path.join(tegiwaCatalogDirectory, filename), 'utf8'));
+  if (!Array.isArray(shard) || shard.length > 50_000) {
+    tegiwaCatalogRecordsValid = false;
+    continue;
+  }
+  for (const record of shard) {
+    if (!Array.isArray(record) || record.length !== 3
+      || !/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(record[0] || '')
+      || record[0].length > 255
+      || typeof record[1] !== 'string' || !record[1].trim() || record[1].length > 300
+      || (record[2] !== null && record[2] !== '' && (typeof record[2] !== 'string' || !/^https:\/\/(?:cdn\.shopify\.com|(?:www\.)?tegiwa\.com)\//.test(record[2])))) {
+      tegiwaCatalogRecordsValid = false;
+      continue;
+    }
+    if (tegiwaCatalogHandles.has(record[0])) tegiwaCatalogRecordsValid = false;
+    tegiwaCatalogHandles.add(record[0]);
+    tegiwaCatalogProductCount += 1;
+    if (record[2]) tegiwaCatalogImageCount += 1;
+  }
+}
+assert(tegiwaCatalogRecordsValid, 'Tegiwa public catalog shards contain invalid or duplicate records.');
+assert(tegiwaCatalogProductCount > 100_000 && tegiwaCatalogHandles.size === tegiwaCatalogProductCount, 'Tegiwa public catalog snapshot is incomplete.');
+assert(tegiwaCatalogSummary.version === 1
+  && tegiwaCatalogSummary.shardCount === tegiwaCatalogShardFiles.length
+  && tegiwaCatalogSummary.productCount === tegiwaCatalogProductCount
+  && tegiwaCatalogSummary.imageCount === tegiwaCatalogImageCount
+  && tegiwaCatalogSummary.uniqueHandleCount === tegiwaCatalogHandles.size, 'Tegiwa public catalog summary does not match its shards.');
+assert(vercelConfig.functions?.['api/tegiwa-catalog.js']?.includeFiles === 'api/data/**', 'Vercel must bundle the complete public Tegiwa data directory with one supported includeFiles glob.');
 assert(!/(?:Variant SKU|Inventory Qty|External Supplier Stock|dealer.?cost|wholesale|password|credential|api.?key)/i.test(tegiwaIndexSource), 'Private dealer fields leaked into the Tegiwa public stock index.');
 assert(tegiwaApiSource.includes("const OFFICIAL_ORIGIN = 'https://www.tegiwa.com'") && tegiwaApiSource.includes("const SHOPIFY_ORIGIN = 'https://tegiwa.myshopify.com'") && tegiwaApiSource.includes('MAX_SITEMAPS = 512'), 'Tegiwa API origin restriction or full-sitemap cap is missing.');
 assert(tegiwaApiSource.includes("digest('base64url').slice(0, 16)"), 'Tegiwa API stock-key contract does not match the feed-index builder.');
@@ -251,6 +293,7 @@ const sourceFiles = filesRecursive(repo).filter(file => !file.includes(`${path.s
 const searchableSource = sourceFiles
   .filter(file => /\.(?:js|mjs|html|css|json|webmanifest)$/i.test(file))
   .filter(file => !file.endsWith(`${path.sep}scripts${path.sep}validate.mjs`))
+  .filter(file => !file.includes(`${path.sep}api${path.sep}data${path.sep}tegiwa-catalog-pages${path.sep}`))
   .map(file => fs.readFileSync(file, 'utf8'))
   .join('\n');
 for (const pattern of removedFeaturePatterns) assert(!pattern.test(searchableSource), `Removed feature remains in source: ${pattern}.`);

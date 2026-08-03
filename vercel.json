@@ -4,6 +4,11 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": true,
+  "functions": {
+    "api/tegiwa-catalog.js": {
+      "includeFiles": "api/data/**"
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

@@ -37,13 +37,6 @@ function jsonResponse(body, status = 200, headers = {}) {
   });
 }
 
-function xmlResponse(body, status = 200) {
-  return new Response(body, {
-    status,
-    headers: { 'Content-Type': 'application/xml' }
-  });
-}
-
 const STOCK_KEY_FIXTURE = 'kvSkN4vT1Bb2VWIN';
 const FIXED_NOW = Date.parse('2026-08-04T12:00:00Z');
 assert.equal(normalizeTitleForStock('  TEGIWA\u00a0 BMW B58 Service Kit  '), 'tegiwa bmw b58 service kit');
@@ -74,6 +67,7 @@ assert.equal((await invoke(validationHandler, { query: { q: 'x' } })).status, 40
 assert.equal((await invoke(validationHandler, { query: { q: 'x'.repeat(81) } })).body.error.code, 'invalid_query');
 assert.equal((await invoke(validationHandler, { query: { q: ['brake', 'engine'] } })).body.error.code, 'invalid_parameters');
 assert.equal((await invoke(validationHandler, { query: { handle: 'Upper-Case-Handle' } })).body.error.code, 'invalid_handle');
+assert.equal((await invoke(validationHandler, { query: { handle: 'a'.repeat(256) } })).body.error.code, 'invalid_handle');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', cursor: 'abcd' } })).body.error.code, 'invalid_parameters');
 assert.equal((await invoke(validationHandler, {
   query: { q: 'brake' },
@@ -187,36 +181,33 @@ assert.equal(staleStock.body.items[0].availability.snapshotStale, true);
 assert.equal(staleStock.body.meta.stockSnapshotStale, true);
 assert.deepEqual(staleStock.body.items[0].price, { currency: 'GBP', min: 117.96, max: 129.99, note: 'RRP' });
 
-function sitemapEntry(number) {
+function catalogRecord(number) {
   const padded = String(number).padStart(2, '0');
-  return `<url>
-    <loc>https://www.tegiwa.com/products/product-${padded}</loc>
-    <image:image>
-      <image:loc>https://cdn.shopify.com/s/files/1/0000/product-${padded}.jpg</image:loc>
-      <image:title>Official Product ${padded}</image:title>
-    </image:image>
-  </url>`;
+  return [
+    `product-${padded}`,
+    `Official Product ${padded}`,
+    `https://cdn.shopify.com/s/files/1/0000/product-${padded}.jpg`
+  ];
 }
 
 const sitemapManifest = [
   'https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=25',
   'https://www.tegiwa.com/sitemap_products_2.xml?from=26&to=28'
 ];
-const firstProductSitemap = `<?xml version="1.0"?><urlset>${Array.from({ length: 25 }, (_, index) => sitemapEntry(index + 1)).join('')}</urlset>`;
-const secondProductSitemap = `<?xml version="1.0"?><urlset>${Array.from({ length: 3 }, (_, index) => sitemapEntry(index + 26)).join('')}</urlset>`;
+const catalogShards = [
+  Array.from({ length: 25 }, (_, index) => catalogRecord(index + 1)),
+  Array.from({ length: 3 }, (_, index) => catalogRecord(index + 26))
+];
 
-const sitemapRequests = [];
+const catalogShardRequests = [];
 const browseHandler = createTegiwaCatalogHandler({
   stockIndex,
   sitemapManifest,
   now: () => FIXED_NOW,
-  fetchImpl: async url => {
-    const parsed = new URL(url);
-    sitemapRequests.push(parsed.toString());
-    assert.equal(parsed.hostname, 'www.tegiwa.com');
-    if (parsed.pathname === '/sitemap_products_1.xml') return xmlResponse(firstProductSitemap);
-    if (parsed.pathname === '/sitemap_products_2.xml') return xmlResponse(secondProductSitemap);
-    throw new Error(`Unexpected upstream URL: ${url}`);
+  fetchImpl: noFetch,
+  catalogLoader: async shardIndex => {
+    catalogShardRequests.push(shardIndex);
+    return catalogShards[shardIndex];
   }
 });
 
@@ -233,8 +224,29 @@ const browsePageTwo = await invoke(browseHandler, { query: { cursor: browsePageO
 assert.equal(browsePageTwo.status, 200);
 assert.deepEqual(browsePageTwo.body.items.map(item => item.handle), ['product-25', 'product-26', 'product-27', 'product-28']);
 assert.equal(browsePageTwo.body.nextCursor, null);
-assert.ok(sitemapRequests.every(url => new URL(url).hostname === 'www.tegiwa.com'));
+assert.deepEqual(catalogShardRequests, [0, 0, 1]);
 assert.equal((await invoke(browseHandler, { query: { cursor: 'not-a-valid-cursor' } })).body.error.code, 'invalid_cursor');
+
+const bundledBrowseHandler = createTegiwaCatalogHandler({ stockIndex, now: () => FIXED_NOW, fetchImpl: noFetch });
+const bundledBrowse = await invoke(bundledBrowseHandler);
+assert.equal(bundledBrowse.status, 200);
+assert.equal(bundledBrowse.body.mode, 'browse');
+assert.equal(bundledBrowse.body.items.length, 24);
+assert.match(bundledBrowse.body.nextCursor, /^[A-Za-z0-9_-]+$/);
+assert.ok(bundledBrowse.body.items.every(item => item.handle && item.title && item.sourceUrl.startsWith('https://www.tegiwa.com/products/')));
+
+const longHandle = `long-${'performance-part-'.repeat(11)}catalog-item`;
+assert.ok(longHandle.length > 160 && longHandle.length < 256);
+const longHandleBrowse = await invoke(createTegiwaCatalogHandler({
+  stockIndex,
+  sitemapManifest: [sitemapManifest[0]],
+  now: () => FIXED_NOW,
+  fetchImpl: noFetch,
+  catalogLoader: async () => [[longHandle, 'Official long-handle product', '']]
+}));
+assert.equal(longHandleBrowse.status, 200);
+assert.equal(longHandleBrowse.body.items[0].handle, longHandle);
+assert.equal(longHandleBrowse.body.items[0].sourceUrl, `https://www.tegiwa.com/products/${longHandle}`);
 
 const detailHandler = createTegiwaCatalogHandler({
   stockIndex: { ...stockIndex, products: {} },
@@ -316,7 +328,8 @@ assert.equal(upstreamFailure.headers['cache-control'], 'no-store');
 console.log('PASS: Tegiwa catalog API method, origin and parameter validation');
 console.log('PASS: normalized-title stock/RRP join with the generated-key fixture');
 console.log('PASS: official search normalization and field sanitization');
-console.log('PASS: official sitemap browsing with opaque pagination');
+console.log('PASS: bundled public-catalog browsing with opaque pagination');
+console.log('PASS: generated 194-shard catalog snapshot loads through the production file path');
 console.log('PASS: product-detail sanitization, image allow-list and variant caps');
 console.log('PASS: upstream failures return structured, non-cacheable errors');
 console.log('PASS: exact inventory, SKU, private URLs and raw stock data are not exposed');
