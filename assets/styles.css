@@ -959,6 +959,8 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-product-body dl > div { display: grid; padding-block: 8px; grid-template-columns: minmax(80px, .65fr) minmax(0, 1.35fr); gap: 10px; border-top: 1px solid var(--line); }
 .tegiwa-product-body dt { color: var(--muted-2); font-size: .68rem; }
 .tegiwa-product-body dd { margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: .72rem; font-weight: 760; text-align: end; }
+.tegiwa-product-body .tegiwa-sku-options { color: var(--muted); font-size: .68rem; font-weight: 650; }
+.tegiwa-product-body .tegiwa-sku-count { display: block; margin-top: 2px; color: var(--muted); font-size: .64rem; font-weight: 650; }
 .tegiwa-checked { color: var(--muted); font-size: .66rem; }
 .tegiwa-product-body .card-footer { align-self: end; }
 .tegiwa-product-card.is-loading { min-height: 490px; pointer-events: none; }
@@ -993,6 +995,9 @@ html[dir="rtl"] .tegiwa-pagination button[data-action="tegiwa-previous"] .direct
 .tegiwa-detail-copy > dl div { display: grid; padding-block: 10px; grid-template-columns: minmax(110px, .7fr) minmax(0, 1.3fr); gap: 16px; border-top: 1px solid var(--line); }
 .tegiwa-detail-copy dt { color: var(--muted-2); font-size: .72rem; }
 .tegiwa-detail-copy dd { margin: 0; color: var(--text); font-size: .78rem; font-weight: 760; text-align: end; }
+.tegiwa-detail-copy .tegiwa-sku-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
+.tegiwa-detail-copy .tegiwa-sku-list bdi { overflow-wrap: anywhere; }
+html[dir="rtl"] .tegiwa-detail-copy .tegiwa-sku-list { justify-content: flex-start; }
 .tegiwa-detail-copy > small { color: var(--muted); line-height: 1.5; }
 .tegiwa-variants { padding: 0 clamp(18px, 3vw, 30px) clamp(18px, 3vw, 30px); }
 .tegiwa-variant-instruction { margin: 8px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
@@ -1006,6 +1011,7 @@ html[dir="rtl"] .tegiwa-variant-option { padding: 13px 13px 13px 46px; }
 .tegiwa-variant-title { color: var(--text-strong); font-size: .75rem; font-weight: 780; }
 .tegiwa-variant-option strong { color: var(--text); font-size: .75rem; text-align: end; }
 .tegiwa-variant-option small { grid-column: 1 / -1; color: var(--muted); font-size: .66rem; }
+.tegiwa-variant-option .tegiwa-variant-sku { color: var(--text); font-weight: 700; }
 .tegiwa-variant-option small.is-available { color: var(--green); }
 .tegiwa-variant-check { position: absolute; inset-inline-end: 13px; inset-block-start: 50%; display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: transparent; background: var(--surface); transform: translateY(-50%); }
 .tegiwa-variant-check svg { width: 13px; }
@@ -1229,6 +1235,7 @@ html[dir="rtl"] .drawer-panel { transform: translateX(-105%); }
 .quote-item button { align-self: center; }
 .quote-item-copy { min-width: 0; }
 .quote-item-copy p { margin: 5px 0 0; overflow-wrap: anywhere; color: var(--muted); font-size: .72rem; }
+.quote-item-copy .quote-item-sku { color: var(--text); font-weight: 700; }
 .quote-item-actions { display: grid; gap: 8px; justify-items: end; }
 .quote-quantity { display: grid; grid-template-columns: 30px 34px 30px; align-items: center; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface-2); }
 .quote-quantity button { width: 30px; height: 30px; padding: 0; border: 0; color: var(--text); background: transparent; cursor: pointer; }

@@ -7,6 +7,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = path.join(repo, 'api', 'data');
 const catalogDirectory = path.join(dataDirectory, 'tegiwa-catalog-pages');
 const catalogSummaryPath = path.join(dataDirectory, 'tegiwa-catalog-summary.json');
+const stockIndexPath = path.join(dataDirectory, 'tegiwa-stock-index.json');
 const outputFiles = Object.freeze({
   summary: path.join(dataDirectory, 'tegiwa-search-summary.json'),
   terms: path.join(dataDirectory, 'tegiwa-search-terms.json'),
@@ -21,6 +22,7 @@ const maximumShards = 512;
 const metadataRecordBytes = 16;
 const pairRecordBytes = 16;
 const stockKeyBytes = 12;
+const maximumSkusPerProduct = 2_048;
 
 function normalizeSearchText(value) {
   return String(value || '')
@@ -36,6 +38,15 @@ function searchTokens(value) {
   return normalizeSearchText(value).split(' ').filter(Boolean);
 }
 
+function exactPartNumberSearchTerm(value) {
+  const identity = String(value || '')
+    .normalize('NFKC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('en-US')
+  return identity ? `projxsku${createHash('sha256').update(identity, 'utf8').digest('hex')}` : '';
+}
+
 function stockKeyBytesForTitle(title) {
   const normalized = String(title || '')
     .normalize('NFKC')
@@ -43,6 +54,32 @@ function stockKeyBytesForTitle(title) {
     .replace(/\s+/g, ' ')
     .toLocaleLowerCase('en-US');
   return createHash('sha256').update(normalized, 'utf8').digest().subarray(0, stockKeyBytes);
+}
+
+function stockKeyForTitle(title) {
+  const normalized = String(title || '')
+    .normalize('NFKC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('en-US');
+  return createHash('sha256').update(normalized, 'utf8').digest('base64url').slice(0, 16);
+}
+
+function readPublicSkuIndex() {
+  const source = fs.readFileSync(stockIndexPath);
+  const stockIndex = JSON.parse(source.toString('utf8'));
+  if (!stockIndex || stockIndex.version !== 2 || !stockIndex.products
+    || typeof stockIndex.products !== 'object' || Array.isArray(stockIndex.products)) {
+    throw new Error('The public SKU index is invalid or out of date.');
+  }
+  return { products: stockIndex.products, sha256: createHash('sha256').update(source).digest('hex') };
+}
+
+function publicSkusForTitle(products, title) {
+  const record = products[stockKeyForTitle(title)];
+  if (!Array.isArray(record) || record.length < 6 || record[5] !== 1 || !Array.isArray(record[4])) return [];
+  if (record[4].length > maximumSkusPerProduct) throw new Error('A public SKU group exceeds the search-index safety limit.');
+  return record[4].filter(value => typeof value === 'string' && value.length > 0 && value.length <= 120);
 }
 
 function fnv1a64(value) {
@@ -95,17 +132,23 @@ function addPosting(map, key, documentId) {
   else map.set(key, [documentId]);
 }
 
-function buildIndexes(products) {
+function buildIndexes(products, skuProducts) {
   const terms = new Map();
   const pairs = new Map();
   const pairHashOwners = new Map();
   const names = [];
   const metadata = Buffer.alloc(products.length * metadataRecordBytes);
+  let skuIndexedProductCount = 0;
 
   for (let documentId = 0; documentId < products.length; documentId += 1) {
     const product = products[documentId];
+    const productSkus = publicSkusForTitle(skuProducts, product.title);
+    if (productSkus.length) skuIndexedProductCount += 1;
     const titleTokens = searchTokens(product.title);
-    const combinedTokens = searchTokens(`${product.title} ${product.handle.replace(/[-_]+/g, ' ')}`);
+    const combinedTokens = [
+      ...searchTokens(`${product.title} ${product.handle.replace(/[-_]+/g, ' ')} ${productSkus.join(' ')}`),
+      ...productSkus.map(exactPartNumberSearchTerm).filter(Boolean)
+    ];
     for (const token of new Set(combinedTokens)) addPosting(terms, token, documentId);
 
     const seenPairs = new Set();
@@ -126,7 +169,7 @@ function buildIndexes(products) {
 
   names.sort((left, right) => left.key < right.key ? -1 : (left.key > right.key ? 1 : left.documentId - right.documentId));
   names.forEach((entry, nameRank) => metadata.writeUInt32LE(nameRank, entry.documentId * metadataRecordBytes));
-  return { terms, pairs, metadata };
+  return { terms, pairs, metadata, skuIndexedProductCount };
 }
 
 function postingsBuffer(entries) {
@@ -147,7 +190,8 @@ function sha256(buffer) {
 }
 
 const { summary: catalogSummary, products } = readCatalog();
-const { terms, pairs, metadata } = buildIndexes(products);
+const { products: skuProducts, sha256: skuIndexSha256 } = readPublicSkuIndex();
+const { terms, pairs, metadata, skuIndexedProductCount } = buildIndexes(products, skuProducts);
 const termEntries = [...terms.entries()].sort(([left], [right]) => left < right ? -1 : (left > right ? 1 : 0));
 const pairEntries = [...pairs.entries()].sort(([left], [right]) => left < right ? -1 : (left > right ? 1 : 0));
 
@@ -177,6 +221,8 @@ const searchSummary = {
   version: 1,
   generatedAt,
   productCount: products.length,
+  skuIndexedProductCount,
+  skuIndexSha256,
   pageSize: 100,
   termCount: termEntries.length,
   termPostingCount,
@@ -204,6 +250,7 @@ for (const [filename, buffer] of [
 ]) fs.writeFileSync(filename, buffer);
 
 console.log(`Generated local Tegiwa search index for ${products.length.toLocaleString('en-US')} products.`);
+console.log(`SKU search coverage: ${skuIndexedProductCount.toLocaleString('en-US')} unambiguous products.`);
 console.log(`Terms: ${termEntries.length.toLocaleString('en-US')} unique / ${termPostingCount.toLocaleString('en-US')} postings.`);
 console.log(`Phrases: ${pairEntries.length.toLocaleString('en-US')} unique adjacent pairs / ${pairPostingCount.toLocaleString('en-US')} postings.`);
 console.log(`Index bytes: ${(termDictionaryBuffer.length + termPostings.length + pairDictionary.length + pairPostings.length + metadata.length + summaryBuffer.length).toLocaleString('en-US')}.`);

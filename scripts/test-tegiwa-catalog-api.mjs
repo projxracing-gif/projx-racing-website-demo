@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
+  assertSkuSearchIndexFresh,
   default as productionHandler,
   createTegiwaCatalogHandler,
   normalizeTitleForStock,
@@ -42,15 +44,23 @@ const STOCK_KEY_FIXTURE = 'kvSkN4vT1Bb2VWIN';
 const FIXED_NOW = Date.parse('2026-08-04T12:00:00Z');
 assert.equal(normalizeTitleForStock('  TEGIWA\u00a0 BMW B58 Service Kit  '), 'tegiwa bmw b58 service kit');
 assert.equal(stockKeyForTitle('  TEGIWA\u00a0 BMW B58 Service Kit  '), STOCK_KEY_FIXTURE);
+const fingerprintFixture = '{"version":2,"products":{}}\n';
+const fingerprint = createHash('sha256').update(fingerprintFixture, 'utf8').digest('hex');
+assert.equal(assertSkuSearchIndexFresh(fingerprint, fingerprintFixture), true);
+assert.throws(() => assertSkuSearchIndexFresh(fingerprint, `${fingerprintFixture} `), /stale_search_sku_index/);
 
 const stockIndex = {
-  version: 1,
+  version: 2,
   checkedAt: '2026-08-03',
   productCount: 4_218,
+  skuProductCount: 3,
   availableProductCount: 2_601,
   leadTimes: ['', '2-3 working days'],
   products: {
-    [STOCK_KEY_FIXTURE]: [11796, 12999, 1, 1]
+    [STOCK_KEY_FIXTURE]: [11796, 12999, 1, 1, ['T-B58-SERVICE-KIT'], 1],
+    [stockKeyForTitle('Official Product 001')]: [5000, 5000, 1, 0, ['CAT-001'], 1],
+    [stockKeyForTitle('Official Product 002')]: [6000, 6500, 2, 0, ['CAT-002-A', 'CAT-002-B'], 1],
+    [stockKeyForTitle('Official Product 003')]: [7000, 7000, 1, 0, [], 2]
   }
 };
 
@@ -59,13 +69,35 @@ const noFetch = async () => {
 };
 const validationHandler = createTegiwaCatalogHandler({ fetchImpl: noFetch, stockIndex, now: () => FIXED_NOW });
 
+const legacyTitle = 'Legacy Public Product';
+const legacyHandler = createTegiwaCatalogHandler({
+  fetchImpl: noFetch,
+  now: () => FIXED_NOW,
+  stockIndex: {
+    version: 1,
+    checkedAt: '2026-08-03',
+    productCount: 1,
+    availableProductCount: 1,
+    leadTimes: [''],
+    products: { [stockKeyForTitle(legacyTitle)]: [1000, 1000, 1, 0] }
+  },
+  sitemapManifest: ['https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=1'],
+  catalogSummary: { version: 1, shardCount: 1, shardProductCounts: [1], productCount: 1 },
+  catalogLoader: async () => [['legacy-public-product', legacyTitle, '']]
+});
+const legacyBrowse = await invoke(legacyHandler);
+assert.equal(legacyBrowse.status, 200);
+assert.equal(legacyBrowse.body.meta.skuIndexedProductCount, 0);
+assert.equal(legacyBrowse.body.items[0].sku, null);
+assert.equal(legacyBrowse.body.items[0].skuCount, 0);
+
 const methodRejected = await invoke(validationHandler, { method: 'POST' });
 assert.equal(methodRejected.status, 405);
 assert.equal(methodRejected.headers.allow, 'GET');
 assert.equal(methodRejected.body.error.code, 'method_not_allowed');
 
 assert.equal((await invoke(validationHandler, { query: { q: 'x' } })).status, 400);
-assert.equal((await invoke(validationHandler, { query: { q: 'x'.repeat(81) } })).body.error.code, 'invalid_query');
+assert.equal((await invoke(validationHandler, { query: { q: 'x'.repeat(121) } })).body.error.code, 'invalid_query');
 assert.equal((await invoke(validationHandler, { query: { q: ['brake', 'engine'] } })).body.error.code, 'invalid_parameters');
 assert.equal((await invoke(validationHandler, { query: { handle: 'Upper-Case-Handle' } })).body.error.code, 'invalid_handle');
 assert.equal((await invoke(validationHandler, { query: { handle: 'a'.repeat(256) } })).body.error.code, 'invalid_handle');
@@ -89,6 +121,11 @@ function normalizeSearch(value) {
     .replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function exactSkuSearchTerm(value) {
+  const identity = String(value).normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  return identity ? `projxsku${createHash('sha256').update(identity, 'utf8').digest('hex')}` : '';
+}
+
 function makeSearchIndex(records) {
   const terms = Object.create(null);
   const pairs = Object.create(null);
@@ -100,7 +137,10 @@ function makeSearchIndex(records) {
   };
   records.forEach((record, documentId) => {
     const titleTokens = normalizeSearch(record[1]).split(' ').filter(Boolean);
-    const combined = normalizeSearch(`${record[1]} ${record[0].replace(/[-_]+/g, ' ')}`).split(' ').filter(Boolean);
+    const combined = [
+      ...normalizeSearch(`${record[1]} ${record[0].replace(/[-_]+/g, ' ')} ${(record[3] || []).join(' ')}`).split(' ').filter(Boolean),
+      ...(record[3] || []).map(exactSkuSearchTerm).filter(Boolean)
+    ];
     for (const token of new Set(combined)) add(terms, token, documentId);
     for (let index = 0; index + 1 < titleTokens.length; index += 1) add(pairs, `${titleTokens[index]}\u0001${titleTokens[index + 1]}`, documentId);
     names.push({ documentId, key: `${normalizeSearch(record[1])}\u0000${record[0]}` });
@@ -116,20 +156,32 @@ const searchRecords = [
   ...Array.from({ length: 135 }, (_, index) => [
     `engine-management-ecu-${String(index + 1).padStart(3, '0')}`,
     `Link Engine Management ECU Controller ${String(index + 1).padStart(3, '0')}`,
-    `https://cdn.shopify.com/s/files/1/0000/engine-${index + 1}.jpg`
+    `https://cdn.shopify.com/s/files/1/0000/engine-${index + 1}.jpg`,
+    [`SKUONLYX-${String(index + 1).padStart(3, '0')}`]
   ]),
   ...Array.from({ length: 100 }, (_, index) => [
     `ecu-engine-management-${String(index + 136).padStart(3, '0')}`,
     `Link ECU Engine Management Module ${String(index + 136).padStart(3, '0')}`,
-    `https://cdn.shopify.com/s/files/1/0000/engine-${index + 136}.jpg`
+    `https://cdn.shopify.com/s/files/1/0000/engine-${index + 136}.jpg`,
+    [`SKUONLYX-${String(index + 136).padStart(3, '0')}`]
   ]),
   ...Array.from({ length: 8 }, (_, index) => [
     `performance-brake-pads-${String(index + 1).padStart(3, '0')}`,
     `Performance Brake Pads ${String(index + 1).padStart(3, '0')}`,
-    `https://cdn.shopify.com/s/files/1/0000/brake-${index + 1}.jpg`
-  ])
+    `https://cdn.shopify.com/s/files/1/0000/brake-${index + 1}.jpg`,
+    [`BRAKEONLY-${String(index + 1).padStart(3, '0')}`]
+  ]),
+  ['punctuation-sku-a', 'Fixture Hose Joiner A', '', ['FMHJ60-500']],
+  ['punctuation-sku-b', 'Fixture Hose Joiner B', '', ['FMHJ-60-500']],
+  ['multi-sku-fixture', 'Fixture Multi Option Product', '', ['16.1111', '16-1111', 'MULTI-EXTRA']],
+  ['alpha-sku-fixture', 'Fixture Alphabetic Identifier', '', ['GPS']],
+  ['numeric-sku-fixture', 'Fixture Numeric Identifier', '', ['0221504464']],
+  ['long-sku-fixture', 'Fixture Long Identifier', '', [`LONG-${'X'.repeat(76)}`]],
+  ['separator-heavy-sku-fixture', 'Fixture Separator Heavy Identifier', '', ['A-1-B-2-C-3-D-4-E-5-F-6-G-7-H-8-I-9-J-10-K-11']],
+  ['bmw-m3-fixture', 'BMW M3 Suspension Package', '', ['NOT-THE-TITLE']]
 ];
-const searchCatalogShards = [searchRecords.slice(0, 80), searchRecords.slice(80, 170), searchRecords.slice(170)];
+const searchCatalogShards = [searchRecords.slice(0, 80), searchRecords.slice(80, 170), searchRecords.slice(170)]
+  .map(shard => shard.map(record => record.slice(0, 3)));
 const searchCatalogSummary = {
   version: 1,
   shardCount: searchCatalogShards.length,
@@ -142,14 +194,16 @@ const searchProducts = Object.create(null);
 let searchAvailableCount = 0;
 searchRecords.forEach((record, index) => {
   const status = index % 5;
-  if (status === 4) return;
-  searchProducts[stockKeyForTitle(record[1])] = [10_000 + index, 10_500 + index, status, 0];
+  searchProducts[stockKeyForTitle(record[1])] = status === 4
+    ? [null, null, null, 0, record[3], 1]
+    : [10_000 + index, 10_500 + index, status, 0, record[3], 1];
   if (status === 1 || status === 2) searchAvailableCount += 1;
 });
 const searchStockIndex = {
-  version: 1,
+  version: 2,
   checkedAt: '2026-08-03',
   productCount: searchRecords.length,
+  skuProductCount: searchRecords.length,
   availableProductCount: searchAvailableCount,
   leadTimes: [''],
   products: searchProducts
@@ -177,11 +231,56 @@ assert.equal(searchPageOne.body.meta.corrected, false);
 assert.equal(searchPageOne.body.items[0].title, 'Link Engine Management ECU Controller 001');
 assert.equal(searchPageOne.body.items[0].vendor, null);
 assert.equal(searchPageOne.body.items[0].category, null);
+assert.equal(searchPageOne.body.items[0].sku, 'SKUONLYX-001');
+assert.equal(searchPageOne.body.items[0].skuCount, 1);
+assert.equal(searchPageOne.body.items[0].skuState, 'exact');
 assert.match(searchPageOne.headers['cache-control'], /s-maxage=300/);
 assert.equal(searchPageOne.headers['x-content-type-options'], 'nosniff');
 assert.equal(searchPageOne.headers['cross-origin-resource-policy'], 'same-origin');
 assert.equal(searchPageOne.headers['access-control-allow-origin'], undefined);
 assert.equal(searchPageOne.headers['ratelimit-policy'], '120;w=60');
+
+const skuSearch = await invoke(searchHandler, { query: { q: 'skuonlyx-117' } });
+assert.equal(skuSearch.status, 200);
+assert.equal(skuSearch.body.meta.totalResults, 1);
+assert.equal(skuSearch.body.items[0].handle, 'engine-management-ecu-117');
+assert.equal(skuSearch.body.items[0].sku, 'SKUONLYX-117');
+assert.equal(skuSearch.body.items[0].matchedSku, 'SKUONLYX-117');
+assert.equal(skuSearch.body.meta.canonicalQuery, 'skuonlyx-117');
+
+for (const [query, handle] of [
+  ['FMHJ60-500', 'punctuation-sku-a'],
+  ['FMHJ-60-500', 'punctuation-sku-b'],
+  ['GPS', 'alpha-sku-fixture'],
+  ['0221504464', 'numeric-sku-fixture']
+]) {
+  const result = await invoke(searchHandler, { query: { q: query } });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.items.map(item => item.handle), [handle]);
+  assert.equal(result.body.items[0].matchedSku, query);
+  assert.equal(result.body.meta.canonicalQuery, query);
+}
+
+const multiSkuExact = await invoke(searchHandler, { query: { q: '16.1111' } });
+assert.equal(multiSkuExact.status, 200);
+assert.equal(multiSkuExact.body.items[0].handle, 'multi-sku-fixture');
+assert.equal(multiSkuExact.body.items[0].sku, null);
+assert.equal(multiSkuExact.body.items[0].skuCount, 3);
+assert.equal(multiSkuExact.body.items[0].skuState, 'multiple');
+assert.equal(multiSkuExact.body.items[0].matchedSku, '16.1111');
+
+const longSku = `LONG-${'X'.repeat(76)}`;
+assert.equal(longSku.length, 81);
+assert.equal((await invoke(searchHandler, { query: { q: longSku } })).body.items[0].matchedSku, longSku);
+const separatorHeavySku = 'A-1-B-2-C-3-D-4-E-5-F-6-G-7-H-8-I-9-J-10-K-11';
+assert.ok(normalizeSearch(separatorHeavySku).split(' ').length > 20);
+assert.equal((await invoke(searchHandler, { query: { q: separatorHeavySku } })).body.items[0].matchedSku, separatorHeavySku);
+
+const normalBmwSearch = await invoke(searchHandler, { query: { q: 'BMW M3' } });
+assert.equal(normalBmwSearch.status, 200);
+assert.ok(normalBmwSearch.body.items.some(item => item.handle === 'bmw-m3-fixture'));
+assert.equal(normalBmwSearch.body.meta.canonicalQuery, 'bmw m3');
+assert.equal(normalBmwSearch.body.items.some(item => Object.hasOwn(item, 'matchedSku')), false);
 
 const searchPageTwo = await invoke(searchHandler, { query: { q: 'engine management ecu', page: '2' } });
 const searchPageThree = await invoke(searchHandler, { query: { q: 'engine management ecu', page: '3' } });
@@ -355,6 +454,7 @@ assert.deepEqual(browsePageOne.body.meta, {
   stockSnapshotStale: false,
   catalogProductCount: 206,
   stockIndexedProductCount: 4_218,
+  skuIndexedProductCount: 3,
   availableProductCount: 2_601,
   page: 1,
   pageSize: 100,
@@ -362,6 +462,15 @@ assert.deepEqual(browsePageOne.body.meta, {
 });
 assert.match(browsePageOne.body.nextCursor, /^[A-Za-z0-9_-]+$/);
 assert.equal(browsePageOne.body.items[0].image.src, 'https://cdn.shopify.com/s/files/1/0000/product-001.jpg');
+assert.equal(browsePageOne.body.items[0].sku, 'CAT-001');
+assert.equal(browsePageOne.body.items[0].skuCount, 1);
+assert.equal(browsePageOne.body.items[0].skuState, 'exact');
+assert.equal(browsePageOne.body.items[1].sku, null);
+assert.equal(browsePageOne.body.items[1].skuCount, 2);
+assert.equal(browsePageOne.body.items[1].skuState, 'multiple');
+assert.equal(browsePageOne.body.items[2].sku, null);
+assert.equal(browsePageOne.body.items[2].skuCount, 0);
+assert.equal(browsePageOne.body.items[2].skuState, 'open_for_exact');
 
 const browsePageTwo = await invoke(browseHandler, { query: { page: '2' } });
 assert.equal(browsePageTwo.status, 200);
@@ -415,10 +524,14 @@ assert.equal(productionBrowse.status, 200);
 assert.equal(productionBrowse.body.items.length, 100);
 assert.equal(productionBrowse.body.meta.catalogProductCount, 193_253);
 assert.equal(productionBrowse.body.meta.stockIndexedProductCount, 193_844);
+assert.equal(productionBrowse.body.meta.skuIndexedProductCount, 188_832);
 assert.equal(productionBrowse.body.meta.availableProductCount, 26_349);
 assert.equal(productionBrowse.body.meta.page, 1);
 assert.equal(productionBrowse.body.meta.pageSize, 100);
 assert.equal(productionBrowse.body.meta.totalPages, 1_933);
+assert.equal(productionBrowse.body.items[0].handle, 'garmin-tread-powersport-sat-nav');
+assert.equal(productionBrowse.body.items[0].sku, 'GAR010-02406-10');
+assert.equal(productionBrowse.body.items[0].skuCount, 1);
 
 const productionPageTwo = await invoke(productionHandler, { query: { page: '2' } });
 assert.equal(productionPageTwo.status, 200);
@@ -450,6 +563,31 @@ assert.ok(productionSearch.body.meta.totalResults > 100);
 assert.ok(productionSearch.body.meta.totalPages > 1);
 assert.equal(productionSearch.body.meta.canonicalQuery, 'engine management ecu');
 assert.ok(productionSearch.body.items.every(item => item.handle && item.title && item.image?.src));
+assert.ok(productionSearch.body.items.every(item => Object.hasOwn(item, 'sku') && Number.isInteger(item.skuCount)));
+const productionSkuSearch = await invoke(productionHandler, { query: { q: 'GAR010-02406-10' } });
+assert.equal(productionSkuSearch.status, 200);
+assert.ok(productionSkuSearch.body.items.some(item => item.handle === 'garmin-tread-powersport-sat-nav'));
+assert.ok(productionSkuSearch.body.items.every(item => item.skuCount > 0));
+assert.ok(productionSkuSearch.body.items.every(item => item.matchedSku === 'GAR010-02406-10'));
+assert.equal(productionSkuSearch.body.meta.canonicalQuery, 'GAR010-02406-10');
+
+for (const query of ['16.1111', 'FMHJ60-500', 'FMHJ-60-500', 'GPS', '0221504464']) {
+  const result = await invoke(productionHandler, { query: { q: query } });
+  assert.equal(result.status, 200);
+  assert.ok(result.body.items.length > 0, `Expected a production SKU match for ${query}.`);
+  assert.ok(result.body.items.every(item => item.matchedSku.toLocaleLowerCase('en-US') === query.toLocaleLowerCase('en-US')));
+  assert.equal(result.body.meta.canonicalQuery, query);
+}
+const punctuationA = await invoke(productionHandler, { query: { q: 'FMHJ60-500' } });
+const punctuationB = await invoke(productionHandler, { query: { q: 'FMHJ-60-500' } });
+assert.equal(punctuationA.body.items.some(item => punctuationB.body.items.some(other => other.handle === item.handle)), false);
+const productionMultiSku = await invoke(productionHandler, { query: { q: 'KL091672R' } });
+assert.equal(productionMultiSku.status, 200);
+assert.ok(productionMultiSku.body.items.some(item => item.skuCount > 1 && item.skuState === 'multiple' && item.matchedSku === 'KL091672R'));
+const productionNormalBmw = await invoke(productionHandler, { query: { q: 'BMW M3' } });
+assert.equal(productionNormalBmw.status, 200);
+assert.equal(productionNormalBmw.body.meta.canonicalQuery, 'bmw m3');
+assert.equal(productionNormalBmw.body.items.some(item => Object.hasOwn(item, 'matchedSku')), false);
 const productionSearchPageTwo = await invoke(productionHandler, { query: { q: 'engine management ecu', page: '2' } });
 assert.equal(productionSearchPageTwo.body.items.length, 100);
 assert.equal(new Set([
@@ -495,6 +633,8 @@ const detailHandler = createTegiwaCatalogHandler({
       vendor: '<span>Tegiwa</span>',
       type: 'Track <em>Parts</em>',
       description: '<p>Fast <strong>part</strong>.</p><script>steal()</script>',
+      sku: 'RACE-KIT-PARENT',
+      mpn: 'MFG-RACE-KIT',
       available: true,
       inventory_quantity: 91,
       inventory_policy: 'continue',
@@ -504,15 +644,20 @@ const detailHandler = createTegiwaCatalogHandler({
         'javascript:alert(1)',
         'https://evil.example/race-kit.jpg'
       ],
-      variants: [{
-        id: 777,
-        title: '<b>Black</b>',
-        available: true,
-        price: 12500,
-        sku: 'SECRET-SKU',
-        inventory_quantity: 42,
-        inventory_management: 'shopify'
-      }]
+      variants: [
+        {
+          id: 777,
+          title: '<b>Black</b>',
+          available: true,
+          price: 12500,
+          sku: 'RACE-BLK-01',
+          inventory_quantity: 42,
+          inventory_management: 'shopify'
+        },
+        { id: 778, title: 'No identifier', available: false, price: 12500, sku: '' },
+        { id: 779, title: 'Red', available: true, price: 12500, sku: '<b>RACE-RED-02</b>' },
+        { id: 780, title: 'Unsafe', available: true, price: 12500, sku: 'javascript:alert(1)' }
+      ]
     });
   }
 });
@@ -526,23 +671,57 @@ assert.equal(detail.body.product.vendor, 'Tegiwa');
 assert.equal(detail.body.product.category, 'Track Parts');
 assert.equal(detail.body.product.images.length, 1);
 assert.equal(detail.body.product.image.src, 'https://cdn.shopify.com/s/files/1/0000/race-kit.jpg');
-assert.deepEqual(detail.body.product.variants, [{
-  title: 'Black',
-  available: true,
-  price: { currency: 'GBP', amount: 125 }
-}]);
+assert.equal(detail.body.product.sku, null);
+assert.equal(detail.body.product.skuCount, 3);
+assert.equal(detail.body.product.skuState, 'multiple');
+assert.deepEqual(detail.body.product.skus, ['RACE-KIT-PARENT', 'RACE-BLK-01', 'RACE-RED-02']);
+assert.equal(detail.body.product.mpn, 'MFG-RACE-KIT');
+assert.equal(detail.body.product.mpnCount, 1);
+assert.deepEqual(detail.body.product.mpns, ['MFG-RACE-KIT']);
+assert.deepEqual(detail.body.product.variants, [
+  { title: 'Black', sku: 'RACE-BLK-01', mpn: null, available: true, price: { currency: 'GBP', amount: 125 } },
+  { title: 'No identifier', sku: null, mpn: null, available: false, price: { currency: 'GBP', amount: 125 } },
+  { title: 'Red', sku: 'RACE-RED-02', mpn: null, available: true, price: { currency: 'GBP', amount: 125 } },
+  { title: 'Unsafe', sku: null, mpn: null, available: true, price: { currency: 'GBP', amount: 125 } }
+]);
 assert.deepEqual(detail.body.product.price, {
   currency: 'GBP', min: 125, max: 125, note: 'Tegiwa online price'
 });
 assert.equal(detail.body.meta.catalogProductCount, 4_218);
 
 const serializedDetail = JSON.stringify(detail.body).toLowerCase();
-for (const forbidden of ['inventory_quantity', 'inventory_policy', 'inventory_management', 'secret-sku', '"sku"', '"id"']) {
+for (const forbidden of ['inventory_quantity', 'inventory_policy', 'inventory_management', 'javascript:alert', '"id"']) {
   assert.equal(serializedDetail.includes(forbidden), false, `Public detail leaked forbidden field: ${forbidden}`);
 }
 assert.equal(serializedDetail.includes('private.example'), false);
 assert.equal(serializedDetail.includes('evil.example'), false);
 assert.equal(serializedDetail.includes('<script'), false);
+
+const dedupeTitle = 'Large Deduplicated SKU Product';
+const dedupeSkus = Array.from({ length: 1_100 }, (_, index) => `DEDUP-${String(index).padStart(4, '0')}`);
+const dedupeHandler = createTegiwaCatalogHandler({
+  stockIndex: {
+    version: 2,
+    checkedAt: '2026-08-03',
+    productCount: 1,
+    skuProductCount: 1,
+    availableProductCount: 1,
+    leadTimes: [''],
+    products: { [stockKeyForTitle(dedupeTitle)]: [1000, 1000, 1, 0, dedupeSkus, 1] }
+  },
+  now: () => FIXED_NOW,
+  fetchImpl: async () => jsonResponse({
+    handle: 'large-deduplicated-sku-product',
+    title: dedupeTitle,
+    sku: dedupeSkus[0],
+    variants: dedupeSkus.map((sku, index) => ({ title: `Option ${index + 1}`, sku, available: true, price: 1000 }))
+  })
+});
+const dedupeDetail = await invoke(dedupeHandler, { query: { handle: 'large-deduplicated-sku-product' } });
+assert.equal(dedupeDetail.status, 200);
+assert.equal(dedupeDetail.body.product.skuCount, 1_100);
+assert.equal(dedupeDetail.body.product.skus[0], 'DEDUP-0000');
+assert.equal(dedupeDetail.body.product.skus.at(-1), 'DEDUP-1099');
 
 const failingHandler = createTegiwaCatalogHandler({
   stockIndex,
@@ -562,12 +741,12 @@ assert.equal(upstreamFailure.headers['cache-control'], 'no-store');
 
 console.log('PASS: Tegiwa catalog API method, origin and parameter validation');
 console.log('PASS: normalized-title stock/RRP join with the generated-key fixture');
-console.log('PASS: local full-catalog search, phrase ranking, typo correction and field sanitization');
+console.log('PASS: local full-catalog title/SKU search, phrase ranking, typo correction and field sanitization');
 console.log('PASS: 100-result search pagination has stable totals and no skips or duplicate products');
 console.log('PASS: full-result stock/pricing filters and relevance/name/price sorts run before pagination');
 console.log('PASS: local autocomplete, Arabic/Kuwaiti aliases, unknown Arabic safety, XSS rejection and bounded rate limiting');
 console.log('PASS: bundled public-catalog browsing with numbered pages and compatible opaque cursors');
 console.log('PASS: generated 194-shard catalog snapshot loads through the production file path');
-console.log('PASS: product-detail sanitization, image allow-list and variant caps');
+console.log('PASS: product/variant SKU and MPN sanitization, missing identifiers, image allow-list and variant caps');
 console.log('PASS: upstream failures return structured, non-cacheable errors');
-console.log('PASS: exact inventory, SKU, private URLs and raw stock data are not exposed');
+console.log('PASS: duplicate-title SKU suppression keeps exact inventory, private URLs and raw stock data unexposed');

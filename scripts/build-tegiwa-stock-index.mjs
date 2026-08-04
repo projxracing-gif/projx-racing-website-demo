@@ -4,6 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const catalogSummaryPath = path.join(repo, 'api', 'data', 'tegiwa-catalog-summary.json');
+const catalogDirectory = path.join(repo, 'api', 'data', 'tegiwa-catalog-pages');
+const maximumPublicSkusPerProduct = 2_048;
+const maximumSkuLength = 120;
 const [inputArgument, checkedAtArgument, outputArgument] = process.argv.slice(2);
 
 if (!inputArgument || !checkedAtArgument) {
@@ -35,17 +39,52 @@ const normalizeTitle = value => String(value || '')
   .replace(/\s+/g, ' ')
   .toLocaleLowerCase('en-US');
 
-const normalizeSku = value => String(value || '')
+const publicSku = value => {
+  const normalized = String(value || '')
   .normalize('NFKC')
   .trim()
-  .replace(/\s+/g, ' ')
-  .toLocaleLowerCase('en-US');
+  .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+  .replace(/\s+/g, ' ');
+  if (!normalized || normalized.length > maximumSkuLength || !/[\p{L}\p{N}]/u.test(normalized)) return '';
+  if (/^(?:data|file|ftp|https?|javascript|vbscript):/i.test(normalized) || /[<>`{}]/.test(normalized)) return '';
+  return normalized;
+};
+
+const skuIdentity = value => value.toLocaleLowerCase('en-US');
 
 const publicKey = normalizedTitle => crypto
   .createHash('sha256')
   .update(normalizedTitle, 'utf8')
   .digest('base64url')
   .slice(0, 16);
+
+function loadCatalogTitleCounts() {
+  const summary = JSON.parse(fs.readFileSync(catalogSummaryPath, 'utf8'));
+  if (!summary || summary.version !== 1 || !Number.isInteger(summary.shardCount)
+    || summary.shardCount < 1 || summary.shardCount > 512
+    || !Number.isInteger(summary.productCount) || summary.productCount < 1
+    || !Array.isArray(summary.shardProductCounts) || summary.shardProductCounts.length !== summary.shardCount) {
+    throw new Error('The public catalog summary is invalid; SKU safety could not be established.');
+  }
+  const counts = new Map();
+  let productCount = 0;
+  for (let shardIndex = 0; shardIndex < summary.shardCount; shardIndex += 1) {
+    const filename = `${String(shardIndex).padStart(3, '0')}.json`;
+    const records = JSON.parse(fs.readFileSync(path.join(catalogDirectory, filename), 'utf8'));
+    if (!Array.isArray(records) || records.length !== summary.shardProductCounts[shardIndex]) {
+      throw new Error(`Public catalog shard ${filename} does not match its summary.`);
+    }
+    for (const record of records) {
+      const normalizedTitle = Array.isArray(record) && record.length === 3 ? normalizeTitle(record[1]) : '';
+      if (!normalizedTitle) throw new Error(`Public catalog shard ${filename} contains an invalid title.`);
+      const hash = publicKey(normalizedTitle);
+      counts.set(hash, (counts.get(hash) || 0) + 1);
+      productCount += 1;
+    }
+  }
+  if (productCount !== summary.productCount) throw new Error('The public catalog product count changed during SKU safety validation.');
+  return counts;
+}
 
 function parsePence(value) {
   const normalized = String(value || '').trim().replace(/^£\s*/, '').replaceAll(',', '');
@@ -167,11 +206,13 @@ async function parseCsv(file, onRow) {
 
 const productsByTitle = new Map();
 const titleByHash = new Map();
+const catalogTitleCounts = loadCatalogTitleCounts();
 let headers;
 let headerIndexes;
 let rowCount = 0;
 let blankTitleRows = 0;
 let blankSkuRows = 0;
+let unsafeSkuRows = 0;
 let invalidPriceRows = 0;
 
 await parseCsv(input, row => {
@@ -200,19 +241,26 @@ await parseCsv(input, row => {
 
   let product = productsByTitle.get(normalizedTitle);
   if (!product) {
-    product = { hash, variants: new Map() };
+    product = { hash, variants: new Map(), skus: new Map() };
     productsByTitle.set(normalizedTitle, product);
   }
 
-  const sku = normalizeSku(get('Variant SKU'));
+  const rawSku = get('Variant SKU');
+  const sku = publicSku(rawSku);
   if (!sku) {
-    blankSkuRows += 1;
+    if (String(rawSku || '').trim()) unsafeSkuRows += 1;
+    else blankSkuRows += 1;
     return;
   }
-  let variant = product.variants.get(sku);
+  const skuKey = skuIdentity(sku);
+  if (!product.skus.has(skuKey)) product.skus.set(skuKey, sku);
+  if (product.skus.size > maximumPublicSkusPerProduct) {
+    throw new Error(`Product ${hash} exceeds the safe public SKU limit of ${maximumPublicSkusPerProduct}.`);
+  }
+  let variant = product.variants.get(skuKey);
   if (!variant) {
     variant = { signature: '', ambiguous: false, invalidPrice: false, value: null };
-    product.variants.set(sku, variant);
+    product.variants.set(skuKey, variant);
   }
 
   const pricePence = parsePence(get('RRP Inc VAT'));
@@ -233,14 +281,31 @@ await parseCsv(input, row => {
     return;
   }
   variant.signature = signature;
-  variant.value = { pricePence, ...availability };
+  variant.value = { sku, pricePence, ...availability };
 });
 
 const productRows = [];
+const skuOnlyRows = [];
 let quarantinedVariants = 0;
 let excludedProducts = 0;
+let ambiguousCatalogTitleProducts = 0;
+let unmatchedCatalogTitleProducts = 0;
+let suppressedAmbiguousSkus = 0;
+let maximumSkuCount = 0;
 
 for (const product of productsByTitle.values()) {
+  const allSkus = [...product.skus.values()].sort((left, right) =>
+    left.localeCompare(right, 'en', { numeric: true, sensitivity: 'base' }) || left.localeCompare(right, 'en'));
+  maximumSkuCount = Math.max(maximumSkuCount, allSkus.length);
+  const catalogTitleCount = catalogTitleCounts.get(product.hash) || 0;
+  const publicSkus = catalogTitleCount === 1 ? allSkus : [];
+  const skuStateCode = publicSkus.length ? 1 : (allSkus.length && catalogTitleCount > 1 ? 2 : 0);
+  if (allSkus.length && catalogTitleCount > 1) {
+    ambiguousCatalogTitleProducts += 1;
+    suppressedAmbiguousSkus += allSkus.length;
+  } else if (allSkus.length && catalogTitleCount === 0) {
+    unmatchedCatalogTitleProducts += 1;
+  }
   const variants = [];
   for (const variant of product.variants.values()) {
     if (variant.invalidPrice || variant.ambiguous || !variant.value) {
@@ -251,6 +316,7 @@ for (const product of productsByTitle.values()) {
   }
   if (!variants.length) {
     excludedProducts += 1;
+    if (publicSkus.length || skuStateCode === 2) skuOnlyRows.push({ hash: product.hash, skus: publicSkus, skuStateCode });
     continue;
   }
 
@@ -269,7 +335,9 @@ for (const product of productsByTitle.values()) {
     minPence: Math.min(...prices),
     maxPence: Math.max(...prices),
     statusCode,
-    leadTime: matchingLeads.size === 1 ? [...matchingLeads][0] : ''
+    leadTime: matchingLeads.size === 1 ? [...matchingLeads][0] : '',
+    skus: publicSkus,
+    skuStateCode
   });
 }
 
@@ -287,14 +355,23 @@ for (const product of productRows.sort((a, b) => a.hash.localeCompare(b.hash, 'e
     product.minPence,
     product.maxPence,
     product.statusCode,
-    leadTimeIndexes.get(product.leadTime) || 0
+    leadTimeIndexes.get(product.leadTime) || 0,
+    product.skus,
+    product.skuStateCode
   ];
 }
 
+for (const product of skuOnlyRows.sort((a, b) => a.hash.localeCompare(b.hash, 'en'))) {
+  if (Object.hasOwn(products, product.hash)) throw new Error(`Duplicate public product key detected: ${product.hash}`);
+  products[product.hash] = [null, null, null, 0, product.skus, product.skuStateCode];
+}
+
 const publicIndex = {
-  version: 1,
+  version: 2,
   checkedAt,
   productCount: productRows.length,
+  skuProductCount: productRows.filter(product => product.skuStateCode === 1).length
+    + skuOnlyRows.filter(product => product.skuStateCode === 1).length,
   availableProductCount: productRows.filter(product => product.statusCode === 1 || product.statusCode === 2).length,
   leadTimes,
   products
@@ -306,6 +383,8 @@ fs.writeFileSync(temporaryOutput, `${JSON.stringify(publicIndex)}\n`, 'utf8');
 fs.renameSync(temporaryOutput, output);
 
 console.log(`Public Tegiwa stock index written with ${publicIndex.productCount} products and ${publicIndex.availableProductCount} available products.`);
-console.log(`Processed ${rowCount} private rows; quarantined ${quarantinedVariants} ambiguous/invalid-price variants, ${blankSkuRows} blank-SKU rows and ${invalidPriceRows} invalid/zero-price rows.`);
+console.log(`Published customer-safe SKUs for ${publicIndex.skuProductCount} unambiguous catalog products; maximum ${maximumSkuCount} SKUs on one feed title.`);
+console.log(`Suppressed ${suppressedAmbiguousSkus} SKUs across ${ambiguousCatalogTitleProducts} ambiguous duplicate-title groups; ${unmatchedCatalogTitleProducts} feed titles had no catalog match.`);
+console.log(`Processed ${rowCount} private rows; quarantined ${quarantinedVariants} ambiguous/invalid-price variants, ${blankSkuRows} blank-SKU rows, ${unsafeSkuRows} unsafe-SKU rows and ${invalidPriceRows} invalid/zero-price rows.`);
 console.log(`Excluded ${excludedProducts} products without a safe variant; ignored ${blankTitleRows} blank-title rows; verified ${titleByHash.size} unique title hashes with zero collisions.`);
 console.log(`Output: ${path.relative(repo, output)} (${fs.statSync(output).size} bytes).`);

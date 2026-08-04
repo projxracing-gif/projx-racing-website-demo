@@ -156,17 +156,26 @@ const tegiwaCatalogDirectory = path.join(repo, 'api/data/tegiwa-catalog-pages');
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(repo, 'vercel.json'), 'utf8'));
 const tegiwaEntries = Object.entries(tegiwaIndex.products || {});
 const tegiwaLeadTimes = Array.isArray(tegiwaIndex.leadTimes) ? tegiwaIndex.leadTimes : [];
-assert(tegiwaIndex.version === 1, 'Tegiwa public stock-index version is invalid.');
+assert(tegiwaIndex.version === 2, 'Tegiwa public stock/SKU-index version is invalid.');
 assert(/^\d{4}-\d{2}-\d{2}$/.test(tegiwaIndex.checkedAt || ''), 'Tegiwa stock-index check date is missing.');
-assert(tegiwaEntries.length === tegiwaIndex.productCount && tegiwaEntries.length > 100_000, 'Tegiwa stock-index product count is incomplete.');
+const tegiwaPricedEntries = tegiwaEntries.filter(([, value]) => Number.isInteger(value?.[0]) && Number.isInteger(value?.[1]));
+const tegiwaSkuEntries = tegiwaEntries.filter(([, value]) => value?.[5] === 1);
+assert(tegiwaPricedEntries.length === tegiwaIndex.productCount && tegiwaEntries.length >= tegiwaIndex.productCount && tegiwaEntries.length > 100_000, 'Tegiwa stock-index product count is incomplete.');
+assert(tegiwaSkuEntries.length === tegiwaIndex.skuProductCount && tegiwaIndex.skuProductCount > 100_000, 'Tegiwa customer-safe SKU coverage count is invalid.');
 assert(Number(tegiwaIndex.availableProductCount) > 0 && tegiwaIndex.availableProductCount <= tegiwaIndex.productCount, 'Tegiwa available-product count is invalid.');
 assert(tegiwaLeadTimes.length > 0 && tegiwaLeadTimes.every(value => typeof value === 'string' && value.length <= 120), 'Tegiwa public lead-time table is invalid.');
 assert(tegiwaEntries.every(([key, value]) => /^[A-Za-z0-9_-]{16}$/.test(key)
-  && Array.isArray(value) && value.length === 4
-  && Number.isInteger(value[0]) && value[0] >= 0
-  && Number.isInteger(value[1]) && value[1] >= value[0]
-  && [0, 1, 2, 3].includes(value[2])
-  && Number.isInteger(value[3]) && value[3] >= 0 && value[3] < tegiwaLeadTimes.length), 'Tegiwa public stock-index record contract is invalid.');
+  && Array.isArray(value) && value.length === 6
+  && ((Number.isInteger(value[0]) && value[0] >= 0
+    && Number.isInteger(value[1]) && value[1] >= value[0]
+    && [0, 1, 2, 3].includes(value[2]))
+    || (value[0] === null && value[1] === null && value[2] === null))
+  && Number.isInteger(value[3]) && value[3] >= 0 && value[3] < tegiwaLeadTimes.length
+  && Array.isArray(value[4]) && value[4].length <= 2_048
+  && value[4].every(sku => typeof sku === 'string' && sku.length > 0 && sku.length <= 120
+    && /[\p{L}\p{N}]/u.test(sku) && !/^(?:data|file|ftp|https?|javascript|vbscript):/i.test(sku) && !/[<>`{}]/.test(sku))
+  && [0, 1, 2].includes(value[5])
+  && (value[5] === 1 ? value[4].length > 0 : value[4].length === 0)), 'Tegiwa public stock/SKU-index record contract is invalid.');
 assert(tegiwaEntries.filter(([, value]) => value[2] === 1 || value[2] === 2).length === tegiwaIndex.availableProductCount, 'Tegiwa available-product aggregate does not match its records.');
 assert(tegiwaManifest.version === 1 && tegiwaManifest.sitemapCount === tegiwaManifest.sitemaps?.length && tegiwaManifest.sitemapCount > 100 && tegiwaManifest.sitemapCount <= 512, 'Tegiwa public sitemap manifest is incomplete.');
 assert(tegiwaManifest.sitemaps.every(value => /^https:\/\/www\.tegiwa\.com\/sitemap_products[^/]*\.xml\?/.test(value)), 'Tegiwa sitemap manifest contains an unapproved source.');
@@ -175,6 +184,7 @@ const tegiwaCatalogShardFiles = fs.existsSync(tegiwaCatalogDirectory)
   : [];
 assert(tegiwaCatalogShardFiles.length === tegiwaManifest.sitemapCount, 'Tegiwa public catalog shard count does not match its manifest.');
 const tegiwaCatalogHandles = new Set();
+const tegiwaCatalogTitleCounts = new Map();
 const tegiwaCatalogShardCounts = [];
 let tegiwaCatalogProductCount = 0;
 let tegiwaCatalogImageCount = 0;
@@ -200,6 +210,8 @@ for (const [shardIndex, filename] of tegiwaCatalogShardFiles.entries()) {
     if (tegiwaCatalogHandles.has(record[0])) tegiwaCatalogRecordsValid = false;
     tegiwaCatalogHandles.add(record[0]);
     const normalizedTitle = record[1].normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
+    const publicStockKey = createHash('sha256').update(normalizedTitle, 'utf8').digest('base64url').slice(0, 16);
+    tegiwaCatalogTitleCounts.set(publicStockKey, (tegiwaCatalogTitleCounts.get(publicStockKey) || 0) + 1);
     const expectedStockKey = createHash('sha256').update(normalizedTitle, 'utf8').digest().subarray(0, 12);
     const metadataOffset = tegiwaCatalogProductCount * 16;
     if (metadataOffset + 16 > tegiwaSearchMetadata.length
@@ -211,6 +223,9 @@ for (const [shardIndex, filename] of tegiwaCatalogShardFiles.entries()) {
   }
 }
 assert(tegiwaCatalogRecordsValid, 'Tegiwa public catalog shards contain invalid or duplicate records.');
+assert(tegiwaSkuEntries.every(([key]) => tegiwaCatalogTitleCounts.get(key) === 1), 'A public SKU was assigned through an ambiguous or unmatched title join.');
+assert(tegiwaEntries.filter(([, value]) => value[5] === 2).every(([key]) => (tegiwaCatalogTitleCounts.get(key) || 0) > 1), 'An exact-SKU prompt was assigned without a duplicate catalog title.');
+assert([...tegiwaCatalogTitleCounts].every(([key, count]) => count === 1 || tegiwaIndex.products?.[key]?.[5] !== 1), 'A duplicate-title catalog group exposes a stockfeed SKU.');
 assert(tegiwaCatalogProductCount > 100_000 && tegiwaCatalogHandles.size === tegiwaCatalogProductCount, 'Tegiwa public catalog snapshot is incomplete.');
 assert(tegiwaCatalogSummary.version === 1
   && tegiwaCatalogSummary.shardCount === tegiwaCatalogShardFiles.length
@@ -230,6 +245,8 @@ const tegiwaSearchFiles = {
 };
 let tegiwaSearchFilesValid = tegiwaSearchSummary.version === 1
   && tegiwaSearchSummary.productCount === tegiwaCatalogProductCount
+  && tegiwaSearchSummary.skuIndexedProductCount === tegiwaIndex.skuProductCount
+  && tegiwaSearchSummary.skuIndexSha256 === createHash('sha256').update(tegiwaIndexSource, 'utf8').digest('hex')
   && tegiwaSearchSummary.pageSize === 100
   && tegiwaSearchSummary.metadataRecordBytes === 16
   && tegiwaSearchSummary.pairRecordBytes === 16

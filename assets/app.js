@@ -82,6 +82,7 @@
     if (!Array.isArray(items)) return [];
     return items.filter(item => item && typeof item === "object").map(item => ({
       ...item,
+      sku: cleanText(item.sku || "", 120),
       quantity: Math.min(99, Math.max(1, Number.parseInt(item.quantity, 10) || 1))
     }));
   }
@@ -1720,12 +1721,23 @@
     const checked = tegiwaCheckedLabel(item.availability?.checkedAt);
     const vendor = cleanText(item.vendor || "", 120);
     const category = cleanText(item.category || "", 120);
+    const sku = cleanText(item.sku || "", 120);
+    const matchedSku = cleanText(item.matchedSku || "", 120);
+    const displayedSku = matchedSku || sku;
+    const skuCount = Math.max(displayedSku ? 1 : 0, Math.floor(Number(item.skuCount) || 0));
+    const skuOptionsLabel = !displayedSku && skuCount > 1 ? tegiwaTemplate(U().common.skuOptions, { count: tegiwaNumber(skuCount) }) : "";
+    const skuTotalLabel = matchedSku && skuCount > 1 ? tegiwaTemplate(U().common.skuTotal, { count: tegiwaNumber(skuCount) }) : "";
+    const skuState = cleanText(item.skuState || "", 32);
+    const skuFallbackLabel = !displayedSku && !skuOptionsLabel
+      ? { open_for_exact: U().common.skuOpenExact, not_supplied: U().common.skuNotSupplied }[skuState] || ""
+      : "";
+    const quoteId = `tegiwa-${handle || item.handle}${matchedSku && skuCount > 1 ? `-sku-${matchedSku}` : ""}`;
     const cardLabel = category || labels.tegiwaEyebrow;
     const detail = [vendor, category, tegiwaPriceLabel(item.price), availability.label].filter(Boolean).join(" • ");
     const productLink = handle
       ? `<a class="btn btn-sm" href="${esc(tegiwaProductUrl(handle))}" data-action="view-tegiwa-product" data-handle="${esc(handle)}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`
       : `<a class="btn btn-sm" href="${esc(routeUrl("/parts"))}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`;
-    return `<article class="tegiwa-product-card"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3>${esc(item.title)}</h3><dl>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}<button class="icon-action" type="button" data-action="add-quote" data-id="tegiwa-${esc(handle || item.handle)}" data-kind="Tegiwa Parts Product" data-title="${esc(item.title)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
+    return `<article class="tegiwa-product-card"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3>${esc(item.title)}</h3><dl>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}${displayedSku || skuOptionsLabel || skuFallbackLabel ? `<div><dt>${esc(matchedSku ? U().common.matchedSku : U().common.sku)}</dt><dd>${displayedSku ? `<bdi dir="ltr">${esc(displayedSku)}</bdi>${skuTotalLabel ? `<small class="tegiwa-sku-count">${esc(skuTotalLabel)}</small>` : ""}` : `<span class="tegiwa-sku-options">${esc(skuOptionsLabel || skuFallbackLabel)}</span>`}</dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}<button class="icon-action" type="button" data-action="add-quote" data-id="${esc(quoteId)}" data-kind="Tegiwa Parts Product" data-title="${esc(item.title)}" data-sku="${esc(displayedSku)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function tegiwaLoadingCards() {
@@ -1831,14 +1843,14 @@
     const entries = [];
     const seen = new Set();
     const correction = payload.correction || {};
-    const canonicalQuery = cleanText(correction.canonicalQuery || "", 80);
+    const canonicalQuery = cleanText(correction.canonicalQuery || "", 120);
     if (correction.corrected && canonicalQuery) {
       const correctionLabel = correction.translated ? labels.tegiwaSearchEquivalent : labels.tegiwaDidYouMean;
       entries.push({ query: canonicalQuery, label: tegiwaTemplate(correctionLabel, { query: canonicalQuery }), kind: "correction" });
       seen.add(canonicalQuery.toLocaleLowerCase());
     }
     for (const suggestion of Array.isArray(payload.suggestions) ? payload.suggestions : []) {
-      const query = cleanText(suggestion.query || suggestion.label || "", 80);
+      const query = cleanText(suggestion.query || suggestion.label || "", 120);
       const key = query.toLocaleLowerCase();
       if (query.length < 2 || seen.has(key)) continue;
       seen.add(key);
@@ -1866,7 +1878,7 @@
   function scheduleTegiwaSuggestions(input) {
     window.clearTimeout(state.tegiwaCatalog.suggestionTimer);
     state.tegiwaCatalog.suggestionController?.abort();
-    const query = cleanText(input?.value || "", 80);
+    const query = cleanText(input?.value || "", 120);
     if (query.length < 2) {
       hideTegiwaSuggestions();
       return;
@@ -1882,7 +1894,7 @@
         const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload.mode !== "suggest" || !Array.isArray(payload.suggestions)) throw new Error("suggestions_unavailable");
-        if (cleanText(input.value, 80) !== query || document.activeElement !== input) return;
+        if (cleanText(input.value, 120) !== query || document.activeElement !== input) return;
         renderTegiwaSuggestions(payload, input);
       } catch (error) {
         if (error?.name !== "AbortError") hideTegiwaSuggestions();
@@ -1894,7 +1906,7 @@
 
   function chooseTegiwaSuggestion(option) {
     const input = document.querySelector("[data-tegiwa-search-input]");
-    const query = cleanText(option?.dataset.query || "", 80);
+    const query = cleanText(option?.dataset.query || "", 120);
     if (!input || query.length < 2) return;
     input.value = query;
     hideTegiwaSuggestions();
@@ -1977,7 +1989,7 @@
           start: tegiwaNumber(start),
           end: tegiwaNumber(end),
           total: tegiwaNumber(totalResults),
-          query: cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 80)
+          query: cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 120)
         });
       } else if (isSearch) status.textContent = `${tegiwaNumber(totalResults)} ${labels.tegiwaSearchResults}`;
       else if (Number.isFinite(count) && count > 0 && items.length) {
@@ -1995,14 +2007,14 @@
     state.tegiwaCatalog.currentPage = currentPage;
     state.tegiwaCatalog.totalPages = totalPages;
     state.tegiwaCatalog.pageSize = pageSize;
-    state.tegiwaCatalog.canonicalQuery = isSearch ? cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 80) : "";
+    state.tegiwaCatalog.canonicalQuery = isSearch ? cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 120) : "";
     for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) {
       if (TEGIWA_SEARCH_VALUES[key].has(meta[key])) state.tegiwaCatalog[key] = meta[key];
     }
     const correction = root.querySelector("[data-tegiwa-correction]");
     if (correction) {
-      const from = cleanText(meta.query || state.tegiwaCatalog.query, 80);
-      const to = cleanText(meta.canonicalQuery || "", 80);
+      const from = cleanText(meta.query || state.tegiwaCatalog.query, 120);
+      const to = cleanText(meta.canonicalQuery || "", 120);
       const corrected = Boolean(isSearch && meta.corrected && from && to && from.toLocaleLowerCase() !== to.toLocaleLowerCase());
       const correctionLabel = meta.translated ? labels.tegiwaTranslatedSearch : labels.tegiwaCorrectedSearch;
       correction.hidden = !corrected;
@@ -2026,7 +2038,7 @@
     state.tegiwaCatalog.controller?.abort();
     const controller = new AbortController();
     state.tegiwaCatalog.controller = controller;
-    const normalizedQuery = cleanText(Object.hasOwn(options, "query") ? options.query : state.tegiwaCatalog.query, 80);
+    const normalizedQuery = cleanText(Object.hasOwn(options, "query") ? options.query : state.tegiwaCatalog.query, 120);
     const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1);
     const scrollResults = Boolean(options.scrollResults);
     for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) {
@@ -2096,7 +2108,7 @@
       scheduleTegiwaSuggestions(input);
     });
     input?.addEventListener("focus", () => {
-      if (cleanText(input.value, 80).length >= 2) scheduleTegiwaSuggestions(input);
+      if (cleanText(input.value, 120).length >= 2) scheduleTegiwaSuggestions(input);
     });
     syncTegiwaFilterUi();
     loadTegiwaCatalog({ page: 1 });
@@ -2130,8 +2142,22 @@
     const price = input.dataset.variantPrice || storeText().requestPrice;
     const availabilityLabel = input.dataset.variantAvailability || storeText().tegiwaVariantUnavailable;
     const available = input.dataset.variantAvailable === "true";
+    const productSkuFallback = input.dataset.allowProductSkuFallback === "true" ? input.dataset.productSku : "";
+    const sku = cleanText(input.dataset.variantSku || productSkuFallback || "", 120);
     const priceValue = panel.querySelector("[data-tegiwa-selected-price]");
     if (priceValue) priceValue.textContent = price;
+    const skuRow = panel.querySelector("[data-tegiwa-selected-sku-row]");
+    const skuValue = panel.querySelector("[data-tegiwa-selected-sku]");
+    if (skuRow) skuRow.hidden = !sku;
+    if (skuValue) {
+      skuValue.replaceChildren();
+      if (sku) {
+        const code = document.createElement("bdi");
+        code.dir = "ltr";
+        code.textContent = sku;
+        skuValue.append(code);
+      }
+    }
     const availabilityValue = panel.querySelector("[data-tegiwa-selected-availability-value]");
     if (availabilityValue) {
       const leadTime = availabilityValue.dataset.leadTime || "";
@@ -2147,6 +2173,8 @@
     const optionTitle = input.dataset.variantTitle || storeText().tegiwaProductDetails;
     const baseDetails = addButton.dataset.baseDetails || "";
     addButton.dataset.id = `${addButton.dataset.baseId}-variant-${input.dataset.variantKey}`;
+    if (sku) addButton.dataset.sku = sku;
+    else delete addButton.dataset.sku;
     addButton.dataset.details = [
       baseDetails,
       `${storeText().tegiwaSelectedOption}: ${optionTitle}`,
@@ -2181,11 +2209,21 @@
       const product = payload.product;
       const availability = tegiwaAvailability(product.availability);
       const checked = tegiwaCheckedLabel(product.availability?.checkedAt);
-      const variantOptions = (product.variants || []).slice(0, 50);
+      const variantOptions = Array.isArray(product.variants) ? product.variants : [];
       const selectedVariantIndex = variantOptions.length === 1 ? 0 : -1;
       const selectedVariant = selectedVariantIndex >= 0 ? variantOptions[selectedVariantIndex] : null;
       const selectedAvailability = selectedVariant ? tegiwaVariantAvailability(selectedVariant) : availability;
       const selectedPrice = selectedVariant ? tegiwaPriceLabel(selectedVariant.price || {}) : tegiwaPriceLabel(product.price);
+      const productSkus = [...new Set([
+        ...(Array.isArray(product.skus) ? product.skus : []),
+        product.sku
+      ].map(value => cleanText(value || "", 120)).filter(Boolean))];
+      const productSku = cleanText(product.sku || "", 120);
+      const selectedSku = selectedVariant
+        ? cleanText(selectedVariant.sku || (variantOptions.length === 1 ? productSku : ""), 120)
+        : cleanText(variantOptions.length === 0 ? productSku : "", 120);
+      const productSkuMarkup = productSkus.map(sku => `<bdi dir="ltr">${esc(sku)}</bdi>`).join("");
+      const showSelectedSku = Boolean(selectedVariant && selectedSku && (productSkus.length > 1 || productSkus[0] !== selectedSku));
       const leadTime = cleanText(product.availability?.leadTime || "", 120);
       const baseDetails = [cleanText(product.vendor || "Tegiwa", 120), cleanText(product.category || labels.productType, 120)].filter(Boolean).join(" • ");
       const details = selectedVariant
@@ -2193,17 +2231,18 @@
         : [baseDetails, `${labels.price}: ${selectedPrice}`, `${labels.availability}: ${selectedAvailability.label}`].filter(Boolean).join(" • ");
       const variants = variantOptions.map((variant, index) => {
         const title = cleanText(variant.title || labels.tegiwaProductDetails, 200);
+        const sku = cleanText(variant.sku || "", 120);
         const price = tegiwaPriceLabel(variant.price || {});
         const variantAvailability = tegiwaVariantAvailability(variant);
         const selected = index === selectedVariantIndex;
-        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong><small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
+        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-sku="${esc(sku)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-allow-product-sku-fallback="${String(variantOptions.length === 1)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong>${sku ? `<small class="tegiwa-variant-sku">${esc(U().common.sku)}: <bdi dir="ltr">${esc(sku)}</bdi></small>` : ""}<small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
       }).join("");
       const availabilityText = [selectedAvailability.label, leadTime].filter(Boolean).join(" • ");
-      const variantQuoteAttributes = `data-base-id="tegiwa-${esc(product.handle)}" data-base-details="${esc(baseDetails)}" data-product-title="${esc(product.title)}" data-tegiwa-variant-quote`;
+      const variantQuoteAttributes = `data-base-id="tegiwa-${esc(product.handle)}" data-base-details="${esc(baseDetails)}" data-product-title="${esc(product.title)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-sku="${esc(selectedSku)}" data-tegiwa-variant-quote`;
       const quoteButtonAttributes = variantOptions.length
         ? `${selectedVariant ? `data-id="tegiwa-${esc(product.handle)}-variant-${selectedVariantIndex + 1}" aria-label="${esc(`${labels.addToQuote}: ${product.title} — ${selectedVariant.title || labels.tegiwaProductDetails}`)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} ${variantQuoteAttributes}`
-        : `data-id="tegiwa-${esc(product.handle)}"`;
-      modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><span class="tegiwa-stock-badge is-${esc(selectedAvailability.className)}" data-tegiwa-selected-availability>${esc(selectedAvailability.label)}</span><p>${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor || "Tegiwa")}</bdi></dd></div><div><dt>${esc(labels.productType)}</dt><dd>${esc(product.category || labels.productType)}</dd></div><div><dt>${esc(variantOptions.length ? labels.tegiwaOnlinePrice : labels.price)}</dt><dd><bdi data-tegiwa-selected-price aria-live="polite">${esc(selectedPrice)}</bdi></dd></div><div><dt>${esc(labels.availability)}</dt><dd><bdi data-tegiwa-selected-availability-value data-lead-time="${esc(leadTime)}" aria-live="polite">${esc(availabilityText)}</bdi></dd></div>${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="Tegiwa Parts Product" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.tegiwaSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow" id="tegiwa-variant-heading">${esc(labels.tegiwaVariants)}</span><p class="tegiwa-variant-instruction" id="tegiwa-variant-instruction">${esc(labels.tegiwaChooseVariant)}</p><ul role="radiogroup" aria-labelledby="tegiwa-variant-heading" aria-describedby="tegiwa-variant-instruction">${variants}</ul></section>` : ""}</section>`;
+        : `data-id="tegiwa-${esc(product.handle)}" data-sku="${esc(productSku)}"`;
+      modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><span class="tegiwa-stock-badge is-${esc(selectedAvailability.className)}" data-tegiwa-selected-availability>${esc(selectedAvailability.label)}</span><p>${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor || "Tegiwa")}</bdi></dd></div><div><dt>${esc(labels.productType)}</dt><dd>${esc(product.category || labels.productType)}</dd></div>${productSkus.length ? `<div><dt>${esc(U().common.sku)}</dt><dd class="tegiwa-sku-list">${productSkuMarkup}</dd></div>` : ""}<div data-tegiwa-selected-sku-row${showSelectedSku ? "" : " hidden"}><dt>${esc(U().common.selectedSku)}</dt><dd class="tegiwa-sku-list" dir="ltr" data-tegiwa-selected-sku aria-live="polite">${showSelectedSku ? `<bdi dir="ltr">${esc(selectedSku)}</bdi>` : ""}</dd></div><div><dt>${esc(variantOptions.length ? labels.tegiwaOnlinePrice : labels.price)}</dt><dd><bdi data-tegiwa-selected-price aria-live="polite">${esc(selectedPrice)}</bdi></dd></div><div><dt>${esc(labels.availability)}</dt><dd><bdi data-tegiwa-selected-availability-value data-lead-time="${esc(leadTime)}" aria-live="polite">${esc(availabilityText)}</bdi></dd></div>${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="Tegiwa Parts Product" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.tegiwaSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow" id="tegiwa-variant-heading">${esc(labels.tegiwaVariants)}</span><p class="tegiwa-variant-instruction" id="tegiwa-variant-instruction">${esc(labels.tegiwaChooseVariant)}</p><ul role="radiogroup" aria-labelledby="tegiwa-variant-heading" aria-describedby="tegiwa-variant-instruction">${variants}</ul></section>` : ""}</section>`;
       requestAnimationFrame(() => modalRoot.querySelector('[data-action="close-modal"]')?.focus());
     } catch (error) {
       if (error?.name === "AbortError" || detailController.signal.aborted || state.tegiwaCatalog.detailController !== detailController) return;
@@ -2303,7 +2342,7 @@
           <form class="tegiwa-search" data-tegiwa-search>
             <label for="tegiwa-search-input">${esc(labels.tegiwaSearchLabel)}</label>
             <div class="tegiwa-search-row">
-              <div class="tegiwa-search-box"><span class="tegiwa-search-icon">${icons.search}</span><input id="tegiwa-search-input" class="input" name="q" type="search" minlength="2" maxlength="80" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(labels.tegiwaSearchPlaceholder)}" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="tegiwa-search-suggestions" data-tegiwa-search-input><div class="tegiwa-suggestions" id="tegiwa-search-suggestions" role="listbox" aria-label="${esc(labels.tegiwaSearchSuggestions)}" data-tegiwa-suggestions hidden></div></div>
+              <div class="tegiwa-search-box"><span class="tegiwa-search-icon">${icons.search}</span><input id="tegiwa-search-input" class="input" name="q" type="search" minlength="2" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(labels.tegiwaSearchPlaceholder)}" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="tegiwa-search-suggestions" data-tegiwa-search-input><div class="tegiwa-suggestions" id="tegiwa-search-suggestions" role="listbox" aria-label="${esc(labels.tegiwaSearchSuggestions)}" data-tegiwa-suggestions hidden></div></div>
               <button class="btn" type="submit" data-tegiwa-control>${esc(labels.tegiwaSearchAction)}${icons.search}</button><button class="btn btn-outline" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaBrowseAction)}${icons.arrow}</button>
             </div>
             <div class="tegiwa-search-toolbar"><button class="tegiwa-filter-toggle" type="button" data-action="toggle-tegiwa-filters" aria-expanded="false" aria-controls="tegiwa-filter-panel">${icons.filter}<span>${esc(labels.tegiwaSortFilter)}</span><small data-tegiwa-filter-count hidden></small></button></div>
@@ -2605,7 +2644,7 @@
   }
 
   function searchTegiwaDirectory(query, trigger) {
-    const normalizedQuery = cleanText(query, 80);
+    const normalizedQuery = cleanText(query, 120);
     if (normalizedQuery.length < 2) return;
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
     if (searchInput) searchInput.value = normalizedQuery;
@@ -2706,7 +2745,14 @@
   function renderQuoteDrawer() {
     const ui = U();
     const labels = storeText();
-    drawer.innerHTML = `<div class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="quote-title"><header class="drawer-head"><div><span class="eyebrow">${esc(ui.actions.requestQuote)}</span><h2 id="quote-title">${esc(ui.common.selectedItems)}${state.quote.length ? ` · ${quoteCount()}` : ""}</h2></div><button class="icon-btn" type="button" data-action="close-quote" aria-label="${esc(ui.actions.close)}">${icons.close}</button></header>${state.quote.length ? `<div class="quote-items">${state.quote.map((item, index) => `<article class="quote-item"><span>${compactNumber(index + 1)}</span><div class="quote-item-copy"><small>${esc(item.kind)}</small><strong>${esc(item.title)}</strong><p>${esc(item.details)}</p></div><div class="quote-item-actions"><div class="quote-quantity" aria-label="${esc(labels.quantity)}"><button type="button" data-action="adjust-quote-quantity" data-delta="-1" data-id="${esc(item.id)}" aria-label="${esc(`${labels.decrease}: ${item.title}`)}">−</button><bdi>${Number(item.quantity) || 1}</bdi><button type="button" data-action="adjust-quote-quantity" data-delta="1" data-id="${esc(item.id)}" aria-label="${esc(`${labels.increase}: ${item.title}`)}">+</button></div><button class="quote-remove" type="button" data-action="remove-quote" data-id="${esc(item.id)}" aria-label="${esc(`${ui.actions.remove}: ${item.title}`)}">${icons.close}</button></div></article>`).join("")}</div><div class="quote-form-wrap">${genericForm("General Quote", state.quote.map(item => `${item.title} × ${item.quantity || 1}`).join(", "))}</div>` : `<div class="empty-state"><strong>${esc(ui.common.emptyQuote)}</strong><p>${state.locale === "ar" ? "أضف خدمة أو مشروع أو قطعة أو منصة برمجة حتى تجهز طلب واحد مرتب." : "Add a service, project, part or tuning platform to prepare one structured request."}</p><a class="btn" href="${routeUrl("/services")}" data-action="close-quote">${esc(ui.actions.viewAllServices)}${icons.arrow}</a></div>`}</div>`;
+    const items = state.quote.map((item, index) => {
+      const sku = cleanText(item.sku || "", 120);
+      return `<article class="quote-item"><span>${compactNumber(index + 1)}</span><div class="quote-item-copy"><small>${esc(item.kind)}</small><strong>${esc(item.title)}</strong>${sku ? `<p class="quote-item-sku">${esc(ui.common.sku)}: <bdi dir="ltr">${esc(sku)}</bdi></p>` : ""}<p>${esc(item.details)}</p></div><div class="quote-item-actions"><div class="quote-quantity" aria-label="${esc(labels.quantity)}"><button type="button" data-action="adjust-quote-quantity" data-delta="-1" data-id="${esc(item.id)}" aria-label="${esc(`${labels.decrease}: ${item.title}`)}">−</button><bdi>${Number(item.quantity) || 1}</bdi><button type="button" data-action="adjust-quote-quantity" data-delta="1" data-id="${esc(item.id)}" aria-label="${esc(`${labels.increase}: ${item.title}`)}">+</button></div><button class="quote-remove" type="button" data-action="remove-quote" data-id="${esc(item.id)}" aria-label="${esc(`${ui.actions.remove}: ${item.title}`)}">${icons.close}</button></div></article>`;
+    }).join("");
+    const content = state.quote.length
+      ? `<div class="quote-items">${items}</div><div class="quote-form-wrap">${genericForm("General Quote", state.quote.map(item => `${item.title} × ${item.quantity || 1}`).join(", "))}</div>`
+      : `<div class="empty-state"><strong>${esc(ui.common.emptyQuote)}</strong><p>${state.locale === "ar" ? "أضف خدمة أو مشروع أو قطعة أو منصة برمجة حتى تجهز طلب واحد مرتب." : "Add a service, project, part or tuning platform to prepare one structured request."}</p><a class="btn" href="${routeUrl("/services")}" data-action="close-quote">${esc(ui.actions.viewAllServices)}${icons.arrow}</a></div>`;
+    drawer.innerHTML = `<div class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="quote-title"><header class="drawer-head"><div><span class="eyebrow">${esc(ui.actions.requestQuote)}</span><h2 id="quote-title">${esc(ui.common.selectedItems)}${state.quote.length ? ` · ${quoteCount()}` : ""}</h2></div><button class="icon-btn" type="button" data-action="close-quote" aria-label="${esc(ui.actions.close)}">${icons.close}</button></header>${content}</div>`;
   }
 
   function openQuote() {
@@ -2726,8 +2772,9 @@
   function addQuote(item) {
     const quantity = Math.min(99, Math.max(1, Number.parseInt(item.quantity, 10) || 1));
     const existing = state.quote.find(entry => entry.id === item.id);
-    if (existing) existing.quantity = Math.min(99, (Number(existing.quantity) || 1) + quantity);
-    else state.quote.push({ ...item, quantity });
+    const normalizedItem = { ...item, sku: cleanText(item.sku || "", 120), quantity };
+    if (existing) Object.assign(existing, normalizedItem, { quantity: Math.min(99, (Number(existing.quantity) || 1) + quantity) });
+    else state.quote.push(normalizedItem);
     saveQuote();
     showToast(state.locale === "ar" ? "تمت الإضافة لطلب السعر" : "Added to quote request", item.title);
   }
@@ -2811,7 +2858,14 @@
     const context = form.dataset.context;
     if (context) result.context = context;
     if (form.dataset.platformForm) result.platform = form.dataset.platformForm;
-    if (form.dataset.formType === "General Quote" && state.quote.length) result.selectedItems = state.quote.map(item => `${item.kind}: ${item.title} × ${item.quantity || 1} — ${item.details}`);
+    if (form.dataset.formType === "General Quote" && state.quote.length) result.selectedItems = state.quote.map(item => {
+      const sku = cleanText(item.sku || "", 120);
+      return [
+        `${item.kind}: ${item.title} × ${item.quantity || 1}`,
+        sku ? `${U().common.sku}: ${sku}` : "",
+        item.details
+      ].filter(Boolean).join(" — ");
+    });
     return result;
   }
 
@@ -3050,7 +3104,7 @@
     if (action === "add-quote") {
       const selectedVehicle = currentPath().startsWith("/parts") && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
       const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-quote-quantity]")?.value, 10) || 1;
-      addQuote({ id: target.dataset.id || `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", details: [target.dataset.details || "", selectedVehicle].filter(Boolean).join(" | "), quantity });
+      addQuote({ id: target.dataset.id || `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", sku: target.dataset.sku || "", details: [target.dataset.details || "", selectedVehicle].filter(Boolean).join(" | "), quantity });
       return;
     }
     if (action === "adjust-quote-quantity") {
@@ -3083,7 +3137,7 @@
     if (tegiwaSearch) {
       event.preventDefault();
       if (!tegiwaSearch.reportValidity()) return;
-      const query = cleanText(new FormData(tegiwaSearch).get("q"), 80);
+      const query = cleanText(new FormData(tegiwaSearch).get("q"), 120);
       hideTegiwaSuggestions();
       clearTegiwaDirectorySelection();
       loadTegiwaCatalog(query ? { query, page: 1 } : { query: "", page: 1 });

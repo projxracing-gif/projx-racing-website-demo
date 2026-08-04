@@ -18,7 +18,9 @@ const MAX_PRODUCT_HANDLE_LENGTH = 255;
 const MAX_CATALOG_SHARDS_PER_REQUEST = 8;
 const MAX_CACHED_CATALOG_SHARDS = 4;
 const MAX_DETAIL_IMAGES = 16;
-const MAX_DETAIL_VARIANTS = 50;
+const MAX_DETAIL_VARIANTS = 2_048;
+const MAX_PART_NUMBER_LENGTH = 120;
+const MAX_PART_NUMBERS_PER_PRODUCT = MAX_DETAIL_VARIANTS * 2 + 1;
 const MAX_STOCK_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const DEFAULT_TIMEOUT_MS = 7_000;
 const JSON_RESPONSE_BYTES = 2_000_000;
@@ -101,6 +103,37 @@ function safeText(value, limit = 300) {
     .slice(0, limit);
 }
 
+function safePartNumber(value) {
+  const text = safeText(value, MAX_PART_NUMBER_LENGTH + 1).normalize('NFKC').trim();
+  if (!text || text.length > MAX_PART_NUMBER_LENGTH || !/[\p{L}\p{N}]/u.test(text)) return null;
+  if (/^(?:data|file|ftp|https?|javascript|vbscript):/i.test(text) || /[<>`{}]/.test(text)) return null;
+  return text;
+}
+
+function safePartNumberList(values) {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set();
+  const partNumbers = [];
+  for (const value of values) {
+    const partNumber = safePartNumber(value);
+    if (!partNumber) continue;
+    const identity = partNumber.toLocaleLowerCase('en-US');
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    partNumbers.push(partNumber);
+    if (partNumbers.length > MAX_PART_NUMBERS_PER_PRODUCT) return [];
+  }
+  return partNumbers;
+}
+
+function mergePartNumbers(...lists) {
+  const merged = [];
+  for (const list of lists) {
+    if (Array.isArray(list)) merged.push(...list);
+  }
+  return safePartNumberList(merged);
+}
+
 export function normalizeTitleForStock(value) {
   return String(value || '')
     .normalize('NFKC')
@@ -133,6 +166,7 @@ function emptyStockIndex() {
   return {
     checkedAt: null,
     productCount: 0,
+    skuProductCount: 0,
     availableProductCount: 0,
     leadTimes: [],
     products: Object.create(null)
@@ -140,13 +174,16 @@ function emptyStockIndex() {
 }
 
 function validateStockIndex(candidate) {
-  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) || candidate.version !== 1) return emptyStockIndex();
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) || ![1, 2].includes(candidate.version)) return emptyStockIndex();
   const products = candidate.products && typeof candidate.products === 'object' && !Array.isArray(candidate.products)
     ? candidate.products
     : Object.create(null);
   return {
     checkedAt: safeCheckedAt(candidate.checkedAt),
     productCount: safeInteger(candidate.productCount, 0, 10_000_000) ?? 0,
+    skuProductCount: candidate.version === 2
+      ? (safeInteger(candidate.skuProductCount, 0, 10_000_000) ?? 0)
+      : 0,
     availableProductCount: safeInteger(candidate.availableProductCount, 0, 10_000_000) ?? 0,
     leadTimes: Array.isArray(candidate.leadTimes)
       ? candidate.leadTimes.slice(0, 256).map(value => safeText(value, 120))
@@ -227,6 +264,22 @@ function normalizeSearchText(value) {
 
 function searchTokens(value) {
   return normalizeSearchText(value).split(' ').filter(Boolean);
+}
+
+function normalizedPartNumberIdentity(value) {
+  const partNumber = safePartNumber(value);
+  return partNumber ? partNumber.toLocaleLowerCase('en-US') : '';
+}
+
+function exactPartNumberSearch(value) {
+  const partNumber = safePartNumber(value);
+  if (!partNumber) return null;
+  const identity = normalizedPartNumberIdentity(partNumber);
+  return {
+    partNumber,
+    identity,
+    term: `projxsku${createHash('sha256').update(identity, 'utf8').digest('hex')}`
+  };
 }
 
 // The supplier catalogue is English-only, while the storefront is bilingual.
@@ -343,11 +396,13 @@ function validateSearchSummary(candidate) {
   const termPostingCount = safeInteger(candidate?.termPostingCount, 1, 100_000_000);
   const pairCount = safeInteger(candidate?.pairCount, 1, 10_000_000);
   const pairPostingCount = safeInteger(candidate?.pairPostingCount, 1, 100_000_000);
+  const skuIndexSha256 = String(candidate?.skuIndexSha256 || '');
   const files = candidate?.files;
   if (!candidate || candidate.version !== 1 || candidate.pageSize !== PAGE_SIZE
     || candidate.metadataRecordBytes !== SEARCH_METADATA_RECORD_BYTES
     || candidate.pairRecordBytes !== SEARCH_PAIR_RECORD_BYTES
     || [productCount, termCount, termPostingCount, pairCount, pairPostingCount].some(value => value === null)
+    || !/^[a-f0-9]{64}$/.test(skuIndexSha256)
     || !files || typeof files !== 'object') throw new Error('invalid_search_summary');
   const file = name => {
     const value = files[name];
@@ -358,12 +413,20 @@ function validateSearchSummary(candidate) {
     return { ...value, bytes };
   };
   return {
-    productCount, termCount, termPostingCount, pairCount, pairPostingCount,
+    productCount, termCount, termPostingCount, pairCount, pairPostingCount, skuIndexSha256,
     files: {
       terms: file('terms'), termPostings: file('termPostings'), pairs: file('pairs'),
       pairPostings: file('pairPostings'), metadata: file('metadata')
     }
   };
+}
+
+export function assertSkuSearchIndexFresh(expectedFingerprint, stockIndexSource) {
+  if (!/^[a-f0-9]{64}$/.test(String(expectedFingerprint || ''))) throw new Error('invalid_search_sku_fingerprint');
+  const source = Buffer.isBuffer(stockIndexSource) ? stockIndexSource : Buffer.from(String(stockIndexSource ?? ''), 'utf8');
+  const actual = createHash('sha256').update(source).digest('hex');
+  if (actual !== expectedFingerprint) throw new Error('stale_search_sku_index');
+  return true;
 }
 
 function checkedSearchFile(url, specification) {
@@ -380,6 +443,7 @@ function loadDefaultSearchProvider() {
   if (defaultSearchProvider) return defaultSearchProvider;
   try {
     const summary = validateSearchSummary(JSON.parse(readFileSync(SEARCH_SUMMARY_URL, 'utf8')));
+    assertSkuSearchIndexFresh(summary.skuIndexSha256, readFileSync(STOCK_INDEX_URL));
     const termsBuffer = checkedSearchFile(SEARCH_TERMS_URL, summary.files.terms);
     const termPostingsBuffer = checkedSearchFile(SEARCH_TERM_POSTINGS_URL, summary.files.termPostings);
     const pairDictionary = checkedSearchFile(SEARCH_PAIRS_URL, summary.files.pairs);
@@ -494,6 +558,22 @@ function stockForKey(index, key) {
   };
 }
 
+function partNumbersForKey(index, key) {
+  const record = key && Object.prototype.hasOwnProperty.call(index.products, key) ? index.products[key] : null;
+  if (!Array.isArray(record) || record.length < 6 || record[5] !== 1) return [];
+  return safePartNumberList(record[4]);
+}
+
+function partNumbersForTitle(index, title) {
+  return partNumbersForKey(index, stockKeyForTitle(title));
+}
+
+function skuJoinStateForTitle(index, title) {
+  const key = stockKeyForTitle(title);
+  const record = key && Object.prototype.hasOwnProperty.call(index.products, key) ? index.products[key] : null;
+  return Array.isArray(record) && record[5] === 2 ? 'open_for_exact' : 'not_supplied';
+}
+
 function gbp(value) {
   return Math.round(value) / 100;
 }
@@ -595,7 +675,24 @@ function imageObject(value, fallbackAlt = '') {
   };
 }
 
-function baseCard({ handle, title, vendor, category, image, officialMin, officialMax, officialAvailable }, index) {
+function partNumberFields(index, title, officialSkus = [], officialMpns = [], { includeAll = false } = {}) {
+  const skus = mergePartNumbers(partNumbersForTitle(index, title), officialSkus);
+  const mpns = mergePartNumbers(officialMpns);
+  const skuState = skus.length === 1 ? 'exact' : (skus.length > 1 ? 'multiple' : skuJoinStateForTitle(index, title));
+  return {
+    sku: skus.length === 1 ? skus[0] : null,
+    skuCount: skus.length,
+    skuState,
+    mpn: mpns.length === 1 ? mpns[0] : null,
+    mpnCount: mpns.length,
+    ...(includeAll ? { skus, mpns } : {})
+  };
+}
+
+function baseCard({
+  handle, title, vendor, category, image, officialMin, officialMax, officialAvailable,
+  officialSkus = [], officialMpns = [], includeAllPartNumbers = false
+}, index) {
   const stock = stockForTitle(index, title);
   return {
     handle,
@@ -603,6 +700,7 @@ function baseCard({ handle, title, vendor, category, image, officialMin, officia
     vendor: safeText(vendor, 160) || null,
     category: safeText(category, 160) || null,
     image: imageObject(image, title),
+    ...partNumberFields(index, title, officialSkus, officialMpns, { includeAll: includeAllPartNumbers }),
     price: priceObject(stock, officialMin, officialMax),
     availability: availabilityObject(index, stock, officialAvailable),
     sourceUrl: officialProductUrl(handle)
@@ -851,9 +949,11 @@ function determineMode(req) {
   const hasSearchOption = [rawSuggest, rawSort, rawAvailability, rawPricing].some(value => value !== undefined);
 
   if (rawQuery !== undefined) {
-    const query = cleanSingleParameter(rawQuery, 81);
+    const query = cleanSingleParameter(rawQuery, MAX_PART_NUMBER_LENGTH + 1);
     const length = Array.from(query).length;
-    if (length < 2 || length > 80) throw new PublicApiError(400, 'invalid_query', 'Search queries must contain between 2 and 80 characters.');
+    if (length < 2 || length > MAX_PART_NUMBER_LENGTH) {
+      throw new PublicApiError(400, 'invalid_query', `Search queries must contain between 2 and ${MAX_PART_NUMBER_LENGTH} characters.`);
+    }
     if (rawHandle !== undefined || rawCursor !== undefined) {
       throw new PublicApiError(400, 'invalid_parameters', 'Search cannot be combined with a product handle or catalog cursor.');
     }
@@ -940,6 +1040,7 @@ function metaFor(index, count, extra = {}) {
     stockSnapshotStale: Boolean(index.checkedAt && !index.stockSnapshotFresh),
     catalogProductCount: index.catalogProductCount,
     stockIndexedProductCount: index.productCount,
+    skuIndexedProductCount: index.skuProductCount,
     availableProductCount: index.availableProductCount,
     ...extra
   };
@@ -1054,6 +1155,23 @@ function intersectPostingLists(lists) {
 function searchPlan(provider, query) {
   const normalizedQuery = normalizeSearchText(query);
   const originalTokens = searchTokens(normalizedQuery);
+  const exactPartNumber = exactPartNumberSearch(query);
+  if (exactPartNumber && provider.termCount(exactPartNumber.term) > 0) {
+    const exact = provider.termPostings(exactPartNumber.term);
+    return {
+      query,
+      normalizedQuery,
+      originalTokens,
+      canonicalTokens: [exactPartNumber.identity],
+      canonicalQuery: exactPartNumber.partNumber,
+      translated: false,
+      corrected: false,
+      corrections: [],
+      tokenGroups: [exact],
+      exactGroups: [exact],
+      exactSkuIdentity: exactPartNumber.identity
+    };
+  }
   if (!originalTokens.length || originalTokens.length > MAX_QUERY_TOKENS) {
     throw new PublicApiError(400, 'invalid_query', `Search queries may contain up to ${MAX_QUERY_TOKENS} searchable words.`);
   }
@@ -1081,7 +1199,8 @@ function searchPlan(provider, query) {
     corrected: corrections.length > 0,
     corrections,
     tokenGroups,
-    exactGroups
+    exactGroups,
+    exactSkuIdentity: null
   };
 }
 
@@ -1121,6 +1240,11 @@ function rankedSearchDocuments(provider, index, plan, { sort, availability, pric
   for (const documentId of candidates) {
     const metadata = provider.metadata(documentId);
     const stock = stockForKey(index, metadata.stockKey);
+    const matchedSku = plan.exactSkuIdentity
+      ? partNumbersForKey(index, metadata.stockKey)
+        .find(sku => normalizedPartNumberIdentity(sku) === plan.exactSkuIdentity) || null
+      : null;
+    if (plan.exactSkuIdentity && !matchedSku) continue;
     const availabilityCode = availabilityCodeForSearch(index, stock);
     if (!availabilityMatches(availability, availabilityCode)) continue;
     const priced = Boolean(stock);
@@ -1129,6 +1253,7 @@ function rankedSearchDocuments(provider, index, plan, { sort, availability, pric
       documentId,
       nameRank: metadata.nameRank,
       price: stock?.minPence ?? null,
+      matchedSku,
       relevanceTier: phrase[documentId] ? 0 : (allExact[documentId] ? 1 : (allPrefix[documentId] ? 2 : 3)),
       matchedTokens: matchedTokenCounts[documentId]
     });
@@ -1200,8 +1325,14 @@ async function searchCatalog(provider, index, summary, request, catalogLoader) {
     throw new PublicApiError(400, 'invalid_page', 'The requested search page does not exist.');
   }
   const start = (request.page - 1) * PAGE_SIZE;
-  const pageIds = ranked.slice(start, start + PAGE_SIZE).map(record => record.documentId);
+  const pageRecords = ranked.slice(start, start + PAGE_SIZE);
+  const pageIds = pageRecords.map(record => record.documentId);
   const items = await cardsForDocumentIds(pageIds, index, summary, catalogLoader);
+  if (plan.exactSkuIdentity) {
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex += 1) {
+      items[itemIndex] = { ...items[itemIndex], matchedSku: pageRecords[itemIndex].matchedSku };
+    }
+  }
   return {
     mode: 'search',
     items,
@@ -1314,12 +1445,15 @@ function detailImages(product, title) {
 
 function detailVariants(product) {
   if (!Array.isArray(product.variants)) return [];
-  return product.variants.slice(0, MAX_DETAIL_VARIANTS).map(variant => {
+  if (product.variants.length > MAX_DETAIL_VARIANTS) throw new UpstreamError('upstream_response_too_large');
+  return product.variants.map(variant => {
     if (!variant || typeof variant !== 'object') return null;
     const amount = parseShopifyPence(variant.price);
     if (amount === null) return null;
     return {
       title: safeText(variant.title, 200) || 'Default',
+      sku: safePartNumber(variant.sku),
+      mpn: safePartNumber(variant.mpn),
       available: Boolean(variant.available),
       price: { currency: 'GBP', amount }
     };
@@ -1333,6 +1467,17 @@ async function detailCatalog(fetchImpl, index, handle) {
   if (officialHandle !== handle) throw new UpstreamError('upstream_invalid_response');
   const title = safeText(payload.title, 300);
   if (!title) throw new UpstreamError('upstream_invalid_response');
+  if (Array.isArray(payload.variants) && payload.variants.length > MAX_DETAIL_VARIANTS) {
+    throw new UpstreamError('upstream_response_too_large');
+  }
+  const officialSkus = mergePartNumbers(
+    [payload.sku],
+    Array.isArray(payload.variants) ? payload.variants.map(variant => variant?.sku) : []
+  );
+  const officialMpns = mergePartNumbers(
+    [payload.mpn],
+    Array.isArray(payload.variants) ? payload.variants.map(variant => variant?.mpn) : []
+  );
   const variants = detailVariants(payload);
   const variantPrices = variants.map(variant => variant.price.amount);
   const officialMin = variantPrices.length ? Math.min(...variantPrices) : parseShopifyPence(payload.price);
@@ -1349,7 +1494,10 @@ async function detailCatalog(fetchImpl, index, handle) {
     image: images[0],
     officialMin,
     officialMax,
-    officialAvailable
+    officialAvailable,
+    officialSkus,
+    officialMpns,
+    includeAllPartNumbers: true
   }, index);
   return {
     mode: 'detail',
