@@ -21,14 +21,14 @@ function filesRecursive(dir) {
 function loadProjectData() {
   const context = { window: {} };
   vm.createContext(context);
-  for (const file of ['assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/i18n/en.js', 'assets/i18n/ar.js']) {
+  for (const file of ['assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/i18n/en.js', 'assets/i18n/ar.js']) {
     vm.runInContext(fs.readFileSync(path.join(repo, file), 'utf8'), context, { filename: file });
   }
   return context.window;
 }
 
 for (const file of [
-  'assets/app.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/styles.css',
+  'assets/app.js', 'assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/styles.css',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'template.html', 'sw.js',
   'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
   'api/data/tegiwa-catalog-summary.json', 'api/data/tegiwa-search-summary.json', 'api/data/tegiwa-search-terms.json',
@@ -136,7 +136,7 @@ for (const locale of ['en', 'ar']) {
   assert(localeRoutes.some(page => page.route === '/account'), `${locale}: missing account portal route.`);
 }
 
-const { PROJX_DATA: data, PROJX_TRANSLATIONS: translations } = loadProjectData();
+const { PROJX_DATA: data, PROJX_ECS_PRODUCTS: ecsProducts, PROJX_TRANSLATIONS: translations } = loadProjectData();
 const appSource = fs.readFileSync(path.join(repo, 'assets/app.js'), 'utf8');
 const stylesSource = fs.readFileSync(path.join(repo, 'assets/styles.css'), 'utf8');
 const templateSource = fs.readFileSync(path.join(repo, 'template.html'), 'utf8');
@@ -338,9 +338,11 @@ assert(data.services.length === 13, `Expected 13 service records; found ${data.s
 assert(data.projects.length === 12, `Expected 12 project records; found ${data.projects.length}.`);
 assert(data.brands.length >= 44, `Expected at least 44 brand records; found ${data.brands.length}.`);
 assert(Array.isArray(data.storeProducts), 'Verified store-products model is missing.');
+assert(Array.isArray(ecsProducts) && ecsProducts.length > 0, 'Manual ECS product collection is missing or empty.');
 assert(!Object.hasOwn(data, 'engineProducts'), 'Removed engine-product catalogue remains in data.js.');
 
 const catalogueSlugs = new Set();
+const ecsPartNumbers = new Set();
 for (const [index, part] of data.parts.entries()) {
   assert(part.catalogType === 'quote-package', `Quote package ${index + 1} has an invalid catalogue type.`);
   assert(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(part.slug || ''), `Quote package ${index + 1} has an invalid slug.`);
@@ -365,7 +367,18 @@ for (const product of data.storeProducts) {
   assert(product.fitments?.every(fitment => fitment.make && fitment.model && fitment.generation && Array.isArray(fitment.engines) && fitment.engines.length), `${product.slug}: incomplete fitment record.`);
   const hasVerifiedPrice = /^[A-Z]{3}$/.test(product.priceCurrency || '') && Number(product.priceAmount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(product.priceVerifiedAt || '');
   assert(product.quoteOnly === true || hasVerifiedPrice, `${product.slug}: use request-price state or a verified price in the supplier's original currency.`);
-  if (hasVerifiedPrice) assert(String(product.priceNote || '').trim() && String(product.priceNoteAr || '').trim(), `${product.slug}: priced products need a bilingual currency/tax note.`);
+  if (hasVerifiedPrice) assert(String(product.priceNote || '').trim() && String(product.priceNoteAr || '').trim(), `${product.slug}: priced products need a bilingual currency and confirmation note.`);
+  if (product.provider === 'ECS Tuning') {
+    assert(/^ES#\d+$/.test(product.ecsPartNumber || ''), `${product.slug}: missing or invalid ECS part number.`);
+    assert(!ecsPartNumbers.has(product.ecsPartNumber), `${product.slug}: duplicate ECS part number ${product.ecsPartNumber}.`);
+    ecsPartNumbers.add(product.ecsPartNumber);
+    assert(product.stockPolicy === 'manual-confirm', `${product.slug}: ECS availability must remain confirmation-only without a stock feed.`);
+    assert(Number.isInteger(product.staleAfterDays) && product.staleAfterDays === 7, `${product.slug}: ECS manual review must expire after seven days.`);
+    assert(String(product.observedAvailability || '').trim() && String(product.observedAvailabilityAr || '').trim(), `${product.slug}: bilingual manually observed supplier stock information is missing.`);
+    assert(product.priceCurrency === 'USD', `${product.slug}: manually reviewed ECS prices must remain in USD.`);
+    assert(!/(?:dealer|trade|wholesale|vat|tax)/i.test(product.priceNote || ''), `${product.slug}: public ECS price note exposes tax or dealer-pricing language.`);
+    assert(/^https:\/\/(?:www\.)?ecstuning\.com\/[A-Za-z0-9_./%?=&+~:-]+$/.test(product.originalUrl || ''), `${product.slug}: missing official ECS product URL.`);
+  }
   assert(Array.isArray(product.images) && product.images.length > 0, `${product.slug}: exact product image is missing.`);
   for (const image of (product.images || [])) {
     assert(/^assets\/(?:products|catalog)\/[A-Za-z0-9_./-]+\.(?:avif|jpe?g|png|webp)$/i.test(image.src || ''), `${product.slug}: image must be an approved local catalogue asset.`);
@@ -373,10 +386,19 @@ for (const product of data.storeProducts) {
     assert(fs.existsSync(path.join(repo, image.src || '')), `${product.slug}: product image is missing: ${image.src}`);
     assert(fs.existsSync(path.join(dist, image.src || '')), `${product.slug}: product image was not copied to production: ${image.src}`);
     assert(Number(image.width) > 0 && Number(image.height) > 0, `${product.slug}: product image dimensions are missing.`);
+    if (product.provider === 'ECS Tuning') {
+      assert(Number(image.width) >= 800 && Number(image.height) >= 600, `${product.slug}: ECS product image is below the approved review resolution.`);
+      assert(fs.statSync(path.join(repo, image.src || '')).size >= 20_000, `${product.slug}: ECS product image appears to be a low-resolution thumbnail.`);
+    }
     assert(String(image.alt || '').trim().length >= 8 && String(image.altAr || '').trim().length >= 8, `${product.slug}: bilingual product image text is incomplete.`);
   }
   for (const locale of ['en', 'ar']) assert(routeManifest.some(page => page.locale === locale && page.route === `/parts/${product.slug}`), `${product.slug}: missing ${locale} product route.`);
 }
+for (const product of (ecsProducts || [])) {
+  assert(product.provider === 'ECS Tuning', `${product.slug || 'ECS product'}: ECS collection entry has the wrong supplier.`);
+  assert(data.storeProducts.filter(entry => entry.slug === product.slug).length === 1, `${product.slug || 'ECS product'}: ECS collection entry was not appended exactly once.`);
+}
+assert((data.storeProducts || []).filter(product => product.provider === 'ECS Tuning').length === (ecsProducts || []).length, 'ECS products exist outside the manual ECS collection.');
 for (const part of data.parts) for (const locale of ['en', 'ar']) assert(routeManifest.some(page => page.locale === locale && page.route === `/parts/${part.slug}`), `${part.slug}: missing ${locale} package route.`);
 for (const brand of data.brands) assert(brandLogoNames.has(brand.name), `Brand logo mapping is missing: ${brand.name}`);
 for (const dealerName of ['xHP Flashtool', 'Motion Raceworks', 'ECS Tuning']) {
@@ -402,6 +424,9 @@ assert(appSource.includes('TEGIWA_VEHICLE_DIRECTORY.makes')
   && appSource.includes('vehicleDirectoryChoiceLabel'), 'The supplier vehicle directory is not integrated into the saved-vehicle flow.');
 assert(templateSource.includes('assets/tegiwa-vehicle-directory.js')
   && templateSource.indexOf('assets/tegiwa-vehicle-directory.js') < templateSource.indexOf('assets/app.js'), 'The supplier vehicle directory must load before the application.');
+assert(templateSource.includes('assets/ecs-products.js')
+  && templateSource.indexOf('assets/data.js') < templateSource.indexOf('assets/ecs-products.js')
+  && templateSource.indexOf('assets/ecs-products.js') < templateSource.indexOf('assets/app.js'), 'The manual ECS catalogue must load after base data and before the application.');
 assert(appSource.includes('<select id="parts-vehicle-year"') && appSource.includes('name="year" required'), 'Required vehicle-year dropdown is missing.');
 assert(appSource.includes('new Date().getFullYear() + 1') && appSource.includes('const oldestModelYear = 1950'), 'Vehicle-year dropdown range is not current-model-year aware or does not reach 1950.');
 assert(appSource.includes('data-tegiwa-catalog')

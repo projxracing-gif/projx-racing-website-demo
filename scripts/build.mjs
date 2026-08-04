@@ -17,7 +17,7 @@ function versionedFiles(relativeDirectory) {
 }
 
 const assetVersionFiles = [
-  'assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/tegiwa-vehicle-directory.js',
+  'assets/styles.css', 'assets/site-config.js', 'assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'assets/app.js',
   ...versionedFiles('assets/brand'), ...versionedFiles('assets/media'), ...versionedFiles('assets/products')
 ].sort();
@@ -31,7 +31,7 @@ const assetVersion = assetVersionHash
 function loadProjectData() {
   const context = { window: {} };
   vm.createContext(context);
-  for (const file of ['assets/data.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/i18n/en.js', 'assets/i18n/ar.js']) {
+  for (const file of ['assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/i18n/en.js', 'assets/i18n/ar.js']) {
     vm.runInContext(fs.readFileSync(path.join(repo, file), 'utf8'), context, { filename: file });
   }
   return {
@@ -255,7 +255,7 @@ for (const product of (DATA.storeProducts || [])) {
       url: canonical(locale, `/parts/${product.slug}`)
     };
     if (product.mpn) productSchema.mpn = product.mpn;
-    if (!product.quoteOnly && Number(product.priceAmount) > 0 && /^[A-Z]{3}$/.test(product.priceCurrency || '')) productSchema.offers = { '@type': 'Offer', priceCurrency: product.priceCurrency, price: Number(product.priceAmount).toFixed(2), url: canonical(locale, `/parts/${product.slug}`), availability: 'https://schema.org/LimitedAvailability' };
+    if (!product.quoteOnly && product.stockPolicy !== 'manual-confirm' && Number(product.priceAmount) > 0 && /^[A-Z]{3}$/.test(product.priceCurrency || '')) productSchema.offers = { '@type': 'Offer', priceCurrency: product.priceCurrency, price: Number(product.priceAmount).toFixed(2), url: canonical(locale, `/parts/${product.slug}`), availability: 'https://schema.org/LimitedAvailability' };
     return {
       title: `${local.title} | Projx Racing Parts`,
       h1: local.title,

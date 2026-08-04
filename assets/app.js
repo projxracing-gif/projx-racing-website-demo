@@ -163,6 +163,16 @@
       allAvailability: "كل حالات التوفر",
       pricing: "التسعير",
       price: "السعر",
+      startingAt: "ابتداءً من",
+      supplier: "المورد",
+      allSuppliers: "كل الموردين",
+      skuMpn: "رقم القطعة / MPN",
+      ecsPartNumber: "رقم قطعة ECS",
+      supplierListing: "حالة المورد عند المراجعة",
+      originalListing: "صفحة المنتج الأصلية",
+      lastChecked: "آخر مراجعة يدوية",
+      manualStockNotice: "لا يوفر المورد Stockfeed مباشر. يتم تأكيد التوفر والمدة والسعر مرة ثانية قبل اعتماد الطلب.",
+      manualStockStale: "انتهت صلاحية المراجعة اليدوية — يلزم إعادة التأكيد",
       allPricing: "كل حالات التسعير",
       usdPrice: "سعر منشور",
       quoteOnly: "السعر حسب الطلب",
@@ -295,6 +305,16 @@
       allAvailability: "All availability states",
       pricing: "Pricing",
       price: "Price",
+      startingAt: "From",
+      supplier: "Supplier",
+      allSuppliers: "All suppliers",
+      skuMpn: "SKU / MPN",
+      ecsPartNumber: "ECS Part #",
+      supplierListing: "Supplier listing when checked",
+      originalListing: "Original product listing",
+      lastChecked: "Last manually checked",
+      manualStockNotice: "This supplier does not provide a live stockfeed. Availability, lead time and price are reconfirmed before an order is accepted.",
+      manualStockStale: "Manual review expired — reconfirmation required",
       allPricing: "All pricing states",
       usdPrice: "Published price",
       quoteOnly: "Request price",
@@ -684,6 +704,7 @@
       category: product.categoryAr || product.category,
       subcategory: product.subcategoryAr || product.subcategory,
       status: product.statusAr || product.status,
+      observedAvailability: product.observedAvailabilityAr || product.observedAvailability,
       priceNote: product.priceNoteAr || product.priceNote,
       details: product.detailsAr || product.details,
       images: (product.images || []).map(image => ({ ...image, alt: image.altAr || image.alt }))
@@ -938,18 +959,36 @@
   function storeProductPrice(product) {
     const amount = Number(product.priceAmount);
     const currency = String(product.priceCurrency || "").toUpperCase();
-    if (product.quoteOnly || !Number.isFinite(amount) || !/^[A-Z]{3}$/.test(currency)) return storeText().requestPrice;
+    if (product.quoteOnly || !storeProductManualCheckIsFresh(product) || !Number.isFinite(amount) || !/^[A-Z]{3}$/.test(currency)) return storeText().requestPrice;
     const locale = state.locale === "ar" ? "ar-KW" : (currency === "GBP" ? "en-GB" : "en-US");
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+    const formatted = new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+    return product.priceStartingAt ? `${storeText().startingAt} ${formatted}` : formatted;
+  }
+
+  function storeProductManualCheckIsFresh(product) {
+    if (product.stockPolicy !== "manual-confirm") return true;
+    const checkedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(product.checkedAt || "")) ? Date.parse(`${product.checkedAt}T00:00:00.000Z`) : NaN;
+    const staleAfterDays = Math.min(30, Math.max(1, Number.parseInt(product.staleAfterDays, 10) || 7));
+    return Number.isFinite(checkedAt) && Date.now() < checkedAt + staleAfterDays * 86_400_000;
+  }
+
+  function storeProductStatus(product, localizedProduct = localizedStoreProduct(product)) {
+    if (product.stockPolicy !== "manual-confirm") return localizedProduct.status;
+    return storeProductManualCheckIsFresh(product) ? localizedProduct.status : storeText().manualStockStale;
   }
 
   function productCard(product, index) {
     const local = localizedStoreProduct(product);
     const image = local.images?.[0];
-    const search = [local.title, local.category, local.subcategory, local.brand, local.sku, local.mpn, local.summary].join(" ").toLowerCase();
+    const provider = cleanText(local.provider || "", 80);
+    const partNumber = cleanText(local.ecsPartNumber || local.sku || local.mpn || "", 120);
+    const effectiveStatus = storeProductStatus(product, local);
+    const observedAvailability = cleanText(local.observedAvailability || "", 160);
+    const search = [local.title, local.category, local.subcategory, local.brand, provider, local.ecsPartNumber, local.sku, local.mpn, local.summary].join(" ").toLowerCase();
     const fitment = fitmentMakes(product).map(normalizedBrandWords).flat().join("|");
-    const pricing = product.quoteOnly ? "quote" : "published";
-    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-availability="${esc(local.status)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(local.status)}</span></a><div class="part-body"><span class="mini-label">${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
+    const pricing = product.quoteOnly || !storeProductManualCheckIsFresh(product) ? "quote" : "published";
+    const details = [provider, local.brand, partNumber].filter(Boolean).join(" • ");
+    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-supplier="${esc(provider.toLowerCase())}" data-availability="${esc(effectiveStatus)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(effectiveStatus)}</span></a><div class="part-body"><span class="mini-label">${provider ? `${esc(provider)} · ` : ""}${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl>${provider ? `<div><dt>${esc(storeText().supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>${esc(storeText().skuMpn)}</dt><dd><bdi dir="ltr">${esc(partNumber)}</bdi></dd></div>${observedAvailability ? `<div><dt>${esc(storeText().supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}<div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(details)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function partCard(part, index) {
@@ -1712,12 +1751,17 @@
     const local = localizedStoreProduct(product);
     const labels = storeText();
     const image = local.images?.[0];
-    const context = [local.title, local.brand, local.sku || local.mpn, partsVehicleLabel()].filter(Boolean).join(" | ");
+    const provider = cleanText(local.provider || "", 80);
+    const partNumber = cleanText(local.ecsPartNumber || local.sku || local.mpn || "", 120);
+    const effectiveStatus = storeProductStatus(product, local);
+    const observedAvailability = cleanText(local.observedAvailability || "", 160);
+    const checked = tegiwaCheckedLabel(local.checkedAt);
+    const context = [local.title, provider, local.brand, partNumber, partsVehicleLabel()].filter(Boolean).join(" | ");
     return `<section class="section store-product-page"><div class="container">
       ${breadcrumbs([[U().nav.parts, "/parts"], [local.title]])}
       <div class="store-detail-layout">
         <figure class="store-detail-media store-product-detail-media"><img src="${esc(versionedAsset(image.src))}" width="${Number(image.width)}" height="${Number(image.height)}" alt="${esc(image.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure>
-        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(local.status)}</div><dl class="store-facts"><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>SKU / MPN</dt><dd><bdi>${esc(local.sku || local.mpn)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(local.status)}</dd></div></dl><div class="store-price"><small>${esc(local.priceNote || U().common.quotation)}</small><strong>${esc(storeProductPrice(product))}</strong></div><label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.sku || local.mpn}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></div></aside>
+        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${provider ? `${esc(provider)} · ` : ""}${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(effectiveStatus)}</div><dl class="store-facts">${provider ? `<div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div>${local.ecsPartNumber ? `<div><dt>${esc(labels.ecsPartNumber)}</dt><dd><bdi dir="ltr">${esc(local.ecsPartNumber)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.skuMpn)}</dt><dd><bdi dir="ltr">${esc(local.mpn || local.sku || partNumber)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(effectiveStatus)}</dd></div>${observedAvailability ? `<div><dt>${esc(labels.supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}${checked ? `<div><dt>${esc(labels.lastChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><div class="store-price"><small>${esc(storeProductManualCheckIsFresh(product) ? (local.priceNote || U().common.quotation) : labels.manualStockStale)}</small><strong>${esc(storeProductPrice(product))}</strong></div>${local.stockPolicy === "manual-confirm" ? `<div class="notice notice-info">${icons.check}<span>${esc(labels.manualStockNotice)}</span></div>` : ""}<label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(context)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>${local.originalUrl ? `<a class="btn btn-outline" href="${esc(local.originalUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalListing)}${icons.arrow}</a>` : ""}</div></aside>
       </div>
     </div></section><section class="section section-tone"><div class="container narrow"><div class="notice notice-info"><strong>${esc(labels.shippingHeading)}</strong> ${esc(labels.shippingText)}</div></div></section>`;
   }
@@ -2349,7 +2393,9 @@
     const products = (DATA.storeProducts || []).map(localizedStoreProduct);
     const categories = [...new Set([...parts.map(part => part.category), ...products.map(product => product.category)])];
     const brandCounts = DATA.brands.map(brand => ({ brand, count: DATA.parts.filter(part => brandsForPart(part.brand).some(match => match.name === brand.name)).length + (DATA.storeProducts || []).filter(product => product.brand === brand.name).length })).filter(item => item.count > 0);
-    const statuses = [...new Set([...parts.map(part => part.status), ...products.map(product => product.status)])];
+    const catalogueBrands = [...new Set([...brandCounts.map(({ brand }) => brand.name), ...products.map(product => product.brand).filter(Boolean)])].sort((a, b) => a.localeCompare(b, state.locale === "ar" ? "ar" : "en"));
+    const statuses = [...new Set([...parts.map(part => part.status), ...(DATA.storeProducts || []).map(product => storeProductStatus(product))])];
+    const suppliers = [...new Set(products.map(product => cleanText(product.provider || "", 80)).filter(Boolean))];
     const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : {};
     const directory = partsApplicationDirectory();
     const makes = [...directory.keys()];
@@ -2413,7 +2459,7 @@
           <div class="store-catalogue-status"><article><span>${String(products.length).padStart(2, "0")}</span><div><strong>${esc(labels.verifiedProducts)}</strong><small>${esc(labels.verifiedProductsText)}</small></div></article><article><span>${String(parts.length).padStart(2, "0")}</span><div><strong>${esc(labels.configuredPackage)}</strong><small>${esc(labels.exactProductRule)}</small></div></article></div>
           ${products.length ? "" : `<div class="notice notice-info store-catalogue-gate"><strong>${esc(labels.cataloguePending)}.</strong> ${esc(labels.cataloguePendingText)}</div>`}
           <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
-          <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${brandCounts.map(({ brand }) => `<option value="${esc(brand.name.toLowerCase())}">${esc(brand.name)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="availability" aria-label="${esc(labels.availability)}"><option value="">${esc(labels.allAvailability)}</option>${statuses.map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="pricing" aria-label="${esc(labels.pricing)}"><option value="">${esc(labels.allPricing)}</option><option value="published">${esc(labels.usdPrice)}</option><option value="quote">${esc(labels.quoteOnly)}</option></select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="vehicle" data-filter-match="vehicle" aria-label="${esc(labels.fitment)}" ${partsVehicleLabel() ? "" : "disabled"}><option value="">${esc(labels.allFitment)}</option><option value="possible">${esc(labels.possibleMatches)}</option></select></label><label class="select-control">${icons.filter}<select data-parts-sort aria-label="${esc(labels.sort)}"><option value="featured">${esc(labels.featured)}</option><option value="name">${esc(labels.nameAsc)}</option><option value="category">${esc(labels.categoryAsc)}</option><option value="brand">${esc(labels.brandAsc)}</option></select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
+          <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${catalogueBrands.map(brand => `<option value="${esc(brand.toLowerCase())}">${esc(brand)}</option>`).join("")}</select></label>${suppliers.length ? `<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="supplier" aria-label="${esc(labels.supplier)}"><option value="">${esc(labels.allSuppliers)}</option>${suppliers.map(supplier => `<option value="${esc(supplier.toLowerCase())}">${esc(supplier)}</option>`).join("")}</select></label>` : ""}<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="availability" aria-label="${esc(labels.availability)}"><option value="">${esc(labels.allAvailability)}</option>${statuses.map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="pricing" aria-label="${esc(labels.pricing)}"><option value="">${esc(labels.allPricing)}</option><option value="published">${esc(labels.usdPrice)}</option><option value="quote">${esc(labels.quoteOnly)}</option></select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="vehicle" data-filter-match="vehicle" aria-label="${esc(labels.fitment)}" ${partsVehicleLabel() ? "" : "disabled"}><option value="">${esc(labels.allFitment)}</option><option value="possible">${esc(labels.possibleMatches)}</option></select></label><label class="select-control">${icons.filter}<select data-parts-sort aria-label="${esc(labels.sort)}"><option value="featured">${esc(labels.featured)}</option><option value="name">${esc(labels.nameAsc)}</option><option value="category">${esc(labels.categoryAsc)}</option><option value="brand">${esc(labels.brandAsc)}</option></select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
           <div class="parts-grid" data-filter-grid="parts">${cards.join("")}</div>
           <div class="empty-state" data-filter-empty="parts" hidden><p>${esc(U().common.noResults)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(finder.requestUnlisted)}${icons.arrow}</button></div>
           <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
