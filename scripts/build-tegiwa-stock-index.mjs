@@ -94,6 +94,11 @@ function parsePence(value) {
   return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
 }
 
+function excludeUkVat(grossPence) {
+  if (!Number.isSafeInteger(grossPence) || grossPence < 1) return null;
+  return Math.round((grossPence * 5) / 6);
+}
+
 function quantitySignal(value, { allowCall = false } = {}) {
   const normalized = String(value || '').normalize('NFKC').trim().toLocaleLowerCase('en-US');
   if (allowCall && normalized === 'call for availability') return 'check';
@@ -263,7 +268,7 @@ await parseCsv(input, row => {
     product.variants.set(skuKey, variant);
   }
 
-  const pricePence = parsePence(get('RRP Inc VAT'));
+  const pricePence = excludeUkVat(parsePence(get('RRP Inc VAT')));
   if (pricePence === null) {
     variant.invalidPrice = true;
     invalidPriceRows += 1;
@@ -368,6 +373,7 @@ for (const product of skuOnlyRows.sort((a, b) => a.hash.localeCompare(b.hash, 'e
 
 const publicIndex = {
   version: 2,
+  priceBasis: 'gbp_ex_uk_vat',
   checkedAt,
   productCount: productRows.length,
   skuProductCount: productRows.filter(product => product.skuStateCode === 1).length

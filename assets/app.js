@@ -112,6 +112,7 @@
       sort: "relevance",
       availability: "all",
       pricing: "all",
+      match: "any",
       controller: null,
       detailController: null,
       detailHandle: "",
@@ -201,12 +202,14 @@
       partDirectorySearch: "ابحث في الكتالوج عن {term}",
       tegiwaEyebrow: "كتالوج القطع المباشر",
       tegiwaHeading: "تصفح كامل كتالوج Tegiwa.",
-      tegiwaText: "ابحث باسم القطعة أو العلامة أو السيارة أو المحرك أو رقم القطعة، أو تصفح المنتجات بالتدريج. تظهر الأسعار بالجنيه الإسترليني وحالة التوفر الآمنة من آخر Stockfeed.",
+      tegiwaText: "ابحث باسم القطعة أو العلامة أو السيارة أو المحرك أو رقم القطعة، أو تصفح المنتجات بالتدريج. تظهر الأسعار بالجنيه الإسترليني بدون ضريبة القيمة المضافة البريطانية وحالة التوفر الآمنة من آخر Stockfeed.",
       tegiwaSearchLabel: "ابحث في المنتجات",
       tegiwaSearchPlaceholder: "اسم القطعة، العلامة، السيارة، المحرك أو رقم القطعة",
       tegiwaSearchAction: "بحث",
       tegiwaBrowseAction: "عرض الكتالوج",
-      tegiwaSourceNote: "بيانات المنتجات والصور والأسعار من كتالوج Tegiwa الرسمي. علامة التوفر تعني أن خياراً واحداً على الأقل متوفر؛ السعر النهائي والخيار والتوافق والشحن والجمارك يتم تأكيدهم في عرض Projx Racing.",
+      tegiwaSourceNote: "بيانات المنتجات والصور من كتالوج المورد الرسمي، والأسعار المدرجة بالجنيه الإسترليني لا تشمل ضريبة القيمة المضافة البريطانية. علامة التوفر تعني أن خياراً واحداً على الأقل متوفر؛ يؤكد Projx Racing الخيار والسعر النهائي والتوافق والشحن ورسوم الكويت قبل الطلب.",
+      tegiwaVehicleActive: "الكتالوج المباشر مفلتر لسيارتك",
+      tegiwaVehicleText: "نعرض المطابقات المحتملة فقط. Projx Racing يؤكد التوافق الدقيق قبل الطلب.",
       tegiwaLoading: "جاري تحميل منتجات Tegiwa…",
       tegiwaLoadError: "تعذر تحميل كتالوج Tegiwa حالياً.",
       tegiwaRetry: "حاول مرة ثانية",
@@ -256,9 +259,9 @@
       tegiwaVariants: "الخيارات",
       tegiwaSelectedOption: "الخيار المحدد",
       tegiwaChooseVariant: "اختر خياراً لتحديث السعر والتوفر قبل الإضافة لطلب السعر.",
-      tegiwaOnlinePrice: "سعر Tegiwa الإلكتروني (GBP)",
+      tegiwaOnlinePrice: "سعر المورد (GBP، بدون ضريبة القيمة المضافة البريطانية)",
       tegiwaChecked: "تم فحص المخزون",
-      tegiwaPriceNote: "سعر Tegiwa بالجنيه الإسترليني شامل VAT حسب المصدر؛ السعر النهائي والشحن يتم تأكيدهم من Projx Racing.",
+      tegiwaPriceNote: "أسعار المورد بالجنيه الإسترليني لا تشمل ضريبة القيمة المضافة البريطانية. يؤكد Projx Racing السعر النهائي والشحن ورسوم الكويت قبل الطلب.",
       tegiwaInStock: "بعض الخيارات متوفرة في مخزون المورد",
       tegiwaSupplierStock: "بعض الخيارات متوفرة عند المورد",
       tegiwaCheckAvailability: "يتطلب تأكيد التوفر",
@@ -331,12 +334,14 @@
       partDirectorySearch: "Search the catalogue for {term}",
       tegiwaEyebrow: "Live Parts catalogue",
       tegiwaHeading: "Browse the complete Tegiwa catalogue.",
-      tegiwaText: "Search by product, brand, vehicle, engine or part number, or browse the catalogue in manageable pages. Prices remain in GBP and every card shows a customer-safe availability state from the latest stockfeed.",
+      tegiwaText: "Search by product, brand, vehicle, engine or part number, or browse the catalogue in manageable pages. Prices remain in GBP, exclude UK VAT and every card shows a customer-safe availability state from the latest stockfeed.",
       tegiwaSearchLabel: "Search products",
       tegiwaSearchPlaceholder: "Product, brand, vehicle, engine or part number",
       tegiwaSearchAction: "Search",
       tegiwaBrowseAction: "Browse catalogue",
-      tegiwaSourceNote: "Product data, images and listed prices come from Tegiwa's official catalogue. A stock badge means at least one option is available; Projx Racing confirms the final option, price, fitment, shipping and Kuwait duties before an order.",
+      tegiwaSourceNote: "Product data and images come from the supplier's official catalogue, and listed GBP prices exclude UK VAT. A stock badge means at least one option is available; Projx Racing confirms the final option, price, fitment, shipping and Kuwait duties before an order.",
+      tegiwaVehicleActive: "Live catalogue filtered for your vehicle",
+      tegiwaVehicleText: "These are likely catalogue matches only. Projx Racing confirms exact fitment before an order.",
       tegiwaLoading: "Loading Tegiwa products…",
       tegiwaLoadError: "The Tegiwa catalogue could not be loaded right now.",
       tegiwaRetry: "Try again",
@@ -386,9 +391,9 @@
       tegiwaVariants: "Options",
       tegiwaSelectedOption: "Selected option",
       tegiwaChooseVariant: "Select an option to update its price and availability before adding it to your quote.",
-      tegiwaOnlinePrice: "Tegiwa online price (GBP)",
+      tegiwaOnlinePrice: "Supplier price (GBP, UK VAT excluded)",
       tegiwaChecked: "Stock checked",
-      tegiwaPriceNote: "Tegiwa GBP price including VAT where stated; Projx Racing confirms final price and shipping.",
+      tegiwaPriceNote: "Supplier GBP prices exclude UK VAT. Projx Racing confirms the final price, shipping and Kuwait duties before an order.",
       tegiwaInStock: "Selected variants in stock at supplier",
       tegiwaSupplierStock: "Selected variants in supplier stock",
       tegiwaCheckAvailability: "Confirm availability",
@@ -1595,6 +1600,35 @@
       .join(" · ");
   }
 
+  function partsVehicleCatalogueQuery() {
+    const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : null;
+    if (!vehicle) return "";
+    const make = cleanText(vehicle.make || "", 80);
+    const model = cleanText(vehicle.model || "", 80)
+      .replace(/\s*\([^)]*\)/g, " ")
+      .split(/\s*\/\s*/u)[0]
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleanText([make, model].filter(Boolean).join(" "), 120);
+  }
+
+  function partsVehicleCatalogueContextMarkup() {
+    const label = partsVehicleLabel();
+    if (!label || state.tegiwaCatalog.match !== "vehicle") return "";
+    const labels = storeText();
+    const finder = P().parts.finder;
+    return `${icons.check}<div><strong>${esc(labels.tegiwaVehicleActive)}</strong><bdi>${esc(label)}</bdi><small>${esc(labels.tegiwaVehicleText)}</small></div><button class="text-link" type="button" data-action="clear-parts-vehicle">${esc(finder.clearVehicle)}</button>`;
+  }
+
+  function renderTegiwaVehicleContext() {
+    const context = document.querySelector("[data-tegiwa-vehicle-context]");
+    if (!context) return;
+    const markup = partsVehicleCatalogueContextMarkup();
+    context.hidden = !markup;
+    context.classList.toggle("is-active", Boolean(markup));
+    context.innerHTML = markup;
+  }
+
   function partsVehicleSummaryMarkup() {
     const finder = P().parts.finder;
     const label = partsVehicleLabel();
@@ -1604,9 +1638,11 @@
 
   function renderPartsVehicleSummary() {
     const summary = document.querySelector("[data-parts-vehicle-summary]");
-    if (!summary) return;
-    summary.classList.toggle("is-active", Boolean(partsVehicleLabel()));
-    summary.innerHTML = partsVehicleSummaryMarkup();
+    if (summary) {
+      summary.classList.toggle("is-active", Boolean(partsVehicleLabel()));
+      summary.innerHTML = partsVehicleSummaryMarkup();
+    }
+    renderTegiwaVehicleContext();
   }
 
   function savePartsVehicle(form) {
@@ -1626,7 +1662,13 @@
     const matchFilter = document.querySelector('[data-filter-select="parts"][data-filter-match="vehicle"]');
     if (matchFilter) matchFilter.disabled = false;
     showToast(P().parts.finder.vehicleSaved, partsVehicleLabel());
-    scrollElementIntoView(document.getElementById("parts-categories"));
+    const query = partsVehicleCatalogueQuery();
+    const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
+    if (searchInput) searchInput.value = query;
+    resetTegiwaFilters({ reload: false });
+    clearTegiwaDirectorySelection();
+    loadTegiwaCatalog({ query, match: "vehicle", page: 1, scrollResults: true });
+    scrollElementIntoView(document.getElementById("tegiwa-catalog"));
   }
 
   function updatePartsVehicleCascades(form, changed = "") {
@@ -1758,6 +1800,7 @@
     availability: new Set(["all", "available", "in_stock", "supplier_stock", "check", "unavailable"]),
     pricing: new Set(["all", "priced", "request_price"])
   });
+  const TEGIWA_MATCH_VALUES = new Set(["any", "vehicle"]);
 
   function tegiwaFilterCount() {
     return Object.entries(TEGIWA_SEARCH_DEFAULTS).filter(([key, value]) => state.tegiwaCatalog[key] !== value).length;
@@ -1911,7 +1954,7 @@
     input.value = query;
     hideTegiwaSuggestions();
     clearTegiwaDirectorySelection();
-    loadTegiwaCatalog({ query, page: 1, scrollResults: true });
+    loadTegiwaCatalog({ query, match: "any", page: 1, scrollResults: true });
   }
 
   function handleTegiwaSuggestionKeydown(event, input) {
@@ -2008,6 +2051,7 @@
     state.tegiwaCatalog.totalPages = totalPages;
     state.tegiwaCatalog.pageSize = pageSize;
     state.tegiwaCatalog.canonicalQuery = isSearch ? cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 120) : "";
+    if (TEGIWA_MATCH_VALUES.has(meta.match)) state.tegiwaCatalog.match = meta.match;
     for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) {
       if (TEGIWA_SEARCH_VALUES[key].has(meta[key])) state.tegiwaCatalog[key] = meta[key];
     }
@@ -2029,6 +2073,7 @@
     if (previous) previous.disabled = currentPage <= 1;
     if (next) next.disabled = totalPages <= 1 || currentPage >= totalPages;
     syncTegiwaFilterUi();
+    renderTegiwaVehicleContext();
   }
 
   async function loadTegiwaCatalog(options = {}) {
@@ -2041,6 +2086,8 @@
     const normalizedQuery = cleanText(Object.hasOwn(options, "query") ? options.query : state.tegiwaCatalog.query, 120);
     const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1);
     const scrollResults = Boolean(options.scrollResults);
+    const proposedMatch = Object.hasOwn(options, "match") ? options.match : state.tegiwaCatalog.match;
+    state.tegiwaCatalog.match = normalizedQuery && TEGIWA_MATCH_VALUES.has(proposedMatch) ? proposedMatch : "any";
     for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) {
       const proposed = Object.hasOwn(options, key) ? options[key] : state.tegiwaCatalog[key];
       state.tegiwaCatalog[key] = TEGIWA_SEARCH_VALUES[key].has(proposed) ? proposed : TEGIWA_SEARCH_DEFAULTS[key];
@@ -2048,8 +2095,9 @@
     if (!normalizedQuery) Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS);
     state.tegiwaCatalog.query = normalizedQuery;
     state.tegiwaCatalog.lastRequest = normalizedQuery
-      ? { query: normalizedQuery, page: requestedPage, sort: state.tegiwaCatalog.sort, availability: state.tegiwaCatalog.availability, pricing: state.tegiwaCatalog.pricing, scrollResults }
+      ? { query: normalizedQuery, match: state.tegiwaCatalog.match, page: requestedPage, sort: state.tegiwaCatalog.sort, availability: state.tegiwaCatalog.availability, pricing: state.tegiwaCatalog.pricing, scrollResults }
       : { query: "", page: requestedPage, scrollResults };
+    renderTegiwaVehicleContext();
     hideTegiwaSuggestions();
     const grid = root.querySelector("[data-tegiwa-results]");
     const status = root.querySelector("[data-tegiwa-status]");
@@ -2067,6 +2115,7 @@
         endpoint.searchParams.set("sort", state.tegiwaCatalog.sort);
         endpoint.searchParams.set("availability", state.tegiwaCatalog.availability);
         endpoint.searchParams.set("pricing", state.tegiwaCatalog.pricing);
+        if (state.tegiwaCatalog.match === "vehicle") endpoint.searchParams.set("match", "vehicle");
       } else endpoint.searchParams.set("page", String(requestedPage));
       const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
       const payload = await response.json().catch(() => ({}));
@@ -2101,6 +2150,7 @@
     state.tegiwaCatalog.pageSize = 100;
     state.tegiwaCatalog.query = "";
     state.tegiwaCatalog.canonicalQuery = "";
+    state.tegiwaCatalog.match = "any";
     Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS);
     const input = root.querySelector("[data-tegiwa-search-input]");
     input?.addEventListener("input", () => {
@@ -2111,7 +2161,11 @@
       if (cleanText(input.value, 120).length >= 2) scheduleTegiwaSuggestions(input);
     });
     syncTegiwaFilterUi();
-    loadTegiwaCatalog({ page: 1 });
+    const vehicleQuery = partsVehicleCatalogueQuery();
+    if (vehicleQuery) {
+      if (input) input.value = vehicleQuery;
+      loadTegiwaCatalog({ query: vehicleQuery, match: "vehicle", page: 1 });
+    } else loadTegiwaCatalog({ page: 1 });
   }
 
   function tegiwaVariantAvailability(variant = {}) {
@@ -2303,10 +2357,6 @@
     const generationsMap = modelsMap.get(vehicle.model) || new Map();
     const engines = [...(generationsMap.get(vehicle.generation) || [])];
     const modelYears = partsModelYears();
-    const categoryTiles = categories.map((category, index) => {
-      const count = parts.filter(part => part.category === category).length + products.filter(product => product.category === category).length;
-      return `<button class="parts-category-card" type="button" data-action="select-parts-category" data-parts-category="${esc(category)}" aria-pressed="false"><span>${compactNumber(index + 1)}</span><strong>${esc(category)}</strong><small>${count} ${esc(finder.items)}</small>${icons.arrow}</button>`;
-    }).join("");
     const brandTiles = brandCounts.map(({ brand, count }) => `<button class="parts-brand-card" type="button" data-action="select-parts-brand" data-parts-brand="${esc(brand.name.toLowerCase())}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${count} ${esc(finder.items)}</small></span>${icons.arrow}</button>`).join("");
 
     const cards = [...(DATA.storeProducts || []).map(productCard), ...DATA.parts.map(partCard)];
@@ -2317,8 +2367,7 @@
           <nav class="parts-paths" aria-label="${esc(finder.overviewEyebrow)}">
             <a href="#parts-vehicle"><span>01</span><strong>${esc(finder.byVehicle)}</strong><small>${esc(finder.vehiclePathText)}</small>${icons.arrow}</a>
             <a href="#parts-directory"><span>02</span><strong>${esc(labels.shopByPart)}</strong><small>${esc(labels.shopByPartText)}</small>${icons.arrow}</a>
-            <a href="#parts-categories"><span>03</span><strong>${esc(finder.byCategory)}</strong><small>${esc(finder.categoryPathText)}</small>${icons.arrow}</a>
-            <a href="#parts-brands"><span>04</span><strong>${esc(finder.byBrand)}</strong><small>${esc(finder.brandPathText)}</small>${icons.arrow}</a>
+            <a href="#parts-brands"><span>03</span><strong>${esc(finder.byBrand)}</strong><small>${esc(finder.brandPathText)}</small>${icons.arrow}</a>
           </nav>
           <div class="parts-vehicle-panel" id="parts-vehicle">
             <div class="parts-vehicle-copy"><span class="mini-label">${esc(finder.vehicleEyebrow)}</span><h2>${esc(finder.vehicleHeading)}</h2><p>${esc(finder.vehicleText)}</p></div>
@@ -2335,7 +2384,6 @@
           </div>
         </div></section>
         ${partsCatalogueDirectory()}
-        <section class="section section-tone" id="parts-categories"><div class="container">${sectionHead(finder.categoryEyebrow, finder.categoryHeading, finder.categoryText)}<div class="parts-category-grid">${categoryTiles}</div></div></section>
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
         <section class="section tegiwa-catalog-section" id="tegiwa-catalog"><div class="container"><div class="tegiwa-catalog-shell" data-tegiwa-catalog>
           <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count>193,253</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count>26,349</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
@@ -2354,6 +2402,7 @@
             </div>
             <div class="tegiwa-correction" data-tegiwa-correction role="status" aria-live="polite" hidden></div>
           </form>
+          <div class="tegiwa-vehicle-context" data-tegiwa-vehicle-context hidden></div>
           <p class="tegiwa-source-note">${icons.check}<span>${esc(labels.tegiwaSourceNote)}</span></p>
           <div class="tegiwa-catalog-status" data-tegiwa-status role="status" aria-live="polite">${esc(labels.tegiwaLoading)}</div>
           <div class="tegiwa-product-grid" data-tegiwa-results>${tegiwaLoadingCards()}</div>
@@ -2621,13 +2670,7 @@
   function updatePartsFilterState(visible) {
     const count = document.querySelector("[data-parts-result-count]");
     if (count) count.textContent = String(visible);
-    const category = document.querySelector('[data-filter-select="parts"][data-filter-attribute="category"]')?.value || "";
     const brand = document.querySelector('[data-filter-select="parts"][data-filter-attribute="brand"]')?.value || "";
-    document.querySelectorAll("[data-parts-category]").forEach(button => {
-      const active = button.dataset.partsCategory === category;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
     document.querySelectorAll("[data-parts-brand]").forEach(button => {
       const active = button.dataset.partsBrand === brand;
       button.classList.toggle("is-active", active);
@@ -2658,7 +2701,7 @@
     const catalogue = document.getElementById("tegiwa-catalog");
     const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     catalogue?.scrollIntoView({ behavior, block: "start" });
-    loadTegiwaCatalog({ query: normalizedQuery, page: 1 });
+    loadTegiwaCatalog({ query: normalizedQuery, match: "any", page: 1 });
     window.setTimeout(() => searchInput?.focus({ preventScroll: true }), behavior === "smooth" ? 450 : 0);
   }
 
@@ -3027,7 +3070,6 @@
       window.setTimeout(() => packageSelect?.focus(), motionDelay());
       return;
     }
-    if (action === "select-parts-category") { selectPartsFilter("category", target.dataset.partsCategory || ""); return; }
     if (action === "select-parts-brand") { selectPartsFilter("brand", target.dataset.partsBrand || ""); return; }
     if (action === "search-tegiwa-directory") { searchTegiwaDirectory(target.dataset.tegiwaDirectoryQuery || "", target); return; }
     if (action === "clear-parts-filters") { clearPartsFilters(); return; }
@@ -3068,11 +3110,12 @@
       resetTegiwaFilters({ reload: false });
       hideTegiwaSuggestions();
       clearTegiwaDirectorySelection();
-      loadTegiwaCatalog({ query: "", page: 1, scrollResults: true });
+      loadTegiwaCatalog({ query: "", match: "any", page: 1, scrollResults: true });
       return;
     }
     if (action === "tegiwa-retry") { loadTegiwaCatalog(state.tegiwaCatalog.lastRequest); return; }
     if (action === "clear-parts-vehicle") {
+      const resetLiveCatalogue = state.tegiwaCatalog.match === "vehicle";
       state.partsVehicle = null;
       storage.remove("projxPartsVehicle");
       const vehicleForm = document.querySelector("[data-parts-vehicle-form]");
@@ -3089,6 +3132,12 @@
         matchFilter.dispatchEvent(new Event("change", { bubbles: true }));
       }
       renderPartsVehicleSummary();
+      if (resetLiveCatalogue) {
+        const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
+        if (search) search.value = "";
+        resetTegiwaFilters({ reload: false });
+        loadTegiwaCatalog({ query: "", match: "any", page: 1, scrollResults: true });
+      }
       showToast(P().parts.finder.vehicleCleared);
       return;
     }
@@ -3140,7 +3189,7 @@
       const query = cleanText(new FormData(tegiwaSearch).get("q"), 120);
       hideTegiwaSuggestions();
       clearTegiwaDirectorySelection();
-      loadTegiwaCatalog(query ? { query, page: 1 } : { query: "", page: 1 });
+      loadTegiwaCatalog(query ? { query, match: "any", page: 1 } : { query: "", match: "any", page: 1 });
       return;
     }
     const vehicleForm = event.target.closest("[data-parts-vehicle-form]");

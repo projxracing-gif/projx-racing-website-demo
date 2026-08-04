@@ -157,6 +157,7 @@ const vercelConfig = JSON.parse(fs.readFileSync(path.join(repo, 'vercel.json'), 
 const tegiwaEntries = Object.entries(tegiwaIndex.products || {});
 const tegiwaLeadTimes = Array.isArray(tegiwaIndex.leadTimes) ? tegiwaIndex.leadTimes : [];
 assert(tegiwaIndex.version === 2, 'Tegiwa public stock/SKU-index version is invalid.');
+assert(tegiwaIndex.priceBasis === 'gbp_ex_uk_vat', 'Tegiwa public prices must use the UK-VAT-excluded GBP basis.');
 assert(/^\d{4}-\d{2}-\d{2}$/.test(tegiwaIndex.checkedAt || ''), 'Tegiwa stock-index check date is missing.');
 const tegiwaPricedEntries = tegiwaEntries.filter(([, value]) => Number.isInteger(value?.[0]) && Number.isInteger(value?.[1]));
 const tegiwaSkuEntries = tegiwaEntries.filter(([, value]) => value?.[5] === 1);
@@ -419,13 +420,22 @@ assert(appSource.includes('type="radio"')
   && appSource.includes('updateTegiwaVariantSelection')
   && appSource.includes('data-tegiwa-variant-quote')
   && appSource.includes('-variant-${input.dataset.variantKey}'), 'Tegiwa product options are not accessible, selectable, or variant-specific in quote requests.');
-assert(appSource.includes('select-parts-category') && appSource.includes('select-parts-brand'), 'Category or brand parts browsing is missing.');
+assert(!appSource.includes('id="parts-categories"')
+  && !appSource.includes('select-parts-category')
+  && appSource.includes('select-parts-brand'), 'The removed category-card section returned or brand browsing is missing.');
 assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
 assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
 assert(appSource.includes('PARTS_CATALOGUE_DIRECTORY')
   && appSource.includes('data-tegiwa-directory')
   && appSource.includes('data-action="search-tegiwa-directory"')
   && appSource.includes('searchTegiwaDirectory'), 'Interactive Shop by Part catalogue directory is missing.');
+assert(appSource.includes('partsVehicleCatalogueQuery')
+  && appSource.includes('match: "vehicle"')
+  && appSource.includes('endpoint.searchParams.set("match", "vehicle")')
+  && tegiwaApiSource.includes("SEARCH_MATCHES = new Set(['any', 'vehicle'])"), 'Saved vehicles do not drive strict live-catalogue matching.');
+assert(appSource.includes('Supplier price (GBP, UK VAT excluded)')
+  && !appSource.includes('including VAT where stated')
+  && tegiwaApiSource.includes(".js?country=KW"), 'Customer-facing supplier pricing is not consistently UK-VAT excluded.');
 assert(appSource.includes('tegiwaSearchLabel: "Search products"')
   && appSource.includes('tegiwaSearchLabel: "ابحث في المنتجات"')
   && !appSource.includes('Search Tegiwa products'), 'The customer-facing product search label still exposes the supplier name.');

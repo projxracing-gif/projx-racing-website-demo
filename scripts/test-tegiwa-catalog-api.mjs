@@ -110,6 +110,7 @@ assert.equal((await invoke(validationHandler, { query: { sort: 'relevance' } }))
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', sort: 'newest' } })).body.error.code, 'invalid_sort');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', availability: 'maybe' } })).body.error.code, 'invalid_availability');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', pricing: 'trade' } })).body.error.code, 'invalid_pricing');
+assert.equal((await invoke(validationHandler, { query: { q: 'BMW M3', match: 'broad' } })).body.error.code, 'invalid_match');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', debug: '1' } })).body.error.code, 'invalid_parameters');
 assert.equal((await invoke(validationHandler, {
   query: { q: 'brake' },
@@ -178,6 +179,8 @@ const searchRecords = [
   ['numeric-sku-fixture', 'Fixture Numeric Identifier', '', ['0221504464']],
   ['long-sku-fixture', 'Fixture Long Identifier', '', [`LONG-${'X'.repeat(76)}`]],
   ['separator-heavy-sku-fixture', 'Fixture Separator Heavy Identifier', '', ['A-1-B-2-C-3-D-4-E-5-F-6-G-7-H-8-I-9-J-10-K-11']],
+  ['bavarian-platform-fixture', 'BMW Chassis Platform', '', ['BMW-ONLY']],
+  ['motorsport-three-fixture', 'M3 Suspension Components', '', ['M3-ONLY']],
   ['bmw-m3-fixture', 'BMW M3 Suspension Package', '', ['NOT-THE-TITLE']]
 ];
 const searchCatalogShards = [searchRecords.slice(0, 80), searchRecords.slice(80, 170), searchRecords.slice(170)]
@@ -279,8 +282,16 @@ assert.equal((await invoke(searchHandler, { query: { q: separatorHeavySku } })).
 const normalBmwSearch = await invoke(searchHandler, { query: { q: 'BMW M3' } });
 assert.equal(normalBmwSearch.status, 200);
 assert.ok(normalBmwSearch.body.items.some(item => item.handle === 'bmw-m3-fixture'));
+assert.deepEqual(new Set(normalBmwSearch.body.items.map(item => item.handle)), new Set([
+  'bavarian-platform-fixture', 'motorsport-three-fixture', 'bmw-m3-fixture'
+]));
 assert.equal(normalBmwSearch.body.meta.canonicalQuery, 'bmw m3');
 assert.equal(normalBmwSearch.body.items.some(item => Object.hasOwn(item, 'matchedSku')), false);
+
+const vehicleBmwSearch = await invoke(searchHandler, { query: { q: 'BMW M3', match: 'vehicle' } });
+assert.equal(vehicleBmwSearch.status, 200);
+assert.deepEqual(vehicleBmwSearch.body.items.map(item => item.handle), ['bmw-m3-fixture']);
+assert.ok(vehicleBmwSearch.body.items.every(item => /\bBMW\b/i.test(item.title) && /\bM3\b/i.test(item.title)));
 
 const searchPageTwo = await invoke(searchHandler, { query: { q: 'engine management ecu', page: '2' } });
 const searchPageThree = await invoke(searchHandler, { query: { q: 'engine management ecu', page: '3' } });
@@ -625,7 +636,7 @@ const detailHandler = createTegiwaCatalogHandler({
   stockIndex: { ...stockIndex, products: {} },
   now: () => FIXED_NOW,
   fetchImpl: async url => {
-    assert.equal(url, 'https://www.tegiwa.com/products/race-kit.js');
+    assert.equal(url, 'https://www.tegiwa.com/products/race-kit.js?country=KW');
     return jsonResponse({
       id: 555,
       handle: 'race-kit',
@@ -685,7 +696,7 @@ assert.deepEqual(detail.body.product.variants, [
   { title: 'Unsafe', sku: null, mpn: null, available: true, price: { currency: 'GBP', amount: 125 } }
 ]);
 assert.deepEqual(detail.body.product.price, {
-  currency: 'GBP', min: 125, max: 125, note: 'Tegiwa online price'
+  currency: 'GBP', min: 125, max: 125, note: 'Tegiwa online price excluding UK VAT'
 });
 assert.equal(detail.body.meta.catalogProductCount, 4_218);
 
@@ -696,6 +707,56 @@ for (const forbidden of ['inventory_quantity', 'inventory_policy', 'inventory_ma
 assert.equal(serializedDetail.includes('private.example'), false);
 assert.equal(serializedDetail.includes('evil.example'), false);
 assert.equal(serializedDetail.includes('<script'), false);
+
+const consistentPriceTitle = 'Haltech Throttle Position Sensor';
+const consistentPriceHandle = 'haltech-throttle-position-sensor';
+const consistentPrice = { currency: 'GBP', min: 112.5, max: 112.5, note: 'Supplier price excluding UK VAT' };
+const consistentPriceHandler = createTegiwaCatalogHandler({
+  stockIndex: {
+    version: 2,
+    checkedAt: '2026-08-03',
+    productCount: 1,
+    skuProductCount: 1,
+    availableProductCount: 1,
+    leadTimes: [''],
+    products: { [stockKeyForTitle(consistentPriceTitle)]: [11250, 11250, 1, 0, ['HT-011-012'], 1] }
+  },
+  sitemapManifest: ['https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=1'],
+  catalogSummary: { version: 1, shardCount: 1, shardProductCounts: [1], productCount: 1 },
+  catalogLoader: async () => [[
+    consistentPriceHandle,
+    consistentPriceTitle,
+    'https://cdn.shopify.com/s/files/1/0000/haltech-tps.jpg'
+  ]],
+  now: () => FIXED_NOW,
+  fetchImpl: async url => {
+    assert.equal(url, `https://www.tegiwa.com/products/${consistentPriceHandle}.js?country=KW`);
+    return jsonResponse({
+      handle: consistentPriceHandle,
+      title: consistentPriceTitle,
+      vendor: 'Haltech',
+      type: 'Sensors',
+      available: true,
+      featured_image: 'https://cdn.shopify.com/s/files/1/0000/haltech-tps.jpg',
+      variants: [{ title: 'Default', available: true, price: 11250, sku: 'HT-011-012' }]
+    });
+  }
+});
+const consistentPriceBrowse = await invoke(consistentPriceHandler);
+assert.equal(consistentPriceBrowse.status, 200);
+assert.equal(consistentPriceBrowse.body.items.length, 1);
+assert.deepEqual(consistentPriceBrowse.body.items[0].price, consistentPrice);
+const consistentPriceDetail = await invoke(consistentPriceHandler, { query: { handle: consistentPriceHandle } });
+assert.equal(consistentPriceDetail.status, 200);
+assert.deepEqual(consistentPriceDetail.body.product.price, consistentPrice);
+assert.deepEqual(consistentPriceDetail.body.product.variants, [{
+  title: 'Default',
+  sku: 'HT-011-012',
+  mpn: null,
+  available: true,
+  price: { currency: 'GBP', amount: 112.5 }
+}]);
+assert.equal(consistentPriceBrowse.body.items[0].price.min, consistentPriceDetail.body.product.variants[0].price.amount);
 
 const dedupeTitle = 'Large Deduplicated SKU Product';
 const dedupeSkus = Array.from({ length: 1_100 }, (_, index) => `DEDUP-${String(index).padStart(4, '0')}`);

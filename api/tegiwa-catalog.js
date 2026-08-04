@@ -39,6 +39,7 @@ const SEARCH_METADATA_URL = new URL('./data/tegiwa-search-metadata.bin', import.
 const SEARCH_SORTS = new Set(['relevance', 'name_asc', 'name_desc', 'price_asc', 'price_desc']);
 const SEARCH_AVAILABILITY_FILTERS = new Set(['all', 'available', 'in_stock', 'supplier_stock', 'check', 'unavailable']);
 const SEARCH_PRICING_FILTERS = new Set(['all', 'priced', 'request_price']);
+const SEARCH_MATCHES = new Set(['any', 'vehicle']);
 
 const STATUS_CODES = Object.freeze({
   0: 'out_of_stock',
@@ -164,6 +165,7 @@ function safeCheckedAt(value) {
 
 function emptyStockIndex() {
   return {
+    priceBasis: null,
     checkedAt: null,
     productCount: 0,
     skuProductCount: 0,
@@ -179,6 +181,7 @@ function validateStockIndex(candidate) {
     ? candidate.products
     : Object.create(null);
   return {
+    priceBasis: candidate.priceBasis === 'gbp_ex_uk_vat' ? candidate.priceBasis : null,
     checkedAt: safeCheckedAt(candidate.checkedAt),
     productCount: safeInteger(candidate.productCount, 0, 10_000_000) ?? 0,
     skuProductCount: candidate.version === 2
@@ -197,7 +200,9 @@ function loadDefaultStockIndex() {
   if (defaultStockIndex) return defaultStockIndex;
   try {
     defaultStockIndex = validateStockIndex(JSON.parse(readFileSync(STOCK_INDEX_URL, 'utf8')));
-    if (!defaultStockIndex.checkedAt || defaultStockIndex.productCount < 1) throw new Error('empty_stock_index');
+    if (!defaultStockIndex.checkedAt || defaultStockIndex.productCount < 1 || defaultStockIndex.priceBasis !== 'gbp_ex_uk_vat') {
+      throw new Error('empty_or_unsafe_stock_index');
+    }
   } catch (error) {
     throw new Error('The public Tegiwa stock index could not be loaded.', { cause: error });
   }
@@ -600,7 +605,7 @@ function priceObject(stock, officialMin = null, officialMax = officialMin) {
       currency: 'GBP',
       min: gbp(stock.minPence),
       max: gbp(stock.maxPence),
-      note: 'RRP'
+      note: 'Supplier price excluding UK VAT'
     };
   }
   if (officialMin === null) return { currency: 'GBP', min: null, max: null, note: null };
@@ -609,7 +614,7 @@ function priceObject(stock, officialMin = null, officialMax = officialMin) {
     currency: 'GBP',
     min: Math.min(officialMin, maximum),
     max: Math.max(officialMin, maximum),
-    note: 'Tegiwa online price'
+    note: 'Tegiwa online price excluding UK VAT'
   };
 }
 
@@ -930,7 +935,7 @@ function enumParameter(value, allowed, fallback, code, message) {
 }
 
 function determineMode(req) {
-  const allowedParameters = new Set(['q', 'handle', 'cursor', 'page', 'suggest', 'sort', 'availability', 'pricing']);
+  const allowedParameters = new Set(['q', 'handle', 'cursor', 'page', 'suggest', 'sort', 'availability', 'pricing', 'match']);
   const suppliedParameters = new Set(Object.keys(req.query || {}));
   try {
     for (const key of new URL(req.url || '/', 'https://local.invalid').searchParams.keys()) suppliedParameters.add(key);
@@ -946,7 +951,8 @@ function determineMode(req) {
   const rawSort = requestParameter(req, 'sort');
   const rawAvailability = requestParameter(req, 'availability');
   const rawPricing = requestParameter(req, 'pricing');
-  const hasSearchOption = [rawSuggest, rawSort, rawAvailability, rawPricing].some(value => value !== undefined);
+  const rawMatch = requestParameter(req, 'match');
+  const hasSearchOption = [rawSuggest, rawSort, rawAvailability, rawPricing, rawMatch].some(value => value !== undefined);
 
   if (rawQuery !== undefined) {
     const query = cleanSingleParameter(rawQuery, MAX_PART_NUMBER_LENGTH + 1);
@@ -959,7 +965,7 @@ function determineMode(req) {
     }
     if (rawSuggest !== undefined) {
       if (Array.isArray(rawSuggest) || String(rawSuggest).trim() !== '1'
-        || rawPage !== undefined || rawSort !== undefined || rawAvailability !== undefined || rawPricing !== undefined) {
+        || rawPage !== undefined || rawSort !== undefined || rawAvailability !== undefined || rawPricing !== undefined || rawMatch !== undefined) {
         throw new PublicApiError(400, 'invalid_parameters', 'Suggestions accept only q and suggest=1.');
       }
       return { mode: 'suggest', query };
@@ -970,7 +976,8 @@ function determineMode(req) {
       page: positivePage(rawPage, 1),
       sort: enumParameter(rawSort, SEARCH_SORTS, 'relevance', 'invalid_sort', 'The requested search sort is not supported.'),
       availability: enumParameter(rawAvailability, SEARCH_AVAILABILITY_FILTERS, 'all', 'invalid_availability', 'The requested availability filter is not supported.'),
-      pricing: enumParameter(rawPricing, SEARCH_PRICING_FILTERS, 'all', 'invalid_pricing', 'The requested pricing filter is not supported.')
+      pricing: enumParameter(rawPricing, SEARCH_PRICING_FILTERS, 'all', 'invalid_pricing', 'The requested pricing filter is not supported.'),
+      match: enumParameter(rawMatch, SEARCH_MATCHES, 'any', 'invalid_match', 'The requested search matching mode is not supported.')
     };
   }
 
@@ -1217,8 +1224,10 @@ function availabilityMatches(filter, code) {
   return code === 'out_of_stock';
 }
 
-function rankedSearchDocuments(provider, index, plan, { sort, availability, pricing }) {
-  const candidates = unionPostingLists(plan.tokenGroups);
+function rankedSearchDocuments(provider, index, plan, { sort, availability, pricing, match = 'any' }) {
+  const candidates = match === 'vehicle'
+    ? intersectPostingLists(plan.tokenGroups)
+    : unionPostingLists(plan.tokenGroups);
   const matchedTokenCounts = new Uint8Array(provider.productCount);
   for (const group of plan.tokenGroups) for (const documentId of group) matchedTokenCounts[documentId] += 1;
   const allPrefix = new Uint8Array(provider.productCount);
@@ -1348,7 +1357,8 @@ async function searchCatalog(provider, index, summary, request, catalogLoader) {
       totalPages,
       sort: request.sort,
       availability: request.availability,
-      pricing: request.pricing
+      pricing: request.pricing,
+      match: request.match
     }),
     nextCursor: null
   };
@@ -1357,7 +1367,7 @@ async function searchCatalog(provider, index, summary, request, catalogLoader) {
 async function suggestCatalog(provider, index, summary, query, catalogLoader) {
   const plan = searchPlan(provider, query);
   const ranked = rankedSearchDocuments(provider, index, plan, {
-    sort: 'relevance', availability: 'all', pricing: 'all'
+    sort: 'relevance', availability: 'all', pricing: 'all', match: 'any'
   });
   const documentIds = ranked.slice(0, SEARCH_SUGGESTION_LIMIT).map(record => record.documentId);
   const cards = await cardsForDocumentIds(documentIds, index, summary, catalogLoader);
@@ -1461,7 +1471,7 @@ function detailVariants(product) {
 }
 
 async function detailCatalog(fetchImpl, index, handle) {
-  const payload = await fetchJson(fetchImpl, `${officialProductUrl(handle)}.js`, { maxBytes: 2_000_000 });
+  const payload = await fetchJson(fetchImpl, `${officialProductUrl(handle)}.js?country=KW`, { maxBytes: 2_000_000 });
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new UpstreamError('upstream_invalid_response');
   const officialHandle = productHandle(payload.handle) || handle;
   if (officialHandle !== handle) throw new UpstreamError('upstream_invalid_response');
