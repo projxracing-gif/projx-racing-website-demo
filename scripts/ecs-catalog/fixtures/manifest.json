@@ -1,0 +1,17 @@
+{
+  "supplier": "ECS Tuning",
+  "entries": [
+    {
+      "sourceUrl": "https://www.ecstuning.com/b-csf-parts/high-performance-heat-exchanger/8131~csf/",
+      "snapshotPath": "heat-exchanger.html",
+      "collectedAt": "2026-08-04T09:30:00.000Z",
+      "collectionMethod": "manual-public-page"
+    },
+    {
+      "sourceUrl": "https://www.ecstuning.com/b-csf-parts/gen-1-b58-aluminum-radiator/7089~csf/",
+      "snapshotPath": "radiator.html",
+      "collectedAt": "2026-08-04T11:30:00.000Z",
+      "collectionMethod": "manual-public-page"
+    }
+  ]
+}
