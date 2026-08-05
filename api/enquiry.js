@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 const MAX_BODY_BYTES = 32_000;
 const allowedTypes = new Set([
   'Website Enquiry', 'General Enquiry', 'General Quote', 'Workshop Consultation',
@@ -55,6 +57,13 @@ export default async function handler(req, res) {
     return json(res, 400, { error: 'invalid_json' });
   }
 
+  try {
+    const serialized = typeof req.body === 'string' ? req.body : JSON.stringify(body);
+    if (Buffer.byteLength(serialized || '', 'utf8') > MAX_BODY_BYTES) return json(res, 413, { error: 'payload_too_large' });
+  } catch {
+    return json(res, 400, { error: 'invalid_payload' });
+  }
+
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { error: 'invalid_payload' });
   if (clean(body.website, 120)) return json(res, 202, { accepted: true });
 
@@ -77,6 +86,13 @@ export default async function handler(req, res) {
   const to = clean(process.env.ENQUIRY_TO_EMAIL || 'projxracing@gmail.com', 500);
   const from = clean(process.env.ENQUIRY_FROM_EMAIL, 500);
   if (!apiKey || !to || !from) return json(res, 503, { error: 'backend_not_configured' });
+  if (process.env.PUBLIC_FORM_ANTI_ABUSE_READY !== 'true') {
+    return json(res, 503, { error: 'anti_abuse_not_configured' });
+  }
+
+  const deliveryKey = `enquiry-${crypto.createHash('sha256')
+    .update([ref, type, name, phone, vehicle].join('\u0000'), 'utf8')
+    .digest('hex')}`;
 
   const rows = Object.entries(fields)
     .filter(([key, value]) => value && !['website', 'startedAt'].includes(key))
@@ -86,7 +102,11 @@ export default async function handler(req, res) {
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': deliveryKey
+    },
     body: JSON.stringify({
       from,
       to: to.split(',').map(value => value.trim()).filter(Boolean),

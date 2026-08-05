@@ -7,9 +7,27 @@
   const TEGIWA_VEHICLE_DIRECTORY = window.PROJX_TEGIWA_VEHICLE_DIRECTORY || { makes: [], counts: { makes: 0, models: 0 } };
   const SUPPLIER_DIRECTORY_GENERATION = "supplier-directory";
   const SUPPLIER_CONFIRM_ENGINE = "confirm-engine";
+  const PARTS_CATALOG_ENDPOINT = "/api/parts-catalog/";
+  const PARTS_CATALOG_FALLBACK_ENDPOINT = "/api/tegiwa-catalog/";
+  const STAGING_ORDER_ENDPOINT = "/api/staging-order/";
   const TEGIWA_PRODUCT_QUERY = "product";
   const TEGIWA_PRODUCT_HISTORY_KEY = "projxSupplierProduct";
   const TEGIWA_PRODUCT_HANDLE_LIMIT = 255;
+  const CART_STORAGE_KEY = "projxStagingCartV1";
+  const CHECKOUT_TOKEN_STORAGE_KEY = "projxStagingCheckoutTokenV1";
+  const LAST_ORDER_STORAGE_KEY = "projxLastStagingOrderV1";
+  const DIRECT_CART_POLICY = Object.freeze({
+    "tegiwa-magnust-gr-yaris-gopro-headrest-mount-lhd": Object.freeze({
+      sku: "T-GOPRO-MOUNT-YARISGR-LHD",
+      currency: "GBP",
+      unitAmount: 31.19,
+      priceVerifiedAt: "2026-08-03",
+      maxPriceAgeDays: 7,
+      fitmentConfirmationRequired: true,
+      notice: "Left-hand-drive GR Yaris and seat/headrest compatibility must be confirmed before fulfilment.",
+      noticeAr: "يجب تأكيد توافق سيارة GR Yaris ذات المقود اليسار والمقعد ومسند الرأس قبل التجهيز."
+    })
+  });
   const main = document.getElementById("main-content");
   const header = document.getElementById("site-header");
   const footer = document.getElementById("site-footer");
@@ -87,6 +105,65 @@
     }));
   }
 
+  function commerceProduct(slug) {
+    return (DATA.storeProducts || []).find(product => product.slug === slug) || null;
+  }
+
+  function commercePolicy(product) {
+    return product ? DIRECT_CART_POLICY[product.slug] || null : null;
+  }
+
+  function commercePriceIsFresh(product, policy = commercePolicy(product), now = Date.now()) {
+    if (!product || !policy || product.quoteOnly) return false;
+    const verifiedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(product.priceVerifiedAt || ""))
+      ? Date.parse(`${product.priceVerifiedAt}T23:59:59.999Z`)
+      : NaN;
+    const maxAgeDays = Math.min(30, Math.max(1, Number(policy.maxPriceAgeDays) || 7));
+    return Number.isFinite(verifiedAt) && now - verifiedAt <= maxAgeDays * 86_400_000;
+  }
+
+  function productCanEnterCart(product) {
+    const policy = commercePolicy(product);
+    return Boolean(
+      policy
+      && commercePriceIsFresh(product, policy)
+      && cleanText(product.sku || "", 120) === policy.sku
+      && String(product.priceCurrency || "").toUpperCase() === policy.currency
+      && Math.abs(Number(product.priceAmount) - policy.unitAmount) < 0.001
+      && product.images?.[0]?.src
+    );
+  }
+
+  function canonicalCartItem(product, quantity = 1) {
+    const policy = commercePolicy(product);
+    if (!productCanEnterCart(product) || !policy) return null;
+    return {
+      id: `product-${product.slug}`,
+      productId: product.slug,
+      sku: policy.sku,
+      quantity: Math.min(99, Math.max(1, Number.parseInt(quantity, 10) || 1)),
+      unitAmount: policy.unitAmount,
+      currency: policy.currency,
+      priceVerifiedAt: policy.priceVerifiedAt,
+      fitmentConfirmationRequired: Boolean(policy.fitmentConfirmationRequired)
+    };
+  }
+
+  function normalizeCart(items) {
+    if (!Array.isArray(items)) return [];
+    const normalized = new Map();
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue;
+      const product = commerceProduct(cleanText(item.productId || "", 180));
+      const canonical = canonicalCartItem(product, item.quantity);
+      if (!canonical) continue;
+      const previous = normalized.get(canonical.id);
+      if (previous) previous.quantity = Math.min(99, previous.quantity + canonical.quantity);
+      else normalized.set(canonical.id, canonical);
+    }
+    return [...normalized.values()];
+  }
+
   function normalizePartsVehicle(vehicle) {
     if (!vehicle || typeof vehicle !== "object" || Array.isArray(vehicle)) return null;
     const year = cleanText(vehicle.year || "", 4);
@@ -97,7 +174,9 @@
     locale: document.body.dataset.locale === "ar" ? "ar" : "en",
     route: normalizeRoute(document.body.dataset.route || "/"),
     quote: normalizeQuote(safeParse(storage.get("projxQuote"), [])),
+    cart: normalizeCart(safeParse(storage.get(CART_STORAGE_KEY), [])),
     partsVehicle: normalizePartsVehicle(safeParse(storage.get("projxPartsVehicle"), null)),
+    checkoutSubmitting: false,
     mobileOpen: false,
     lightbox: null,
     galleries: Object.create(null),
@@ -113,6 +192,13 @@
       availability: "all",
       pricing: "all",
       match: "any",
+      supplier: "",
+      currency: "",
+      fitment: "all",
+      backend: "unified",
+      partialCatalogue: false,
+      catalogueSource: "",
+      fallbackReason: "",
       controller: null,
       detailController: null,
       detailHandle: "",
@@ -159,6 +245,11 @@
       selectedVehicleMatch: "تطابق محتمل مع السيارة المحفوظة",
       allFitment: "كل حالات التوافق",
       possibleMatches: "تطبيقات محتملة لسيارتي",
+      exactMatch: "تطابق دقيق",
+      possibleMatch: "تطابق محتمل — يتطلب التأكيد",
+      filterFitment: "دقة التوافق",
+      exactMatches: "تطابق دقيق فقط",
+      possibleMatchesOnly: "تطابق محتمل فقط",
       availability: "التوفر / الحالة",
       allAvailability: "كل حالات التوفر",
       pricing: "التسعير",
@@ -166,6 +257,8 @@
       startingAt: "ابتداءً من",
       supplier: "المورد",
       allSuppliers: "كل الموردين",
+      currency: "العملة",
+      allCurrencies: "كل العملات",
       skuMpn: "رقم القطعة / MPN",
       ecsPartNumber: "رقم قطعة ECS",
       supplierListing: "حالة المورد عند المراجعة",
@@ -223,7 +316,9 @@
       tegiwaSearchPlaceholder: "اسم القطعة، العلامة، السيارة، المحرك أو رقم القطعة",
       tegiwaSearchAction: "بحث",
       tegiwaBrowseAction: "عرض الكتالوج",
-      tegiwaSourceNote: "بيانات المنتجات والصور من كتالوج المورد الرسمي، والأسعار المدرجة بالجنيه الإسترليني لا تشمل ضريبة القيمة المضافة البريطانية. علامة التوفر تعني أن خياراً واحداً على الأقل متوفر؛ يؤكد Projx Racing الخيار والسعر النهائي والتوافق والشحن ورسوم الكويت قبل الطلب.",
+      tegiwaSourceNote: "تعرض الأسعار بعملة المورد الأصلية من دون تحويل تلقائي أو إضافة ضريبة. حالة المخزون تعكس آخر بيانات متاحة من المورد؛ يؤكد Projx Racing الخيار والسعر النهائي والتوافق والشحن ورسوم الكويت قبل الطلب.",
+      catalogueFallback: "الكتالوج الكامل متعدد الموردين غير متاح مؤقتاً. المعروض حالياً هو كتالوج المورد الاحتياطي، ويمكن طلب أي قطعة أخرى من خلال نموذج الاستفسار.",
+      cataloguePartial: "نعرض حالياً القطع المحلية المراجعة مع بيانات المورد المتاحة. الكتالوج الكامل غير متاح مؤقتاً؛ يؤكد Projx Racing السعر والتوفر والتوافق قبل الطلب.",
       tegiwaVehicleActive: "الكتالوج المباشر مفلتر لسيارتك",
       tegiwaVehicleText: "نعرض المطابقات المحتملة فقط. Projx Racing يؤكد التوافق الدقيق قبل الطلب.",
       tegiwaLoading: "جاري تحميل منتجات الكتالوج…",
@@ -275,9 +370,9 @@
       tegiwaVariants: "الخيارات",
       tegiwaSelectedOption: "الخيار المحدد",
       tegiwaChooseVariant: "اختر خياراً لتحديث السعر والتوفر قبل الإضافة لطلب السعر.",
-      tegiwaOnlinePrice: "سعر المورد (GBP، بدون ضريبة القيمة المضافة البريطانية)",
+      tegiwaOnlinePrice: "سعر المورد بالعملة الأصلية",
       tegiwaChecked: "تم فحص المخزون",
-      tegiwaPriceNote: "أسعار المورد بالجنيه الإسترليني لا تشمل ضريبة القيمة المضافة البريطانية. يؤكد Projx Racing السعر النهائي والشحن ورسوم الكويت قبل الطلب.",
+      tegiwaPriceNote: "السعر معروض بعملة المورد الأصلية من دون تحويل تلقائي أو إضافة ضريبة. يؤكد Projx Racing السعر النهائي والشحن ورسوم الكويت قبل الطلب.",
       tegiwaInStock: "بعض الخيارات متوفرة في مخزون المورد",
       tegiwaSupplierStock: "بعض الخيارات متوفرة عند المورد",
       tegiwaCheckAvailability: "يتطلب تأكيد التوفر",
@@ -285,7 +380,8 @@
       tegiwaOutOfStock: "غير متوفر حالياً",
       tegiwaVariantAvailable: "متاح للطلب",
       tegiwaVariantUnavailable: "يحتاج تأكيد",
-      tegiwaNoImage: "لا توجد صورة للمنتج"
+      tegiwaNoImage: "لا توجد صورة للمنتج",
+      originalSupplierListing: "صفحة المورد الأصلية"
     } : {
       configuredPackage: "Vehicle-configured package",
       verifiedProducts: "Reviewed catalogue products",
@@ -307,6 +403,11 @@
       selectedVehicleMatch: "Possible match for saved vehicle",
       allFitment: "All fitment states",
       possibleMatches: "Possible matches for my vehicle",
+      exactMatch: "Exact match",
+      possibleMatch: "Possible match — confirm before order",
+      filterFitment: "Fitment confidence",
+      exactMatches: "Exact matches only",
+      possibleMatchesOnly: "Possible matches only",
       availability: "Availability / status",
       allAvailability: "All availability states",
       pricing: "Pricing",
@@ -314,6 +415,8 @@
       startingAt: "From",
       supplier: "Supplier",
       allSuppliers: "All suppliers",
+      currency: "Currency",
+      allCurrencies: "All currencies",
       skuMpn: "SKU / MPN",
       ecsPartNumber: "ECS Part #",
       supplierListing: "Supplier listing when checked",
@@ -371,7 +474,9 @@
       tegiwaSearchPlaceholder: "Product, brand, vehicle, engine or part number",
       tegiwaSearchAction: "Search",
       tegiwaBrowseAction: "Browse catalogue",
-      tegiwaSourceNote: "Product data and images come from the supplier's official catalogue, and listed GBP prices exclude UK VAT. A stock badge means at least one option is available; Projx Racing confirms the final option, price, fitment, shipping and Kuwait duties before an order.",
+      tegiwaSourceNote: "Prices remain in each supplier's listed original currency with no automatic conversion or tax addition. Stock reflects the latest available supplier data; Projx Racing confirms the final option, price, fitment, shipping and Kuwait duties before an order.",
+      catalogueFallback: "The complete multi-supplier catalogue is temporarily unavailable. The supplier fallback catalogue is shown for now; use the enquiry form for any other part.",
+      cataloguePartial: "Reviewed local products are currently combined with the available supplier data. The complete catalogue is temporarily unavailable; Projx Racing confirms price, availability and fitment before an order.",
       tegiwaVehicleActive: "Live catalogue filtered for your vehicle",
       tegiwaVehicleText: "These are likely catalogue matches only. Projx Racing confirms exact fitment before an order.",
       tegiwaLoading: "Loading catalogue products…",
@@ -423,9 +528,9 @@
       tegiwaVariants: "Options",
       tegiwaSelectedOption: "Selected option",
       tegiwaChooseVariant: "Select an option to update its price and availability before adding it to your quote.",
-      tegiwaOnlinePrice: "Supplier price (GBP, UK VAT excluded)",
+      tegiwaOnlinePrice: "Supplier price in original currency",
       tegiwaChecked: "Stock checked",
-      tegiwaPriceNote: "Supplier GBP prices exclude UK VAT. Projx Racing confirms the final price, shipping and Kuwait duties before an order.",
+      tegiwaPriceNote: "The price is shown in the supplier's original currency with no automatic conversion or tax addition. Projx Racing confirms the final price, shipping and Kuwait duties before an order.",
       tegiwaInStock: "Selected variants in stock at supplier",
       tegiwaSupplierStock: "Selected variants in supplier stock",
       tegiwaCheckAvailability: "Confirm availability",
@@ -433,7 +538,150 @@
       tegiwaOutOfStock: "Currently out of stock",
       tegiwaVariantAvailable: "Available to order",
       tegiwaVariantUnavailable: "Confirm availability",
-      tegiwaNoImage: "No product image available"
+      tegiwaNoImage: "No product image available",
+      originalSupplierListing: "Original supplier listing"
+    };
+  }
+
+  function commerceText() {
+    return state.locale === "ar" ? {
+      cart: "السلة",
+      cartTitle: "سلة الاختبار",
+      cartIntro: "احفظ القطع المؤهلة وراجع الكمية قبل إرسال طلب شراء تجريبي إلى Projx Racing.",
+      checkout: "إتمام الطلب",
+      checkoutTitle: "إتمام طلب تجريبي آمن",
+      checkoutIntro: "هذه بيئة اختبار. لن يتم تحصيل أي مبلغ أو حجز أي مخزون.",
+      stagingBadge: "اختبار فقط — لا توجد دفعة",
+      addToCart: "أضف إلى السلة",
+      addedToCart: "تمت الإضافة إلى سلة الاختبار",
+      fitmentRequired: "يتطلب تأكيد التوافق",
+      availabilityRequired: "يتم تأكيد توفر المورد قبل اعتماد الطلب.",
+      supplierReferencePrice: "سعر مرجعي من المورد",
+      finalPriceNotice: "المبلغ الظاهر مرجعي بعملة المورد. يؤكد Projx Racing سعر البيع النهائي والتوفر والتوافق والشحن وأي رسوم قبل اعتماد الطلب.",
+      subtotal: "المجموع المرجعي",
+      shippingPending: "الشحن غير محسوب",
+      dutiesPending: "الضرائب والجمارك والتوصيل المحلي غير محسوبة",
+      continueShopping: "متابعة التسوق",
+      proceedCheckout: "المتابعة للطلب التجريبي",
+      savedOnDevice: "تُحفظ هذه السلة تلقائياً على هذا الجهاز.",
+      emptyCart: "سلة الاختبار فارغة.",
+      emptyCartText: "المنتجات ذات السعر والهوية المؤكدة فقط تعرض خيار الإضافة إلى السلة. بقية القطع تبقى ضمن طلب السعر.",
+      browseParts: "تصفح القطع",
+      quantity: "الكمية",
+      remove: "إزالة",
+      each: "للقطعة",
+      orderSummary: "ملخص الطلب التجريبي",
+      editCart: "تعديل السلة",
+      guestCheckout: "متابعة كزائر",
+      guestNote: "يمكنك تشغيل محاكاة الطلب كزائر. لن يتم حفظ بيانات دفع أو إرسال إشعار من المعاينة الافتراضية.",
+      signInCreate: "تسجيل الدخول أو إنشاء حساب",
+      accountOptional: "الحساب اختياري. سجّل الدخول لتعبئة بيانات Clerk المعروفة، أو أكمل كزائر.",
+      customerDetails: "بيانات التواصل",
+      deliveryDetails: "وجهة الطلب",
+      vehicleDetails: "بيانات السيارة والتوافق",
+      name: "الاسم الكامل",
+      email: "البريد الإلكتروني",
+      phone: "الهاتف / WhatsApp",
+      country: "الدولة",
+      city: "المدينة",
+      address: "العنوان",
+      postcode: "الرمز البريدي",
+      fulfilment: "طريقة الاستلام المفضلة",
+      courier: "شحن إلى العنوان — السعر لاحقاً",
+      workshop: "استلام أو تركيب في الورشة — بعد التأكيد",
+      vehicle: "السيارة: السنة، الصانع، الموديل، المحرك",
+      vin: "VIN",
+      notes: "ملاحظات الطلب",
+      optional: "اختياري",
+      acknowledgement: "أفهم أن هذا طلب اختبار بدون دفع، وأن السعر والتوفر والتوافق والشحن يجب تأكيدها من Projx Racing قبل إنشاء طلب حقيقي.",
+      consent: "أوافق على استخدام هذه البيانات للرد على طلب الاختبار.",
+      submit: "إكمال محاكاة الطلب",
+      submitting: "جاري إكمال محاكاة الطلب…",
+      successTitle: "تم استلام طلب الاختبار",
+      successText: "لم يتم تحصيل أي دفعة. احتفظ بالرقم المرجعي عند التواصل مع Projx Racing.",
+      simulationTitle: "اكتملت محاكاة الطلب",
+      simulationText: "هذه نتيجة محاكاة فقط. لم يتم إرسال بريد أو إنشاء طلب حقيقي أو تحصيل دفعة أو حجز مخزون.",
+      notificationNone: "حالة الإشعار: لم يتم الإرسال — محاكاة فقط",
+      reference: "الرقم المرجعي",
+      duplicate: "تم التعرف على إعادة الإرسال وإرجاع نفس الطلب بدون إنشاء طلب مكرر.",
+      startAnother: "بدء طلب اختبار جديد",
+      submitError: "تعذر إرسال طلب الاختبار. لم يتم تحصيل أي مبلغ وبقيت السلة محفوظة.",
+      deliveryUnavailable: "خدمة إشعارات الطلب غير مفعلة بعد. تواصل مع الورشة أو حاول لاحقاً.",
+      invalidCart: "تغيرت بيانات المنتج أو انتهت صلاحية السعر المرجعي. راجع السلة أو اطلب السعر.",
+      priceExpired: "انتهت صلاحية مراجعة السعر — اطلب السعر",
+      noPayment: "حالة الدفع: لم يتم التحصيل",
+      paymentNone: "لا توجد بوابة دفع أو بيانات بطاقة في هذا المسار التجريبي.",
+      item: "قطعة",
+      items: "قطع"
+    } : {
+      cart: "Cart",
+      cartTitle: "Staging cart",
+      cartIntro: "Save eligible products and review quantities before sending a test purchase request to Projx Racing.",
+      checkout: "Checkout",
+      checkoutTitle: "Safe staging checkout",
+      checkoutIntro: "This is a test environment. No payment is collected and no stock is reserved.",
+      stagingBadge: "TEST ONLY — NO PAYMENT",
+      addToCart: "Add to cart",
+      addedToCart: "Added to staging cart",
+      fitmentRequired: "Fitment confirmation required",
+      availabilityRequired: "Supplier availability is confirmed before any order is approved.",
+      supplierReferencePrice: "Supplier reference price",
+      finalPriceNotice: "Displayed amounts are supplier-reference prices in their original currency. Projx Racing confirms the final selling price, availability, fitment, shipping and any charges before approving an order.",
+      subtotal: "Reference subtotal",
+      shippingPending: "Shipping not calculated",
+      dutiesPending: "Tax, customs and local delivery are not calculated",
+      continueShopping: "Continue shopping",
+      proceedCheckout: "Continue to test checkout",
+      savedOnDevice: "This cart is saved automatically on this device.",
+      emptyCart: "Your staging cart is empty.",
+      emptyCartText: "Only products with a verified identity and reference price show Add to cart. All other parts stay in the quotation flow.",
+      browseParts: "Browse parts",
+      quantity: "Quantity",
+      remove: "Remove",
+      each: "each",
+      orderSummary: "Test order summary",
+      editCart: "Edit cart",
+      guestCheckout: "Continue as guest",
+      guestNote: "You can run this checkout simulation as a guest. No payment details are stored and the default preview sends no notification.",
+      signInCreate: "Sign in or create account",
+      accountOptional: "An account is optional. Sign in to prefill known Clerk details, or continue as a guest.",
+      customerDetails: "Contact details",
+      deliveryDetails: "Request destination",
+      vehicleDetails: "Vehicle and fitment details",
+      name: "Full name",
+      email: "Email",
+      phone: "Phone / WhatsApp",
+      country: "Country",
+      city: "City",
+      address: "Address",
+      postcode: "Postcode",
+      fulfilment: "Preferred fulfilment",
+      courier: "Courier to address — price pending",
+      workshop: "Workshop collection or installation — confirmation pending",
+      vehicle: "Vehicle: year, make, model and engine",
+      vin: "VIN",
+      notes: "Order notes",
+      optional: "Optional",
+      acknowledgement: "I understand this is a no-payment test request and that Projx Racing must confirm final price, availability, fitment and shipping before a real order exists.",
+      consent: "I agree that these details may be used to respond to this staging request.",
+      submit: "Complete checkout simulation",
+      submitting: "Completing checkout simulation…",
+      successTitle: "Test request received",
+      successText: "No payment was collected. Keep the reference when contacting Projx Racing.",
+      simulationTitle: "Checkout simulation complete",
+      simulationText: "This is a simulated result only. No email was sent, no real order was created, no payment was collected and no stock was reserved.",
+      notificationNone: "Notification status: not sent — simulation only",
+      reference: "Reference",
+      duplicate: "A repeat submission was recognised and the same request was returned without creating a duplicate.",
+      startAnother: "Start another test request",
+      submitError: "The test request could not be sent. Nothing was charged and your cart remains saved.",
+      deliveryUnavailable: "Order notifications are not active yet. Contact the workshop or try again later.",
+      invalidCart: "Product data changed or the reference price expired. Review the cart or request a quotation.",
+      priceExpired: "Price review expired — request a quote",
+      noPayment: "Payment status: not collected",
+      paymentNone: "No payment gateway or card-data field exists in this staging flow.",
+      item: "item",
+      items: "items"
     };
   }
 
@@ -751,6 +999,7 @@
     phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.7 3.8 6.5 2.9a2 2 0 0 0-2.4.9l-1 2a3 3 0 0 0-.2 2.3c1.9 6.4 6.6 11.1 13 13a3 3 0 0 0 2.3-.2l2-1a2 2 0 0 0 .9-2.4l-.9-2.2a2 2 0 0 0-2.3-1.2l-2.5.6a2 2 0 0 1-1.9-.5l-3.7-3.7a2 2 0 0 1-.5-1.9l.6-2.5a2 2 0 0 0-1.2-2.3Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>',
     whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.5L3 20.5l1.3-4.7a8.5 8.5 0 1 1 16.2-4.1Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.1 7.2c.3-.4.6-.4 1-.3l1.1.4c.3.1.5.4.5.7 0 .5-.3 1-.6 1.4-.2.2-.1.5 0 .7.8 1.4 2 2.5 3.5 3.2.3.1.6.1.8-.1.3-.4.7-1 1-1.2.2-.2.5-.2.8-.1l1.5.7c.3.1.5.4.4.8-.2 1.2-1 2.2-2.1 2.5-1.1.3-2.7-.1-4.7-1.2-2.1-1.2-3.8-3-4.7-5.2-.5-1.2-.2-2 .5-2.3Z" fill="currentColor"/></svg>',
     quote: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    cart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 10.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L21 7H6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/></svg>',
     map: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.2 7-12A7 7 0 1 0 5 9c0 6.8 7 12 7 12Z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>',
     search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.7 15.7 4.3 4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
@@ -783,6 +1032,28 @@
 
   function quoteCount() {
     return state.quote.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
+  }
+
+  function cartCount() {
+    return state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
+  }
+
+  function cartFingerprint() {
+    return state.cart
+      .map(item => `${item.productId}:${item.sku}:${item.quantity}:${item.currency}:${Number(item.unitAmount).toFixed(2)}`)
+      .sort()
+      .join("|");
+  }
+
+  function saveCart({ resetCheckout = true } = {}) {
+    state.cart = normalizeCart(state.cart);
+    storage.set(CART_STORAGE_KEY, JSON.stringify(state.cart));
+    if (resetCheckout) {
+      storage.remove(CHECKOUT_TOKEN_STORAGE_KEY);
+      storage.remove(LAST_ORDER_STORAGE_KEY);
+    }
+    renderHeader();
+    renderFloatingActions();
   }
 
   function mediaImage(id, {
@@ -1012,7 +1283,10 @@
     const fitment = fitmentMakes(product).map(normalizedBrandWords).flat().join("|");
     const pricing = product.quoteOnly || !storeProductPriceCheckIsFresh(product) ? "quote" : "published";
     const details = [provider, local.brand, partNumber].filter(Boolean).join(" • ");
-    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-supplier="${esc(provider.toLowerCase())}" data-availability="${esc(effectiveStatus)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(effectiveStatus)}</span></a><div class="part-body"><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl>${provider ? `<div><dt>${esc(storeText().supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>${esc(storeText().skuMpn)}</dt><dd><bdi dir="ltr">${esc(partNumber)}</bdi></dd></div>${observedAvailability ? `<div><dt>${esc(storeText().supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}<div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(details)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
+    const actionButton = productCanEnterCart(product)
+      ? `<button class="icon-action is-cart-action" type="button" data-action="add-cart" data-product-id="${esc(product.slug)}" aria-label="${esc(`${commerceText().addToCart}: ${local.title}`)}">${icons.cart}</button>`
+      : `<button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(details)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button>`;
+    return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-supplier="${esc(provider.toLowerCase())}" data-availability="${esc(effectiveStatus)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(effectiveStatus)}</span></a><div class="part-body"><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl>${provider ? `<div><dt>${esc(storeText().supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>${esc(storeText().skuMpn)}</dt><dd><bdi dir="ltr">${esc(partNumber)}</bdi></dd></div>${observedAvailability ? `<div><dt>${esc(storeText().supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}<div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a>${actionButton}</div></div></article>`;
   }
 
   function partCard(part, index) {
@@ -1074,6 +1348,7 @@
       [ui.nav.engineBuilding, "/engine-building"], [ui.nav.projects, "/projects"],
       [ui.nav.parts, "/parts"], [ui.nav.brands, "/brands"], [ui.nav.gallery, "/gallery"],
       [ui.nav.about, "/about"], [ui.nav.reviews, "/reviews"], [ui.nav.faq, "/faq"], [ui.nav.contact, "/contact"],
+      [commerceText().cart, "/cart"],
       [state.locale === "ar" ? "حساب العميل" : "Customer account", "/account"]
     ].map(([label, path, child]) => `<a class="mobile-nav-link ${child ? "is-child" : ""} ${routeActive(path) ? "is-active" : ""}" href="${routeUrl(path)}" ${routeActive(path) ? 'aria-current="page"' : ""}>${esc(label)}</a>`).join("");
 
@@ -1097,7 +1372,8 @@
   function renderHeader() {
     header.innerHTML = headerHtml();
     const languageButton = header.querySelector(".header-tools .language-button");
-    languageButton?.insertAdjacentHTML("beforebegin", `<a class="tool-button account-button" href="${routeUrl("/account")}" aria-label="${esc(state.locale === "ar" ? "حساب العميل" : "Customer account")}">${icons.user}<span class="tool-label">${esc(state.locale === "ar" ? "الحساب" : "Account")}</span></a>`);
+    const count = cartCount();
+    languageButton?.insertAdjacentHTML("beforebegin", `<a class="tool-button cart-button" href="${routeUrl("/cart")}" aria-label="${esc(`${commerceText().cart}${count ? ` (${count})` : ""}`)}">${icons.cart}<span class="tool-label">${esc(commerceText().cart)}</span>${count ? `<span class="tool-count" aria-hidden="true">${count}</span>` : ""}</a><a class="tool-button account-button" href="${routeUrl("/account")}" aria-label="${esc(state.locale === "ar" ? "حساب العميل" : "Customer account")}">${icons.user}<span class="tool-label">${esc(state.locale === "ar" ? "الحساب" : "Account")}</span></a>`);
     document.body.classList.toggle("menu-open", state.mobileOpen);
   }
   function renderFooter() {
@@ -1111,12 +1387,13 @@
     const desktop = document.createElement("div");
     desktop.className = "floating-actions";
     const count = quoteCount();
-    desktop.innerHTML = `<a class="floating-btn whatsapp" href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><button class="floating-btn" type="button" data-action="open-quote" aria-label="${esc(ui.actions.openQuote)}">${icons.quote}${count ? `<span class="floating-count">${count}</span>` : ""}</button>`;
+    const cartItems = cartCount();
+    desktop.innerHTML = `<a class="floating-btn whatsapp" href="${waUrl()}" target="_blank" rel="noopener" aria-label="WhatsApp">${icons.whatsapp}</a><a class="floating-btn cart-floating-btn" href="${routeUrl("/cart")}" aria-label="${esc(`${commerceText().cart}${cartItems ? ` (${cartItems})` : ""}`)}">${icons.cart}${cartItems ? `<span class="floating-count">${cartItems}</span>` : ""}</a><button class="floating-btn" type="button" data-action="open-quote" aria-label="${esc(ui.actions.openQuote)}">${icons.quote}${count ? `<span class="floating-count">${count}</span>` : ""}</button>`;
     document.body.append(desktop);
     const mobile = document.createElement("nav");
     mobile.className = "mobile-action-bar";
     mobile.setAttribute("aria-label", ui.nav.contact);
-    mobile.innerHTML = `<a href="${telUrl()}">${icons.phone}<span>${esc(state.locale === "ar" ? "اتصال" : "Call")}</span></a><a class="wa" href="${waUrl()}" target="_blank" rel="noopener">${icons.whatsapp}<span>WhatsApp</span></a><button type="button" data-action="open-quote">${icons.quote}<span>${esc(state.locale === "ar" ? "سعر" : "Quote")}${count ? ` (${count})` : ""}</span></button>`;
+    mobile.innerHTML = `<a href="${telUrl()}">${icons.phone}<span>${esc(state.locale === "ar" ? "اتصال" : "Call")}</span></a><a class="wa" href="${waUrl()}" target="_blank" rel="noopener">${icons.whatsapp}<span>WhatsApp</span></a><a href="${routeUrl("/cart")}">${icons.cart}<span>${esc(commerceText().cart)}${cartItems ? ` (${cartItems})` : ""}</span></a><button type="button" data-action="open-quote">${icons.quote}<span>${esc(state.locale === "ar" ? "سعر" : "Quote")}${count ? ` (${count})` : ""}</span></button>`;
     document.body.append(mobile);
   }
 
@@ -1497,7 +1774,7 @@
       <div class="engine-selector-shell">
         ${enginePhotoFrame(firstPhotoKey)}
         <div class="engine-selector-fields"><span class="engine-form-step">${esc(isAr ? "الخطوة 1 · اختر المحرك والبناء" : "Step 1 · Choose the engine and build")}</span><div class="form-grid">
-          <div class="form-group"><label class="required" for="engine-family">${esc(isAr ? "عائلة المحرك" : "Engine family")}</label><select id="engine-family" class="select${isAr ? " ltr-input" : ""}" name="platform" required data-role="engine-family"${isAr ? ' dir="ltr"' : ""}>${optionList(families.map(item => item.value), family.value)}</select></div>
+          <div class="form-group"><label class="required" for="engine-family-select">${esc(isAr ? "عائلة المحرك" : "Engine family")}</label><select id="engine-family-select" class="select${isAr ? " ltr-input" : ""}" name="platform" required data-role="engine-family"${isAr ? ' dir="ltr"' : ""}>${optionList(families.map(item => item.value), family.value)}</select></div>
           <div class="form-group"><label class="required" for="engine-variant">${esc(isAr ? "النوع أو الجيل" : "Variant or generation")}</label><select id="engine-variant" class="select${isAr ? " ltr-input" : ""}" name="engine" required data-role="engine-variant"${isAr ? ' dir="ltr"' : ""}>${optionList(family.variants || [])}</select></div>
           <div class="form-group"><label class="required" for="engine-service">${esc(ui.forms.service)}</label><select id="engine-service" class="select${isAr ? " ltr-input" : ""}" name="service" required data-role="engine-service"${isAr ? ' dir="ltr"' : ""}>${optionList(services, firstService)}</select></div>
           <div class="form-group"><label for="engine-package">${esc(isAr ? "باقة On-Shelf أو المواصفة" : "On-shelf package or specification")}</label><select id="engine-package" class="select${isAr ? " ltr-input" : ""}" name="package" data-role="engine-package"${isAr ? ' dir="ltr"' : ""}>${optionList(packages, packagePrompt)}</select></div>
@@ -1678,6 +1955,21 @@
     return cleanText([make, model].filter(Boolean).join(" "), 120);
   }
 
+  function partsVehicleApiFields() {
+    const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : null;
+    if (!vehicle) return {};
+    const result = {
+      year: cleanText(vehicle.year || "", 4),
+      make: cleanText(vehicle.make || "", 80),
+      model: cleanText(vehicle.model || "", 100)
+    };
+    const generation = cleanText(vehicle.generation || "", 120);
+    const engine = cleanText(vehicle.engine || "", 120);
+    if (generation && generation !== SUPPLIER_DIRECTORY_GENERATION) result.generation = generation;
+    if (engine && engine !== SUPPLIER_CONFIRM_ENGINE) result.engine = engine;
+    return Object.fromEntries(Object.entries(result).filter(([, value]) => value));
+  }
+
   function partsVehicleCatalogueContextMarkup() {
     const label = partsVehicleLabel();
     if (!label || state.tegiwaCatalog.match !== "vehicle") return "";
@@ -1709,6 +2001,7 @@
       summary.innerHTML = partsVehicleSummaryMarkup();
     }
     renderTegiwaVehicleContext();
+    syncTegiwaFilterUi();
   }
 
   function savePartsVehicle(form) {
@@ -1728,10 +2021,8 @@
     const matchFilter = document.querySelector('[data-filter-select="parts"][data-filter-match="vehicle"]');
     if (matchFilter) matchFilter.disabled = false;
     showToast(P().parts.finder.vehicleSaved, partsVehicleLabel());
-    const query = partsVehicleCatalogueQuery();
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
-    if (searchInput) searchInput.value = query;
-    resetTegiwaFilters({ reload: false });
+    const query = cleanText(searchInput?.value || state.tegiwaCatalog.query || "", 120);
     clearTegiwaDirectorySelection();
     loadTegiwaCatalog({ query, match: "vehicle", page: 1, scrollResults: true });
     scrollElementIntoView(document.getElementById("tegiwa-catalog"));
@@ -1768,7 +2059,7 @@
     return `${pageHero({ eyebrow: labels.configuredPackage, title: local.title, text: local.summary, media: local.media, crumbs: [[U().nav.parts, "/parts"], [local.title]], meta: statusBadge(local.status), actions: `<button class="btn" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>` })}
       <section class="section"><div class="container store-detail-layout">
         <figure class="store-detail-media">${mediaImage(local.media, { loading: "eager", className: "contain-img", sizes: "(max-width: 980px) 100vw, 55vw" })}<figcaption>${esc(labels.contextImage)}</figcaption></figure>
-        <aside class="store-detail-buy"><span class="mini-label">${esc(labels.productType)}</span><h2>${esc(labels.configuredPackage)}</h2><p>${esc(local.summary)}</p><dl class="store-facts"><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(part))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(local.status)}</dd></div><div><dt>SKU / MPN</dt><dd>${esc(labels.noSku)}</dd></div></dl><div class="store-price"><small>${esc(U().common.quotation)}</small><strong>${esc(labels.requestPrice)}</strong></div><label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></div>${vehicleContext ? `<div class="notice notice-info"><strong>${esc(P().parts.finder.selectedVehicle)}:</strong> <bdi>${esc(vehicleContext)}</bdi></div>` : ""}</aside>
+        <aside class="store-detail-buy"><span class="mini-label">${esc(labels.productType)}</span><h2>${esc(labels.configuredPackage)}</h2><p>${esc(local.summary)}</p><dl class="store-facts"><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(part))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(local.status)}</dd></div><div><dt>SKU / MPN</dt><dd>${esc(labels.noSku)}</dd></div></dl><div class="store-price"><small>${esc(U().common.quotation)}</small><strong>${esc(labels.requestPrice)}</strong></div><label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-item-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></div>${vehicleContext ? `<div class="notice notice-info"><strong>${esc(P().parts.finder.selectedVehicle)}:</strong> <bdi>${esc(vehicleContext)}</bdi></div>` : ""}</aside>
       </div></section>
       <section class="section section-tone"><div class="container detail-two-column"><article class="content-panel"><span class="eyebrow">${esc(labels.packageDetails)}</span><h2>${esc(labels.includedReview)}</h2>${featureList([local.summary, `${U().common.brand}: ${local.brand}`, `${U().common.vehicle}: ${local.vehicle}`, `${labels.availability}: ${local.status}`])}</article><article class="content-panel"><span class="eyebrow">${esc(labels.shippingQuote)}</span><h2>${esc(labels.shippingHeading)}</h2><p>${esc(labels.shippingText)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button></article></div></section>
       ${related.length ? `<section class="section"><div class="container">${sectionHead(P().parts.finder.resultsEyebrow, state.locale === "ar" ? "باقات مرتبطة." : "Related packages.")}<div class="parts-grid">${related.map(item => partCard(item, DATA.parts.indexOf(item))).join("")}</div></div></section>` : ""}`;
@@ -1784,11 +2075,19 @@
     const observedAvailability = storeProductStockCheckIsFresh(product) ? cleanText(local.observedAvailability || "", 160) : "";
     const checked = tegiwaCheckedLabel(local.checkedAt);
     const context = [local.title, provider, local.brand, partNumber, partsVehicleLabel()].filter(Boolean).join(" | ");
+    const canAddToCart = productCanEnterCart(product);
+    const policy = commercePolicy(product);
+    const primaryAction = canAddToCart
+      ? `<button class="btn" type="button" data-action="add-cart" data-product-id="${esc(product.slug)}">${esc(commerceText().addToCart)}${icons.cart}</button>`
+      : `<button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(context)}">${esc(labels.addToQuote)}${icons.quote}</button>`;
+    const commerceNotice = canAddToCart && policy
+      ? `<div class="notice notice-warning commerce-fitment-notice">${icons.check}<span><strong>${esc(commerceText().fitmentRequired)}</strong> ${esc(state.locale === "ar" ? policy.noticeAr : policy.notice)}</span></div>`
+      : "";
     return `<section class="section store-product-page"><div class="container">
       ${breadcrumbs([[U().nav.parts, "/parts"], [local.title]])}
       <div class="store-detail-layout">
         <figure class="store-detail-media store-product-detail-media"><img src="${esc(versionedAsset(image.src))}" width="${Number(image.width)}" height="${Number(image.height)}" alt="${esc(image.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure>
-        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(effectiveStatus)}</div><dl class="store-facts">${provider ? `<div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div>${local.ecsPartNumber ? `<div><dt>${esc(labels.ecsPartNumber)}</dt><dd><bdi dir="ltr">${esc(local.ecsPartNumber)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.skuMpn)}</dt><dd><bdi dir="ltr">${esc(local.mpn || local.sku || partNumber)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(effectiveStatus)}</dd></div>${observedAvailability ? `<div><dt>${esc(labels.supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}${checked ? `<div><dt>${esc(labels.lastChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><div class="store-price"><small>${esc(storeProductPriceCheckIsFresh(product) ? (local.priceNote || U().common.quotation) : labels.manualStockStale)}</small><strong>${esc(storeProductPrice(product))}</strong></div>${local.stockPolicy === "manual-confirm" ? `<div class="notice notice-info">${icons.check}<span>${esc(labels.manualStockNotice)}</span></div>` : ""}<label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(context)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>${local.originalUrl ? `<a class="btn btn-outline" href="${esc(local.originalUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalListing)}${icons.arrow}</a>` : ""}</div></aside>
+        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(effectiveStatus)}</div><dl class="store-facts">${provider ? `<div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div>${local.ecsPartNumber ? `<div><dt>${esc(labels.ecsPartNumber)}</dt><dd><bdi dir="ltr">${esc(local.ecsPartNumber)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.skuMpn)}</dt><dd><bdi dir="ltr">${esc(local.mpn || local.sku || partNumber)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(effectiveStatus)}</dd></div>${observedAvailability ? `<div><dt>${esc(labels.supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}${checked ? `<div><dt>${esc(labels.lastChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><div class="store-price"><small>${esc(storeProductPriceCheckIsFresh(product) ? (local.priceNote || U().common.quotation) : labels.manualStockStale)}</small><strong>${esc(storeProductPrice(product))}</strong></div>${local.stockPolicy === "manual-confirm" ? `<div class="notice notice-info">${icons.check}<span>${esc(labels.manualStockNotice)}</span></div>` : ""}${commerceNotice}<label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-item-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions">${primaryAction}<button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>${local.originalUrl ? `<a class="btn btn-outline" href="${esc(local.originalUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalListing)}${icons.arrow}</a>` : ""}</div></aside>
       </div>
     </div></section><section class="section section-tone"><div class="container narrow"><div class="notice notice-info"><strong>${esc(labels.shippingHeading)}</strong> ${esc(labels.shippingText)}</div></div></section>`;
   }
@@ -1799,32 +2098,62 @@
     const states = {
       in_stock: [labels.tegiwaInStock, "in-stock"],
       supplier_stock: [labels.tegiwaSupplierStock, "supplier-stock"],
+      available_to_order: [labels.tegiwaVariantAvailable, "supplier-stock"],
+      backorder: [labels.tegiwaCheckAvailability, "check"],
       check_availability: [labels.tegiwaCheckAvailability, "check"],
-      out_of_stock: [labels.tegiwaOutOfStock, "out-of-stock"]
+      unknown: [labels.tegiwaCheckAvailability, "check"],
+      out_of_stock: [labels.tegiwaOutOfStock, "out-of-stock"],
+      discontinued: [labels.tegiwaOutOfStock, "out-of-stock"]
     };
     const [label, className] = states[availability.code] || states.check_availability;
     return { label, className };
   }
 
+  function selectedVehicleFitmentConfidence(product = {}) {
+    if (["exact", "possible"].includes(product.fitmentConfidence)) return product.fitmentConfidence;
+    const vehicle = partsVehicleApiFields();
+    if (!Object.keys(vehicle).length || !Array.isArray(product.fitments)) return null;
+    const same = (left, right) => String(left || "").trim().toLocaleLowerCase("en-US") === String(right || "").trim().toLocaleLowerCase("en-US");
+    const matches = product.fitments.filter(item => {
+      if (vehicle.make && !same(item.make, vehicle.make)) return false;
+      if (vehicle.model && !same(item.model, vehicle.model)) return false;
+      if (vehicle.generation && !same(item.generation, vehicle.generation)) return false;
+      if (vehicle.engine && !same(item.engine, vehicle.engine)) return false;
+      const year = Number(vehicle.year);
+      if (Number.isInteger(year) && item.yearFrom && year < Number(item.yearFrom)) return false;
+      if (Number.isInteger(year) && item.yearTo && year > Number(item.yearTo)) return false;
+      return true;
+    });
+    if (matches.some(item => item.confidence === "exact")) return "exact";
+    if (matches.length) return "possible";
+    return null;
+  }
+
   function tegiwaPriceLabel(price = {}) {
-    const minimum = Number(price.min ?? price.amount);
-    const maximum = Number(price.max ?? price.amount);
-    if (!Number.isFinite(minimum) || minimum < 0) return storeText().requestPrice;
-    const formatter = new Intl.NumberFormat(state.locale === "ar" ? "ar-KW" : "en-GB", { style: "currency", currency: "GBP" });
+    const minimumValue = price.min ?? price.amount;
+    const maximumValue = price.max ?? price.amount;
+    const minimum = minimumValue === null || minimumValue === undefined ? NaN : Number(minimumValue);
+    const maximum = maximumValue === null || maximumValue === undefined ? minimum : Number(maximumValue);
+    const currency = cleanText(price.currency || "", 3).toUpperCase();
+    if (!Number.isFinite(minimum) || minimum < 0 || !/^[A-Z]{3}$/.test(currency)) return storeText().requestPrice;
+    const locale = state.locale === "ar" ? "ar-KW" : (currency === "GBP" ? "en-GB" : currency === "USD" ? "en-US" : "en");
+    const formatter = new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "code" });
     if (Number.isFinite(maximum) && maximum > minimum) return `${formatter.format(minimum)} – ${formatter.format(maximum)}`;
     return formatter.format(minimum);
   }
 
   function tegiwaCheckedLabel(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return "";
-    const date = new Date(`${value}T00:00:00Z`);
+    const source = String(value || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}(?:T[\d:.+-]+Z?)?$/.test(source)) return "";
+    const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(source) ? `${source}T00:00:00Z` : source);
     if (Number.isNaN(date.getTime())) return "";
     return new Intl.DateTimeFormat(state.locale === "ar" ? "ar-KW" : "en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
   }
 
   function tegiwaImageMarkup(image, title, { eager = false } = {}) {
     if (!image?.src) return `<div class="tegiwa-image-empty">${icons.quote}<span>${esc(storeText().tegiwaNoImage)}</span></div>`;
-    return `<img src="${esc(image.src)}" width="${Math.max(1, Number(image.width) || 900)}" height="${Math.max(1, Number(image.height) || 900)}" alt="${esc(image.alt || title)}" loading="${eager ? "eager" : "lazy"}" decoding="async" referrerpolicy="no-referrer">`;
+    const source = /^\/?assets\/products\//.test(String(image.src || "")) ? versionedAsset(String(image.src).replace(/^\//, "")) : image.src;
+    return `<img src="${esc(source)}" width="${Math.max(1, Number(image.width) || 900)}" height="${Math.max(1, Number(image.height) || 900)}" alt="${esc(image.alt || title)}" loading="${eager ? "eager" : "lazy"}" decoding="async" referrerpolicy="no-referrer">`;
   }
 
   function tegiwaProductCard(item) {
@@ -1832,11 +2161,13 @@
     const handle = tegiwaProductHandle(item.handle);
     const availability = tegiwaAvailability(item.availability);
     const checked = tegiwaCheckedLabel(item.availability?.checkedAt);
+    const supplier = cleanText(item.supplier?.name || "Tegiwa", 160);
     const vendor = cleanText(item.vendor || "", 120);
     const category = cleanText(item.category || "", 120);
     const sku = cleanText(item.sku || "", 120);
+    const mpn = cleanText(item.mpn || "", 120);
     const matchedSku = cleanText(item.matchedSku || "", 120);
-    const displayedSku = matchedSku || sku;
+    const displayedSku = matchedSku || sku || mpn;
     const skuCount = Math.max(displayedSku ? 1 : 0, Math.floor(Number(item.skuCount) || 0));
     const skuOptionsLabel = !displayedSku && skuCount > 1 ? tegiwaTemplate(U().common.skuOptions, { count: tegiwaNumber(skuCount) }) : "";
     const skuTotalLabel = matchedSku && skuCount > 1 ? tegiwaTemplate(U().common.skuTotal, { count: tegiwaNumber(skuCount) }) : "";
@@ -1844,13 +2175,15 @@
     const skuFallbackLabel = !displayedSku && !skuOptionsLabel
       ? { open_for_exact: U().common.skuOpenExact, not_supplied: U().common.skuNotSupplied }[skuState] || ""
       : "";
-    const quoteId = `tegiwa-${handle || item.handle}${matchedSku && skuCount > 1 ? `-sku-${matchedSku}` : ""}`;
+    const quoteId = `catalog-${handle || item.publicKey || item.handle}${matchedSku && skuCount > 1 ? `-sku-${matchedSku}` : ""}`;
     const cardLabel = category || labels.tegiwaEyebrow;
-    const detail = [vendor, category, tegiwaPriceLabel(item.price), availability.label].filter(Boolean).join(" • ");
+    const fitmentLabel = item.fitmentConfidence === "exact" ? labels.exactMatch : item.fitmentConfidence === "possible" ? labels.possibleMatch : "";
+    const fitmentBadge = fitmentLabel ? `<span class="tegiwa-fitment-badge is-${esc(item.fitmentConfidence)}">${esc(fitmentLabel)}</span>` : "";
+    const detail = [supplier, vendor, category, tegiwaPriceLabel(item.price), availability.label, fitmentLabel].filter(Boolean).join(" • ");
     const productLink = handle
       ? `<a class="btn btn-sm" href="${esc(tegiwaProductUrl(handle))}" data-action="view-tegiwa-product" data-handle="${esc(handle)}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`
       : `<a class="btn btn-sm" href="${esc(routeUrl("/parts"))}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`;
-    return `<article class="tegiwa-product-card"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3>${esc(item.title)}</h3><dl>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}${displayedSku || skuOptionsLabel || skuFallbackLabel ? `<div><dt>${esc(matchedSku ? U().common.matchedSku : U().common.sku)}</dt><dd>${displayedSku ? `<bdi dir="ltr">${esc(displayedSku)}</bdi>${skuTotalLabel ? `<small class="tegiwa-sku-count">${esc(skuTotalLabel)}</small>` : ""}` : `<span class="tegiwa-sku-options">${esc(skuOptionsLabel || skuFallbackLabel)}</span>`}</dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}<button class="icon-action" type="button" data-action="add-quote" data-id="${esc(quoteId)}" data-kind="Tegiwa Parts Product" data-title="${esc(item.title)}" data-sku="${esc(displayedSku)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
+    return `<article class="tegiwa-product-card" data-supplier="${esc(item.supplier?.slug || "tegiwa")}" data-currency="${esc(String(item.price?.currency || "").toUpperCase())}"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span>${fitmentBadge}</div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3>${esc(item.title)}</h3><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(supplier)}</bdi></dd></div>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}${displayedSku || skuOptionsLabel || skuFallbackLabel ? `<div><dt>${esc(labels.skuMpn)}</dt><dd>${displayedSku ? `<bdi dir="ltr">${esc(displayedSku)}</bdi>${skuTotalLabel ? `<small class="tegiwa-sku-count">${esc(skuTotalLabel)}</small>` : ""}` : `<span class="tegiwa-sku-options">${esc(skuOptionsLabel || skuFallbackLabel)}</span>`}</dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}<button class="icon-action" type="button" data-action="add-quote" data-id="${esc(quoteId)}" data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(item.title)}" data-sku="${esc(displayedSku)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function tegiwaLoadingCards() {
@@ -1865,13 +2198,22 @@
     return String(template || "").replace(/\{([a-z]+)\}/gi, (match, key) => Object.hasOwn(values, key) ? values[key] : match);
   }
 
-  const TEGIWA_SEARCH_DEFAULTS = Object.freeze({ sort: "relevance", availability: "all", pricing: "all" });
+  const TEGIWA_SEARCH_DEFAULTS = Object.freeze({ sort: "relevance", availability: "all", pricing: "all", supplier: "", currency: "", fitment: "all" });
   const TEGIWA_SEARCH_VALUES = Object.freeze({
     sort: new Set(["relevance", "name_asc", "name_desc", "price_asc", "price_desc"]),
     availability: new Set(["all", "available", "in_stock", "supplier_stock", "check", "unavailable"]),
-    pricing: new Set(["all", "priced", "request_price"])
+    pricing: new Set(["all", "priced", "request_price"]),
+    fitment: new Set(["all", "exact", "possible"])
   });
   const TEGIWA_MATCH_VALUES = new Set(["any", "vehicle"]);
+
+  function catalogueFilterValue(key, value) {
+    const normalized = cleanText(value || "", 100);
+    if (TEGIWA_SEARCH_VALUES[key]) return TEGIWA_SEARCH_VALUES[key].has(normalized) ? normalized : TEGIWA_SEARCH_DEFAULTS[key];
+    if (key === "supplier") return /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(normalized) ? normalized : "";
+    if (key === "currency") return /^[A-Za-z]{3}$/.test(normalized) ? normalized.toUpperCase() : "";
+    return TEGIWA_SEARCH_DEFAULTS[key] ?? "";
+  }
 
   function tegiwaFilterCount() {
     return Object.entries(TEGIWA_SEARCH_DEFAULTS).filter(([key, value]) => state.tegiwaCatalog[key] !== value).length;
@@ -1892,12 +2234,40 @@
     }
     const clear = root.querySelector('[data-action="tegiwa-clear-filters"]');
     if (clear) clear.disabled = count === 0;
+    const fitment = root.querySelector('[data-tegiwa-filter="fitment"]');
+    if (fitment) {
+      fitment.disabled = !partsVehicleLabel();
+      if (fitment.disabled && state.tegiwaCatalog.fitment !== "all") {
+        state.tegiwaCatalog.fitment = "all";
+        fitment.value = "all";
+      }
+    }
+  }
+
+  function syncCatalogueFacetOptions(meta = {}) {
+    const root = document.querySelector("[data-tegiwa-catalog]");
+    if (!root) return;
+    const labels = storeText();
+    const supplierSelect = root.querySelector('[data-tegiwa-filter="supplier"]');
+    const suppliers = Array.isArray(meta.suppliers) ? meta.suppliers.filter(item => item?.slug && item?.name) : [];
+    if (supplierSelect && suppliers.length) {
+      supplierSelect.innerHTML = `<option value="">${esc(labels.allSuppliers)}</option>${suppliers.map(item => `<option value="${esc(item.slug)}">${esc(item.name)}</option>`).join("")}`;
+      supplierSelect.value = suppliers.some(item => item.slug === state.tegiwaCatalog.supplier) ? state.tegiwaCatalog.supplier : "";
+      state.tegiwaCatalog.supplier = supplierSelect.value;
+    }
+    const currencySelect = root.querySelector('[data-tegiwa-filter="currency"]');
+    const currencies = Array.isArray(meta.currencies) ? meta.currencies.filter(value => /^[A-Z]{3}$/.test(String(value))) : [];
+    if (currencySelect && currencies.length) {
+      currencySelect.innerHTML = `<option value="">${esc(labels.allCurrencies)}</option>${currencies.map(value => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}`;
+      currencySelect.value = currencies.includes(state.tegiwaCatalog.currency) ? state.tegiwaCatalog.currency : "";
+      state.tegiwaCatalog.currency = currencySelect.value;
+    }
   }
 
   function resetTegiwaFilters({ reload = true } = {}) {
     Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS);
     syncTegiwaFilterUi();
-    if (reload && state.tegiwaCatalog.query) loadTegiwaCatalog({ query: state.tegiwaCatalog.query, page: 1, scrollResults: true });
+    if (reload) loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
   }
 
   function clearTegiwaDirectorySelection() {
@@ -1910,11 +2280,149 @@
   function updateTegiwaFilter(control) {
     const key = control?.dataset.tegiwaFilter;
     if (!Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) return;
-    const value = TEGIWA_SEARCH_VALUES[key].has(control.value) ? control.value : TEGIWA_SEARCH_DEFAULTS[key];
-    state.tegiwaCatalog[key] = value;
+    state.tegiwaCatalog[key] = catalogueFilterValue(key, control.value);
     hideTegiwaSuggestions();
     syncTegiwaFilterUi();
-    if (state.tegiwaCatalog.query) loadTegiwaCatalog({ query: state.tegiwaCatalog.query, page: 1, scrollResults: true });
+    loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
+  }
+
+  function partsCatalogueParams({ query = state.tegiwaCatalog.query, page = 1, suggest = false, handle = "" } = {}) {
+    const params = new URLSearchParams();
+    const productHandle = tegiwaProductHandle(handle);
+    if (productHandle) {
+      params.set("handle", productHandle);
+      if (state.tegiwaCatalog.currency) params.set("currency", state.tegiwaCatalog.currency);
+      return params;
+    }
+    const normalizedQuery = cleanText(query || "", 120);
+    if (normalizedQuery) params.set("q", normalizedQuery);
+    if (state.tegiwaCatalog.supplier) params.set("supplier", state.tegiwaCatalog.supplier);
+    if (state.tegiwaCatalog.currency) params.set("currency", state.tegiwaCatalog.currency);
+    const vehicleFields = partsVehicleApiFields();
+    const vehicleMatch = state.tegiwaCatalog.match === "vehicle" && Object.keys(vehicleFields).length > 0;
+    if (vehicleMatch) {
+      for (const [key, value] of Object.entries(vehicleFields)) params.set(key, value);
+      params.set("fitment", state.tegiwaCatalog.fitment || "all");
+    }
+    if (suggest) {
+      params.set("suggest", "1");
+      return params;
+    }
+    params.set("page", String(Math.max(1, Number.parseInt(page, 10) || 1)));
+    params.set("sort", state.tegiwaCatalog.sort);
+    params.set("availability", state.tegiwaCatalog.availability);
+    params.set("pricing", state.tegiwaCatalog.pricing);
+    params.set("match", vehicleMatch ? "vehicle" : "any");
+    return params;
+  }
+
+  function legacyCatalogueParams(params) {
+    const fallback = new URLSearchParams();
+    const handle = tegiwaProductHandle(params.get("handle"));
+    if (handle) {
+      fallback.set("handle", handle.startsWith("tegiwa-") ? handle.slice("tegiwa-".length) : handle);
+      return fallback;
+    }
+    let query = cleanText(params.get("q") || "", 120);
+    if (!query && params.get("match") === "vehicle") query = partsVehicleCatalogueQuery();
+    if (query) fallback.set("q", query);
+    if (params.get("suggest") === "1") fallback.set("suggest", "1");
+    for (const key of ["page", "sort", "availability", "pricing", "match"]) {
+      if (params.has(key) && (query || key === "page")) fallback.set(key, params.get(key));
+    }
+    return fallback;
+  }
+
+  function normaliseLegacyCataloguePayload(payload = {}) {
+    const supplier = { slug: "tegiwa", name: "Tegiwa" };
+    const normaliseProduct = item => {
+      if (!item || typeof item !== "object") return item;
+      const sourceHandle = tegiwaProductHandle(item.handle);
+      const publicKey = sourceHandle ? `tegiwa-${sourceHandle}` : item.publicKey;
+      return {
+        ...item,
+        handle: publicKey,
+        supplier: item.supplier || supplier,
+        publicKey,
+        fitmentConfidence: item.fitmentConfidence || null
+      };
+    };
+    const meta = {
+      ...(payload.meta || {}),
+      suppliers: Array.isArray(payload.meta?.suppliers) && payload.meta.suppliers.length ? payload.meta.suppliers : [supplier],
+      currencies: Array.isArray(payload.meta?.currencies) && payload.meta.currencies.length ? payload.meta.currencies : ["GBP"]
+    };
+    if (Array.isArray(payload.items)) return { ...payload, items: payload.items.map(normaliseProduct), meta };
+    if (payload.product) return { ...payload, product: normaliseProduct(payload.product), meta };
+    if (Array.isArray(payload.suggestions)) return {
+      ...payload,
+      suggestions: payload.suggestions.map(item => ({ ...item, supplier: item.supplier || supplier })),
+      meta
+    };
+    return { ...payload, meta };
+  }
+
+  function catalogueResponseError(response, payload) {
+    const nested = payload?.error;
+    const code = cleanText(typeof nested === "object" ? nested?.code : nested || "catalogue_unavailable", 80);
+    const message = cleanText(typeof nested === "object" ? nested?.message : nested || "catalogue_unavailable", 300);
+    const error = new Error(message || "catalogue_unavailable");
+    error.status = response?.status || 0;
+    error.code = code || "catalogue_unavailable";
+    return error;
+  }
+
+  function catalogueFallbackEligible(error) {
+    return [404, 501, 503].includes(Number(error?.status))
+      || ["service_unconfigured", "catalogue_unpublished"].includes(error?.code);
+  }
+
+  async function fetchPartsCatalogue(params, { signal } = {}) {
+    let fallbackReason = "";
+    try {
+      const endpoint = new URL(PARTS_CATALOG_ENDPOINT, location.origin);
+      endpoint.search = params.toString();
+      const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal });
+      const payload = await response.json().catch(() => null);
+      if (response.ok) {
+        if (!payload || typeof payload !== "object") throw catalogueResponseError(response, { error: { code: "invalid_response", message: "catalogue_invalid_response" } });
+        const partialCatalogue = payload.meta?.partialCatalogue === true;
+        return {
+          payload,
+          backend: "unified",
+          partialCatalogue,
+          catalogueSource: cleanText(payload.meta?.catalogueSource || "", 100),
+          fallbackReason: partialCatalogue ? cleanText(payload.meta?.fallbackReason || "partial_catalogue", 120) : ""
+        };
+      }
+      const error = catalogueResponseError(response, payload);
+      if (!catalogueFallbackEligible(error)) throw error;
+      fallbackReason = error.code;
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      if (error?.status && !catalogueFallbackEligible(error)) throw error;
+      if (!error?.status && !(error instanceof TypeError)) throw error;
+      fallbackReason = error?.code || "network_unavailable";
+    }
+    const endpoint = new URL(PARTS_CATALOG_FALLBACK_ENDPOINT, location.origin);
+    endpoint.search = legacyCatalogueParams(params).toString();
+    const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || typeof payload !== "object") throw catalogueResponseError(response, payload);
+    return {
+      payload: normaliseLegacyCataloguePayload(payload),
+      backend: "tegiwa-fallback",
+      partialCatalogue: true,
+      catalogueSource: "tegiwa-fallback",
+      fallbackReason
+    };
+  }
+
+  function applyCatalogueSource(result) {
+    state.tegiwaCatalog.backend = result.backend;
+    state.tegiwaCatalog.partialCatalogue = result.partialCatalogue === true;
+    state.tegiwaCatalog.catalogueSource = cleanText(result.catalogueSource || "", 100);
+    state.tegiwaCatalog.fallbackReason = cleanText(result.fallbackReason || "", 120);
   }
 
   function hideTegiwaSuggestions() {
@@ -1968,7 +2476,7 @@
       const key = query.toLocaleLowerCase();
       if (query.length < 2 || seen.has(key)) continue;
       seen.add(key);
-      entries.push({ query, label: cleanText(suggestion.label || query, 180), kind: suggestion.kind || "product" });
+      entries.push({ query, label: cleanText(suggestion.label || query, 180), kind: suggestion.kind || "product", supplier: cleanText(suggestion.supplier?.name || "", 120) });
       if (entries.length >= 8) break;
     }
     if (!entries.length) {
@@ -1978,9 +2486,11 @@
     listbox.innerHTML = entries.map((entry, index) => {
       const labelKey = entry.label.toLocaleLowerCase();
       const queryKey = entry.query.toLocaleLowerCase();
-      const secondary = entry.kind !== "correction" && labelKey !== queryKey && !labelKey.startsWith(queryKey)
-        ? `<small>${esc(entry.query)}</small>`
-        : "";
+      const secondaryText = [
+        entry.kind !== "correction" && labelKey !== queryKey && !labelKey.startsWith(queryKey) ? entry.query : "",
+        entry.supplier || ""
+      ].filter(Boolean).join(" • ");
+      const secondary = secondaryText ? `<small>${esc(secondaryText)}</small>` : "";
       return `<button id="tegiwa-suggestion-${index}" class="tegiwa-suggestion${entry.kind === "correction" ? " is-correction" : ""}" type="button" role="option" aria-selected="false" data-action="tegiwa-suggestion" data-tegiwa-suggestion data-query="${esc(entry.query)}"><span aria-hidden="true">${entry.kind === "correction" ? icons.check : icons.search}</span><strong>${esc(entry.label)}</strong>${secondary}</button>`;
     }).join("");
     listbox.hidden = false;
@@ -2002,13 +2512,12 @@
       const controller = new AbortController();
       state.tegiwaCatalog.suggestionController = controller;
       try {
-        const endpoint = new URL("/api/tegiwa-catalog/", location.origin);
-        endpoint.searchParams.set("q", query);
-        endpoint.searchParams.set("suggest", "1");
-        const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.mode !== "suggest" || !Array.isArray(payload.suggestions)) throw new Error("suggestions_unavailable");
+        const request = partsCatalogueParams({ query, suggest: true });
+        const result = await fetchPartsCatalogue(request, { signal: controller.signal });
+        const payload = result.payload;
+        if (payload.mode !== "suggest" || !Array.isArray(payload.suggestions)) throw new Error("suggestions_unavailable");
         if (cleanText(input.value, 120) !== query || document.activeElement !== input) return;
+        applyCatalogueSource(result);
         renderTegiwaSuggestions(payload, input);
       } catch (error) {
         if (error?.name !== "AbortError") hideTegiwaSuggestions();
@@ -2025,7 +2534,7 @@
     input.value = query;
     hideTegiwaSuggestions();
     clearTegiwaDirectorySelection();
-    loadTegiwaCatalog({ query, match: "any", page: 1, scrollResults: true });
+    loadTegiwaCatalog({ query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
   }
 
   function handleTegiwaSuggestionKeydown(event, input) {
@@ -2086,7 +2595,8 @@
     const available = Number(meta.availableProductCount);
     const isSearch = payload.mode === "search";
     const pageSize = Math.max(1, Number.parseInt(meta.pageSize, 10) || state.tegiwaCatalog.pageSize || 100);
-    const totalResults = isSearch ? Math.max(0, Number(meta.totalResults) || 0) : Math.max(0, count || 0);
+    const reportedTotal = Number(meta.totalResults);
+    const totalResults = Number.isFinite(reportedTotal) ? Math.max(0, reportedTotal) : (isSearch ? 0 : Math.max(0, count || 0));
     const calculatedPages = totalResults > 0 ? Math.ceil(totalResults / pageSize) : 0;
     const reportedPages = Number.parseInt(meta.totalPages ?? meta.pageCount, 10);
     const totalPages = Math.max(0, Number.isInteger(reportedPages) ? reportedPages : calculatedPages);
@@ -2124,7 +2634,8 @@
     state.tegiwaCatalog.canonicalQuery = isSearch ? cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 120) : "";
     if (TEGIWA_MATCH_VALUES.has(meta.match)) state.tegiwaCatalog.match = meta.match;
     for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) {
-      if (TEGIWA_SEARCH_VALUES[key].has(meta[key])) state.tegiwaCatalog[key] = meta[key];
+      const source = Object.hasOwn(meta, key) ? meta[key] : meta.filters?.[key];
+      if (source !== undefined && source !== null) state.tegiwaCatalog[key] = catalogueFilterValue(key, source);
     }
     const correction = root.querySelector("[data-tegiwa-correction]");
     if (correction) {
@@ -2143,6 +2654,16 @@
     const next = root.querySelector('[data-action="tegiwa-next"]');
     if (previous) previous.disabled = currentPage <= 1;
     if (next) next.disabled = totalPages <= 1 || currentPage >= totalPages;
+    const fallback = root.querySelector("[data-catalogue-fallback]");
+    if (fallback) {
+      const active = state.tegiwaCatalog.backend === "tegiwa-fallback" || state.tegiwaCatalog.partialCatalogue;
+      fallback.hidden = !active;
+      const message = state.tegiwaCatalog.partialCatalogue && state.tegiwaCatalog.backend !== "tegiwa-fallback"
+        ? labels.cataloguePartial
+        : labels.catalogueFallback;
+      fallback.innerHTML = active ? `${icons.check}<span>${esc(message)}</span>` : "";
+    }
+    syncCatalogueFacetOptions(meta);
     syncTegiwaFilterUi();
     renderTegiwaVehicleContext();
   }
@@ -2158,16 +2679,24 @@
     const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1);
     const scrollResults = Boolean(options.scrollResults);
     const proposedMatch = Object.hasOwn(options, "match") ? options.match : state.tegiwaCatalog.match;
-    state.tegiwaCatalog.match = normalizedQuery && TEGIWA_MATCH_VALUES.has(proposedMatch) ? proposedMatch : "any";
+    state.tegiwaCatalog.match = partsVehicleLabel() && TEGIWA_MATCH_VALUES.has(proposedMatch) ? proposedMatch : "any";
     for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) {
       const proposed = Object.hasOwn(options, key) ? options[key] : state.tegiwaCatalog[key];
-      state.tegiwaCatalog[key] = TEGIWA_SEARCH_VALUES[key].has(proposed) ? proposed : TEGIWA_SEARCH_DEFAULTS[key];
+      state.tegiwaCatalog[key] = catalogueFilterValue(key, proposed);
     }
-    if (!normalizedQuery) Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS);
     state.tegiwaCatalog.query = normalizedQuery;
-    state.tegiwaCatalog.lastRequest = normalizedQuery
-      ? { query: normalizedQuery, match: state.tegiwaCatalog.match, page: requestedPage, sort: state.tegiwaCatalog.sort, availability: state.tegiwaCatalog.availability, pricing: state.tegiwaCatalog.pricing, scrollResults }
-      : { query: "", page: requestedPage, scrollResults };
+    state.tegiwaCatalog.lastRequest = {
+      query: normalizedQuery,
+      match: state.tegiwaCatalog.match,
+      page: requestedPage,
+      sort: state.tegiwaCatalog.sort,
+      availability: state.tegiwaCatalog.availability,
+      pricing: state.tegiwaCatalog.pricing,
+      supplier: state.tegiwaCatalog.supplier,
+      currency: state.tegiwaCatalog.currency,
+      fitment: state.tegiwaCatalog.fitment,
+      scrollResults
+    };
     renderTegiwaVehicleContext();
     hideTegiwaSuggestions();
     const grid = root.querySelector("[data-tegiwa-results]");
@@ -2179,18 +2708,11 @@
     if (correction) { correction.hidden = true; correction.replaceChildren(); }
     controls.forEach(control => { control.disabled = true; });
     try {
-      const endpoint = new URL("/api/tegiwa-catalog/", location.origin);
-      if (normalizedQuery) {
-        endpoint.searchParams.set("q", normalizedQuery);
-        endpoint.searchParams.set("page", String(requestedPage));
-        endpoint.searchParams.set("sort", state.tegiwaCatalog.sort);
-        endpoint.searchParams.set("availability", state.tegiwaCatalog.availability);
-        endpoint.searchParams.set("pricing", state.tegiwaCatalog.pricing);
-        if (state.tegiwaCatalog.match === "vehicle") endpoint.searchParams.set("match", "vehicle");
-      } else endpoint.searchParams.set("page", String(requestedPage));
-      const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !Array.isArray(payload.items)) throw new Error(payload.error || "catalogue_unavailable");
+      const request = partsCatalogueParams({ query: normalizedQuery, page: requestedPage });
+      const result = await fetchPartsCatalogue(request, { signal: controller.signal });
+      const payload = result.payload;
+      if (!Array.isArray(payload.items)) throw new Error("catalogue_unavailable");
+      applyCatalogueSource(result);
       renderTegiwaControls(payload);
       if (scrollResults) requestAnimationFrame(() => {
         const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
@@ -2232,11 +2754,8 @@
       if (cleanText(input.value, 120).length >= 2) scheduleTegiwaSuggestions(input);
     });
     syncTegiwaFilterUi();
-    const vehicleQuery = partsVehicleCatalogueQuery();
-    if (vehicleQuery) {
-      if (input) input.value = vehicleQuery;
-      loadTegiwaCatalog({ query: vehicleQuery, match: "vehicle", page: 1 });
-    } else loadTegiwaCatalog({ page: 1 });
+    if (partsVehicleLabel()) loadTegiwaCatalog({ query: "", match: "vehicle", page: 1 });
+    else loadTegiwaCatalog({ query: "", match: "any", page: 1 });
   }
 
   function tegiwaVariantAvailability(variant = {}) {
@@ -2249,7 +2768,8 @@
   function tegiwaVariantQuoteDetails(product, variant, availabilityLabel) {
     const labels = storeText();
     return [
-      cleanText(product.vendor || "Tegiwa", 120),
+      cleanText(product.supplier?.name || "Tegiwa", 160),
+      cleanText(product.vendor || "", 120),
       cleanText(product.category || labels.productType, 120),
       `${labels.tegiwaSelectedOption}: ${cleanText(variant.title || labels.tegiwaProductDetails, 200)}`,
       `${labels.price}: ${tegiwaPriceLabel(variant.price || {})}`,
@@ -2325,12 +2845,12 @@
     document.body.classList.add("modal-open");
     requestAnimationFrame(() => modalRoot.querySelector('[data-action="close-modal"]')?.focus());
     try {
-      const endpoint = new URL("/api/tegiwa-catalog/", location.origin);
-      endpoint.searchParams.set("handle", handle);
-      const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: detailController.signal });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload.product) throw new Error(payload.error || "product_unavailable");
+      const request = partsCatalogueParams({ handle });
+      const result = await fetchPartsCatalogue(request, { signal: detailController.signal });
+      const payload = result.payload;
+      if (!payload.product) throw new Error("product_unavailable");
       if (state.tegiwaCatalog.detailController !== detailController || detailController.signal.aborted) return;
+      applyCatalogueSource(result);
       const product = payload.product;
       const availability = tegiwaAvailability(product.availability);
       const checked = tegiwaCheckedLabel(product.availability?.checkedAt);
@@ -2341,7 +2861,8 @@
       const selectedPrice = selectedVariant ? tegiwaPriceLabel(selectedVariant.price || {}) : tegiwaPriceLabel(product.price);
       const productSkus = [...new Set([
         ...(Array.isArray(product.skus) ? product.skus : []),
-        product.sku
+        product.sku,
+        product.mpn
       ].map(value => cleanText(value || "", 120)).filter(Boolean))];
       const productSku = cleanText(product.sku || "", 120);
       const selectedSku = selectedVariant
@@ -2350,7 +2871,8 @@
       const productSkuMarkup = productSkus.map(sku => `<bdi dir="ltr">${esc(sku)}</bdi>`).join("");
       const showSelectedSku = Boolean(selectedVariant && selectedSku && (productSkus.length > 1 || productSkus[0] !== selectedSku));
       const leadTime = cleanText(product.availability?.leadTime || "", 120);
-      const baseDetails = [cleanText(product.vendor || "Tegiwa", 120), cleanText(product.category || labels.productType, 120)].filter(Boolean).join(" • ");
+      const supplier = cleanText(product.supplier?.name || "Tegiwa", 160);
+      const baseDetails = [supplier, cleanText(product.vendor || "", 120), cleanText(product.category || labels.productType, 120)].filter(Boolean).join(" • ");
       const details = selectedVariant
         ? tegiwaVariantQuoteDetails(product, selectedVariant, selectedAvailability.label)
         : [baseDetails, `${labels.price}: ${selectedPrice}`, `${labels.availability}: ${selectedAvailability.label}`].filter(Boolean).join(" • ");
@@ -2367,7 +2889,13 @@
       const quoteButtonAttributes = variantOptions.length
         ? `${selectedVariant ? `data-id="tegiwa-${esc(product.handle)}-variant-${selectedVariantIndex + 1}" aria-label="${esc(`${labels.addToQuote}: ${product.title} — ${selectedVariant.title || labels.tegiwaProductDetails}`)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} ${variantQuoteAttributes}`
         : `data-id="tegiwa-${esc(product.handle)}" data-sku="${esc(productSku)}"`;
-      modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><span class="tegiwa-stock-badge is-${esc(selectedAvailability.className)}" data-tegiwa-selected-availability>${esc(selectedAvailability.label)}</span><p>${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor || "Tegiwa")}</bdi></dd></div><div><dt>${esc(labels.productType)}</dt><dd>${esc(product.category || labels.productType)}</dd></div>${productSkus.length ? `<div><dt>${esc(U().common.sku)}</dt><dd class="tegiwa-sku-list">${productSkuMarkup}</dd></div>` : ""}<div data-tegiwa-selected-sku-row${showSelectedSku ? "" : " hidden"}><dt>${esc(U().common.selectedSku)}</dt><dd class="tegiwa-sku-list" dir="ltr" data-tegiwa-selected-sku aria-live="polite">${showSelectedSku ? `<bdi dir="ltr">${esc(selectedSku)}</bdi>` : ""}</dd></div><div><dt>${esc(variantOptions.length ? labels.tegiwaOnlinePrice : labels.price)}</dt><dd><bdi data-tegiwa-selected-price aria-live="polite">${esc(selectedPrice)}</bdi></dd></div><div><dt>${esc(labels.availability)}</dt><dd><bdi data-tegiwa-selected-availability-value data-lead-time="${esc(leadTime)}" aria-live="polite">${esc(availabilityText)}</bdi></dd></div>${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="Tegiwa Parts Product" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.tegiwaSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow" id="tegiwa-variant-heading">${esc(labels.tegiwaVariants)}</span><p class="tegiwa-variant-instruction" id="tegiwa-variant-instruction">${esc(labels.tegiwaChooseVariant)}</p><ul role="radiogroup" aria-labelledby="tegiwa-variant-heading" aria-describedby="tegiwa-variant-instruction">${variants}</ul></section>` : ""}</section>`;
+      const selectedFitmentConfidence = selectedVehicleFitmentConfidence(product);
+      const fitmentSummary = selectedFitmentConfidence === "exact" ? labels.exactMatch : selectedFitmentConfidence === "possible" ? labels.possibleMatch : "";
+      const fitmentRows = (Array.isArray(product.fitments) ? product.fitments : []).slice(0, 8).map(item => {
+        const years = item.yearFrom || item.yearTo ? `${item.yearFrom || ""}${item.yearFrom || item.yearTo ? "–" : ""}${item.yearTo || ""}` : "";
+        return [years, item.make, item.model, item.generation, item.engine, item.note].filter(Boolean).join(" • ");
+      }).filter(Boolean);
+      modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><div class="tegiwa-detail-badges"><span class="tegiwa-stock-badge is-${esc(selectedAvailability.className)}" data-tegiwa-selected-availability>${esc(selectedAvailability.label)}</span>${fitmentSummary ? `<span class="tegiwa-fitment-badge is-${esc(selectedFitmentConfidence)}">${esc(fitmentSummary)}</span>` : ""}</div><p>${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(supplier)}</bdi></dd></div>${product.vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.productType)}</dt><dd>${esc(product.category || labels.productType)}</dd></div>${productSkus.length ? `<div><dt>${esc(labels.skuMpn)}</dt><dd class="tegiwa-sku-list">${productSkuMarkup}</dd></div>` : ""}<div data-tegiwa-selected-sku-row${showSelectedSku ? "" : " hidden"}><dt>${esc(U().common.selectedSku)}</dt><dd class="tegiwa-sku-list" dir="ltr" data-tegiwa-selected-sku aria-live="polite">${showSelectedSku ? `<bdi dir="ltr">${esc(selectedSku)}</bdi>` : ""}</dd></div><div><dt>${esc(variantOptions.length ? labels.tegiwaOnlinePrice : labels.price)}</dt><dd><bdi data-tegiwa-selected-price aria-live="polite">${esc(selectedPrice)}</bdi></dd></div><div><dt>${esc(labels.availability)}</dt><dd><bdi data-tegiwa-selected-availability-value data-lead-time="${esc(leadTime)}" aria-live="polite">${esc(availabilityText)}</bdi></dd></div>${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl>${fitmentRows.length ? `<div class="tegiwa-fitment-list"><strong>${esc(labels.fitment)}</strong><ul>${fitmentRows.map(item => `<li>${esc(item)}</li>`).join("")}</ul></div>` : ""}<small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow" id="tegiwa-variant-heading">${esc(labels.tegiwaVariants)}</span><p class="tegiwa-variant-instruction" id="tegiwa-variant-instruction">${esc(labels.tegiwaChooseVariant)}</p><ul role="radiogroup" aria-labelledby="tegiwa-variant-heading" aria-describedby="tegiwa-variant-instruction">${variants}</ul></section>` : ""}</section>`;
       requestAnimationFrame(() => modalRoot.querySelector('[data-action="close-modal"]')?.focus());
     } catch (error) {
       if (error?.name === "AbortError" || detailController.signal.aborted || state.tegiwaCatalog.detailController !== detailController) return;
@@ -2419,13 +2947,7 @@
     const page = P().parts;
     const finder = page.finder;
     const labels = storeText();
-    const parts = DATA.parts.map(localizedPart);
-    const products = (DATA.storeProducts || []).map(localizedStoreProduct);
-    const categories = [...new Set([...parts.map(part => part.category), ...products.map(product => product.category)])];
     const brandCounts = DATA.brands.map(brand => ({ brand, count: DATA.parts.filter(part => brandsForPart(part.brand).some(match => match.name === brand.name)).length + (DATA.storeProducts || []).filter(product => product.brand === brand.name).length })).filter(item => item.count > 0);
-    const catalogueBrands = [...new Set([...brandCounts.map(({ brand }) => brand.name), ...products.map(product => product.brand).filter(Boolean)])].sort((a, b) => a.localeCompare(b, state.locale === "ar" ? "ar" : "en"));
-    const statuses = [...new Set([...parts.map(part => part.status), ...(DATA.storeProducts || []).map(product => storeProductStatus(product))])];
-    const suppliers = [...new Set(products.map(product => cleanText(product.provider || "", 80)).filter(Boolean))];
     const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : {};
     const directory = partsApplicationDirectory();
     const makes = [...directory.keys()];
@@ -2433,9 +2955,7 @@
     const generationsMap = modelsMap.get(vehicle.model) || new Map();
     const engines = [...(generationsMap.get(vehicle.generation) || [])];
     const modelYears = partsModelYears();
-    const brandTiles = brandCounts.map(({ brand, count }) => `<button class="parts-brand-card" type="button" data-action="select-parts-brand" data-parts-brand="${esc(brand.name.toLowerCase())}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${count} ${esc(finder.items)}</small></span>${icons.arrow}</button>`).join("");
-
-    const cards = [...(DATA.storeProducts || []).map(productCard), ...DATA.parts.map(partCard)];
+    const brandTiles = brandCounts.map(({ brand }) => `<button class="parts-brand-card" type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(brand.name)}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${esc(finder.byBrand)}</small></span>${icons.arrow}</button>`).join("");
     return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<a class="btn" href="#parts-vehicle">${esc(finder.byVehicle)}${icons.arrow}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.quote}</button>` })}
       <div data-parts-shop>
         <section class="section parts-entry-section"><div class="container">
@@ -2462,7 +2982,7 @@
         ${partsCatalogueDirectory()}
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
         <section class="section tegiwa-catalog-section" id="tegiwa-catalog"><div class="container"><div class="tegiwa-catalog-shell" data-tegiwa-catalog>
-          <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count>193,253</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count>26,349</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
+          <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
           <form class="tegiwa-search" data-tegiwa-search>
             <label for="tegiwa-search-input">${esc(labels.tegiwaSearchLabel)}</label>
             <div class="tegiwa-search-row">
@@ -2474,25 +2994,20 @@
               <label><span>${esc(labels.tegiwaSort)}</span><select class="select" data-tegiwa-filter="sort"><option value="relevance">${esc(labels.tegiwaSortRelevance)}</option><option value="name_asc">${esc(labels.tegiwaSortNameAsc)}</option><option value="name_desc">${esc(labels.tegiwaSortNameDesc)}</option><option value="price_asc">${esc(labels.tegiwaSortPriceAsc)}</option><option value="price_desc">${esc(labels.tegiwaSortPriceDesc)}</option></select></label>
               <label><span>${esc(labels.tegiwaFilterAvailability)}</span><select class="select" data-tegiwa-filter="availability"><option value="all">${esc(labels.tegiwaAvailabilityAll)}</option><option value="available">${esc(labels.tegiwaAvailabilityAvailable)}</option><option value="in_stock">${esc(labels.tegiwaAvailabilityInStock)}</option><option value="supplier_stock">${esc(labels.tegiwaAvailabilitySupplierStock)}</option><option value="check">${esc(labels.tegiwaAvailabilityCheck)}</option><option value="unavailable">${esc(labels.tegiwaAvailabilityUnavailable)}</option></select></label>
               <label><span>${esc(labels.tegiwaFilterPricing)}</span><select class="select" data-tegiwa-filter="pricing"><option value="all">${esc(labels.tegiwaPricingAll)}</option><option value="priced">${esc(labels.tegiwaPricingPriced)}</option><option value="request_price">${esc(labels.tegiwaPricingRequest)}</option></select></label>
+              <label><span>${esc(labels.supplier)}</span><select class="select" data-tegiwa-filter="supplier"><option value="">${esc(labels.allSuppliers)}</option></select></label>
+              <label><span>${esc(labels.currency)}</span><select class="select ltr-input" data-tegiwa-filter="currency"><option value="">${esc(labels.allCurrencies)}</option></select></label>
+              <label><span>${esc(labels.filterFitment)}</span><select class="select" data-tegiwa-filter="fitment" ${partsVehicleLabel() ? "" : "disabled"}><option value="all">${esc(labels.allFitment)}</option><option value="exact">${esc(labels.exactMatches)}</option><option value="possible">${esc(labels.possibleMatchesOnly)}</option></select></label>
               <button class="btn btn-outline btn-sm" type="button" data-action="tegiwa-clear-filters" disabled>${esc(labels.tegiwaClearFilters)}${icons.close}</button>
             </div>
             <div class="tegiwa-correction" data-tegiwa-correction role="status" aria-live="polite" hidden></div>
           </form>
           <div class="tegiwa-vehicle-context" data-tegiwa-vehicle-context hidden></div>
+          <div class="notice notice-info catalogue-fallback-notice" data-catalogue-fallback role="status" hidden></div>
           <p class="tegiwa-source-note">${icons.check}<span>${esc(labels.tegiwaSourceNote)}</span></p>
           <div class="tegiwa-catalog-status" data-tegiwa-status role="status" aria-live="polite">${esc(labels.tegiwaLoading)}</div>
-          <div class="tegiwa-product-grid" data-tegiwa-results>${tegiwaLoadingCards()}</div>
+          <div class="tegiwa-product-grid" id="parts-results" data-tegiwa-results>${tegiwaLoadingCards()}</div>
           <nav class="tegiwa-pagination" data-tegiwa-pagination aria-label="${esc(labels.tegiwaPaginationLabel)}" hidden><button class="btn btn-outline" type="button" data-action="tegiwa-previous" data-tegiwa-control disabled>${icons.arrow}<span>${esc(labels.tegiwaPrevious)}</span></button><div class="tegiwa-pagination-center"><div class="tegiwa-page-list" data-tegiwa-pages dir="ltr"></div><button class="text-link" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaReset)}</button></div><button class="btn btn-outline" type="button" data-action="tegiwa-next" data-tegiwa-control disabled><span>${esc(labels.tegiwaNext)}</span>${icons.arrow}</button></nav>
-          <div class="store-catalogue-review" id="parts-results">
-            ${sectionHead(labels.reviewedItemsEyebrow, labels.reviewedItemsHeading, labels.reviewedItemsText, `<strong class="parts-result-count" role="status" aria-live="polite" aria-atomic="true"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
-            <div class="store-catalogue-status"><article><span>${String(products.length).padStart(2, "0")}</span><div><strong>${esc(labels.verifiedProducts)}</strong><small>${esc(labels.verifiedProductsText)}</small></div></article><article><span>${String(parts.length).padStart(2, "0")}</span><div><strong>${esc(labels.configuredPackage)}</strong><small>${esc(labels.exactProductRule)}</small></div></article></div>
-            ${products.length ? "" : `<div class="notice notice-info store-catalogue-gate"><strong>${esc(labels.cataloguePending)}.</strong> ${esc(labels.cataloguePendingText)}</div>`}
-            <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
-            <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${catalogueBrands.map(brand => `<option value="${esc(brand.toLowerCase())}">${esc(brand)}</option>`).join("")}</select></label>${suppliers.length ? `<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="supplier" aria-label="${esc(labels.supplier)}"><option value="">${esc(labels.allSuppliers)}</option>${suppliers.map(supplier => `<option value="${esc(supplier.toLowerCase())}">${esc(supplier)}</option>`).join("")}</select></label>` : ""}<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="availability" aria-label="${esc(labels.availability)}"><option value="">${esc(labels.allAvailability)}</option>${statuses.map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="pricing" aria-label="${esc(labels.pricing)}"><option value="">${esc(labels.allPricing)}</option><option value="published">${esc(labels.usdPrice)}</option><option value="quote">${esc(labels.quoteOnly)}</option></select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="vehicle" data-filter-match="vehicle" aria-label="${esc(labels.fitment)}" ${partsVehicleLabel() ? "" : "disabled"}><option value="">${esc(labels.allFitment)}</option><option value="possible">${esc(labels.possibleMatches)}</option></select></label><label class="select-control">${icons.filter}<select data-parts-sort aria-label="${esc(labels.sort)}"><option value="featured">${esc(labels.featured)}</option><option value="name">${esc(labels.nameAsc)}</option><option value="category">${esc(labels.categoryAsc)}</option><option value="brand">${esc(labels.brandAsc)}</option></select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
-            <div class="parts-grid" data-filter-grid="parts">${cards.join("")}</div>
-            <div class="empty-state" data-filter-empty="parts" hidden><p>${esc(U().common.noResults)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(finder.requestUnlisted)}${icons.arrow}</button></div>
-            <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
-          </div>
+          <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
         </div></div></section>
       </div>
       ${ctaBlock(state.locale === "ar" ? "عندك رقم قطعة محدد؟" : "Have an exact part number?", state.locale === "ar" ? "أرسل رقم القطعة والسيارة وVIN عند الحاجة ومكان التسليم وخيار التركيب." : "Send the part number, vehicle, VIN where required, delivery location and whether installation is needed.", U().actions.enquire, "Parts Enquiry")}`;
@@ -2525,6 +3040,86 @@
       const local = localizedService(service);
       return `<a href="${routeUrl(serviceHref(local.slug))}"><span>${esc(local.kicker)}</span><strong>${esc(local.title)}</strong><small>${esc(local.summary)}</small></a>`;
     }).join("")}</div></div></section>${ctaBlock(state.locale === "ar" ? "ابدأ بالهدف الكامل، مو بقائمة قطع." : "Bring the complete objective—not just a parts list.", state.locale === "ar" ? "اشرح استخدام السيارة والمشكلة والهدف والحدود، وبعدها Projx Racing يحدد المسار المتكامل المناسب." : "Explain how the vehicle is used, the problem, the objective and the constraints. Projx Racing can then define the correct integrated route.", U().actions.contactWorkshop, "Workshop Consultation")}`;
+  }
+
+  function commerceMoney(amount, currency) {
+    const value = Number(amount);
+    if (!Number.isFinite(value) || !/^[A-Z]{3}$/.test(String(currency || ""))) return commerceText().supplierReferencePrice;
+    try {
+      return new Intl.NumberFormat(state.locale === "ar" ? "ar-KW" : "en-GB", {
+        style: "currency",
+        currency,
+        currencyDisplay: "code"
+      }).format(value);
+    } catch {
+      return `${currency} ${value.toFixed(2)}`;
+    }
+  }
+
+  function cartTotals() {
+    const totals = new Map();
+    for (const item of state.cart) {
+      totals.set(item.currency, (totals.get(item.currency) || 0) + Number(item.unitAmount) * Number(item.quantity));
+    }
+    return [...totals.entries()].map(([currency, amount]) => ({ currency, amount: Math.round(amount * 100) / 100 }));
+  }
+
+  function cartTotalsMarkup() {
+    return cartTotals().map(total => `<strong><bdi>${esc(commerceMoney(total.amount, total.currency))}</bdi></strong>`).join("");
+  }
+
+  function cartItemMarkup(item, { editable = true } = {}) {
+    const product = commerceProduct(item.productId);
+    if (!product) return "";
+    const local = localizedStoreProduct(product);
+    const policy = commercePolicy(product);
+    const image = local.images?.[0];
+    const lineTotal = Number(item.unitAmount) * Number(item.quantity);
+    const notice = state.locale === "ar" ? policy?.noticeAr : policy?.notice;
+    return `<article class="commerce-line" data-cart-line="${esc(item.id)}">
+      <a class="commerce-line-media" href="${routeUrl(`/parts/${product.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"></a>
+      <div class="commerce-line-copy"><span class="mini-label">${esc(local.brand)}</span><h2><a href="${routeUrl(`/parts/${product.slug}`)}">${esc(local.title)}</a></h2><p><bdi dir="ltr">${esc(item.sku)}</bdi></p>${item.fitmentConfirmationRequired ? `<div class="commerce-line-notice"><strong>${esc(commerceText().fitmentRequired)}</strong><span>${esc(notice || commerceText().availabilityRequired)}</span></div>` : ""}</div>
+      <div class="commerce-line-price"><small>${esc(commerceText().supplierReferencePrice)}</small><bdi>${esc(commerceMoney(item.unitAmount, item.currency))} ${esc(commerceText().each)}</bdi><strong><bdi>${esc(commerceMoney(lineTotal, item.currency))}</bdi></strong></div>
+      ${editable ? `<div class="commerce-line-actions"><div class="quote-quantity" aria-label="${esc(commerceText().quantity)}"><button type="button" data-action="adjust-cart-quantity" data-delta="-1" data-id="${esc(item.id)}" aria-label="${esc(`${storeText().decrease}: ${local.title}`)}">−</button><bdi>${Number(item.quantity)}</bdi><button type="button" data-action="adjust-cart-quantity" data-delta="1" data-id="${esc(item.id)}" aria-label="${esc(`${storeText().increase}: ${local.title}`)}">+</button></div><button class="commerce-remove" type="button" data-action="remove-cart" data-id="${esc(item.id)}">${icons.close}<span>${esc(commerceText().remove)}</span></button></div>` : `<div class="commerce-summary-quantity"><span>${esc(commerceText().quantity)}</span><strong><bdi>${Number(item.quantity)}</bdi></strong></div>`}
+    </article>`;
+  }
+
+  function stagingNotice() {
+    const text = commerceText();
+    return `<aside class="staging-notice" aria-label="${esc(text.stagingBadge)}"><span>${icons.check}</span><div><strong>${esc(text.stagingBadge)}</strong><p>${esc(text.checkoutIntro)} ${esc(text.paymentNone)}</p></div></aside>`;
+  }
+
+  function commerceSummary({ editable = false } = {}) {
+    const text = commerceText();
+    return `<section class="commerce-summary" aria-labelledby="commerce-summary-title"><header><div><span class="eyebrow">${esc(text.stagingBadge)}</span><h2 id="commerce-summary-title">${esc(text.orderSummary)}</h2></div>${editable ? `<a class="text-link" href="${routeUrl("/cart")}">${esc(text.editCart)}${icons.arrow}</a>` : ""}</header><div class="commerce-lines">${state.cart.map(item => cartItemMarkup(item, { editable: false })).join("")}</div><dl class="commerce-totals"><div><dt>${esc(text.subtotal)}</dt><dd>${cartTotalsMarkup()}</dd></div><div><dt>${esc(text.shippingPending)}</dt><dd>${esc(text.availabilityRequired)}</dd></div><div><dt>${esc(text.dutiesPending)}</dt><dd>—</dd></div></dl><div class="notice notice-info">${icons.check}<span>${esc(text.finalPriceNotice)}</span></div></section>`;
+  }
+
+  function cartPage() {
+    const text = commerceText();
+    const itemCount = cartCount();
+    const content = state.cart.length
+      ? `<div class="commerce-layout"><section class="commerce-cart-panel" aria-label="${esc(text.cartTitle)}"><div class="commerce-lines">${state.cart.map(item => cartItemMarkup(item)).join("")}</div><p class="commerce-saved-note">${icons.check}${esc(text.savedOnDevice)}</p></section><aside class="commerce-cart-summary"><span class="eyebrow">${esc(text.stagingBadge)}</span><h2>${esc(text.subtotal)}</h2><div class="commerce-total-values">${cartTotalsMarkup()}</div><ul class="commerce-caveats"><li>${esc(text.shippingPending)}</li><li>${esc(text.dutiesPending)}</li><li>${esc(text.fitmentRequired)}</li><li>${esc(text.availabilityRequired)}</li></ul><p>${esc(text.finalPriceNotice)}</p><a class="btn btn-block" href="${routeUrl("/checkout")}">${esc(text.proceedCheckout)}${icons.arrow}</a><a class="btn btn-outline btn-block" href="${routeUrl("/parts")}">${esc(text.continueShopping)}</a></aside></div>`
+      : `<div class="empty-state commerce-empty"><span>${icons.cart}</span><strong>${esc(text.emptyCart)}</strong><p>${esc(text.emptyCartText)}</p><a class="btn" href="${routeUrl("/parts")}">${esc(text.browseParts)}${icons.arrow}</a></div>`;
+    return `${pageHero({ eyebrow: text.stagingBadge, title: text.cartTitle, text: text.cartIntro, media: 68, crumbs: [[text.cart]], meta: itemCount ? statusBadge(`${itemCount} ${itemCount === 1 ? text.item : text.items}`) : "", actions: `<a class="btn btn-outline-light" href="${routeUrl("/parts")}">${esc(text.continueShopping)}${icons.arrow}</a>` })}<section class="section commerce-page"><div class="container">${stagingNotice()}${content}</div></section>`;
+  }
+
+  function checkoutReceiptPage(receipt) {
+    const text = commerceText();
+    const simulated = receipt.simulated === true;
+    const title = simulated ? text.simulationTitle : text.successTitle;
+    const description = simulated ? text.simulationText : text.successText;
+    return `${pageHero({ eyebrow: text.stagingBadge, title, text: description, media: 53, crumbs: [[text.checkout]], meta: statusBadge(text.noPayment), actions: `<a class="btn" href="${routeUrl("/parts")}" data-action="start-new-test-order">${esc(text.startAnother)}${icons.arrow}</a>` })}<section class="section commerce-page"><div class="container narrow"><article class="commerce-receipt"><span>${icons.check}</span><div><p>${esc(text.reference)}</p><h2><bdi dir="ltr">${esc(receipt.ref || "")}</bdi></h2><p>${esc(description)}</p>${simulated ? `<div class="notice notice-info">${icons.check}<span>${esc(text.notificationNone)}</span></div>` : ""}${receipt.duplicate ? `<div class="notice notice-info">${esc(text.duplicate)}</div>` : ""}<dl><div><dt>${esc(text.noPayment)}</dt><dd>${esc(text.paymentNone)}</dd></div><div><dt>${esc(text.subtotal)}</dt><dd>${(receipt.totals || []).map(total => `<bdi>${esc(commerceMoney(total.amount, total.currency))}</bdi>`).join(" ") || "—"}</dd></div></dl></div></article></div></section>`;
+  }
+
+  function checkoutPage() {
+    const text = commerceText();
+    const receipt = safeParse(storage.get(LAST_ORDER_STORAGE_KEY), null);
+    if (receipt?.ref) return checkoutReceiptPage(receipt);
+    if (!state.cart.length) {
+      return `${pageHero({ eyebrow: text.stagingBadge, title: text.checkoutTitle, text: text.checkoutIntro, media: 53, crumbs: [[text.checkout]] })}<section class="section commerce-page"><div class="container narrow">${stagingNotice()}<div class="empty-state commerce-empty"><span>${icons.cart}</span><strong>${esc(text.emptyCart)}</strong><p>${esc(text.emptyCartText)}</p><a class="btn" href="${routeUrl("/parts")}">${esc(text.browseParts)}${icons.arrow}</a></div></div></section>`;
+    }
+    const vehicle = partsVehicleLabel();
+    return `${pageHero({ eyebrow: text.stagingBadge, title: text.checkoutTitle, text: text.checkoutIntro, media: 53, crumbs: [[text.cart, "/cart"], [text.checkout]], meta: statusBadge(text.noPayment) })}<section class="section commerce-page"><div class="container">${stagingNotice()}<div class="checkout-account-option"><div><strong>${esc(text.signInCreate)}</strong><p>${esc(text.accountOptional)}</p></div><a class="btn btn-sm btn-outline" href="${routeUrl("/account")}">${esc(text.signInCreate)}${icons.arrow}</a></div><div class="checkout-layout"><form class="checkout-form" data-staging-checkout><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><header><span class="eyebrow">${esc(text.guestCheckout)}</span><h2>${esc(text.customerDetails)}</h2><p>${esc(text.guestNote)}</p></header><fieldset><legend>${esc(text.customerDetails)}</legend><div class="form-grid"><div class="form-group"><label class="required" for="checkout-name">${esc(text.name)}</label><input class="input" id="checkout-name" name="name" required autocomplete="name" maxlength="160"></div><div class="form-group"><label class="required" for="checkout-email">${esc(text.email)}</label><input class="input ltr-input" id="checkout-email" name="email" type="email" required autocomplete="email" maxlength="254"></div><div class="form-group full"><label class="required" for="checkout-phone">${esc(text.phone)}</label><input class="input ltr-input" id="checkout-phone" name="phone" required inputmode="tel" autocomplete="tel" maxlength="50"></div></div></fieldset><fieldset><legend>${esc(text.deliveryDetails)}</legend><div class="form-grid"><div class="form-group"><label class="required" for="checkout-country">${esc(text.country)}</label><input class="input" id="checkout-country" name="country" required autocomplete="country-name" maxlength="100"></div><div class="form-group"><label class="required" for="checkout-city">${esc(text.city)}</label><input class="input" id="checkout-city" name="city" required autocomplete="address-level2" maxlength="100"></div><div class="form-group full"><label for="checkout-address">${esc(text.address)} <small>${esc(text.optional)}</small></label><input class="input" id="checkout-address" name="addressLine" autocomplete="street-address" maxlength="300"></div><div class="form-group"><label for="checkout-postcode">${esc(text.postcode)} <small>${esc(text.optional)}</small></label><input class="input ltr-input" id="checkout-postcode" name="postcode" autocomplete="postal-code" maxlength="30"></div><div class="form-group"><label for="checkout-fulfilment">${esc(text.fulfilment)}</label><select class="select" id="checkout-fulfilment" name="fulfilment"><option value="courier">${esc(text.courier)}</option><option value="workshop">${esc(text.workshop)}</option></select></div></div></fieldset><fieldset><legend>${esc(text.vehicleDetails)}</legend><div class="form-grid"><div class="form-group full"><label class="required" for="checkout-vehicle">${esc(text.vehicle)}</label><input class="input" id="checkout-vehicle" name="vehicle" value="${esc(vehicle)}" required maxlength="300"></div><div class="form-group full"><label for="checkout-vin">${esc(text.vin)} <small>${esc(text.optional)}</small></label><input class="input ltr-input" id="checkout-vin" name="vin" maxlength="24" autocomplete="off"></div><div class="form-group full"><label for="checkout-notes">${esc(text.notes)} <small>${esc(text.optional)}</small></label><textarea class="textarea" id="checkout-notes" name="notes" maxlength="2000"></textarea></div></div></fieldset><label class="checkbox checkout-confirm"><input type="checkbox" name="acknowledgement" required><span>${esc(text.acknowledgement)}</span></label><label class="checkbox checkout-confirm"><input type="checkbox" name="consent" required><span>${esc(text.consent)}</span></label><button class="btn btn-block" type="submit">${esc(text.submit)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>${commerceSummary({ editable: true })}</div></div></section>`;
   }
 
   function accountPage() {
@@ -2573,20 +3168,581 @@
     return clerkLoadPromise;
   }
 
+  async function prefillCheckoutAccount() {
+    const form = document.querySelector("[data-staging-checkout]");
+    if (!form || form.dataset.accountPrefill === "true") return;
+    form.dataset.accountPrefill = "true";
+    try {
+      const clerk = window.Clerk?.loaded ? window.Clerk : await loadClerk();
+      if (!clerk?.isSignedIn || !document.body.contains(form)) return;
+      const user = clerk.user;
+      const known = {
+        name: cleanText(user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" "), 160),
+        email: cleanText(user?.primaryEmailAddress?.emailAddress || "", 254),
+        phone: cleanText(user?.primaryPhoneNumber?.phoneNumber || "", 50)
+      };
+      for (const [name, value] of Object.entries(known)) {
+        if (value && !cleanText(form.elements[name]?.value || "", 300)) form.elements[name].value = value;
+      }
+    } catch {
+      // Guest checkout remains fully available when Clerk is not configured or cannot load.
+    }
+  }
+
+  let mountedAccountProfile = null;
+  const accountDashboardCache = Object.create(null);
+
+  function accountDashboardText() {
+    return state.locale === "ar" ? {
+      title: "لوحة حساب العميل",
+      profile: "الملف الشخصي",
+      addresses: "العناوين",
+      orders: "الطلبات",
+      savedCart: "السلة المحفوظة",
+      quotes: "طلبات الأسعار",
+      security: "الأمان وكلمة المرور",
+      loading: "جاري تحميل بيانات الحساب الخاصة…",
+      dataUnavailable: "تخزين بيانات الحساب غير مفعّل بعد",
+      dataUnavailableText: "تسجيل الدخول آمن، لكن العناوين والطلبات والسلة وطلبات الأسعار تحتاج ربط قاعدة البيانات الخاصة قبل عرض أي بيانات حقيقية.",
+      sessionExpired: "انتهت جلسة تسجيل الدخول. سجل الدخول مرة ثانية للوصول إلى بيانات الحساب.",
+      loadError: "تعذر تحميل بيانات الحساب حالياً. لم يتم عرض أي بيانات خاصة.",
+      retry: "إعادة المحاولة",
+      saveChanges: "حفظ التغييرات",
+      saving: "جاري الحفظ…",
+      profileUpdated: "تم تحديث بيانات الحساب.",
+      actionError: "تعذر حفظ التغيير. لم يتم تعديل البيانات.",
+      displayName: "الاسم",
+      email: "البريد الإلكتروني",
+      phone: "الهاتف",
+      language: "اللغة المفضلة",
+      noAddresses: "لا توجد عناوين محفوظة.",
+      addAddress: "إضافة عنوان",
+      editAddress: "تعديل",
+      deleteAddress: "حذف",
+      cancel: "إلغاء",
+      addressLabel: "اسم العنوان",
+      recipientName: "اسم المستلم",
+      addressLine1: "العنوان الأول",
+      addressLine2: "العنوان الثاني",
+      area: "المنطقة",
+      city: "المدينة",
+      postalCode: "الرمز البريدي",
+      countryCode: "رمز الدولة",
+      addressSaved: "تم حفظ العنوان.",
+      addressDeleted: "تم حذف العنوان.",
+      confirmDeleteAddress: "هل تريد حذف هذا العنوان المحفوظ؟",
+      shippingDefault: "عنوان الشحن الافتراضي",
+      billingDefault: "عنوان الفوترة الافتراضي",
+      noOrders: "لا توجد طلبات مرتبطة بهذا الحساب.",
+      noQuotes: "لا توجد طلبات أسعار محفوظة في الحساب.",
+      noSavedCart: "لا توجد سلة محفوظة في الحساب.",
+      localCart: "سلة الاختبار على هذا الجهاز",
+      localCartText: "تبقى سلة الاختبار الحالية محفوظة محلياً على هذا الجهاز عند تسجيل الدخول.",
+      viewCart: "فتح السلة",
+      saveCurrentCart: "حفظ السلة الحالية في الحساب",
+      restoreSavedCart: "استعادة سلة الحساب على هذا الجهاز",
+      cartSaved: "تم حفظ السلة الحالية في الحساب.",
+      cartRestored: "تمت استعادة سلة الحساب على هذا الجهاز.",
+      cartEmptyError: "أضف قطعة مؤهلة إلى سلة الاختبار قبل حفظها.",
+      cartRestoreError: "لا توجد قطع مؤهلة حالياً للاستعادة من سلة الحساب.",
+      wishlist: "المنتجات المحفوظة",
+      wishlistPending: "قائمة الرغبات غير مفعّلة في نسخة الاختبار الحالية، لذلك لن نعرض بيانات غير محفوظة على أنها متزامنة.",
+      status: "الحالة",
+      paymentStatus: "حالة الدفع",
+      reference: "الرقم المرجعي",
+      submitted: "تاريخ الإرسال",
+      total: "المجموع",
+      quantity: "الكمية",
+      securityText: "يدير مزود الهوية الآمن البريد وكلمة المرور والتحقق وتسجيل الخروج. Projx Racing لا يمكنه رؤية كلمة المرور.",
+      emptyValue: "غير مضاف"
+    } : {
+      title: "Customer account dashboard",
+      profile: "Profile",
+      addresses: "Addresses",
+      orders: "Orders",
+      savedCart: "Saved cart",
+      quotes: "Quote history",
+      security: "Security & password",
+      loading: "Loading private account data…",
+      dataUnavailable: "Account data storage is not active yet",
+      dataUnavailableText: "Sign-in remains secure, but addresses, orders, saved carts and quote history require the private database connection before any real data can be shown.",
+      sessionExpired: "Your sign-in session expired. Sign in again to access account data.",
+      loadError: "Account data could not be loaded. No private information has been displayed.",
+      retry: "Try again",
+      saveChanges: "Save changes",
+      saving: "Saving…",
+      profileUpdated: "Account details updated.",
+      actionError: "The change could not be saved. No account data was modified.",
+      displayName: "Name",
+      email: "Email",
+      phone: "Phone",
+      language: "Preferred language",
+      noAddresses: "No saved addresses yet.",
+      addAddress: "Add address",
+      editAddress: "Edit",
+      deleteAddress: "Delete",
+      cancel: "Cancel",
+      addressLabel: "Address label",
+      recipientName: "Recipient name",
+      addressLine1: "Address line 1",
+      addressLine2: "Address line 2",
+      area: "Area",
+      city: "City",
+      postalCode: "Postcode",
+      countryCode: "Country code",
+      addressSaved: "Address saved.",
+      addressDeleted: "Address deleted.",
+      confirmDeleteAddress: "Delete this saved address?",
+      shippingDefault: "Default delivery address",
+      billingDefault: "Default billing address",
+      noOrders: "No orders are linked to this account.",
+      noQuotes: "No saved quotation requests are linked to this account.",
+      noSavedCart: "No account-saved cart is available.",
+      localCart: "Staging cart on this device",
+      localCartText: "Your current staging cart remains stored locally on this device when you sign in.",
+      viewCart: "Open cart",
+      saveCurrentCart: "Save current cart to account",
+      restoreSavedCart: "Restore account cart on this device",
+      cartSaved: "Current cart saved to your account.",
+      cartRestored: "Account cart restored on this device.",
+      cartEmptyError: "Add an eligible item to the staging cart before saving it.",
+      cartRestoreError: "The account cart has no currently eligible items to restore.",
+      wishlist: "Saved products",
+      wishlistPending: "Wishlist sync is not enabled in this testing build, so unsaved data is never presented as synchronised.",
+      status: "Status",
+      paymentStatus: "Payment status",
+      reference: "Reference",
+      submitted: "Submitted",
+      total: "Total",
+      quantity: "Quantity",
+      securityText: "The secure identity provider manages email, password, verification and sign-out. Projx Racing cannot see your password.",
+      emptyValue: "Not added"
+    };
+  }
+
+  async function accountApi(resource, { method = "GET", body } = {}) {
+    const clerk = window.Clerk;
+    const token = await clerk?.session?.getToken?.();
+    if (!token) {
+      const error = new Error("authentication_required");
+      error.code = "authentication_required";
+      error.status = 401;
+      throw error;
+    }
+    const headers = { Accept: "application/json", Authorization: `Bearer ${token}` };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const response = await fetch(`/api/${resource}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: "same-origin"
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(typeof payload.error === "string" ? payload.error : "account_data_unavailable");
+      error.code = typeof payload.error === "string" ? payload.error : "account_data_unavailable";
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  }
+
+  function accountQuoteKey(value, fallback) {
+    const key = cleanText(value || "", 255).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+    return key || fallback;
+  }
+
+  function accountQuoteItems(type, fields) {
+    const selected = state.quote.length ? state.quote : (/quote/i.test(type) ? [{
+      id: fields.context || type,
+      kind: "Projx Racing",
+      title: type,
+      sku: "",
+      details: fields.context || "",
+      quantity: 1
+    }] : []);
+    return selected.map((item, index) => {
+      const kind = cleanText(item.kind || "", 120);
+      const supplier = /ecs/i.test(kind) ? "ecs-tuning" : /tegiwa/i.test(kind) ? "tegiwa" : "projx-racing";
+      return {
+        supplier,
+        productId: accountQuoteKey(item.id, `website-quote-${index + 1}`),
+        supplierProductId: "",
+        variantId: "",
+        sku: cleanText(item.sku || "", 255),
+        title: cleanText(item.title || type, 500),
+        optionTitle: cleanText(item.details || "", 300),
+        quantity: Math.min(1000, Math.max(1, Number.parseInt(item.quantity, 10) || 1)),
+        unitAmount: null,
+        currency: null
+      };
+    });
+  }
+
+  function accountQuoteNotes(ref, type, fields) {
+    const lines = [`Website reference: ${ref}`, `Request type: ${type}`];
+    for (const [key, value] of Object.entries(fields)) {
+      if (!value || key === "consent" || key === "selectedItems") continue;
+      lines.push(`${key}: ${Array.isArray(value) ? value.join(" | ") : value}`);
+    }
+    return cleanText(lines.join("\n"), 4000);
+  }
+
+  async function saveWebsiteQuoteToAccount({ ref, type, fields }) {
+    if (!window.Clerk?.isSignedIn) return null;
+    const items = accountQuoteItems(type, fields);
+    if (!items.length) return null;
+    const vehicleDescription = cleanText([
+      fields.year, fields.make, fields.model, fields.vehicle, fields.engine, fields.transmission
+    ].filter(Boolean).join(" "), 500);
+    return accountApi("quotes", {
+      method: "POST",
+      body: {
+        idempotencyKey: randomCheckoutToken(),
+        locale: state.locale,
+        customer: {
+          name: cleanText(fields.name || window.Clerk.user?.fullName || "", 200),
+          email: cleanText(fields.email || window.Clerk.user?.primaryEmailAddress?.emailAddress || "", 320),
+          phone: cleanText(fields.phone || window.Clerk.user?.primaryPhoneNumber?.phoneNumber || "", 60)
+        },
+        destination: {
+          country: cleanText(fields.country || "", 100),
+          city: cleanText(fields.city || "", 150),
+          addressLine: cleanText(fields.address || fields.addressLine || "", 500),
+          postcode: cleanText(fields.postcode || "", 40),
+          fulfilment: cleanText(fields.fulfilment || "", 60)
+        },
+        vehicle: { description: vehicleDescription, vin: cleanText(fields.vin || "", 40) },
+        notes: accountQuoteNotes(ref, type, fields),
+        items
+      }
+    });
+  }
+
+  function accountDate(value) {
+    const date = new Date(value || "");
+    if (!Number.isFinite(date.getTime())) return accountDashboardText().emptyValue;
+    return new Intl.DateTimeFormat(state.locale === "ar" ? "ar-KW" : "en-GB", { dateStyle: "medium" }).format(date);
+  }
+
+  function accountTotals(totals) {
+    if (!Array.isArray(totals) || !totals.length) return accountDashboardText().emptyValue;
+    return totals.slice(0, 8).map(total => `<bdi>${esc(commerceMoney(Number(total.amount || 0) / 100, total.currency))}</bdi>`).join(" · ");
+  }
+
+  function accountRecordStatus(value) {
+    const cleanStatus = cleanText(value || accountDashboardText().emptyValue, 80).replaceAll("_", " ");
+    return cleanStatus ? cleanStatus.charAt(0).toUpperCase() + cleanStatus.slice(1) : accountDashboardText().emptyValue;
+  }
+
+  function accountDataError(error, tab) {
+    const text = accountDashboardText();
+    const notConfigured = ["backend_not_configured", "auth_not_configured"].includes(error?.code);
+    const expired = ["authentication_required", "invalid_session_token"].includes(error?.code) || error?.status === 401;
+    const heading = notConfigured ? text.dataUnavailable : expired ? text.sessionExpired : text.loadError;
+    const detail = notConfigured ? text.dataUnavailableText : expired ? text.sessionExpired : text.loadError;
+    return `<div class="account-data-state" role="status"><span>${icons.check}</span><div><strong>${esc(heading)}</strong><p>${esc(detail)}</p><button class="btn btn-sm btn-outline" type="button" data-account-dashboard-tab="${esc(tab)}">${esc(text.retry)}</button></div></div>`;
+  }
+
+  function accountProfileMarkup(account = {}) {
+    const text = accountDashboardText();
+    return `<div class="account-data-grid"><article class="account-data-card account-profile-card"><span class="eyebrow">${esc(text.profile)}</span><dl><div><dt>${esc(text.email)}</dt><dd><bdi>${esc(account.email || text.emptyValue)}</bdi></dd></div><div><dt>${esc(text.status)}</dt><dd>${esc(accountRecordStatus(account.status))}</dd></div></dl><form class="account-edit-form" data-account-profile-form><div class="form-grid"><div class="form-group"><label for="account-display-name">${esc(text.displayName)}</label><input class="input" id="account-display-name" name="displayName" value="${esc(account.displayName || "")}" maxlength="200" autocomplete="name"></div><div class="form-group"><label for="account-phone">${esc(text.phone)}</label><input class="input ltr-input" id="account-phone" name="phone" value="${esc(account.phone || "")}" maxlength="60" autocomplete="tel" inputmode="tel"></div><div class="form-group"><label for="account-locale">${esc(text.language)}</label><select class="select" id="account-locale" name="preferredLocale"><option value="en"${account.preferredLocale !== "ar" ? " selected" : ""}>English</option><option value="ar"${account.preferredLocale === "ar" ? " selected" : ""}>العربية</option></select></div></div><div class="account-form-actions"><button class="btn btn-sm" type="submit">${esc(text.saveChanges)}${icons.arrow}</button><button class="btn btn-sm btn-outline" type="button" data-account-dashboard-tab="security">${esc(text.security)}</button></div><p class="form-status" role="status" aria-live="polite"></p></form></article></div>`;
+  }
+
+  function accountAddressesMarkup(addresses = []) {
+    const text = accountDashboardText();
+    const cards = addresses.length ? `<div class="account-data-grid">${addresses.map(address => `<article class="account-data-card"><header><div><span>${esc(address.label || text.addresses)}</span><strong>${esc(address.recipientName || text.emptyValue)}</strong></div><div class="account-address-badges">${address.isDefaultShipping ? `<small>${esc(text.shippingDefault)}</small>` : ""}${address.isDefaultBilling ? `<small>${esc(text.billingDefault)}</small>` : ""}</div></header><address>${[address.addressLine1, address.addressLine2, address.area, address.city, address.postalCode, address.countryCode].filter(Boolean).map(value => esc(value)).join("<br>")}</address><p><bdi>${esc(address.phone || text.emptyValue)}</bdi></p><div class="account-card-actions"><button class="btn btn-sm btn-outline" type="button" data-account-edit-address="${esc(address.id)}">${esc(text.editAddress)}</button><button class="text-link account-delete-link" type="button" data-account-delete-address="${esc(address.id)}">${esc(text.deleteAddress)}</button></div></article>`).join("")}</div>` : `<div class="account-empty-card"><span>${icons.map}</span><strong>${esc(text.noAddresses)}</strong></div>`;
+    return `${cards}<form class="account-address-form" data-account-address-form><input type="hidden" name="addressId" value=""><header><div><span class="eyebrow">${esc(text.addresses)}</span><h3 data-account-address-form-title>${esc(text.addAddress)}</h3></div><button class="text-link" type="button" data-account-cancel-address hidden>${esc(text.cancel)}</button></header><div class="form-grid"><div class="form-group"><label class="required" for="account-address-label">${esc(text.addressLabel)}</label><input class="input" id="account-address-label" name="label" maxlength="80" required></div><div class="form-group"><label class="required" for="account-recipient-name">${esc(text.recipientName)}</label><input class="input" id="account-recipient-name" name="recipientName" maxlength="200" autocomplete="name" required></div><div class="form-group"><label class="required" for="account-address-phone">${esc(text.phone)}</label><input class="input ltr-input" id="account-address-phone" name="phone" maxlength="60" autocomplete="tel" inputmode="tel" required></div><div class="form-group"><label class="required" for="account-address-country">${esc(text.countryCode)}</label><input class="input ltr-input" id="account-address-country" name="countryCode" value="KW" minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocapitalize="characters" required></div><div class="form-group full"><label class="required" for="account-address-line-1">${esc(text.addressLine1)}</label><input class="input" id="account-address-line-1" name="addressLine1" maxlength="300" autocomplete="address-line1" required></div><div class="form-group full"><label for="account-address-line-2">${esc(text.addressLine2)}</label><input class="input" id="account-address-line-2" name="addressLine2" maxlength="300" autocomplete="address-line2"></div><div class="form-group"><label for="account-address-area">${esc(text.area)}</label><input class="input" id="account-address-area" name="area" maxlength="150" autocomplete="address-level3"></div><div class="form-group"><label class="required" for="account-address-city">${esc(text.city)}</label><input class="input" id="account-address-city" name="city" maxlength="150" autocomplete="address-level2" required></div><div class="form-group"><label for="account-address-postcode">${esc(text.postalCode)}</label><input class="input ltr-input" id="account-address-postcode" name="postalCode" maxlength="40" autocomplete="postal-code"></div><div class="account-default-options form-group full"><label class="checkbox"><input type="checkbox" name="isDefaultShipping"><span>${esc(text.shippingDefault)}</span></label><label class="checkbox"><input type="checkbox" name="isDefaultBilling"><span>${esc(text.billingDefault)}</span></label></div></div><button class="btn btn-sm" type="submit">${esc(text.saveChanges)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>`;
+  }
+
+  function accountOrdersMarkup(orders = []) {
+    const text = accountDashboardText();
+    if (!orders.length) return `<div class="account-empty-card"><span>${icons.cart}</span><strong>${esc(text.noOrders)}</strong></div>`;
+    return `<div class="account-data-grid">${orders.map(order => `<article class="account-data-card"><header><div><span>${esc(text.reference)}</span><strong><bdi>${esc(order.reference || text.emptyValue)}</bdi></strong></div><small>${esc(accountDate(order.createdAt))}</small></header><dl><div><dt>${esc(text.status)}</dt><dd>${esc(accountRecordStatus(order.status))}</dd></div><div><dt>${esc(text.paymentStatus)}</dt><dd>${esc(accountRecordStatus(order.paymentStatus))}</dd></div><div><dt>${esc(text.total)}</dt><dd>${accountTotals(order.totals)}</dd></div></dl></article>`).join("")}</div>`;
+  }
+
+  function accountQuotesMarkup(quotes = []) {
+    const text = accountDashboardText();
+    if (!quotes.length) return `<div class="account-empty-card"><span>${icons.quote}</span><strong>${esc(text.noQuotes)}</strong></div>`;
+    return `<div class="account-data-grid">${quotes.map(quote => `<article class="account-data-card"><header><div><span>${esc(text.reference)}</span><strong><bdi>${esc(quote.reference || text.emptyValue)}</bdi></strong></div><small>${esc(accountDate(quote.submittedAt))}</small></header><dl><div><dt>${esc(text.status)}</dt><dd>${esc(accountRecordStatus(quote.status))}</dd></div><div><dt>${esc(text.total)}</dt><dd>${accountTotals(quote.totals)}</dd></div></dl></article>`).join("")}</div>`;
+  }
+
+  function accountSavedCartMarkup(cart = {}) {
+    const text = accountDashboardText();
+    const items = Array.isArray(cart.items) ? cart.items : [];
+    const saved = items.length ? `<div class="account-data-grid">${items.map(item => `<article class="account-data-card"><span>${esc(item.sku || text.savedCart)}</span><strong>${esc(item.title || text.emptyValue)}</strong><p>${esc(text.quantity)}: <bdi>${esc(String(item.quantity || 1))}</bdi></p>${item.unitAmount !== null && item.currency ? `<p>${esc(commerceMoney(Number(item.unitAmount) / 100, item.currency))}</p>` : ""}</article>`).join("")}</div>` : `<div class="account-empty-card"><span>${icons.cart}</span><strong>${esc(text.noSavedCart)}</strong></div>`;
+    return `${saved}<div class="account-local-cart"><div><span>${esc(text.localCart)}</span><strong>${esc(String(cartCount()))} ${esc(cartCount() === 1 ? commerceText().item : commerceText().items)}</strong><p>${esc(text.localCartText)}</p></div><div class="account-cart-actions"><button class="btn btn-sm" type="button" data-account-save-cart>${esc(text.saveCurrentCart)}</button><button class="btn btn-sm btn-outline" type="button" data-account-restore-cart${items.length ? "" : " disabled"}>${esc(text.restoreSavedCart)}</button><a class="text-link" href="${routeUrl("/cart")}">${esc(text.viewCart)}${icons.arrow}</a></div></div><p class="form-status account-cart-status" role="status" aria-live="polite"></p><div class="account-data-state is-muted"><span>${icons.check}</span><div><strong>${esc(text.wishlist)}</strong><p>${esc(text.wishlistPending)}</p></div></div>`;
+  }
+
+  function accountActionErrorText(error) {
+    const text = accountDashboardText();
+    if (["backend_not_configured", "auth_not_configured"].includes(error?.code)) return text.dataUnavailableText;
+    if (["authentication_required", "invalid_session_token"].includes(error?.code) || error?.status === 401) return text.sessionExpired;
+    return text.actionError;
+  }
+
+  function setAccountActionStatus(status, message, isError = false) {
+    if (!status) return;
+    status.textContent = message;
+    status.className = `form-status${isError ? " is-error" : " is-success"}`;
+  }
+
+  function accountAddressPayload(form) {
+    const fields = new FormData(form);
+    return {
+      label: cleanText(fields.get("label"), 80),
+      recipientName: cleanText(fields.get("recipientName"), 200),
+      phone: cleanText(fields.get("phone"), 60),
+      addressLine1: cleanText(fields.get("addressLine1"), 300),
+      addressLine2: cleanText(fields.get("addressLine2"), 300) || null,
+      area: cleanText(fields.get("area"), 150) || null,
+      city: cleanText(fields.get("city"), 150),
+      postalCode: cleanText(fields.get("postalCode"), 40) || null,
+      countryCode: cleanText(fields.get("countryCode"), 2).toUpperCase(),
+      isDefaultShipping: fields.get("isDefaultShipping") === "on",
+      isDefaultBilling: fields.get("isDefaultBilling") === "on"
+    };
+  }
+
+  function resetAccountAddressForm(form) {
+    if (!form) return;
+    form.reset();
+    form.elements.addressId.value = "";
+    form.elements.countryCode.value = "KW";
+    const text = accountDashboardText();
+    const heading = form.querySelector("[data-account-address-form-title]");
+    const cancel = form.querySelector("[data-account-cancel-address]");
+    if (heading) heading.textContent = text.addAddress;
+    if (cancel) cancel.hidden = true;
+    setAccountActionStatus(form.querySelector(".form-status"), "", false);
+  }
+
+  function editAccountAddress(root, addressId) {
+    const addresses = accountDashboardCache.addresses?.addresses || [];
+    const address = addresses.find(item => item.id === addressId);
+    const form = root.querySelector("[data-account-address-form]");
+    if (!address || !form) return;
+    for (const name of ["label", "recipientName", "phone", "addressLine1", "addressLine2", "area", "city", "postalCode", "countryCode"]) {
+      form.elements[name].value = address[name] || "";
+    }
+    form.elements.addressId.value = address.id;
+    form.elements.isDefaultShipping.checked = address.isDefaultShipping === true;
+    form.elements.isDefaultBilling.checked = address.isDefaultBilling === true;
+    const text = accountDashboardText();
+    form.querySelector("[data-account-address-form-title]").textContent = text.editAddress;
+    form.querySelector("[data-account-cancel-address]").hidden = false;
+    scrollElementIntoView(form);
+    window.setTimeout(() => form.elements.label.focus(), motionDelay());
+  }
+
+  function accountCartItemsForApi() {
+    return state.cart.map(item => {
+      const product = commerceProduct(item.productId);
+      return {
+        supplier: "tegiwa",
+        productId: item.productId,
+        supplierProductId: null,
+        variantId: null,
+        sku: item.sku,
+        title: product ? localizedStoreProduct(product).title : item.sku,
+        optionTitle: null,
+        quantity: item.quantity,
+        unitAmount: Math.round(Number(item.unitAmount) * 100),
+        currency: item.currency
+      };
+    });
+  }
+
+  async function showAccountDashboardTab(root, clerk, tab = "profile") {
+    const allowed = new Set(["profile", "addresses", "orders", "cart", "quotes", "security"]);
+    const selected = allowed.has(tab) ? tab : "profile";
+    const text = accountDashboardText();
+    const panel = root.querySelector("[data-account-dashboard-panel]");
+    if (!panel) return;
+    if (mountedAccountProfile && typeof clerk.unmountUserProfile === "function") clerk.unmountUserProfile(mountedAccountProfile);
+    mountedAccountProfile = null;
+    root.querySelectorAll("[data-account-dashboard-tab]").forEach(button => {
+      const active = button.dataset.accountDashboardTab === selected;
+      button.classList.toggle("is-active", active);
+      if (button.getAttribute("role") === "tab") {
+        button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
+      }
+    });
+    panel.setAttribute("aria-labelledby", `account-dashboard-tab-${selected}`);
+    if (selected === "security") {
+      panel.innerHTML = `<div class="account-security-intro"><strong>${esc(text.security)}</strong><p>${esc(text.securityText)}</p></div><div id="account-user-profile"></div>`;
+      mountedAccountProfile = panel.querySelector("#account-user-profile");
+      if (mountedAccountProfile && typeof clerk.mountUserProfile === "function") clerk.mountUserProfile(mountedAccountProfile);
+      return;
+    }
+    panel.innerHTML = `<div class="account-loading" role="status">${esc(text.loading)}</div>`;
+    const resource = selected === "profile" ? "account" : selected;
+    try {
+      const payload = await accountApi(resource);
+      if (!document.body.contains(root) || panel.getAttribute("aria-labelledby") !== `account-dashboard-tab-${selected}`) return;
+      accountDashboardCache[selected] = payload;
+      if (selected === "profile") panel.innerHTML = accountProfileMarkup(payload.account);
+      else if (selected === "addresses") panel.innerHTML = accountAddressesMarkup(payload.addresses);
+      else if (selected === "orders") panel.innerHTML = accountOrdersMarkup(payload.orders);
+      else if (selected === "cart") panel.innerHTML = accountSavedCartMarkup(payload.cart);
+      else panel.innerHTML = accountQuotesMarkup(payload.quotes);
+    } catch (error) {
+      if (document.body.contains(root) && panel.getAttribute("aria-labelledby") === `account-dashboard-tab-${selected}`) {
+        panel.innerHTML = accountDataError(error, selected);
+      }
+    }
+  }
+
+  function mountAccountDashboard(root, clerk) {
+    const text = accountDashboardText();
+    const tabs = [
+      ["profile", text.profile], ["addresses", text.addresses], ["orders", text.orders],
+      ["cart", text.savedCart], ["quotes", text.quotes], ["security", text.security]
+    ];
+    root.setAttribute("aria-labelledby", "account-dashboard-heading");
+    root.innerHTML = `<div class="account-signed-in"><header class="account-dashboard-head"><div><span>${esc(state.locale === "ar" ? "تم تسجيل الدخول" : "Signed in")}</span><h2 id="account-dashboard-heading">${esc(clerk.user?.fullName || clerk.user?.primaryEmailAddress?.emailAddress || text.title)}</h2></div><div id="account-user-button"></div></header><div class="account-dashboard-tabs" role="tablist" aria-label="${esc(text.title)}">${tabs.map(([id, label], index) => `<button id="account-dashboard-tab-${id}" class="${index === 0 ? "is-active" : ""}" type="button" role="tab" aria-selected="${index === 0}" aria-controls="account-dashboard-panel" tabindex="${index === 0 ? 0 : -1}" data-account-dashboard-tab="${id}">${esc(label)}</button>`).join("")}</div><section id="account-dashboard-panel" class="account-dashboard-panel" role="tabpanel" aria-labelledby="account-dashboard-tab-profile" data-account-dashboard-panel></section></div>`;
+    clerk.mountUserButton(root.querySelector("#account-user-button"));
+    root.addEventListener("click", async event => {
+      const text = accountDashboardText();
+      const tabButton = event.target.closest("[data-account-dashboard-tab]");
+      if (tabButton) {
+        showAccountDashboardTab(root, clerk, tabButton.dataset.accountDashboardTab);
+        return;
+      }
+      const editButton = event.target.closest("[data-account-edit-address]");
+      if (editButton) {
+        editAccountAddress(root, editButton.dataset.accountEditAddress);
+        return;
+      }
+      const cancelAddress = event.target.closest("[data-account-cancel-address]");
+      if (cancelAddress) {
+        resetAccountAddressForm(cancelAddress.closest("form"));
+        return;
+      }
+      const deleteButton = event.target.closest("[data-account-delete-address]");
+      if (deleteButton) {
+        if (!window.confirm(text.confirmDeleteAddress)) return;
+        const status = root.querySelector("[data-account-address-form] .form-status");
+        deleteButton.disabled = true;
+        try {
+          await accountApi(`addresses?id=${encodeURIComponent(deleteButton.dataset.accountDeleteAddress)}`, { method: "DELETE" });
+          delete accountDashboardCache.addresses;
+          showToast(text.addressDeleted);
+          await showAccountDashboardTab(root, clerk, "addresses");
+        } catch (error) {
+          setAccountActionStatus(status, accountActionErrorText(error), true);
+          if (document.body.contains(deleteButton)) deleteButton.disabled = false;
+        }
+        return;
+      }
+      const saveCartButton = event.target.closest("[data-account-save-cart]");
+      if (saveCartButton) {
+        const status = root.querySelector(".account-cart-status");
+        const items = accountCartItemsForApi();
+        if (!items.length) {
+          setAccountActionStatus(status, text.cartEmptyError, true);
+          return;
+        }
+        saveCartButton.disabled = true;
+        try {
+          const payload = await accountApi("cart", { method: "PUT", body: { items } });
+          accountDashboardCache.cart = payload;
+          showToast(text.cartSaved);
+          await showAccountDashboardTab(root, clerk, "cart");
+        } catch (error) {
+          setAccountActionStatus(status, accountActionErrorText(error), true);
+          if (document.body.contains(saveCartButton)) saveCartButton.disabled = false;
+        }
+        return;
+      }
+      const restoreCartButton = event.target.closest("[data-account-restore-cart]");
+      if (restoreCartButton) {
+        const status = root.querySelector(".account-cart-status");
+        const savedItems = accountDashboardCache.cart?.cart?.items || [];
+        const restored = normalizeCart(savedItems.map(item => ({ productId: item.productId, quantity: item.quantity })));
+        if (!restored.length) {
+          setAccountActionStatus(status, text.cartRestoreError, true);
+          return;
+        }
+        state.cart = restored;
+        saveCart();
+        setAccountActionStatus(status, text.cartRestored);
+        showToast(text.cartRestored);
+        const localCount = root.querySelector(".account-local-cart strong");
+        if (localCount) localCount.textContent = `${cartCount()} ${cartCount() === 1 ? commerceText().item : commerceText().items}`;
+      }
+    });
+    root.addEventListener("submit", async event => {
+      const text = accountDashboardText();
+      const profileForm = event.target.closest("[data-account-profile-form]");
+      const addressForm = event.target.closest("[data-account-address-form]");
+      if (!profileForm && !addressForm) return;
+      event.preventDefault();
+      const form = profileForm || addressForm;
+      if (!form.reportValidity()) return;
+      const submit = form.querySelector('button[type="submit"]');
+      const status = form.querySelector(".form-status");
+      submit.disabled = true;
+      setAccountActionStatus(status, text.saving);
+      try {
+        if (profileForm) {
+          const fields = new FormData(profileForm);
+          const payload = await accountApi("account", {
+            method: "PATCH",
+            body: {
+              displayName: cleanText(fields.get("displayName"), 200) || null,
+              phone: cleanText(fields.get("phone"), 60) || null,
+              preferredLocale: fields.get("preferredLocale") === "ar" ? "ar" : "en"
+            }
+          });
+          accountDashboardCache.profile = payload;
+          setAccountActionStatus(status, text.profileUpdated);
+          showToast(text.profileUpdated);
+        } else {
+          const addressId = cleanText(addressForm.elements.addressId.value, 80);
+          const resource = `addresses${addressId ? `?id=${encodeURIComponent(addressId)}` : ""}`;
+          await accountApi(resource, { method: addressId ? "PUT" : "POST", body: accountAddressPayload(addressForm) });
+          delete accountDashboardCache.addresses;
+          showToast(text.addressSaved);
+          await showAccountDashboardTab(root, clerk, "addresses");
+        }
+      } catch (error) {
+        setAccountActionStatus(status, accountActionErrorText(error), true);
+      } finally {
+        if (document.body.contains(submit)) submit.disabled = false;
+      }
+    });
+    root.addEventListener("keydown", event => {
+      const tab = event.target.closest('[role="tab"][data-account-dashboard-tab]');
+      if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      const tabButtons = [...root.querySelectorAll('[role="tab"][data-account-dashboard-tab]')];
+      const index = tabButtons.indexOf(tab);
+      const direction = state.locale === "ar" ? -1 : 1;
+      const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabButtons.length - 1
+        : (index + (event.key === "ArrowRight" ? direction : -direction) + tabButtons.length) % tabButtons.length;
+      event.preventDefault();
+      tabButtons[nextIndex].focus();
+      showAccountDashboardTab(root, clerk, tabButtons[nextIndex].dataset.accountDashboardTab);
+    });
+    showAccountDashboardTab(root, clerk, "profile");
+  }
+
   async function mountAccountPortal(mode = "sign-in") {
     const root = document.getElementById("account-auth-root");
     if (!root) return;
     root.dataset.accountMode = mode;
     root.setAttribute("aria-labelledby", `account-tab-${mode}`);
+    const modeTabs = root.closest(".account-panel")?.querySelector(".account-tabs");
+    if (modeTabs) modeTabs.hidden = false;
     root.innerHTML = `<div class="account-loading" role="status">${esc(state.locale === "ar" ? "جاري تحميل بوابة الحساب الآمنة..." : "Loading the secure account portal...")}</div>`;
     try {
       const clerk = await loadClerk();
       if (!document.body.contains(root)) return;
       root.innerHTML = "";
       if (clerk.isSignedIn) {
-        root.innerHTML = `<div class="account-signed-in"><div><span>${esc(state.locale === "ar" ? "تم تسجيل الدخول" : "Signed in")}</span><strong>${esc(clerk.user?.fullName || clerk.user?.primaryEmailAddress?.emailAddress || (state.locale === "ar" ? "حساب العميل" : "Customer account"))}</strong></div><div id="account-user-button"></div><div id="account-user-profile"></div></div>`;
-        clerk.mountUserButton(document.getElementById("account-user-button"));
-        if (typeof clerk.mountUserProfile === "function") clerk.mountUserProfile(document.getElementById("account-user-profile"));
+        if (modeTabs) modeTabs.hidden = true;
+        mountAccountDashboard(root, clerk);
       } else if (mode === "sign-up") {
         clerk.mountSignUp(root, { routing: "hash" });
       } else {
@@ -2594,7 +3750,7 @@
       }
     } catch (error) {
       const notConfigured = error?.message === "account_not_configured";
-      root.innerHTML = `<div class="account-setup-notice"><strong>${esc(state.locale === "ar" ? (notConfigured ? "بوابة الحساب جاهزة للربط" : "تعذر تحميل بوابة الحساب") : (notConfigured ? "Account portal ready to connect" : "Account portal could not load"))}</strong><p>${esc(state.locale === "ar" ? (notConfigured ? "واجهة الحساب مكتملة، ويحتاج تفعيل التسجيل ربط Clerk بمشروع Vercel وإضافة المفتاح العام فقط." : "حاول مرة ثانية أو تواصل مع الورشة مباشرة.") : (notConfigured ? "The account interface is complete. Activating registration only requires connecting Clerk to the Vercel project and adding its publishable key." : "Try again or contact the workshop directly."))}</p><a class="btn btn-sm" href="${routeUrl("/contact")}">${esc(U().actions.contactWorkshop)}${icons.arrow}</a></div>`;
+      root.innerHTML = `<div class="account-setup-notice"><strong>${esc(state.locale === "ar" ? (notConfigured ? "بوابة الحساب جاهزة للربط" : "تعذر تحميل بوابة الحساب") : (notConfigured ? "Account portal ready to connect" : "Account portal could not load"))}</strong><p>${esc(state.locale === "ar" ? (notConfigured ? "يتطلب التفعيل إعداد Clerk للواجهة والخادم والـ webhook، ثم تشغيل ترحيل قاعدة البيانات الخاصة وربطها ببيئة Vercel." : "حاول مرة ثانية أو تواصل مع الورشة مباشرة.") : (notConfigured ? "Activation requires Clerk client, server verification and webhook settings, plus the private database migration and Vercel connection." : "Try again or contact the workshop directly."))}</p><a class="btn btn-sm" href="${routeUrl("/contact")}">${esc(U().actions.contactWorkshop)}${icons.arrow}</a></div>`;
     }
   }
 
@@ -2664,6 +3820,8 @@
     else if (path === "/reviews") html = reviewsPage();
     else if (path === "/about") html = aboutPage();
     else if (path === "/contact") html = contactPage();
+    else if (path === "/cart") html = cartPage();
+    else if (path === "/checkout") html = checkoutPage();
     else if (path === "/account") html = accountPage();
     else if (path === "/faq") html = faqPage();
     else if (path.startsWith("/legal/")) html = legalPage(path.split("/")[2]);
@@ -2679,6 +3837,7 @@
     setupTuningFinder();
     syncTegiwaProductFromUrl();
     if (path === "/account") mountAccountPortal("sign-in");
+    if (path === "/checkout") prefillCheckoutAccount();
     state.galleries["home-capability"] = [20, 19, 24, 23];
     state.galleries["about-facility"] = [20, 19, 24, 23, 17];
     if (PREVIEW_MODE) {
@@ -2767,7 +3926,6 @@
     if (normalizedQuery.length < 2) return;
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
     if (searchInput) searchInput.value = normalizedQuery;
-    resetTegiwaFilters({ reload: false });
     hideTegiwaSuggestions();
     document.querySelectorAll("[data-tegiwa-directory-query]").forEach(button => {
       const active = button === trigger;
@@ -2777,7 +3935,7 @@
     const catalogue = document.getElementById("tegiwa-catalog");
     const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     catalogue?.scrollIntoView({ behavior, block: "start" });
-    loadTegiwaCatalog({ query: normalizedQuery, match: "any", page: 1 });
+    loadTegiwaCatalog({ query: normalizedQuery, match: partsVehicleLabel() ? "vehicle" : "any", page: 1 });
     window.setTimeout(() => searchInput?.focus({ preventScroll: true }), behavior === "smooth" ? 450 : 0);
   }
 
@@ -2909,6 +4067,120 @@
     else state.quote.push(normalizedItem);
     saveQuote();
     showToast(state.locale === "ar" ? "تمت الإضافة لطلب السعر" : "Added to quote request", item.title);
+  }
+
+  function addCart(productId, quantity = 1) {
+    const product = commerceProduct(cleanText(productId || "", 180));
+    const item = canonicalCartItem(product, quantity);
+    if (!item) {
+      showToast(commerceText().priceExpired, product ? localizedStoreProduct(product).title : "");
+      return;
+    }
+    const existing = state.cart.find(entry => entry.id === item.id);
+    if (existing) existing.quantity = Math.min(99, Number(existing.quantity) + item.quantity);
+    else state.cart.push(item);
+    saveCart();
+    showToast(commerceText().addedToCart, localizedStoreProduct(product).title);
+  }
+
+  function randomCheckoutToken() {
+    const bytes = new Uint8Array(24);
+    if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
+    else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    return [...bytes].map(value => value.toString(16).padStart(2, "0")).join("");
+  }
+
+  function checkoutToken() {
+    const fingerprint = cartFingerprint();
+    const saved = safeParse(storage.get(CHECKOUT_TOKEN_STORAGE_KEY), null);
+    if (saved?.fingerprint === fingerprint && /^[a-f0-9]{48}$/.test(String(saved.token || ""))) return saved.token;
+    const token = randomCheckoutToken();
+    storage.set(CHECKOUT_TOKEN_STORAGE_KEY, JSON.stringify({ fingerprint, token }));
+    return token;
+  }
+
+  async function submitStagingCheckout(form) {
+    if (state.checkoutSubmitting || !form?.reportValidity()) return;
+    const text = commerceText();
+    const status = form.querySelector(".form-status");
+    const submit = form.querySelector('button[type="submit"]');
+    const fields = new FormData(form);
+    const payload = {
+      idempotencyKey: checkoutToken(),
+      locale: state.locale,
+      page: location.href,
+      startedAt: Number(fields.get("startedAt") || Date.now()),
+      website: cleanText(fields.get("website"), 120),
+      customer: {
+        name: cleanText(fields.get("name"), 160),
+        email: cleanText(fields.get("email"), 254),
+        phone: cleanText(fields.get("phone"), 50)
+      },
+      destination: {
+        country: cleanText(fields.get("country"), 100),
+        city: cleanText(fields.get("city"), 100),
+        addressLine: cleanText(fields.get("addressLine"), 300),
+        postcode: cleanText(fields.get("postcode"), 30),
+        fulfilment: fields.get("fulfilment") === "workshop" ? "workshop" : "courier"
+      },
+      vehicle: {
+        description: cleanText(fields.get("vehicle"), 300),
+        vin: cleanText(fields.get("vin"), 24)
+      },
+      notes: cleanText(fields.get("notes"), 2000),
+      acknowledgement: fields.get("acknowledgement") === "on",
+      consent: fields.get("consent") === "on",
+      items: state.cart.map(item => ({
+        productId: item.productId,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitAmount: item.unitAmount,
+        currency: item.currency
+      }))
+    };
+    state.checkoutSubmitting = true;
+    submit.disabled = true;
+    submit.classList.add("is-loading");
+    status.className = "form-status";
+    status.textContent = text.submitting;
+    try {
+      const endpoint = new URL(STAGING_ORDER_ENDPOINT, location.origin).href;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": payload.idempotencyKey },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.accepted || !result.ref) {
+        const error = new Error(result.error || "staging_order_failed");
+        error.code = result.error || "staging_order_failed";
+        throw error;
+      }
+      const receipt = {
+        ref: cleanText(result.ref, 80),
+        duplicate: Boolean(result.duplicate),
+        simulated: result.simulated === true,
+        notificationSent: result.notificationSent === true,
+        totals: Array.isArray(result.totals) ? result.totals.slice(0, 8) : cartTotals(),
+        submittedAt: new Date().toISOString()
+      };
+      storage.set(LAST_ORDER_STORAGE_KEY, JSON.stringify(receipt));
+      state.cart = [];
+      storage.remove(CART_STORAGE_KEY);
+      storage.remove(CHECKOUT_TOKEN_STORAGE_KEY);
+      renderPage();
+      showToast(receipt.simulated ? text.simulationTitle : text.successTitle, receipt.ref);
+    } catch (error) {
+      status.textContent = ["order_notifications_not_configured", "order_email_anti_abuse_not_configured"].includes(error?.code) ? text.deliveryUnavailable
+        : error?.code === "invalid_or_stale_cart" ? text.invalidCart : text.submitError;
+      status.className = "form-status is-error";
+    } finally {
+      state.checkoutSubmitting = false;
+      if (document.body.contains(submit)) {
+        submit.disabled = false;
+        submit.classList.remove("is-loading");
+      }
+    }
   }
 
   function openLightbox(id, key = "archive") {
@@ -3049,7 +4321,17 @@
     status.textContent = state.locale === "ar" ? "جاري تجهيز الطلب..." : "Preparing the enquiry...";
 
     let delivered = false;
-    if (["api", "auto"].includes(CONFIG.formMode)) {
+    let savedToAccount = false;
+    try {
+      const accountQuote = await saveWebsiteQuoteToAccount({ ref, type, fields });
+      if (accountQuote?.accepted) {
+        delivered = true;
+        savedToAccount = true;
+      }
+    } catch {
+      // If private account storage is unavailable, continue through the public fail-closed enquiry path.
+    }
+    if (!savedToAccount && ["api", "auto"].includes(CONFIG.formMode)) {
       try {
         const response = await postEnquiry(payload);
         if (response.ok) delivered = true;
@@ -3066,7 +4348,9 @@
     }
 
     if (delivered) {
-      status.textContent = `${U().forms.success.sent} ${U().forms.success.reference}: ${ref}`;
+      status.textContent = savedToAccount
+        ? `${state.locale === "ar" ? "تم حفظ طلب السعر في حسابك." : "Quote saved to your account."} ${U().forms.success.reference}: ${ref}`
+        : `${U().forms.success.sent} ${U().forms.success.reference}: ${ref}`;
       status.className = "form-status is-success";
       form.reset();
       showToast(U().forms.success.sent, ref);
@@ -3200,12 +4484,13 @@
       resetTegiwaFilters({ reload: false });
       hideTegiwaSuggestions();
       clearTegiwaDirectorySelection();
-      loadTegiwaCatalog({ query: "", match: "any", page: 1, scrollResults: true });
+      loadTegiwaCatalog({ query: "", match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
       return;
     }
     if (action === "tegiwa-retry") { loadTegiwaCatalog(state.tegiwaCatalog.lastRequest); return; }
     if (action === "clear-parts-vehicle") {
       const resetLiveCatalogue = state.tegiwaCatalog.match === "vehicle";
+      const activeQuery = state.tegiwaCatalog.query;
       state.partsVehicle = null;
       storage.remove("projxPartsVehicle");
       const vehicleForm = document.querySelector("[data-parts-vehicle-form]");
@@ -3215,18 +4500,10 @@
         vehicleForm.elements.make.value = "";
         updatePartsVehicleCascades(vehicleForm, "make");
       }
-      const matchFilter = document.querySelector('[data-filter-select="parts"][data-filter-match="vehicle"]');
-      if (matchFilter) {
-        matchFilter.value = "";
-        matchFilter.disabled = true;
-        matchFilter.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      state.tegiwaCatalog.fitment = "all";
       renderPartsVehicleSummary();
       if (resetLiveCatalogue) {
-        const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
-        if (search) search.value = "";
-        resetTegiwaFilters({ reload: false });
-        loadTegiwaCatalog({ query: "", match: "any", page: 1, scrollResults: true });
+        loadTegiwaCatalog({ query: activeQuery, match: "any", page: 1, scrollResults: true });
       }
       showToast(P().parts.finder.vehicleCleared);
       return;
@@ -3240,9 +4517,33 @@
     if (action === "close-modal") { if (event.target === target || target.closest("button")) closeModal(); return; }
     if (action === "open-quote") { openQuote(); return; }
     if (action === "close-quote") { closeQuote(); return; }
+    if (action === "add-cart") {
+      const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-item-quantity]")?.value, 10) || 1;
+      addCart(target.dataset.productId || "", quantity);
+      return;
+    }
+    if (action === "adjust-cart-quantity") {
+      const item = state.cart.find(entry => entry.id === target.dataset.id);
+      if (!item) return;
+      item.quantity = Math.min(99, Math.max(1, Number(item.quantity) + (Number(target.dataset.delta) || 0)));
+      saveCart();
+      if (["/cart", "/checkout"].includes(currentPath())) renderPage();
+      return;
+    }
+    if (action === "remove-cart") {
+      state.cart = state.cart.filter(item => item.id !== target.dataset.id);
+      saveCart();
+      if (["/cart", "/checkout"].includes(currentPath())) renderPage();
+      return;
+    }
+    if (action === "start-new-test-order") {
+      storage.remove(LAST_ORDER_STORAGE_KEY);
+      storage.remove(CHECKOUT_TOKEN_STORAGE_KEY);
+      return;
+    }
     if (action === "add-quote") {
       const selectedVehicle = currentPath().startsWith("/parts") && partsVehicleLabel() ? `${P().parts.finder.selectedVehicle}: ${partsVehicleLabel()}` : "";
-      const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-quote-quantity]")?.value, 10) || 1;
+      const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-item-quantity]")?.value, 10) || 1;
       addQuote({ id: target.dataset.id || `${target.dataset.kind}-${target.dataset.title}`.toLowerCase().replace(/\s+/g, "-"), kind: target.dataset.kind || "Enquiry", title: target.dataset.title || "Projx Racing", sku: target.dataset.sku || "", details: [target.dataset.details || "", selectedVehicle].filter(Boolean).join(" | "), quantity });
       return;
     }
@@ -3272,6 +4573,12 @@
   });
 
   document.addEventListener("submit", event => {
+    const checkoutForm = event.target.closest("[data-staging-checkout]");
+    if (checkoutForm) {
+      event.preventDefault();
+      submitStagingCheckout(checkoutForm);
+      return;
+    }
     const tegiwaSearch = event.target.closest("[data-tegiwa-search]");
     if (tegiwaSearch) {
       event.preventDefault();
@@ -3279,7 +4586,7 @@
       const query = cleanText(new FormData(tegiwaSearch).get("q"), 120);
       hideTegiwaSuggestions();
       clearTegiwaDirectorySelection();
-      loadTegiwaCatalog(query ? { query, match: "any", page: 1 } : { query: "", match: "any", page: 1 });
+      loadTegiwaCatalog({ query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1 });
       return;
     }
     const vehicleForm = event.target.closest("[data-parts-vehicle-form]");

@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { isIP } from 'node:net';
+import {
+  validTegiwaManifestSecret,
+  verifyTegiwaPublicManifestSignature
+} from '../server/tegiwa-public-manifest.js';
+import { tegiwaSkuMappingFingerprint } from './tegiwa-sku-mapping.js';
 
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
 const PAGE_SIZE = 100;
@@ -25,6 +31,15 @@ const MAX_STOCK_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const DEFAULT_TIMEOUT_MS = 7_000;
 const JSON_RESPONSE_BYTES = 2_000_000;
 const CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=300';
+const REMOTE_STOCK_MANIFEST_BYTES = 64 * 1_024;
+const REMOTE_STOCK_ARTIFACT_BYTES = 20_000_000;
+const REMOTE_STOCK_TIMEOUT_MS = 10_000;
+const REMOTE_STOCK_CACHE_TTL_MS = 5 * 60 * 1_000;
+const REMOTE_STOCK_FAILURE_TTL_MS = 30 * 1_000;
+const REMOTE_STOCK_STALE_IF_ERROR_MS = 24 * 60 * 60 * 1_000;
+const REMOTE_STOCK_CLOCK_SKEW_MS = 5 * 60 * 1_000;
+const REMOTE_STOCK_MAX_PUBLISH_DELAY_MS = 2 * 60 * 60 * 1_000;
+const REMOTE_STOCK_MAX_VALIDITY_MS = 24 * 60 * 60 * 1_000;
 const STOCK_INDEX_URL = new URL('./data/tegiwa-stock-index.json', import.meta.url);
 const SITEMAP_MANIFEST_URL = new URL('./data/tegiwa-sitemap-manifest.json', import.meta.url);
 const CATALOG_SUMMARY_URL = new URL('./data/tegiwa-catalog-summary.json', import.meta.url);
@@ -181,6 +196,7 @@ function validateStockIndex(candidate) {
     ? candidate.products
     : Object.create(null);
   return {
+    version: candidate.version,
     priceBasis: candidate.priceBasis === 'gbp_ex_uk_vat' ? candidate.priceBasis : null,
     checkedAt: safeCheckedAt(candidate.checkedAt),
     productCount: safeInteger(candidate.productCount, 0, 10_000_000) ?? 0,
@@ -401,13 +417,13 @@ function validateSearchSummary(candidate) {
   const termPostingCount = safeInteger(candidate?.termPostingCount, 1, 100_000_000);
   const pairCount = safeInteger(candidate?.pairCount, 1, 10_000_000);
   const pairPostingCount = safeInteger(candidate?.pairPostingCount, 1, 100_000_000);
-  const skuIndexSha256 = String(candidate?.skuIndexSha256 || '');
+  const skuMappingSha256 = String(candidate?.skuMappingSha256 || '');
   const files = candidate?.files;
-  if (!candidate || candidate.version !== 1 || candidate.pageSize !== PAGE_SIZE
+  if (!candidate || candidate.version !== 2 || candidate.pageSize !== PAGE_SIZE
     || candidate.metadataRecordBytes !== SEARCH_METADATA_RECORD_BYTES
     || candidate.pairRecordBytes !== SEARCH_PAIR_RECORD_BYTES
     || [productCount, termCount, termPostingCount, pairCount, pairPostingCount].some(value => value === null)
-    || !/^[a-f0-9]{64}$/.test(skuIndexSha256)
+    || !/^[a-f0-9]{64}$/.test(skuMappingSha256)
     || !files || typeof files !== 'object') throw new Error('invalid_search_summary');
   const file = name => {
     const value = files[name];
@@ -418,7 +434,7 @@ function validateSearchSummary(candidate) {
     return { ...value, bytes };
   };
   return {
-    productCount, termCount, termPostingCount, pairCount, pairPostingCount, skuIndexSha256,
+    productCount, termCount, termPostingCount, pairCount, pairPostingCount, skuMappingSha256,
     files: {
       terms: file('terms'), termPostings: file('termPostings'), pairs: file('pairs'),
       pairPostings: file('pairPostings'), metadata: file('metadata')
@@ -428,10 +444,281 @@ function validateSearchSummary(candidate) {
 
 export function assertSkuSearchIndexFresh(expectedFingerprint, stockIndexSource) {
   if (!/^[a-f0-9]{64}$/.test(String(expectedFingerprint || ''))) throw new Error('invalid_search_sku_fingerprint');
-  const source = Buffer.isBuffer(stockIndexSource) ? stockIndexSource : Buffer.from(String(stockIndexSource ?? ''), 'utf8');
-  const actual = createHash('sha256').update(source).digest('hex');
+  const actual = tegiwaSkuMappingFingerprint(stockIndexSource);
   if (actual !== expectedFingerprint) throw new Error('stale_search_sku_index');
   return true;
+}
+
+function publicHttpsUrl(value, sameHostname = null) {
+  if (typeof value !== 'string' || value.length < 9 || value.length > 4_096) return null;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLocaleLowerCase('en-US');
+    if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.port) return null;
+    if (!hostname || isIP(hostname.replace(/^\[|\]$/g, ''))
+      || hostname === 'localhost' || hostname.endsWith('.localhost')
+      || hostname.endsWith('.local') || hostname.endsWith('.internal')) return null;
+    if (sameHostname && hostname !== sameHostname) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function canonicalIsoTimestamp(value) {
+  if (typeof value !== 'string' || value.length > 40) return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) return null;
+  return { value, timestamp };
+}
+
+function validateRemoteStockManifest(candidate, manifestUrl, manifestSecret, nowValue, maximumArtifactBytes) {
+  if (!verifyTegiwaPublicManifestSignature(candidate, manifestSecret)) {
+    throw new Error('invalid_remote_stock_signature');
+  }
+  const retrievedAt = canonicalIsoTimestamp(candidate.retrievedAt);
+  const publishedAt = canonicalIsoTimestamp(candidate.publishedAt);
+  const expiresAt = canonicalIsoTimestamp(candidate.expiresAt);
+  const artifactUrl = publicHttpsUrl(candidate?.artifact?.url, manifestUrl.hostname.toLocaleLowerCase('en-US'));
+  const futureLimit = nowValue + REMOTE_STOCK_CLOCK_SKEW_MS;
+  if (!retrievedAt || !publishedAt || !expiresAt || !artifactUrl
+    || candidate.artifact.bytes > maximumArtifactBytes
+    || retrievedAt.timestamp > futureLimit || publishedAt.timestamp > futureLimit
+    || publishedAt.timestamp < retrievedAt.timestamp
+    || publishedAt.timestamp - retrievedAt.timestamp > REMOTE_STOCK_MAX_PUBLISH_DELAY_MS
+    || expiresAt.timestamp <= publishedAt.timestamp
+    || expiresAt.timestamp - retrievedAt.timestamp > REMOTE_STOCK_MAX_VALIDITY_MS) {
+    throw new Error('invalid_remote_stock_manifest');
+  }
+  return {
+    releaseId: candidate.releaseId,
+    retrievedAt: retrievedAt.value,
+    retrievedAtTimestamp: retrievedAt.timestamp,
+    publishedAt: publishedAt.value,
+    publishedAtTimestamp: publishedAt.timestamp,
+    expiresAt: expiresAt.value,
+    expiresAtTimestamp: expiresAt.timestamp,
+    counts: { ...candidate.counts },
+    artifact: {
+      url: artifactUrl,
+      bytes: candidate.artifact.bytes,
+      sha256: candidate.artifact.sha256
+    }
+  };
+}
+
+async function readRemoteBuffer(response, maximumBytes) {
+  const contentLengthHeader = response.headers?.get?.('content-length');
+  if (contentLengthHeader) {
+    const contentLength = Number(contentLengthHeader);
+    if (!Number.isSafeInteger(contentLength) || contentLength < 0 || contentLength > maximumBytes) {
+      throw new Error('invalid_remote_stock_size');
+    }
+  }
+  if (response.body?.getReader) {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > maximumBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error('remote_stock_response_too_large');
+      }
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks, total);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > maximumBytes) throw new Error('remote_stock_response_too_large');
+  return buffer;
+}
+
+async function fetchRemoteJsonBuffer(fetchImpl, url, { maximumBytes, timeoutMs }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(url.toString(), {
+      method: 'GET',
+      redirect: 'error',
+      signal: controller.signal,
+      headers: { Accept: 'application/json', 'User-Agent': 'Projx-Racing-Stock-Reader/1.0' }
+    });
+    if (!response?.ok) throw new Error('remote_stock_http_error');
+    if (response.url) {
+      const finalUrl = publicHttpsUrl(response.url, url.hostname.toLocaleLowerCase('en-US'));
+      if (!finalUrl || finalUrl.toString() !== url.toString()) throw new Error('remote_stock_redirect_rejected');
+    }
+    const contentType = String(response.headers?.get?.('content-type') || '').toLocaleLowerCase('en-US');
+    if (!/^application\/(?:[a-z0-9.+-]*\+)?json(?:\s*;|$)/.test(contentType)) {
+      throw new Error('invalid_remote_stock_content_type');
+    }
+    return await readRemoteBuffer(response, maximumBytes);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function validateCompleteRemoteStockIndex(index, manifest) {
+  if (!index || index.version !== 2 || index.priceBasis !== 'gbp_ex_uk_vat'
+    || index.checkedAt !== manifest.retrievedAt.slice(0, 10)
+    || index.productCount !== manifest.counts.productCount
+    || index.skuProductCount !== manifest.counts.skuProductCount
+    || index.availableProductCount !== manifest.counts.availableProductCount
+    || !Array.isArray(index.leadTimes) || index.leadTimes.length < 1
+    || index.leadTimes.some(value => typeof value !== 'string' || value.length > 120)) {
+    throw new Error('invalid_remote_stock_index');
+  }
+  let pricedProducts = 0;
+  let availableProducts = 0;
+  for (const record of Object.values(index.products)) {
+    if (!Array.isArray(record) || record.length !== 6
+      || !Number.isInteger(record[3]) || record[3] < 0 || record[3] >= index.leadTimes.length) {
+      throw new Error('invalid_remote_stock_index');
+    }
+    const priced = Number.isInteger(record[0]) && record[0] >= 0
+      && Number.isInteger(record[1]) && record[1] >= record[0]
+      && [0, 1, 2, 3].includes(record[2]);
+    const skuOnly = record[0] === null && record[1] === null && record[2] === null;
+    if (!priced && !skuOnly) throw new Error('invalid_remote_stock_index');
+    if (priced) pricedProducts += 1;
+    if (record[2] === 1 || record[2] === 2) availableProducts += 1;
+  }
+  if (pricedProducts !== index.productCount || availableProducts !== index.availableProductCount) {
+    throw new Error('invalid_remote_stock_index');
+  }
+  return {
+    ...index,
+    checkedAt: manifest.retrievedAt,
+    stockPublishedAt: manifest.publishedAt,
+    stockExpiresAt: manifest.expiresAt
+  };
+}
+
+function stockCheckedAtFloor(index) {
+  if (!index?.checkedAt) return 0;
+  const timestamp = /^\d{4}-\d{2}-\d{2}$/.test(index.checkedAt)
+    ? Date.parse(`${index.checkedAt}T00:00:00.000Z`)
+    : Date.parse(index.checkedAt);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+export function createRemoteTegiwaStockReader({
+  manifestUrl,
+  manifestSecret,
+  expectedSkuMappingFingerprint,
+  fetchImpl = globalThis.fetch,
+  now = () => Date.now(),
+  ttlMs = REMOTE_STOCK_CACHE_TTL_MS,
+  failureTtlMs = REMOTE_STOCK_FAILURE_TTL_MS,
+  staleIfErrorMs = REMOTE_STOCK_STALE_IF_ERROR_MS,
+  timeoutMs = REMOTE_STOCK_TIMEOUT_MS,
+  maximumManifestBytes = REMOTE_STOCK_MANIFEST_BYTES,
+  maximumArtifactBytes = REMOTE_STOCK_ARTIFACT_BYTES
+} = {}) {
+  const configuredManifestUrl = publicHttpsUrl(manifestUrl);
+  if (!configuredManifestUrl) throw new TypeError('A canonical public HTTPS stock-manifest URL is required.');
+  if (!validTegiwaManifestSecret(manifestSecret)) throw new TypeError('A strong server-only stock-manifest secret is required.');
+  if (typeof fetchImpl !== 'function' || typeof now !== 'function'
+    || !/^[a-f0-9]{64}$/.test(String(expectedSkuMappingFingerprint || ''))
+    || !Number.isSafeInteger(ttlMs) || ttlMs < 1 || ttlMs > 24 * 60 * 60 * 1_000
+    || !Number.isSafeInteger(failureTtlMs) || failureTtlMs < 1 || failureTtlMs > 60 * 60 * 1_000
+    || !Number.isSafeInteger(staleIfErrorMs) || staleIfErrorMs < 1 || staleIfErrorMs > 7 * 24 * 60 * 60 * 1_000
+    || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000
+    || !Number.isSafeInteger(maximumManifestBytes) || maximumManifestBytes < 1_024 || maximumManifestBytes > 1_000_000
+    || !Number.isSafeInteger(maximumArtifactBytes) || maximumArtifactBytes < 1_024 || maximumArtifactBytes > 50_000_000) {
+    throw new TypeError('The remote Tegiwa stock-reader configuration is invalid.');
+  }
+
+  let cacheRecord = null;
+  let refreshAfter = 0;
+  let retryAfter = 0;
+  let newestRetrievedAt = 0;
+  let newestPublishedAt = 0;
+  let inFlight = null;
+
+  async function load(fallbackIndex) {
+    const requestTime = Number(now());
+    if (!Number.isFinite(requestTime)) throw new Error('invalid_remote_stock_clock');
+    const manifestBuffer = await fetchRemoteJsonBuffer(fetchImpl, configuredManifestUrl, {
+      maximumBytes: maximumManifestBytes,
+      timeoutMs
+    });
+    let manifestPayload;
+    try {
+      manifestPayload = JSON.parse(manifestBuffer.toString('utf8'));
+    } catch {
+      throw new Error('invalid_remote_stock_manifest');
+    }
+    const manifest = validateRemoteStockManifest(
+      manifestPayload,
+      configuredManifestUrl,
+      manifestSecret,
+      requestTime,
+      maximumArtifactBytes
+    );
+    const bundledFloor = stockCheckedAtFloor(fallbackIndex);
+    if (manifest.retrievedAtTimestamp < bundledFloor
+      || manifest.retrievedAtTimestamp < newestRetrievedAt
+      || (manifest.retrievedAtTimestamp === newestRetrievedAt
+        && manifest.publishedAtTimestamp < newestPublishedAt)) {
+      throw new Error('remote_stock_release_rollback');
+    }
+    const retireAt = manifest.expiresAtTimestamp + staleIfErrorMs;
+    if (!Number.isSafeInteger(retireAt) || requestTime > retireAt) throw new Error('remote_stock_release_expired');
+    const artifactBuffer = await fetchRemoteJsonBuffer(fetchImpl, manifest.artifact.url, {
+      maximumBytes: maximumArtifactBytes,
+      timeoutMs
+    });
+    if (artifactBuffer.length !== manifest.artifact.bytes
+      || createHash('sha256').update(artifactBuffer).digest('hex') !== manifest.artifact.sha256) {
+      throw new Error('invalid_remote_stock_artifact');
+    }
+    let stockPayload;
+    try {
+      stockPayload = JSON.parse(artifactBuffer.toString('utf8'));
+    } catch {
+      throw new Error('invalid_remote_stock_artifact');
+    }
+    const remoteIndex = validateCompleteRemoteStockIndex(validateStockIndex(stockPayload), manifest);
+    assertSkuSearchIndexFresh(expectedSkuMappingFingerprint, remoteIndex);
+    newestRetrievedAt = manifest.retrievedAtTimestamp;
+    newestPublishedAt = manifest.publishedAtTimestamp;
+    return { index: remoteIndex, retireAt };
+  }
+
+  function lastKnownGood(currentTime) {
+    if (!cacheRecord) return null;
+    if (currentTime <= cacheRecord.retireAt) return cacheRecord.index;
+    cacheRecord = null;
+    refreshAfter = 0;
+    return null;
+  }
+
+  return Object.freeze({
+    async getIndex(fallbackIndex) {
+      const currentTime = Number(now());
+      if (!Number.isFinite(currentTime) || !fallbackIndex) return fallbackIndex;
+      const retainedIndex = lastKnownGood(currentTime);
+      if (retainedIndex && currentTime < refreshAfter) return retainedIndex;
+      if (currentTime < retryAfter) return retainedIndex || fallbackIndex;
+      if (!inFlight) inFlight = load(fallbackIndex);
+      try {
+        cacheRecord = await inFlight;
+        refreshAfter = Math.min(currentTime + ttlMs, cacheRecord.retireAt);
+        retryAfter = 0;
+        return cacheRecord.index;
+      } catch {
+        retryAfter = currentTime + failureTtlMs;
+        return lastKnownGood(currentTime) || fallbackIndex;
+      } finally {
+        inFlight = null;
+      }
+    }
+  });
 }
 
 function checkedSearchFile(url, specification) {
@@ -448,7 +735,7 @@ function loadDefaultSearchProvider() {
   if (defaultSearchProvider) return defaultSearchProvider;
   try {
     const summary = validateSearchSummary(JSON.parse(readFileSync(SEARCH_SUMMARY_URL, 'utf8')));
-    assertSkuSearchIndexFresh(summary.skuIndexSha256, readFileSync(STOCK_INDEX_URL));
+    assertSkuSearchIndexFresh(summary.skuMappingSha256, loadDefaultStockIndex());
     const termsBuffer = checkedSearchFile(SEARCH_TERMS_URL, summary.files.terms);
     const termPostingsBuffer = checkedSearchFile(SEARCH_TERM_POSTINGS_URL, summary.files.termPostings);
     const pairDictionary = checkedSearchFile(SEARCH_PAIRS_URL, summary.files.pairs);
@@ -538,8 +825,15 @@ function loadDefaultSearchProvider() {
 
 function stockSnapshotIsFresh(index, nowValue) {
   if (!index.checkedAt) return false;
-  const endOfCheckedDay = Date.parse(`${index.checkedAt.slice(0, 10)}T23:59:59.999Z`);
-  return Number.isFinite(endOfCheckedDay) && Number.isFinite(nowValue) && nowValue <= endOfCheckedDay + MAX_STOCK_AGE_MS;
+  if (index.stockExpiresAt) {
+    const expiresAtTimestamp = Date.parse(index.stockExpiresAt);
+    return Number.isFinite(expiresAtTimestamp) && Number.isFinite(nowValue) && nowValue <= expiresAtTimestamp;
+  }
+  const checkedAtTimestamp = /^\d{4}-\d{2}-\d{2}$/.test(index.checkedAt)
+    ? Date.parse(`${index.checkedAt}T23:59:59.999Z`)
+    : Date.parse(index.checkedAt);
+  return Number.isFinite(checkedAtTimestamp) && Number.isFinite(nowValue)
+    && nowValue <= checkedAtTimestamp + MAX_STOCK_AGE_MS;
 }
 
 function stockForTitle(index, title) {
@@ -699,6 +993,7 @@ function baseCard({
   officialSkus = [], officialMpns = [], includeAllPartNumbers = false
 }, index) {
   const stock = stockForTitle(index, title);
+  const currentStock = index.stockSnapshotFresh ? stock : null;
   return {
     handle,
     title: safeText(title, 300),
@@ -706,7 +1001,7 @@ function baseCard({
     category: safeText(category, 160) || null,
     image: imageObject(image, title),
     ...partNumberFields(index, title, officialSkus, officialMpns, { includeAll: includeAllPartNumbers }),
-    price: priceObject(stock, officialMin, officialMax),
+    price: priceObject(currentStock, officialMin, officialMax),
     availability: availabilityObject(index, stock, officialAvailable),
     sourceUrl: officialProductUrl(handle)
   };
@@ -1044,6 +1339,8 @@ function metaFor(index, count, extra = {}) {
   return {
     count,
     checkedAt: index.checkedAt,
+    ...(index.stockPublishedAt ? { stockPublishedAt: index.stockPublishedAt } : {}),
+    ...(index.stockExpiresAt ? { stockExpiresAt: index.stockExpiresAt } : {}),
     stockSnapshotStale: Boolean(index.checkedAt && !index.stockSnapshotFresh),
     catalogProductCount: index.catalogProductCount,
     stockIndexedProductCount: index.productCount,
@@ -1249,6 +1546,7 @@ function rankedSearchDocuments(provider, index, plan, { sort, availability, pric
   for (const documentId of candidates) {
     const metadata = provider.metadata(documentId);
     const stock = stockForKey(index, metadata.stockKey);
+    const currentStock = index.stockSnapshotFresh ? stock : null;
     const matchedSku = plan.exactSkuIdentity
       ? partNumbersForKey(index, metadata.stockKey)
         .find(sku => normalizedPartNumberIdentity(sku) === plan.exactSkuIdentity) || null
@@ -1256,12 +1554,12 @@ function rankedSearchDocuments(provider, index, plan, { sort, availability, pric
     if (plan.exactSkuIdentity && !matchedSku) continue;
     const availabilityCode = availabilityCodeForSearch(index, stock);
     if (!availabilityMatches(availability, availabilityCode)) continue;
-    const priced = Boolean(stock);
+    const priced = Boolean(currentStock);
     if ((pricing === 'priced' && !priced) || (pricing === 'request_price' && priced)) continue;
     records.push({
       documentId,
       nameRank: metadata.nameRank,
-      price: stock?.minPence ?? null,
+      price: currentStock?.minPence ?? null,
       matchedSku,
       relevanceTier: phrase[documentId] ? 0 : (allExact[documentId] ? 1 : (allPrefix[documentId] ? 2 : 3)),
       matchedTokens: matchedTokenCounts[documentId]
@@ -1544,6 +1842,7 @@ function createSearchRateLimiter(now, { limit = SEARCH_RATE_LIMIT, windowMs = SE
 export function createTegiwaCatalogHandler({
   fetchImpl = globalThis.fetch,
   stockIndex,
+  remoteStockReader = null,
   sitemapManifest,
   catalogSummary,
   catalogLoader = loadDefaultCatalogShard,
@@ -1557,6 +1856,9 @@ export function createTegiwaCatalogHandler({
   if (typeof catalogLoader !== 'function') throw new TypeError('A catalog loader is required.');
   if (typeof searchProviderLoader !== 'function') throw new TypeError('A search-index loader is required.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
+  if (remoteStockReader !== null && typeof remoteStockReader?.getIndex !== 'function') {
+    throw new TypeError('A remote stock reader with getIndex is required.');
+  }
   const index = stockIndex ? validateStockIndex(stockIndex) : loadDefaultStockIndex();
   const sitemaps = sitemapManifest ? validateSitemapManifest({ version: 1, sitemaps: sitemapManifest }) : loadDefaultSitemapManifest();
   const summary = catalogSummary
@@ -1581,7 +1883,19 @@ export function createTegiwaCatalogHandler({
 
     try {
       const request = determineMode(req);
-      const requestIndex = { ...index, catalogProductCount: summary.productCount, stockSnapshotFresh: stockSnapshotIsFresh(index, Number(now())) };
+      let currentIndex = index;
+      if (remoteStockReader) {
+        try {
+          currentIndex = await remoteStockReader.getIndex(index) || index;
+        } catch {
+          currentIndex = index;
+        }
+      }
+      const requestIndex = {
+        ...currentIndex,
+        catalogProductCount: summary.productCount,
+        stockSnapshotFresh: stockSnapshotIsFresh(currentIndex, Number(now()))
+      };
       let body;
       if (request.mode === 'search' || request.mode === 'suggest') {
         const rate = rateLimit(req);
@@ -1618,5 +1932,20 @@ export function createTegiwaCatalogHandler({
   };
 }
 
-const handler = createTegiwaCatalogHandler();
+function loadConfiguredRemoteStockReader() {
+  const manifestUrl = process.env.TEGIWA_STOCK_MANIFEST_URL;
+  if (!manifestUrl) return null;
+  const manifestSecret = process.env.TEGIWA_STOCK_MANIFEST_SECRET;
+  if (!validTegiwaManifestSecret(manifestSecret)) {
+    throw new Error('TEGIWA_STOCK_MANIFEST_SECRET is required when TEGIWA_STOCK_MANIFEST_URL is configured.');
+  }
+  const summary = validateSearchSummary(JSON.parse(readFileSync(SEARCH_SUMMARY_URL, 'utf8')));
+  return createRemoteTegiwaStockReader({
+    manifestUrl,
+    manifestSecret,
+    expectedSkuMappingFingerprint: summary.skuMappingSha256
+  });
+}
+
+const handler = createTegiwaCatalogHandler({ remoteStockReader: loadConfiguredRemoteStockReader() });
 export default handler;

@@ -3,6 +3,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { tegiwaSkuMappingFingerprint } from '../api/tegiwa-sku-mapping.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(repo, 'dist');
@@ -35,7 +36,7 @@ function loadProjectData() {
 for (const file of [
   'assets/app.js', 'assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/styles.css',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'template.html', 'sw.js',
-  'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
+  'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/tegiwa-sku-mapping.js', 'api/parts-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
   'api/data/tegiwa-catalog-summary.json', 'api/data/tegiwa-search-summary.json', 'api/data/tegiwa-search-terms.json',
   'api/data/tegiwa-search-term-postings.bin', 'api/data/tegiwa-search-pairs.bin',
   'api/data/tegiwa-search-pair-postings.bin', 'api/data/tegiwa-search-metadata.bin',
@@ -146,6 +147,7 @@ const appSource = fs.readFileSync(path.join(repo, 'assets/app.js'), 'utf8');
 const stylesSource = fs.readFileSync(path.join(repo, 'assets/styles.css'), 'utf8');
 const templateSource = fs.readFileSync(path.join(repo, 'template.html'), 'utf8');
 const tegiwaApiSource = fs.readFileSync(path.join(repo, 'api/tegiwa-catalog.js'), 'utf8');
+const partsCatalogApiSource = fs.readFileSync(path.join(repo, 'api/parts-catalog.js'), 'utf8');
 const tegiwaIndexSource = fs.readFileSync(path.join(repo, 'api/data/tegiwa-stock-index.json'), 'utf8');
 const tegiwaIndex = JSON.parse(tegiwaIndexSource);
 const tegiwaManifest = JSON.parse(fs.readFileSync(path.join(repo, 'api/data/tegiwa-sitemap-manifest.json'), 'utf8'));
@@ -249,10 +251,10 @@ const tegiwaSearchFiles = {
   pairPostings: tegiwaSearchPairPostings,
   metadata: tegiwaSearchMetadata
 };
-let tegiwaSearchFilesValid = tegiwaSearchSummary.version === 1
+let tegiwaSearchFilesValid = tegiwaSearchSummary.version === 2
   && tegiwaSearchSummary.productCount === tegiwaCatalogProductCount
   && tegiwaSearchSummary.skuIndexedProductCount === tegiwaIndex.skuProductCount
-  && tegiwaSearchSummary.skuIndexSha256 === createHash('sha256').update(tegiwaIndexSource, 'utf8').digest('hex')
+  && tegiwaSearchSummary.skuMappingSha256 === tegiwaSkuMappingFingerprint(tegiwaIndex)
   && tegiwaSearchSummary.pageSize === 100
   && tegiwaSearchSummary.metadataRecordBytes === 16
   && tegiwaSearchSummary.pairRecordBytes === 16
@@ -328,6 +330,7 @@ if (tegiwaSearchNameRanks.size !== tegiwaCatalogProductCount) tegiwaSearchMetada
 assert(tegiwaSearchMetadataValid, 'Tegiwa local search metadata, name ranks or stock joins are invalid.');
 
 assert(vercelConfig.functions?.['api/tegiwa-catalog.js']?.includeFiles === 'api/data/**', 'Vercel must bundle the complete public Tegiwa data directory with one supported includeFiles glob.');
+assert(vercelConfig.functions?.['api/parts-catalog.js']?.includeFiles === 'api/data/**', 'Vercel must bundle the local unified-catalogue fallback data.');
 assert(!/(?:Variant SKU|Inventory Qty|External Supplier Stock|dealer.?cost|wholesale|password|credential|api.?key)/i.test(tegiwaIndexSource), 'Private dealer fields leaked into the Tegiwa public stock index.');
 assert(tegiwaApiSource.includes("const OFFICIAL_ORIGIN = 'https://www.tegiwa.com'")
   && !tegiwaApiSource.includes('tegiwa.myshopify.com')
@@ -342,6 +345,11 @@ assert(data.media.length >= 50, `Expected at least 50 supplied media records; fo
 assert(data.services.length === 13, `Expected 13 service records; found ${data.services.length}.`);
 assert(data.projects.length === 12, `Expected 12 project records; found ${data.projects.length}.`);
 assert(data.brands.length >= 44, `Expected at least 44 brand records; found ${data.brands.length}.`);
+const mediaIds = new Set(data.media.map(item => item.id));
+for (const project of data.projects) {
+  assert(mediaIds.has(project.cover), `${project.slug}: project cover does not reference supplied media.`);
+  assert((project.media || []).includes(project.cover), `${project.slug}: project cover is not included in its reviewed media set.`);
+}
 assert(Array.isArray(data.storeProducts), 'Verified store-products model is missing.');
 assert(Array.isArray(ecsProducts) && ecsProducts.length > 0, 'Manual ECS product collection is missing or empty.');
 assert(!Object.hasOwn(data, 'engineProducts'), 'Removed engine-product catalogue remains in data.js.');
@@ -445,13 +453,15 @@ assert(templateSource.includes('assets/ecs-products.js')
 assert(appSource.includes('<select id="parts-vehicle-year"') && appSource.includes('name="year" required'), 'Required vehicle-year dropdown is missing.');
 assert(appSource.includes('new Date().getFullYear() + 1') && appSource.includes('const oldestModelYear = 1950'), 'Vehicle-year dropdown range is not current-model-year aware or does not reach 1950.');
 assert(appSource.includes('data-tegiwa-catalog')
-  && appSource.includes('/api/tegiwa-catalog')
-  && appSource.includes('endpoint.searchParams.set("page"')
+  && appSource.includes('/api/parts-catalog')
+  && appSource.includes('params.set("page"')
   && appSource.includes('data-tegiwa-pages')
   && appSource.includes('data-action="tegiwa-page"')
   && appSource.includes('aria-current="page"'), 'Numbered Tegiwa storefront pagination is missing.');
-assert(appSource.includes(`data-tegiwa-catalog-count>${tegiwaCatalogSummary.productCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback count does not match the public catalog summary.');
-assert(appSource.includes(`data-tegiwa-available-count>${tegiwaIndex.availableProductCount.toLocaleString('en-US')}<`), 'Tegiwa storefront fallback availability count does not match the stock index.');
+assert(appSource.includes('data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—<')
+  && appSource.includes('catalogueStat.textContent = tegiwaNumber(count)'), 'Unified catalogue totals must load from the API instead of a stale hard-coded count.');
+assert(appSource.includes('data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—<')
+  && appSource.includes('availableStat.textContent = tegiwaNumber(available)'), 'Unified availability totals must load from the API instead of a stale hard-coded count.');
 assert(appSource.includes('(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))'), 'Tegiwa storefront product-detail guard does not support all validated official handles.');
 assert(appSource.includes('type="radio"')
   && appSource.includes('data-tegiwa-variant')
@@ -462,9 +472,10 @@ assert(appSource.includes('type="radio"')
   && appSource.includes('-variant-${input.dataset.variantKey}'), 'Tegiwa product options are not accessible, selectable, or variant-specific in quote requests.');
 assert(!appSource.includes('id="parts-categories"')
   && !appSource.includes('select-parts-category')
-  && appSource.includes('select-parts-brand'), 'The removed category-card section returned or brand browsing is missing.');
-assert(appSource.includes('data-filter-attribute="brand"'), 'Parts brand filtering is missing.');
-assert(appSource.includes('data-parts-sort') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
+  && appSource.includes('parts-brand-card')
+  && appSource.includes('data-tegiwa-directory-query="${esc(brand.name)}"'), 'The removed category-card section returned or unified brand browsing is missing.');
+assert(appSource.includes('data-tegiwa-filter="supplier"') && appSource.includes('data-tegiwa-filter="currency"'), 'Unified supplier or currency filtering is missing.');
+assert(appSource.includes('data-tegiwa-filter="sort"') && appSource.includes('adjust-quote-quantity'), 'Store sorting or quantity-aware quote basket is missing.');
 assert(appSource.includes('PARTS_CATALOGUE_DIRECTORY')
   && appSource.includes('data-tegiwa-directory')
   && appSource.includes('data-action="search-tegiwa-directory"')
@@ -477,28 +488,36 @@ assert(appSource.includes('data-action="toggle-parts-directory-group"')
   && appSource.includes('togglePartsDirectoryGroup')
   && stylesSource.includes('.parts-directory-panel[hidden]'), 'The compact, single-open Part Type Directory accordion is incomplete.');
 assert(appSource.includes('tegiwaHeading: "Browse the complete parts catalogue."')
-  && appSource.includes('tegiwaHeading: "تصفح كتالوج القطع الكامل."')
-  && appSource.includes('store-catalogue-review" id="parts-results"')
+  && (appSource.match(/tegiwaHeading:/g) || []).length === 2
+  && appSource.includes('PARTS_CATALOG_ENDPOINT = "/api/parts-catalog/"')
+  && appSource.includes('id="parts-results" data-tegiwa-results')
+  && !appSource.includes('store-catalogue-review" id="parts-results"')
+  && !appSource.includes('<div class="store-grid" data-filter-grid="parts"')
   && !appSource.includes('Browse the complete Tegiwa catalogue.'), 'The supplier-neutral unified Parts Catalogue presentation is incomplete.');
-assert(appSource.includes('partsVehicleCatalogueQuery')
+assert(appSource.includes('partsVehicleApiFields')
   && appSource.includes('match: "vehicle"')
-  && appSource.includes('endpoint.searchParams.set("match", "vehicle")')
-  && tegiwaApiSource.includes("SEARCH_MATCHES = new Set(['any', 'vehicle'])"), 'Saved vehicles do not drive strict live-catalogue matching.');
-assert(appSource.includes('Supplier price (GBP, UK VAT excluded)')
-  && !appSource.includes('including VAT where stated')
-  && tegiwaApiSource.includes(".js?country=KW"), 'Customer-facing supplier pricing is not consistently UK-VAT excluded.');
+  && appSource.includes('params.set("match", vehicleMatch ? "vehicle" : "any")')
+  && appSource.includes('params.set("fitment", state.tegiwaCatalog.fitment')
+  && partsCatalogApiSource.includes("MATCHES = new Set(['any', 'vehicle'])"), 'Saved vehicles do not drive structured unified-catalogue matching.');
+assert(appSource.includes('currencyDisplay: "code"')
+  && appSource.includes('no automatic conversion or tax addition')
+  && partsCatalogApiSource.includes('price: priceObject(row)'), 'Customer-facing supplier pricing is not preserved in its original currency.');
 assert(appSource.includes('tegiwaSearchLabel: "Search products"')
   && appSource.includes('tegiwaSearchLabel: "ابحث في المنتجات"')
   && !appSource.includes('Search Tegiwa products'), 'The customer-facing product search label still exposes the supplier name.');
 assert(appSource.includes('data-tegiwa-search-input')
   && appSource.includes('role="combobox"')
   && appSource.includes('role="listbox"')
-  && appSource.includes('endpoint.searchParams.set("suggest", "1")')
+  && appSource.includes('params.set("suggest", "1")')
+  && appSource.includes('fetchPartsCatalogue(request')
   && appSource.includes('handleTegiwaSuggestionKeydown'), 'The accessible predictive catalogue search is incomplete.');
 assert(appSource.includes('data-action="toggle-tegiwa-filters"')
   && appSource.includes('data-tegiwa-filter="sort"')
   && appSource.includes('data-tegiwa-filter="availability"')
   && appSource.includes('data-tegiwa-filter="pricing"')
+  && appSource.includes('data-tegiwa-filter="supplier"')
+  && appSource.includes('data-tegiwa-filter="currency"')
+  && appSource.includes('data-tegiwa-filter="fitment"')
   && appSource.includes('"in_stock", "supplier_stock"')
   && appSource.includes('"priced", "request_price"'), 'The catalogue sort and filter drawer is incomplete.');
 assert(appSource.includes('meta.totalResults')
@@ -568,6 +587,22 @@ assert(productionServiceWorker.includes('key.startsWith("projx-racing-bilingual-
 const productionEnglishHome = fs.readFileSync(path.join(dist, 'en', 'index.html'), 'utf8');
 assert(new RegExp(`href="assets/media/[^"]+\\?v=${productionAssetVersion}`).test(productionEnglishHome)
   && appSource.includes('function versionedAsset('), 'Versioned local-media delivery is not integrated into HTML and runtime rendering.');
+assert(appSource.includes('versionedAsset(String(image.src).replace(/^\\//, ""))'), 'Local catalogue-product images are not tied to the current asset version.');
+assert(appSource.includes('id="engine-family-select"') && !appSource.includes('select id="engine-family"'), 'Engine-family label and scroll target still share a duplicate ID.');
+
+const productionSitemap = fs.readFileSync(path.join(dist, 'sitemap.xml'), 'utf8');
+for (const route of ['account', 'cart', 'checkout']) {
+  assert(!productionSitemap.includes(`/en/${route}/`) && !productionSitemap.includes(`/ar/${route}/`), `${route} must not appear in the public sitemap.`);
+  for (const locale of ['en', 'ar']) {
+    const html = fs.readFileSync(path.join(dist, locale, route, 'index.html'), 'utf8');
+    assert(/<meta name="robots" content="noindex,nofollow,noarchive">/.test(html), `${locale}/${route} must be noindex.`);
+  }
+}
+
+const localPreviewSource = fs.readFileSync(path.join(repo, 'scripts/serve.mjs'), 'utf8');
+for (const route of ['/api/enquiry', '/api/account', '/api/addresses', '/api/cart', '/api/quotes', '/api/orders']) {
+  assert(localPreviewSource.includes(`'${route}'`), `Local preview does not route ${route}.`);
+}
 
 const css = fs.readFileSync(path.join(repo, 'assets/styles.css'), 'utf8');
 assert(/:root\[data-theme="light"\]/.test(css), 'Light-theme design tokens are missing.');

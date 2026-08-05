@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   assertSkuSearchIndexFresh,
   default as productionHandler,
+  createRemoteTegiwaStockReader,
   createTegiwaCatalogHandler,
   normalizeTitleForStock,
   stockKeyForTitle
 } from '../api/tegiwa-catalog.js';
+import {
+  canonicalTegiwaPublicManifestPayload,
+  signTegiwaPublicManifest
+} from '../server/tegiwa-public-manifest.js';
+import { tegiwaSkuMappingFingerprint } from '../api/tegiwa-sku-mapping.js';
 
 function responseRecorder() {
   return {
@@ -44,10 +50,33 @@ const STOCK_KEY_FIXTURE = 'kvSkN4vT1Bb2VWIN';
 const FIXED_NOW = Date.parse('2026-08-04T12:00:00Z');
 assert.equal(normalizeTitleForStock('  TEGIWA\u00a0 BMW B58 Service Kit  '), 'tegiwa bmw b58 service kit');
 assert.equal(stockKeyForTitle('  TEGIWA\u00a0 BMW B58 Service Kit  '), STOCK_KEY_FIXTURE);
-const fingerprintFixture = '{"version":2,"products":{}}\n';
-const fingerprint = createHash('sha256').update(fingerprintFixture, 'utf8').digest('hex');
+const fingerprintFixture = {
+  version: 2,
+  checkedAt: '2026-08-03',
+  skuProductCount: 1,
+  products: { [STOCK_KEY_FIXTURE]: [11796, 12999, 1, 1, ['T-B58-SERVICE-KIT'], 1] }
+};
+const fingerprint = tegiwaSkuMappingFingerprint(fingerprintFixture);
 assert.equal(assertSkuSearchIndexFresh(fingerprint, fingerprintFixture), true);
-assert.throws(() => assertSkuSearchIndexFresh(fingerprint, `${fingerprintFixture} `), /stale_search_sku_index/);
+assert.equal(assertSkuSearchIndexFresh(fingerprint, JSON.stringify({
+  ...fingerprintFixture,
+  checkedAt: '2026-08-04',
+  products: { [STOCK_KEY_FIXTURE]: [9999, 14000, 0, 0, ['T-B58-SERVICE-KIT'], 1] }
+})), true);
+assert.throws(() => assertSkuSearchIndexFresh(fingerprint, {
+  ...fingerprintFixture,
+  products: { [STOCK_KEY_FIXTURE]: [11796, 12999, 1, 1, ['T-B58-SERVICE-KIT-V2'], 1] }
+}), /stale_search_sku_index/);
+assert.throws(() => assertSkuSearchIndexFresh(fingerprint, {
+  ...fingerprintFixture,
+  products: {
+    [stockKeyForTitle('A different catalog product')]: [11796, 12999, 1, 1, ['T-B58-SERVICE-KIT'], 1]
+  }
+}), /stale_search_sku_index/);
+assert.throws(() => tegiwaSkuMappingFingerprint({
+  ...fingerprintFixture,
+  skuProductCount: 2
+}), /invalid_search_sku_index/);
 
 const stockIndex = {
   version: 2,
@@ -366,6 +395,7 @@ const priced = await invoke(searchHandler, { query: { q: 'engine management ecu'
 const requestPrice = await invoke(searchHandler, { query: { q: 'engine management ecu', pricing: 'request_price' } });
 assert.equal(priced.body.meta.totalResults + requestPrice.body.meta.totalResults, 235);
 assert.ok(priced.body.items.every(item => item.price.min !== null));
+assert.ok(priced.body.items.every(item => item.price.note === 'Supplier price excluding UK VAT'));
 assert.ok(requestPrice.body.items.every(item => item.price.min === null));
 
 const nameAscending = await invoke(searchHandler, { query: { q: 'engine management ecu', sort: 'name_asc' } });
@@ -390,6 +420,15 @@ const staleStockHandler = createTegiwaCatalogHandler({
 const staleStock = await invoke(staleStockHandler, { query: { q: 'brake pads', availability: 'check' } });
 assert.equal(staleStock.body.meta.totalResults, 8);
 assert.ok(staleStock.body.items.every(item => item.availability.code === 'check_availability' && item.availability.snapshotStale));
+assert.ok(staleStock.body.items.every(item => item.price.min === null && item.price.max === null && item.price.note === null));
+const stalePricedSearch = await invoke(staleStockHandler, { query: { q: 'brake pads', pricing: 'priced' } });
+const staleRequestPriceSearch = await invoke(staleStockHandler, { query: { q: 'brake pads', pricing: 'request_price' } });
+assert.equal(stalePricedSearch.body.meta.totalResults, 0);
+assert.equal(staleRequestPriceSearch.body.meta.totalResults, 8);
+assert.ok(staleRequestPriceSearch.body.items.every(item => item.price.min === null));
+const staleBrowse = await invoke(staleStockHandler);
+assert.equal(staleBrowse.body.mode, 'browse');
+assert.ok(staleBrowse.body.items.every(item => item.price.min === null && item.price.max === null && item.price.note === null));
 
 const limitedSearchHandler = createTegiwaCatalogHandler({
   stockIndex: searchStockIndex,
@@ -758,6 +797,37 @@ assert.deepEqual(consistentPriceDetail.body.product.variants, [{
 }]);
 assert.equal(consistentPriceBrowse.body.items[0].price.min, consistentPriceDetail.body.product.variants[0].price.amount);
 
+const staleSupplierFreshOfficialHandler = createTegiwaCatalogHandler({
+  stockIndex: {
+    version: 2,
+    checkedAt: '2026-08-03',
+    productCount: 1,
+    skuProductCount: 1,
+    availableProductCount: 1,
+    leadTimes: [''],
+    products: { [stockKeyForTitle(consistentPriceTitle)]: [11250, 11250, 1, 0, ['HT-011-012'], 1] }
+  },
+  sitemapManifest: ['https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=1'],
+  catalogSummary: { version: 1, shardCount: 1, shardProductCounts: [1], productCount: 1 },
+  catalogLoader: async () => [[consistentPriceHandle, consistentPriceTitle, '']],
+  now: () => Date.parse('2026-08-12T00:00:00.000Z'),
+  fetchImpl: async () => jsonResponse({
+    handle: consistentPriceHandle,
+    title: consistentPriceTitle,
+    vendor: 'Haltech',
+    type: 'Sensors',
+    available: true,
+    variants: [{ title: 'Default', available: true, price: 13500, sku: 'HT-011-012' }]
+  })
+});
+const staleSupplierBrowse = await invoke(staleSupplierFreshOfficialHandler);
+assert.deepEqual(staleSupplierBrowse.body.items[0].price, { currency: 'GBP', min: null, max: null, note: null });
+const freshOfficialDetail = await invoke(staleSupplierFreshOfficialHandler, { query: { handle: consistentPriceHandle } });
+assert.deepEqual(freshOfficialDetail.body.product.price, {
+  currency: 'GBP', min: 135, max: 135, note: 'Tegiwa online price excluding UK VAT'
+});
+assert.equal(freshOfficialDetail.body.product.variants[0].price.amount, 135);
+
 const dedupeTitle = 'Large Deduplicated SKU Product';
 const dedupeSkus = Array.from({ length: 1_100 }, (_, index) => `DEDUP-${String(index).padStart(4, '0')}`);
 const dedupeHandler = createTegiwaCatalogHandler({
@@ -800,6 +870,254 @@ assert.deepEqual(upstreamFailure.body, {
 });
 assert.equal(upstreamFailure.headers['cache-control'], 'no-store');
 
+const remoteStockTitle = 'Remote Stock Product';
+const remoteStockHandle = 'remote-stock-product';
+const remoteStockKey = stockKeyForTitle(remoteStockTitle);
+const bundledRemoteFallback = {
+  version: 2,
+  priceBasis: 'gbp_ex_uk_vat',
+  checkedAt: '2026-08-03',
+  productCount: 1,
+  skuProductCount: 1,
+  availableProductCount: 1,
+  leadTimes: ['', '2-3 working days'],
+  products: { [remoteStockKey]: [1000, 1000, 1, 1, ['REMOTE-001'], 1] }
+};
+const validRemoteStock = {
+  ...bundledRemoteFallback,
+  checkedAt: '2026-08-05',
+  products: { [remoteStockKey]: [1250, 1250, 2, 1, ['REMOTE-001'], 1] }
+};
+const remoteManifestUrl = 'https://catalogue.example.com/tegiwa/current.json';
+const remoteArtifactUrl = 'https://catalogue.example.com/tegiwa/releases/release-1.json';
+const remoteMappingFingerprint = tegiwaSkuMappingFingerprint(bundledRemoteFallback);
+const remoteArtifactBuffer = Buffer.from(JSON.stringify(validRemoteStock), 'utf8');
+const remoteArtifactSha256 = createHash('sha256').update(remoteArtifactBuffer).digest('hex');
+const remoteManifestSecret = Buffer.alloc(48, 0x5a).toString('base64url');
+let remoteClock = Date.parse('2026-08-05T12:00:00.000Z');
+
+function remoteManifest(artifactBuffer = remoteArtifactBuffer, overrides = {}) {
+  const unsigned = {
+    version: 2,
+    vendor: 'Tegiwa',
+    releaseId: 'release-1',
+    retrievedAt: '2026-08-05T11:50:00.000Z',
+    publishedAt: '2026-08-05T11:55:00.000Z',
+    expiresAt: '2026-08-05T13:50:00.000Z',
+    counts: { productCount: 1, skuProductCount: 1, availableProductCount: 1 },
+    artifact: {
+      url: remoteArtifactUrl,
+      bytes: artifactBuffer.length,
+      sha256: createHash('sha256').update(artifactBuffer).digest('hex')
+    },
+    ...overrides
+  };
+  return { ...unsigned, signature: signTegiwaPublicManifest(unsigned, remoteManifestSecret) };
+}
+
+const canonicalManifestFixture = remoteManifest();
+const canonicalManifestPayload = JSON.stringify([
+  2,
+  'Tegiwa',
+  'release-1',
+  '2026-08-05T11:50:00.000Z',
+  '2026-08-05T11:55:00.000Z',
+  '2026-08-05T13:50:00.000Z',
+  1,
+  1,
+  1,
+  remoteArtifactUrl,
+  remoteArtifactBuffer.length,
+  remoteArtifactSha256
+]);
+assert.equal(canonicalTegiwaPublicManifestPayload(canonicalManifestFixture), canonicalManifestPayload);
+assert.equal(
+  canonicalManifestFixture.signature,
+  createHmac('sha256', remoteManifestSecret).update(canonicalManifestPayload, 'utf8').digest('hex')
+);
+
+function bufferResponse(buffer) {
+  return new Response(buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': String(buffer.length)
+    }
+  });
+}
+
+function remoteBrowseHandler(remoteStockReader) {
+  return createTegiwaCatalogHandler({
+    fetchImpl: noFetch,
+    stockIndex: bundledRemoteFallback,
+    remoteStockReader,
+    now: () => remoteClock,
+    sitemapManifest: ['https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=1'],
+    catalogSummary: { version: 1, shardCount: 1, shardProductCounts: [1], productCount: 1 },
+    catalogLoader: async () => [[remoteStockHandle, remoteStockTitle, '']]
+  });
+}
+
+let remoteFetchCount = 0;
+let remoteUpstreamAvailable = true;
+const validRemoteReader = createRemoteTegiwaStockReader({
+  manifestUrl: remoteManifestUrl,
+  manifestSecret: remoteManifestSecret,
+  expectedSkuMappingFingerprint: remoteMappingFingerprint,
+  now: () => remoteClock,
+  ttlMs: 60_000,
+  failureTtlMs: 1_000,
+  fetchImpl: async url => {
+    remoteFetchCount += 1;
+    if (!remoteUpstreamAvailable) throw new Error('Simulated remote outage');
+    if (url === remoteManifestUrl) return jsonResponse(remoteManifest(), 200, { 'Content-Length': String(Buffer.byteLength(JSON.stringify(remoteManifest()))) });
+    if (url === remoteArtifactUrl) return bufferResponse(remoteArtifactBuffer);
+    throw new Error('Unexpected remote URL');
+  }
+});
+const remoteBrowse = await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(remoteBrowse.status, 200);
+assert.equal(remoteBrowse.body.meta.checkedAt, '2026-08-05T11:50:00.000Z');
+assert.equal(remoteBrowse.body.meta.stockPublishedAt, '2026-08-05T11:55:00.000Z');
+assert.equal(remoteBrowse.body.meta.stockExpiresAt, '2026-08-05T13:50:00.000Z');
+assert.equal(remoteBrowse.body.items[0].price.min, 12.5);
+assert.equal(remoteBrowse.body.items[0].availability.code, 'supplier_stock');
+assert.equal(remoteFetchCount, 2);
+const serializedRemoteBrowse = JSON.stringify(remoteBrowse.body);
+assert.equal(serializedRemoteBrowse.includes('catalogue.example.com'), false);
+assert.equal(serializedRemoteBrowse.includes('release-1'), false);
+assert.equal(serializedRemoteBrowse.includes(remoteManifestSecret), false);
+assert.equal(serializedRemoteBrowse.includes(canonicalManifestFixture.signature), false);
+await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(remoteFetchCount, 2, 'A verified release should be served from the in-memory TTL cache.');
+remoteClock += 60_001;
+await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(remoteFetchCount, 4, 'The manifest and artifact should be checked again after the TTL.');
+
+remoteClock += 60_001;
+remoteUpstreamAvailable = false;
+const retainedAfterFailure = await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(remoteFetchCount, 5, 'A failed refresh should perform only the failed manifest request.');
+assert.equal(retainedAfterFailure.body.meta.checkedAt, '2026-08-05T11:50:00.000Z');
+assert.equal(retainedAfterFailure.body.items[0].price.min, 12.5);
+assert.equal(retainedAfterFailure.body.items[0].availability.code, 'supplier_stock');
+await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(remoteFetchCount, 5, 'The bounded failure backoff should continue serving last-known-good data.');
+
+remoteClock = Date.parse('2026-08-05T13:50:00.001Z');
+const staleRemoteBrowse = await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(staleRemoteBrowse.body.meta.stockSnapshotStale, true);
+assert.equal(staleRemoteBrowse.body.items[0].availability.code, 'check_availability');
+assert.deepEqual(staleRemoteBrowse.body.items[0].price, { currency: 'GBP', min: null, max: null, note: null });
+remoteClock = Date.parse('2026-08-06T13:50:00.001Z');
+const retiredRemoteBrowse = await invoke(remoteBrowseHandler(validRemoteReader));
+assert.equal(retiredRemoteBrowse.body.meta.checkedAt, '2026-08-03');
+assert.equal(retiredRemoteBrowse.body.items[0].price.min, 10);
+remoteUpstreamAvailable = true;
+remoteClock = Date.parse('2026-08-05T12:00:00.000Z');
+
+async function assertRemoteFallback({ manifest, artifact = remoteArtifactBuffer, manifestUrl = remoteManifestUrl, expectedFetchCount }) {
+  let fetchCount = 0;
+  const reader = createRemoteTegiwaStockReader({
+    manifestUrl,
+    manifestSecret: remoteManifestSecret,
+    expectedSkuMappingFingerprint: remoteMappingFingerprint,
+    now: () => remoteClock,
+    failureTtlMs: 1_000,
+    fetchImpl: async url => {
+      fetchCount += 1;
+      if (url === manifestUrl) return jsonResponse(manifest, 200, { 'Content-Length': String(Buffer.byteLength(JSON.stringify(manifest))) });
+      return bufferResponse(artifact);
+    }
+  });
+  const result = await invoke(remoteBrowseHandler(reader));
+  assert.equal(result.status, 200);
+  assert.equal(result.body.meta.checkedAt, '2026-08-03');
+  assert.equal(result.body.items[0].price.min, 10);
+  assert.equal(fetchCount, expectedFetchCount);
+}
+
+const incompatibleRemoteStock = {
+  ...validRemoteStock,
+  products: { [remoteStockKey]: [1250, 1250, 2, 1, ['REMOTE-002'], 1] }
+};
+const incompatibleArtifact = Buffer.from(JSON.stringify(incompatibleRemoteStock), 'utf8');
+await assertRemoteFallback({
+  manifest: remoteManifest(incompatibleArtifact),
+  artifact: incompatibleArtifact,
+  expectedFetchCount: 2
+});
+await assertRemoteFallback({
+  manifest: remoteManifest(remoteArtifactBuffer, {
+    artifact: { url: remoteArtifactUrl, bytes: remoteArtifactBuffer.length, sha256: '0'.repeat(64) }
+  }),
+  expectedFetchCount: 2
+});
+await assertRemoteFallback({
+  manifest: remoteManifest(remoteArtifactBuffer, {
+    artifact: { url: 'https://other.example.com/tegiwa/release.json', bytes: remoteArtifactBuffer.length, sha256: remoteArtifactSha256 }
+  }),
+  expectedFetchCount: 1
+});
+
+const signedBeforeTampering = remoteManifest();
+await assertRemoteFallback({
+  manifest: {
+    ...signedBeforeTampering,
+    counts: { productCount: 2, skuProductCount: 1, availableProductCount: 1 }
+  },
+  expectedFetchCount: 1
+});
+
+await assertRemoteFallback({
+  manifest: { ...remoteManifest(), privateSource: { path: 'never-public', sha256: '0'.repeat(64) } },
+  expectedFetchCount: 1
+});
+
+const launderedStock = { ...validRemoteStock, checkedAt: '2026-08-04' };
+const launderedArtifact = Buffer.from(JSON.stringify(launderedStock), 'utf8');
+await assertRemoteFallback({
+  manifest: remoteManifest(launderedArtifact),
+  artifact: launderedArtifact,
+  expectedFetchCount: 2
+});
+
+await assertRemoteFallback({
+  manifest: remoteManifest(remoteArtifactBuffer, {
+    retrievedAt: '2026-08-02T11:50:00.000Z',
+    publishedAt: '2026-08-02T11:55:00.000Z',
+    expiresAt: '2026-08-02T13:50:00.000Z'
+  }),
+  expectedFetchCount: 1
+});
+
+await assertRemoteFallback({
+  manifest: remoteManifest(remoteArtifactBuffer, {
+    retrievedAt: '2026-08-05T12:10:00.000Z',
+    publishedAt: '2026-08-05T12:11:00.000Z',
+    expiresAt: '2026-08-05T13:10:00.000Z'
+  }),
+  expectedFetchCount: 1
+});
+
+await assertRemoteFallback({
+  manifest: remoteManifest(remoteArtifactBuffer, {
+    publishedAt: '2026-08-05T13:00:00.000Z',
+    expiresAt: '2026-08-05T12:59:59.999Z'
+  }),
+  expectedFetchCount: 1
+});
+
+assert.throws(() => createRemoteTegiwaStockReader({
+  manifestUrl: remoteManifestUrl,
+  expectedSkuMappingFingerprint: remoteMappingFingerprint
+}), /server-only stock-manifest secret/);
+assert.throws(() => createRemoteTegiwaStockReader({
+  manifestUrl: 'http://catalogue.example.com/tegiwa/current.json',
+  manifestSecret: remoteManifestSecret,
+  expectedSkuMappingFingerprint: remoteMappingFingerprint
+}), /canonical public HTTPS/);
+
 console.log('PASS: Tegiwa catalog API method, origin and parameter validation');
 console.log('PASS: normalized-title stock/RRP join with the generated-key fixture');
 console.log('PASS: local full-catalog title/SKU search, phrase ranking, typo correction and field sanitization');
@@ -811,3 +1129,4 @@ console.log('PASS: generated 194-shard catalog snapshot loads through the produc
 console.log('PASS: product/variant SKU and MPN sanitization, missing identifiers, image allow-list and variant caps');
 console.log('PASS: upstream failures return structured, non-cacheable errors');
 console.log('PASS: duplicate-title SKU suppression keeps exact inventory, private URLs and raw stock data unexposed');
+console.log('PASS: signed HTTPS stock releases reject tampering/timestamp laundering and retain bounded last-known-good data');

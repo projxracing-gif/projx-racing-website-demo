@@ -108,6 +108,8 @@ function breadcrumbJson(locale, route, title) {
     reviews: labels.reviews,
     about: labels.about,
     contact: labels.contact,
+    cart: locale === 'ar' ? 'السلة' : 'Cart',
+    checkout: locale === 'ar' ? 'إتمام الطلب' : 'Checkout',
     faq: labels.faq,
     legal: locale === 'ar' ? 'معلومات وسياسات' : 'Information & Policies'
   };
@@ -288,6 +290,7 @@ for (const key of ['parts', 'brands', 'gallery', 'reviews', 'about', 'contact', 
 }
 
 add('/account', locale => ({
+  indexable: false,
   title: locale === 'ar' ? 'حساب العميل | Projx Racing' : 'Customer Account | Projx Racing',
   h1: locale === 'ar' ? 'تسجيل الدخول أو إنشاء حساب' : 'Sign in or create an account',
   description: locale === 'ar' ? 'دخول آمن لعملاء Projx Racing وإنشاء حساب جديد.' : 'Secure customer sign-in and account registration for Projx Racing.',
@@ -295,6 +298,36 @@ add('/account', locale => ({
   hero: 53,
   details: locale === 'ar' ? ['تسجيل دخول آمن', 'إنشاء حساب جديد', 'إدارة بيانات الحساب'] : ['Secure sign-in', 'New account registration', 'Account profile management'],
   links: [[T[locale].ui.actions.contactWorkshop, '/contact']]
+}));
+
+add('/cart', locale => ({
+  indexable: false,
+  title: locale === 'ar' ? 'سلة الاختبار | Projx Racing' : 'Staging Cart | Projx Racing',
+  h1: locale === 'ar' ? 'سلة الاختبار' : 'Staging cart',
+  description: locale === 'ar'
+    ? 'راجع القطع المؤهلة والكميات قبل إرسال طلب شراء تجريبي بدون دفع أو حجز مخزون.'
+    : 'Review eligible products and quantities before sending a no-payment staging purchase request.',
+  eyebrow: locale === 'ar' ? 'اختبار فقط — لا توجد دفعة' : 'Test only — no payment',
+  hero: 68,
+  details: locale === 'ar'
+    ? ['لا يتم تحصيل أي دفعة', 'الشحن والرسوم غير محسوبة', 'السعر والتوفر والتوافق تحتاج تأكيداً']
+    : ['No payment is collected', 'Shipping and charges are not calculated', 'Final price, availability and fitment require confirmation'],
+  links: [[T[locale].ui.nav.parts, '/parts'], [locale === 'ar' ? 'إتمام الطلب' : 'Checkout', '/checkout']]
+}));
+
+add('/checkout', locale => ({
+  indexable: false,
+  title: locale === 'ar' ? 'إتمام طلب تجريبي | Projx Racing' : 'Staging Checkout | Projx Racing',
+  h1: locale === 'ar' ? 'إتمام طلب تجريبي آمن' : 'Safe staging checkout',
+  description: locale === 'ar'
+    ? 'أرسل طلب شراء تجريبي إلى Projx Racing بدون بوابة دفع أو تحصيل أو حجز مخزون.'
+    : 'Send a staging purchase request to Projx Racing without a payment gateway, charge or stock reservation.',
+  eyebrow: locale === 'ar' ? 'اختبار فقط — لا توجد دفعة' : 'Test only — no payment',
+  hero: 53,
+  details: locale === 'ar'
+    ? ['متاح للزائر', 'حماية من الإرسال المكرر', 'تأكيد التوافق والسعر قبل أي طلب حقيقي']
+    : ['Guest checkout available', 'Duplicate-submission protection', 'Fitment and final price confirmed before a real order'],
+  links: [[locale === 'ar' ? 'السلة' : 'Cart', '/cart'], [T[locale].ui.actions.contactWorkshop, '/contact']]
 }));
 
 for (const slug of Object.keys(T.en.legal)) {
@@ -348,6 +381,7 @@ function render(locale, route, page) {
     ROUTE: route,
     TITLE: page.title,
     DESCRIPTION: trimDescription(page.description),
+    ROBOTS: page.indexable === false ? 'noindex,nofollow,noarchive' : 'index,follow,max-image-preview:large',
     CANONICAL: canonicalUrl,
     HREFLANG_EN: canonical('en', route),
     HREFLANG_AR: canonical('ar', route),
@@ -401,7 +435,7 @@ const rootHtml = `<!doctype html><html lang="en" dir="ltr" data-theme="dark"><he
 fs.writeFileSync(path.join(dist, 'index.html'), rootHtml);
 
 const xhtml = 'http://www.w3.org/1999/xhtml';
-const sitemapRows = routes.map(({ route }) => {
+const sitemapRows = routes.filter(({ buildPage }) => buildPage('en').indexable !== false).map(({ route }) => {
   const en = canonical('en', route);
   const ar = canonical('ar', route);
   const priority = route === '/' ? '1.0' : route.split('/').filter(Boolean).length === 1 ? '0.8' : '0.7';

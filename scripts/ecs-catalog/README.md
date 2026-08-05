@@ -4,7 +4,11 @@ This isolated workflow prepares public ECS product records for later storefront 
 
 ## Important access rule
 
-The written supplier permission reviewed on 5 August 2026 authorizes Projx Racing to automate copying ECS public product listings onto the Projx website. It does not authorize access to private or authenticated dealer data. The permission evidence and active authorization record must remain under the ignored `private-imports/ecs-catalog-authorization/` directory and must never be committed.
+The permission currently recorded for this project is **manual-copy only**. It does not authorize crawling, bulk downloading, automated retrieval, use of an authenticated dealer area, or access to non-public ECS data. Do not use `--fetch` with the current permission record and do not use this workflow to traverse the ECS site.
+
+The optional network code is a dormant safety-gated path for a possible future, separately documented automated-access grant. A local authorization file cannot create permission. Until ECS explicitly grants automated access in writing and a Projx reviewer records that separate grant, only saved snapshots collected manually from specific public product pages and allowlisted manual records may be ingested.
+
+Permission evidence must remain under the ignored `private-imports/ecs-catalog-authorization/` directory and must never be committed.
 
 The offline workflow remains available and accepts:
 
@@ -12,7 +16,7 @@ The offline workflow remains available and accepts:
 - allowlisted manual JSON records; or
 - a supplier-provided export, converted into manifest records.
 
-Use `--fetch` only while the retained written grant has been reviewed and the private authorization record passes validation. The authorization file is a safety gate; creating or filling it in does not itself create permission.
+Do not use `--fetch` under the current manual-copy-only permission. If ECS later supplies a separate automated-access grant, `--fetch` may be considered only after that retained grant has been reviewed and the private authorization record passes validation. The authorization file is a safety gate; creating or filling it in does not itself create permission.
 
 Network mode requires all of the following:
 
@@ -28,6 +32,28 @@ Network mode requires all of the following:
 Only the documented authorization keys are accepted. A human must review the written grant before network mode is enabled.
 
 No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT, credential or private customer data belongs in any manifest, snapshot or normalized product.
+
+## Current reviewed storefront collection
+
+The storefront currently contains 14 manually reviewed ECS products in `assets/ecs-products.js`. They are unique by public handle, ECS part number, manufacturer MPN, source URL and local image content.
+
+All 14 deliberately retain these limitations:
+
+- supplier-title/application fitment is `possible`, never `exact`;
+- supplier availability is an observation and the API returns `check_availability`;
+- prices are public supplier USD retail observations, not a Projx selling price;
+- no live ECS stock feed exists;
+- no verified detailed specifications, options, variations or drivetrain fitment are available; and
+- each product has one approved local primary image, not a complete gallery.
+
+Run the deterministic audit without contacting ECS:
+
+```text
+node scripts/ecs-catalog/audit-reviewed.mjs \
+  --output private-imports/ecs-catalog-review/reviewed-audit.json
+```
+
+The audit checks required fields, declared image dimensions, image hashes, duplicate identifiers, possible-only fitment, confirmation-only availability, SEO fields and related-product references. Known supplier-data gaps are reported but do not become invented values.
 
 ## Offline manifest
 
@@ -71,9 +97,23 @@ The output directory contains:
 
 Run the same command again to resume. A completed checkpoint is skipped only when its product is still present and valid in the durable catalogue. If the catalogue record is missing, the entry is reprocessed. Failed entries are retried. Use `--refresh` only when intentionally collecting a newer public snapshot.
 
-## Authorized network safeguards
+## Duplicate-safe manual review queue
 
-When a valid written grant exists, `--fetch` additionally enforces:
+After an offline ingestion run succeeds, prepare a private review queue:
+
+```text
+node scripts/ecs-catalog/prepare-review.mjs \
+  --catalog private-imports/ecs-catalog-review/catalog.json \
+  --output private-imports/ecs-catalog-review/review-queue.json
+```
+
+The queue reconciles candidates against the 14 current products by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
+
+This step never edits the storefront, database or public assets. `publishApproved` remains false for every candidate. A person must review the evidence, approve local media, add bilingual copy and sign off before any separate publication/import change is made.
+
+## Dormant future automated-access safeguards
+
+Only if a separate valid written automated-access grant exists, `--fetch` additionally enforces:
 
 - a minimum two-second request interval;
 - authorization revalidation immediately before every request;
@@ -100,10 +140,13 @@ Every accepted product has exactly these fields:
 
 Unexpected fields are rejected. Sensitive or non-public field names—including dealer, wholesale, trade, tax, VAT, cost, credentials, cookies and tokens—are rejected.
 
+The public fallback API adds storefront-safe normalized fields to the 14 reviewed products: globally unique `ecs-...` handles, supplier/brand/category slugs, possible-only fitment records, available year/chassis/engine filters, USD retail-price metadata, confirmation-only availability, local images, SEO metadata and related products. Missing specifications, variants, drivetrain data and exact fitment remain empty rather than inferred.
+
 ## Tests
 
 ```text
 node --test scripts/ecs-catalog/test.mjs
+node scripts/ecs-catalog/audit-reviewed.mjs --output private-imports/ecs-catalog-review/reviewed-audit.json
 ```
 
 The tests use local fixtures and injected network responses. They do not contact ECS Tuning.

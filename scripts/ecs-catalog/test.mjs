@@ -14,6 +14,7 @@ import {
   validateManualRecordInput,
   validateProduct
 } from "./lib.mjs";
+import { buildReviewQueue } from "./prepare-review.mjs";
 
 const fixtures = path.resolve("scripts/ecs-catalog/fixtures");
 const fixedNow = () => new Date("2026-08-05T12:00:00.000Z");
@@ -64,6 +65,36 @@ test("canonicalizes ECS URLs for URL-level deduplication", () => {
     /default HTTPS port/
   );
   assert.throws(() => canonicalizeProductUrl("https://www.ecstuning.com/Search/"), /public product path/);
+});
+
+test("prepares a non-publishing review queue and reconciles existing ECS numbers", async () => {
+  const html = await readFile(path.join(fixtures, "heat-exchanger.html"), "utf8");
+  const existing = parseProductHtml(html, {
+    sourceUrl: "https://www.ecstuning.com/b-csf-parts/high-performance-heat-exchanger/8131~csf/",
+    checkedAt: "2026-08-04T09:30:00.000Z"
+  });
+  const added = {
+    ...existing,
+    title: "Manually reviewed future product",
+    ecsSku: "ES#9999999",
+    manufacturerMpn: "PUBLIC-MPN-999",
+    sourceUrl: "https://www.ecstuning.com/b-example-parts/manually-reviewed-future-product/public-mpn-999/"
+  };
+  const queue = buildReviewQueue({
+    generatedAt: "2026-08-05T12:00:00.000Z",
+    products: [existing, added]
+  });
+  assert.equal(queue.baselineProductCount, 14);
+  assert.equal(queue.candidateCount, 2);
+  assert.equal(queue.existingReviewCount, 1);
+  assert.equal(queue.newReviewCount, 1);
+  assert.equal(queue.publishApprovedCount, 0);
+  assert.equal(queue.blockedFromAutomaticPublication, true);
+  assert.equal(queue.items[0].duplicatePrevention.matchedBy, "ecs_part_number");
+  assert.equal(queue.items[0].duplicatePrevention.createNewProduct, false);
+  assert.equal(queue.items[1].duplicatePrevention.createNewProduct, true);
+  assert.ok(queue.items.every(item => item.requiredReview.includes("human_sign_off_before_storefront_or_database_publication")));
+  assert.ok(queue.items.every(item => item.blockers.includes("no_live_stock_feed")));
 });
 
 test("rejects unknown and sensitive manual fields recursively", () => {
@@ -206,6 +237,18 @@ test("CLI refuses to write raw review output into a public repository directory"
   ], { cwd: process.cwd(), encoding: "utf8" });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /must stay under ignored private-imports/);
+});
+
+test("review queue CLI refuses public repository input and output paths", () => {
+  const result = spawnSync(process.execPath, [
+    "scripts/ecs-catalog/prepare-review.mjs",
+    "--catalog",
+    "scripts/ecs-catalog/fixtures/manifest.json",
+    "--output",
+    "assets/unsafe-ecs-review.json"
+  ], { cwd: process.cwd(), encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must stay under private-imports/);
 });
 
 test("saved snapshots cannot escape the manifest snapshot root", async () => {

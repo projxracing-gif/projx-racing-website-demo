@@ -1,11 +1,20 @@
 (() => {
   "use strict";
 
+  const runtime = typeof window === "undefined" ? globalThis : window;
+
   const common = Object.freeze({
     catalogType: "product",
     provider: "ECS Tuning",
+    providerSlug: "ecs",
+    dataOrigin: "manual-public-page-review",
+    catalogueStatus: "reviewed-partial",
     quoteOnly: false,
+    purchaseMode: "fitment-confirmation-required",
     priceCurrency: "USD",
+    priceType: "supplier-public-retail",
+    projxSellingPrice: null,
+    priceIncludesShipping: false,
     priceVerifiedAt: "2026-08-04",
     priceNote: "ECS public USD price — manually checked 2026-08-04",
     priceNoteAr: "سعر ECS العام بالدولار الأمريكي — تمت المراجعة اليدوية في 2026-08-04",
@@ -14,7 +23,9 @@
     checkedAt: "2026-08-04",
     staleAfterDays: 7,
     stockPolicy: "manual-confirm",
-    fitmentStatus: "supplier-title-confirm"
+    availabilityCode: "check_availability",
+    fitmentStatus: "supplier-title-confirm",
+    fitmentConfidence: "possible"
   });
 
   const products = [
@@ -387,18 +398,126 @@
       ]
     }
   ];
-  const data = window.PROJX_DATA;
+  const slugify = value => String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "unknown";
 
-  if (!data || !Array.isArray(data.storeProducts)) {
+  const values = value => [...new Set(String(value || "")
+    .split("/")
+    .map(item => item.trim())
+    .filter(Boolean))];
+
+  const chassisValues = value => [...new Set(
+    String(value || "").match(/\b(?:F\d{2}|G\d{2}|B8(?:\.5)?|8[SVY]|MK[78]|982|W\d{3}|C\d{3}|S\d{3}|A\d{3}|X\d{3})\b/gi) || []
+  )];
+
+  const yearRange = value => {
+    const years = (String(value || "").match(/\b(?:19|20)\d{2}\b/g) || []).map(Number);
+    return years.length ? { yearFrom: Math.min(...years), yearTo: Math.max(...years) } : { yearFrom: null, yearTo: null };
+  };
+
+  const fitmentNote = "Supplier title/application wording only; confirm the exact vehicle, VIN, chassis, engine and drivetrain before order.";
+  const fitmentNoteAr = "بيانات التوافق مأخوذة من عنوان أو تطبيق المورد فقط؛ يجب تأكيد السيارة ورقم الهيكل والشاصي والمحرك ونظام الدفع قبل الطلب.";
+  const availabilityNote = "Availability confirmation required. The supplier observation is retained for reference and is not a live stock promise.";
+  const availabilityNoteAr = "يجب تأكيد التوفر. تُحفظ ملاحظة المورد للمرجع فقط ولا تمثل وعداً مباشراً بالمخزون.";
+
+  const normalizedProducts = products.map(product => {
+    const fitments = product.fitments.map(fitment => ({
+      ...fitment,
+      models: values(fitment.model),
+      chassis: chassisValues(fitment.generation),
+      ...yearRange(fitment.generation),
+      drivetrains: [],
+      confidence: "possible",
+      evidence: "supplier-title",
+      note: fitmentNote,
+      noteAr: fitmentNoteAr
+    }));
+    const unique = key => [...new Set(fitments.flatMap(fitment => fitment[key] || []).filter(Boolean))];
+    const years = [...new Set(fitments.flatMap(fitment => {
+      if (!fitment.yearFrom || !fitment.yearTo) return [];
+      return Array.from({ length: fitment.yearTo - fitment.yearFrom + 1 }, (_, index) => fitment.yearFrom + index);
+    }))];
+    return {
+      ...product,
+      publicKey: `ecs-${product.slug}`,
+      brandSlug: slugify(product.brand),
+      categorySlug: slugify(product.category),
+      subcategorySlug: slugify(product.subcategory),
+      description: product.summary,
+      descriptionAr: product.summaryAr,
+      detailedDescriptionAvailable: false,
+      identifiers: Object.freeze({ ecs: product.ecsPartNumber, sku: product.sku, mpn: product.mpn }),
+      specifications: [],
+      options: [],
+      variants: [],
+      fitments,
+      filters: Object.freeze({
+        supplier: ["ecs"],
+        makes: unique("make"),
+        models: unique("models"),
+        chassis: unique("chassis"),
+        years,
+        engines: unique("engines"),
+        drivetrains: [],
+        brands: [slugify(product.brand)],
+        categories: [slugify(product.category)],
+        subcategories: [slugify(product.subcategory)],
+        availability: ["confirmation-required"],
+        fitment: ["possible"]
+      }),
+      availabilityNote,
+      availabilityNoteAr,
+      installation: Object.freeze({ status: "confirmation-required", note: fitmentNote, noteAr: fitmentNoteAr }),
+      shipping: Object.freeze({
+        status: "quote-required",
+        note: "Shipping, oversized handling, customs and Kuwait delivery are confirmed before order.",
+        noteAr: "يتم تأكيد الشحن ومناولة القطع الكبيرة والجمارك والتوصيل في الكويت قبل الطلب."
+      }),
+      seo: Object.freeze({
+        pageTitle: `${product.title} | Projx Racing`,
+        metaDescription: product.summary,
+        path: `/parts/${product.slug}/`
+      }),
+      relatedProductSlugs: []
+    };
+  });
+
+  for (const product of normalizedProducts) {
+    const engines = new Set(product.filters.engines.map(value => value.toLowerCase()));
+    const makes = new Set(product.filters.makes.map(value => value.toLowerCase()));
+    product.relatedProductSlugs = normalizedProducts
+      .filter(candidate => candidate.slug !== product.slug)
+      .map(candidate => ({
+        slug: candidate.slug,
+        score: (candidate.category === product.category ? 4 : 0)
+          + (candidate.brand === product.brand ? 3 : 0)
+          + (candidate.filters.engines.some(engine => engines.has(engine.toLowerCase())) ? 2 : 0)
+          + (candidate.filters.makes.some(make => makes.has(make.toLowerCase())) ? 1 : 0)
+      }))
+      .filter(candidate => candidate.score > 0)
+      .sort((left, right) => right.score - left.score || left.slug.localeCompare(right.slug))
+      .slice(0, 4)
+      .map(candidate => candidate.slug);
+  }
+
+  const data = runtime.PROJX_DATA;
+  if (typeof window !== "undefined" && data === undefined) {
     throw new Error("Projx catalogue data must load before the manual ECS catalogue.");
   }
-
-  const existingSlugs = new Set(data.storeProducts.map(product => product.slug));
-  for (const product of products) {
-    if (existingSlugs.has(product.slug)) throw new Error(`Duplicate catalogue slug: ${product.slug}`);
-    existingSlugs.add(product.slug);
+  if (data !== undefined) {
+    if (!Array.isArray(data.storeProducts)) {
+      throw new Error("Projx catalogue data must load before the manual ECS catalogue.");
+    }
+    const existingSlugs = new Set(data.storeProducts.map(product => product.slug));
+    for (const product of normalizedProducts) {
+      if (existingSlugs.has(product.slug)) throw new Error(`Duplicate catalogue slug: ${product.slug}`);
+      existingSlugs.add(product.slug);
+    }
+    data.storeProducts.push(...normalizedProducts);
   }
-
-  data.storeProducts.push(...products);
-  window.PROJX_ECS_PRODUCTS = products;
+  runtime.PROJX_ECS_PRODUCTS = normalizedProducts;
 })();

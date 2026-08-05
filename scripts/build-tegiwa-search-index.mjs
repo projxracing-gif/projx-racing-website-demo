@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tegiwaSkuMappingFingerprint } from '../api/tegiwa-sku-mapping.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = path.join(repo, 'api', 'data');
@@ -66,13 +67,12 @@ function stockKeyForTitle(title) {
 }
 
 function readPublicSkuIndex() {
-  const source = fs.readFileSync(stockIndexPath);
-  const stockIndex = JSON.parse(source.toString('utf8'));
+  const stockIndex = JSON.parse(fs.readFileSync(stockIndexPath, 'utf8'));
   if (!stockIndex || stockIndex.version !== 2 || !stockIndex.products
     || typeof stockIndex.products !== 'object' || Array.isArray(stockIndex.products)) {
     throw new Error('The public SKU index is invalid or out of date.');
   }
-  return { products: stockIndex.products, sha256: createHash('sha256').update(source).digest('hex') };
+  return { products: stockIndex.products, skuMappingSha256: tegiwaSkuMappingFingerprint(stockIndex) };
 }
 
 function publicSkusForTitle(products, title) {
@@ -190,7 +190,7 @@ function sha256(buffer) {
 }
 
 const { summary: catalogSummary, products } = readCatalog();
-const { products: skuProducts, sha256: skuIndexSha256 } = readPublicSkuIndex();
+const { products: skuProducts, skuMappingSha256 } = readPublicSkuIndex();
 const { terms, pairs, metadata, skuIndexedProductCount } = buildIndexes(products, skuProducts);
 const termEntries = [...terms.entries()].sort(([left], [right]) => left < right ? -1 : (left > right ? 1 : 0));
 const pairEntries = [...pairs.entries()].sort(([left], [right]) => left < right ? -1 : (left > right ? 1 : 0));
@@ -218,11 +218,11 @@ pairEntries.forEach(([hash, documentIds], index) => {
 const generatedAt = catalogSummary.generatedAt;
 if (!generatedAt || Number.isNaN(Date.parse(generatedAt))) throw new Error('The catalog summary does not contain a valid generation timestamp.');
 const searchSummary = {
-  version: 1,
+  version: 2,
   generatedAt,
   productCount: products.length,
   skuIndexedProductCount,
-  skuIndexSha256,
+  skuMappingSha256,
   pageSize: 100,
   termCount: termEntries.length,
   termPostingCount,
