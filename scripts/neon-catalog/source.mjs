@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { tegiwaSkuMappingFingerprint } from '../../api/tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../../server/tegiwa-sku-mapping.js';
 import {
   checkedAtIsoDate,
   decodeStockRecord,

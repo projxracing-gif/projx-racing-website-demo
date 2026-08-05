@@ -3,7 +3,7 @@ import {
   REVIEWED_ECS_PRODUCTS,
   ReviewedFallbackError,
   reviewedFallbackResponse
-} from './ecs-reviewed-catalog.js';
+} from '../server/ecs-reviewed-catalog.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;

@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { tegiwaSkuMappingFingerprint } from '../../api/tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../../server/tegiwa-sku-mapping.js';
 import {
   loadLocalTegiwaPublication,
   publishTegiwaToVercelBlob,

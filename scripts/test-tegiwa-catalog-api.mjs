@@ -12,7 +12,7 @@ import {
   canonicalTegiwaPublicManifestPayload,
   signTegiwaPublicManifest
 } from '../server/tegiwa-public-manifest.js';
-import { tegiwaSkuMappingFingerprint } from '../api/tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../server/tegiwa-sku-mapping.js';
 
 function responseRecorder() {
   return {

@@ -5,7 +5,7 @@ import {
   validTegiwaManifestSecret,
   verifyTegiwaPublicManifestSignature
 } from '../server/tegiwa-public-manifest.js';
-import { tegiwaSkuMappingFingerprint } from './tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../server/tegiwa-sku-mapping.js';
 
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
 const PAGE_SIZE = 100;

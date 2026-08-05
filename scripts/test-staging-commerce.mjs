@@ -3,7 +3,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import handler from '../api/staging-order.js';
-import { DIRECT_CART_PRODUCTS, policyPriceIsFresh } from '../api/commerce-policy.js';
+import { DIRECT_CART_PRODUCTS, policyPriceIsFresh } from '../server/commerce-policy.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 

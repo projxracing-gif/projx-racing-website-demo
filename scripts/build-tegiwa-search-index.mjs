@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tegiwaSkuMappingFingerprint } from '../api/tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../server/tegiwa-sku-mapping.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = path.join(repo, 'api', 'data');

@@ -45,6 +45,11 @@
 - Added local snapshot validation, Neon import, Vercel Blob publication, SKU mapping, manifest verification, and scheduler-ready scripts.
 - Hourly synchronization is not active until a supplier-supported feed, Blob credentials, manifest secret, and scheduler are configured.
 
+### Preview deployment compatibility
+
+- Moved internal catalogue and commerce helpers out of the deployable API-route directory, leaving 11 serverless routes within the Vercel Hobby preview limit of 12.
+- Added a production validator guard so a future helper cannot silently exceed that deployment limit again.
+
 ### Main areas modified
 
 - `assets/`: catalogue, account, cart, checkout, bilingual interface, media, and responsive styles.

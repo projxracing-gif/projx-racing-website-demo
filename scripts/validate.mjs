@@ -3,7 +3,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { tegiwaSkuMappingFingerprint } from '../api/tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../server/tegiwa-sku-mapping.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(repo, 'dist');
@@ -36,7 +36,7 @@ function loadProjectData() {
 for (const file of [
   'assets/app.js', 'assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/styles.css',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'template.html', 'sw.js',
-  'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/tegiwa-sku-mapping.js', 'api/parts-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
+  'api/enquiry.js', 'api/tegiwa-catalog.js', 'server/tegiwa-sku-mapping.js', 'api/parts-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
   'api/data/tegiwa-catalog-summary.json', 'api/data/tegiwa-search-summary.json', 'api/data/tegiwa-search-terms.json',
   'api/data/tegiwa-search-term-postings.bin', 'api/data/tegiwa-search-pairs.bin',
   'api/data/tegiwa-search-pair-postings.bin', 'api/data/tegiwa-search-metadata.bin',
@@ -44,6 +44,12 @@ for (const file of [
   'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/build-tegiwa-catalog-snapshot.mjs', 'scripts/test-tegiwa-catalog-api.mjs',
   'manifest.webmanifest', 'vercel.json'
 ]) assert(fs.existsSync(path.join(repo, file)), `Missing source file: ${file}`);
+
+const vercelFunctionFiles = fs.readdirSync(path.join(repo, 'api'), { withFileTypes: true })
+  .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
+  .map(entry => entry.name);
+assert(vercelFunctionFiles.length <= 12,
+  `Vercel Hobby preview limit exceeded: ${vercelFunctionFiles.length} deployable API files found (maximum 12). Move non-route helpers out of api/.`);
 
 assert(fs.existsSync(dist), 'dist/ does not exist; run npm run build first.');
 if (!fs.existsSync(dist)) {

@@ -5,7 +5,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { tegiwaSkuMappingFingerprint } from '../../api/tegiwa-sku-mapping.js';
+import { tegiwaSkuMappingFingerprint } from '../../server/tegiwa-sku-mapping.js';
 import {
   TEGIWA_PUBLIC_MANIFEST_VERSION,
   signTegiwaPublicManifest,

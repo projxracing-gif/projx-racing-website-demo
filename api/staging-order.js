@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import enquiryHandler from './enquiry.js';
-import { STAGING_COMMERCE_MODE, directCartProduct, policyPriceIsFresh } from './commerce-policy.js';
+import { STAGING_COMMERCE_MODE, directCartProduct, policyPriceIsFresh } from '../server/commerce-policy.js';
 
 const MAX_BODY_BYTES = 24_000;
 const completedRequests = new Map();
