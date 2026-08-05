@@ -37,6 +37,7 @@
 - Audited 80 supplied Projx Racing images, retained 74 context-appropriate uses, corrected project covers, and preserved image proportions with responsive derivatives.
 - Added accurate alt text and versioned local product-image URLs.
 - Kept English/Arabic, RTL, light/dark themes, desktop, tablet, iPhone, and Android layouts.
+- Rebalanced the 402px mobile header so all six actions remain fully visible in English and Arabic with 44px touch targets; the duplicate header WhatsApp action is hidden on narrower phones while the persistent WhatsApp action remains available.
 - Marked account, cart, and checkout pages `noindex` and removed them from the sitemap.
 - Corrected duplicate form IDs and connected signed-in quotation submissions to account history.
 
