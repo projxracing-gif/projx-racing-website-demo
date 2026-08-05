@@ -210,9 +210,15 @@
       partDirectoryNote: "هذا دليل بحث، وليس قائمة تأكيد بأن كل فئة متوفرة حالياً.",
       partDirectoryLabel: "دليل البحث حسب نوع القطعة",
       partDirectorySearch: "ابحث في الكتالوج عن {term}",
+      partDirectoryExpand: "افتح قسم {term}",
+      partDirectoryCollapse: "أغلق قسم {term}",
+      partDirectoryViewAll: "عرض الكل",
+      reviewedItemsEyebrow: "قطع مختارة ومراجعة",
+      reviewedItemsHeading: "منتجات مراجعة وباقات مجهزة.",
+      reviewedItemsText: "تصفح منتجات الموردين التي راجعها فريق Projx Racing وباقات الأداء المجهزة. استخدم الفلاتر للوصول للقطعة المطلوبة بسرعة.",
       tegiwaEyebrow: "كتالوج القطع المباشر",
-      tegiwaHeading: "تصفح كامل كتالوج Tegiwa.",
-      tegiwaText: "ابحث باسم القطعة أو العلامة أو السيارة أو المحرك أو رقم القطعة، أو تصفح المنتجات بالتدريج. تظهر الأسعار بالجنيه الإسترليني بدون ضريبة القيمة المضافة البريطانية وحالة التوفر الآمنة من آخر Stockfeed.",
+      tegiwaHeading: "تصفح كتالوج القطع الكامل.",
+      tegiwaText: "ابحث باسم القطعة أو العلامة أو السيارة أو المحرك أو رقم القطعة، أو تصفح المنتجات بالتدريج. يجمع هذا القسم الكتالوج المباشر مع منتجات الموردين المراجعة وباقات Projx Racing في مكان واحد.",
       tegiwaSearchLabel: "ابحث في المنتجات",
       tegiwaSearchPlaceholder: "اسم القطعة، العلامة، السيارة، المحرك أو رقم القطعة",
       tegiwaSearchAction: "بحث",
@@ -220,8 +226,8 @@
       tegiwaSourceNote: "بيانات المنتجات والصور من كتالوج المورد الرسمي، والأسعار المدرجة بالجنيه الإسترليني لا تشمل ضريبة القيمة المضافة البريطانية. علامة التوفر تعني أن خياراً واحداً على الأقل متوفر؛ يؤكد Projx Racing الخيار والسعر النهائي والتوافق والشحن ورسوم الكويت قبل الطلب.",
       tegiwaVehicleActive: "الكتالوج المباشر مفلتر لسيارتك",
       tegiwaVehicleText: "نعرض المطابقات المحتملة فقط. Projx Racing يؤكد التوافق الدقيق قبل الطلب.",
-      tegiwaLoading: "جاري تحميل منتجات Tegiwa…",
-      tegiwaLoadError: "تعذر تحميل كتالوج Tegiwa حالياً.",
+      tegiwaLoading: "جاري تحميل منتجات الكتالوج…",
+      tegiwaLoadError: "تعذر تحميل كتالوج القطع حالياً.",
       tegiwaRetry: "حاول مرة ثانية",
       tegiwaNext: "المنتجات التالية",
       tegiwaPrevious: "المنتجات السابقة",
@@ -352,9 +358,15 @@
       partDirectoryNote: "This is a catalogue search directory, not a claim that every category is currently stocked.",
       partDirectoryLabel: "Shop by part catalogue search directory",
       partDirectorySearch: "Search the catalogue for {term}",
-      tegiwaEyebrow: "Live Parts catalogue",
-      tegiwaHeading: "Browse the complete Tegiwa catalogue.",
-      tegiwaText: "Search by product, brand, vehicle, engine or part number, or browse the catalogue in manageable pages. Prices remain in GBP, exclude UK VAT and every card shows a customer-safe availability state from the latest stockfeed.",
+      partDirectoryExpand: "Open {term} part types",
+      partDirectoryCollapse: "Close {term} part types",
+      partDirectoryViewAll: "View all",
+      reviewedItemsEyebrow: "Reviewed selection",
+      reviewedItemsHeading: "Reviewed products and configured packages.",
+      reviewedItemsText: "Browse supplier products reviewed by Projx Racing and configured performance packages. Use the filters to reach the right item quickly.",
+      tegiwaEyebrow: "Live Parts Catalogue",
+      tegiwaHeading: "Browse the complete parts catalogue.",
+      tegiwaText: "Search by product, brand, vehicle, engine or part number, or browse in manageable pages. The live supplier catalogue, reviewed products and Projx Racing packages are presented together in one place.",
       tegiwaSearchLabel: "Search products",
       tegiwaSearchPlaceholder: "Product, brand, vehicle, engine or part number",
       tegiwaSearchAction: "Search",
@@ -362,8 +374,8 @@
       tegiwaSourceNote: "Product data and images come from the supplier's official catalogue, and listed GBP prices exclude UK VAT. A stock badge means at least one option is available; Projx Racing confirms the final option, price, fitment, shipping and Kuwait duties before an order.",
       tegiwaVehicleActive: "Live catalogue filtered for your vehicle",
       tegiwaVehicleText: "These are likely catalogue matches only. Projx Racing confirms exact fitment before an order.",
-      tegiwaLoading: "Loading Tegiwa products…",
-      tegiwaLoadError: "The Tegiwa catalogue could not be loaded right now.",
+      tegiwaLoading: "Loading catalogue products…",
+      tegiwaLoadError: "The parts catalogue could not be loaded right now.",
       tegiwaRetry: "Try again",
       tegiwaNext: "Next products",
       tegiwaPrevious: "Previous products",
@@ -2390,14 +2402,17 @@
     const groups = PARTS_CATALOGUE_DIRECTORY.map((group, groupIndex) => {
       const groupLabel = group[localeKey] || group.en;
       const groupAria = tegiwaTemplate(labels.partDirectorySearch, { term: groupLabel });
+      const panelId = `parts-directory-panel-${groupIndex + 1}`;
+      const toggleId = `parts-directory-toggle-${groupIndex + 1}`;
       const links = group.items.map(([query, en, ar]) => {
         const label = localeKey === "ar" ? ar : en;
         const ariaLabel = tegiwaTemplate(labels.partDirectorySearch, { term: label });
         return `<li><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" aria-label="${esc(ariaLabel)}" aria-pressed="false"><span>${esc(label)}</span>${icons.arrow}</button></li>`;
       }).join("");
-      return `<article class="parts-directory-group"><button class="parts-directory-group-action" type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(group.query)}" aria-label="${esc(groupAria)}" aria-pressed="false"><span class="parts-directory-index">${compactNumber(groupIndex + 1)}</span><strong>${esc(groupLabel)}</strong>${icons.arrow}</button><ul>${links}</ul></article>`;
+      const expandLabel = tegiwaTemplate(labels.partDirectoryExpand, { term: groupLabel });
+      return `<article class="parts-directory-group" data-parts-directory-group><h3><button class="parts-directory-toggle" id="${toggleId}" type="button" data-action="toggle-parts-directory-group" data-parts-directory-toggle aria-expanded="false" aria-controls="${panelId}" aria-label="${esc(expandLabel)}" data-expanded-label="${esc(tegiwaTemplate(labels.partDirectoryCollapse, { term: groupLabel }))}" data-collapsed-label="${esc(expandLabel)}"><span class="parts-directory-index">${compactNumber(groupIndex + 1)}</span><strong>${esc(groupLabel)}</strong><span class="parts-directory-chevron" aria-hidden="true"></span></button></h3><div class="parts-directory-panel" id="${panelId}" role="region" aria-labelledby="${toggleId}" hidden><ul><li class="parts-directory-view-all"><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(group.query)}" aria-label="${esc(groupAria)}" aria-pressed="false"><span><strong>${esc(labels.partDirectoryViewAll)}</strong><small>${esc(groupLabel)}</small></span>${icons.arrow}</button></li>${links}</ul></div></article>`;
     }).join("");
-    return `<section class="section parts-directory-section" id="parts-directory"><div class="container"><div class="parts-directory-shell" data-tegiwa-directory>${sectionHead(labels.partDirectoryEyebrow, labels.partDirectoryHeading, labels.partDirectoryText)}<p class="parts-directory-disclaimer" id="parts-directory-note">${icons.check}<span>${esc(labels.partDirectoryNote)}</span></p><div class="parts-directory-grid" role="navigation" aria-label="${esc(labels.partDirectoryLabel)}" aria-describedby="parts-directory-note">${groups}</div></div></div></section>`;
+    return `<section class="section parts-directory-section" id="parts-directory"><div class="container"><div class="parts-directory-shell" data-tegiwa-directory>${sectionHead(labels.partDirectoryEyebrow, labels.partDirectoryHeading, labels.partDirectoryText)}<p class="parts-directory-disclaimer" id="parts-directory-note">${icons.check}<span>${esc(labels.partDirectoryNote)}</span></p><div class="parts-directory-accordion" aria-label="${esc(labels.partDirectoryLabel)}" aria-describedby="parts-directory-note">${groups}</div></div></div></section>`;
   }
 
   function partsPage() {
@@ -2468,17 +2483,17 @@
           <div class="tegiwa-catalog-status" data-tegiwa-status role="status" aria-live="polite">${esc(labels.tegiwaLoading)}</div>
           <div class="tegiwa-product-grid" data-tegiwa-results>${tegiwaLoadingCards()}</div>
           <nav class="tegiwa-pagination" data-tegiwa-pagination aria-label="${esc(labels.tegiwaPaginationLabel)}" hidden><button class="btn btn-outline" type="button" data-action="tegiwa-previous" data-tegiwa-control disabled>${icons.arrow}<span>${esc(labels.tegiwaPrevious)}</span></button><div class="tegiwa-pagination-center"><div class="tegiwa-page-list" data-tegiwa-pages dir="ltr"></div><button class="text-link" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaReset)}</button></div><button class="btn btn-outline" type="button" data-action="tegiwa-next" data-tegiwa-control disabled><span>${esc(labels.tegiwaNext)}</span>${icons.arrow}</button></nav>
+          <div class="store-catalogue-review" id="parts-results">
+            ${sectionHead(labels.reviewedItemsEyebrow, labels.reviewedItemsHeading, labels.reviewedItemsText, `<strong class="parts-result-count" role="status" aria-live="polite" aria-atomic="true"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
+            <div class="store-catalogue-status"><article><span>${String(products.length).padStart(2, "0")}</span><div><strong>${esc(labels.verifiedProducts)}</strong><small>${esc(labels.verifiedProductsText)}</small></div></article><article><span>${String(parts.length).padStart(2, "0")}</span><div><strong>${esc(labels.configuredPackage)}</strong><small>${esc(labels.exactProductRule)}</small></div></article></div>
+            ${products.length ? "" : `<div class="notice notice-info store-catalogue-gate"><strong>${esc(labels.cataloguePending)}.</strong> ${esc(labels.cataloguePendingText)}</div>`}
+            <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
+            <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${catalogueBrands.map(brand => `<option value="${esc(brand.toLowerCase())}">${esc(brand)}</option>`).join("")}</select></label>${suppliers.length ? `<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="supplier" aria-label="${esc(labels.supplier)}"><option value="">${esc(labels.allSuppliers)}</option>${suppliers.map(supplier => `<option value="${esc(supplier.toLowerCase())}">${esc(supplier)}</option>`).join("")}</select></label>` : ""}<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="availability" aria-label="${esc(labels.availability)}"><option value="">${esc(labels.allAvailability)}</option>${statuses.map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="pricing" aria-label="${esc(labels.pricing)}"><option value="">${esc(labels.allPricing)}</option><option value="published">${esc(labels.usdPrice)}</option><option value="quote">${esc(labels.quoteOnly)}</option></select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="vehicle" data-filter-match="vehicle" aria-label="${esc(labels.fitment)}" ${partsVehicleLabel() ? "" : "disabled"}><option value="">${esc(labels.allFitment)}</option><option value="possible">${esc(labels.possibleMatches)}</option></select></label><label class="select-control">${icons.filter}<select data-parts-sort aria-label="${esc(labels.sort)}"><option value="featured">${esc(labels.featured)}</option><option value="name">${esc(labels.nameAsc)}</option><option value="category">${esc(labels.categoryAsc)}</option><option value="brand">${esc(labels.brandAsc)}</option></select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
+            <div class="parts-grid" data-filter-grid="parts">${cards.join("")}</div>
+            <div class="empty-state" data-filter-empty="parts" hidden><p>${esc(U().common.noResults)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(finder.requestUnlisted)}${icons.arrow}</button></div>
+            <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
+          </div>
         </div></div></section>
-        <section class="section section-tone" id="parts-results"><div class="container">
-          ${sectionHead(finder.resultsEyebrow, finder.resultsHeading, finder.resultsText, `<strong class="parts-result-count" role="status" aria-live="polite" aria-atomic="true"><span data-parts-result-count>${cards.length}</span> ${esc(finder.resultsLabel)}</strong>`)}
-          <div class="store-catalogue-status"><article><span>${String(products.length).padStart(2, "0")}</span><div><strong>${esc(labels.verifiedProducts)}</strong><small>${esc(labels.verifiedProductsText)}</small></div></article><article><span>${String(parts.length).padStart(2, "0")}</span><div><strong>${esc(labels.configuredPackage)}</strong><small>${esc(labels.exactProductRule)}</small></div></article></div>
-          ${products.length ? "" : `<div class="notice notice-info store-catalogue-gate"><strong>${esc(labels.cataloguePending)}.</strong> ${esc(labels.cataloguePendingText)}</div>`}
-          <div class="notice notice-info parts-sourcing-note"><strong>${esc(finder.sourcingHeading)}</strong> ${esc(finder.sourcingText)}</div>
-          <div class="filter-bar parts-filter-bar"><label class="search-control">${icons.search}<input type="search" data-filter-search="parts" placeholder="${esc(U().filters.searchParts)}" aria-label="${esc(U().filters.searchParts)}"></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="category" aria-label="${esc(U().filters.filterByCategory)}"><option value="">${esc(U().common.allCategories)}</option>${categories.map(category => `<option value="${esc(category)}">${esc(category)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="brand" data-filter-match="includes" aria-label="${esc(finder.filterByBrand)}"><option value="">${esc(finder.allBrands)}</option>${catalogueBrands.map(brand => `<option value="${esc(brand.toLowerCase())}">${esc(brand)}</option>`).join("")}</select></label>${suppliers.length ? `<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="supplier" aria-label="${esc(labels.supplier)}"><option value="">${esc(labels.allSuppliers)}</option>${suppliers.map(supplier => `<option value="${esc(supplier.toLowerCase())}">${esc(supplier)}</option>`).join("")}</select></label>` : ""}<label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="availability" aria-label="${esc(labels.availability)}"><option value="">${esc(labels.allAvailability)}</option>${statuses.map(status => `<option value="${esc(status)}">${esc(status)}</option>`).join("")}</select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="pricing" aria-label="${esc(labels.pricing)}"><option value="">${esc(labels.allPricing)}</option><option value="published">${esc(labels.usdPrice)}</option><option value="quote">${esc(labels.quoteOnly)}</option></select></label><label class="select-control">${icons.filter}<select data-filter-select="parts" data-filter-attribute="vehicle" data-filter-match="vehicle" aria-label="${esc(labels.fitment)}" ${partsVehicleLabel() ? "" : "disabled"}><option value="">${esc(labels.allFitment)}</option><option value="possible">${esc(labels.possibleMatches)}</option></select></label><label class="select-control">${icons.filter}<select data-parts-sort aria-label="${esc(labels.sort)}"><option value="featured">${esc(labels.featured)}</option><option value="name">${esc(labels.nameAsc)}</option><option value="category">${esc(labels.categoryAsc)}</option><option value="brand">${esc(labels.brandAsc)}</option></select></label><button class="btn btn-outline btn-sm parts-clear-filters" type="button" data-action="clear-parts-filters">${esc(U().actions.clearFilters)}</button></div>
-          <div class="parts-grid" data-filter-grid="parts">${cards.join("")}</div>
-          <div class="empty-state" data-filter-empty="parts" hidden><p>${esc(U().common.noResults)}</p><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(finder.requestUnlisted)}${icons.arrow}</button></div>
-          <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
-        </div></section>
       </div>
       ${ctaBlock(state.locale === "ar" ? "عندك رقم قطعة محدد؟" : "Have an exact part number?", state.locale === "ar" ? "أرسل رقم القطعة والسيارة وVIN عند الحاجة ومكان التسليم وخيار التركيب." : "Send the part number, vehicle, VIN where required, delivery location and whether installation is needed.", U().actions.enquire, "Parts Enquiry")}`;
   }
@@ -2764,6 +2779,19 @@
     catalogue?.scrollIntoView({ behavior, block: "start" });
     loadTegiwaCatalog({ query: normalizedQuery, match: "any", page: 1 });
     window.setTimeout(() => searchInput?.focus({ preventScroll: true }), behavior === "smooth" ? 450 : 0);
+  }
+
+  function togglePartsDirectoryGroup(trigger) {
+    if (!trigger) return;
+    const shouldOpen = trigger.getAttribute("aria-expanded") !== "true";
+    document.querySelectorAll("[data-parts-directory-toggle]").forEach(toggle => {
+      const open = toggle === trigger && shouldOpen;
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.setAttribute("aria-label", open ? toggle.dataset.expandedLabel : toggle.dataset.collapsedLabel);
+      toggle.closest("[data-parts-directory-group]")?.classList.toggle("is-open", open);
+      const panel = document.getElementById(toggle.getAttribute("aria-controls") || "");
+      if (panel) panel.hidden = !open;
+    });
   }
 
   function clearPartsFilters() {
@@ -3132,6 +3160,7 @@
       return;
     }
     if (action === "select-parts-brand") { selectPartsFilter("brand", target.dataset.partsBrand || ""); return; }
+    if (action === "toggle-parts-directory-group") { togglePartsDirectoryGroup(target); return; }
     if (action === "search-tegiwa-directory") { searchTegiwaDirectory(target.dataset.tegiwaDirectoryQuery || "", target); return; }
     if (action === "clear-parts-filters") { clearPartsFilters(); return; }
     if (action === "tegiwa-suggestion") { chooseTegiwaSuggestion(target); return; }

@@ -4,13 +4,15 @@ This isolated workflow prepares public ECS product records for later storefront 
 
 ## Important access rule
 
-The supplier permission currently on file authorizes **manual copying**. It does not grant automated access. The normal workflow is therefore deliberately offline and accepts:
+The written supplier permission reviewed on 5 August 2026 authorizes Projx Racing to automate copying ECS public product listings onto the Projx website. It does not authorize access to private or authenticated dealer data. The permission evidence and active authorization record must remain under the ignored `private-imports/ecs-catalog-authorization/` directory and must never be committed.
+
+The offline workflow remains available and accepts:
 
 - saved HTML snapshots collected manually from public product pages;
 - allowlisted manual JSON records; or
 - a supplier-provided export, converted into manifest records.
 
-Do not use `--fetch` unless ECS Tuning provides a new written grant that explicitly permits automated access. The authorization file is only a safety gate; creating or filling it in does not itself create permission.
+Use `--fetch` only while the retained written grant has been reviewed and the private authorization record passes validation. The authorization file is a safety gate; creating or filling it in does not itself create permission.
 
 Network mode requires all of the following:
 
@@ -19,7 +21,9 @@ Network mode requires all of the following:
 - a retained evidence reference beginning with `email:`, `file:`, `https:` or `document:`;
 - the Projx person who reviewed the grant and the review time;
 - only `www.ecstuning.com` in `allowedHosts`; and
-- a future expiry time.
+- a future internal re-review deadline in `validUntil`.
+
+`validUntil` is Projx Racing's safety re-review date. It is not an expiry date stated by ECS Tuning.
 
 Only the documented authorization keys are accepted. A human must review the written grant before network mode is enabled.
 

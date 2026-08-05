@@ -469,6 +469,17 @@ assert(appSource.includes('PARTS_CATALOGUE_DIRECTORY')
   && appSource.includes('data-tegiwa-directory')
   && appSource.includes('data-action="search-tegiwa-directory"')
   && appSource.includes('searchTegiwaDirectory'), 'Interactive Shop by Part catalogue directory is missing.');
+assert(appSource.includes('data-action="toggle-parts-directory-group"')
+  && appSource.includes('data-parts-directory-toggle')
+  && appSource.includes('aria-expanded="false"')
+  && appSource.includes('parts-directory-panel')
+  && appSource.includes('partDirectoryViewAll')
+  && appSource.includes('togglePartsDirectoryGroup')
+  && stylesSource.includes('.parts-directory-panel[hidden]'), 'The compact, single-open Part Type Directory accordion is incomplete.');
+assert(appSource.includes('tegiwaHeading: "Browse the complete parts catalogue."')
+  && appSource.includes('tegiwaHeading: "تصفح كتالوج القطع الكامل."')
+  && appSource.includes('store-catalogue-review" id="parts-results"')
+  && !appSource.includes('Browse the complete Tegiwa catalogue.'), 'The supplier-neutral unified Parts Catalogue presentation is incomplete.');
 assert(appSource.includes('partsVehicleCatalogueQuery')
   && appSource.includes('match: "vehicle"')
   && appSource.includes('endpoint.searchParams.set("match", "vehicle")')

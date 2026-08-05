@@ -113,6 +113,20 @@ test("network mode remains locked without a current explicit automated-access gr
   assert.ok(tightenedErrors.some((error) => error.includes("Forbidden field")));
 });
 
+test("accepts the reviewed public-product automated-access grant", () => {
+  const entries = [{ sourceUrl: "https://www.ecstuning.com/b-csf-parts/example/example~csf/" }];
+  const authorization = {
+    acknowledgement: AUTOMATION_ACKNOWLEDGEMENT,
+    grantedBy: "Named ECS representative",
+    permissionReference: "document:private-permission-record#sha256=example",
+    reviewedBy: "Named Projx reviewer",
+    reviewedAt: "2026-08-05T10:00:00.000Z",
+    allowedHosts: ["www.ecstuning.com"],
+    validUntil: "2026-09-05T10:00:00.000Z"
+  };
+  assert.deepEqual(validateAutomationAuthorization(authorization, entries, fixedNow()), []);
+});
+
 test("authorized fetch rejects redirect escapes, non-HTML and oversized responses without retries", async () => {
   const sourceUrl = "https://www.ecstuning.com/b-csf-parts/example/example~csf/";
   const cases = [
