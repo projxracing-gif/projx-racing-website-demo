@@ -58,12 +58,18 @@ The source observations include a manually checked availability phrase for each 
 
 ## Permission and completion blocker
 
-The permission currently on record is manual-copy only. ECS provides no approved API, export or live stock feed in this project. Completing the entire ECS catalogue therefore requires one of:
+Projx Racing now has a written ECS approval dated 5 August 2026 for automated copying of ECS products onto the Projx website. The retained evidence and reviewed authorization record are private and excluded from Git. This supersedes the earlier manual-copy-only interpretation.
 
-1. an ECS-supplied authorized export containing public catalogue fields; or
-2. continued manual snapshots of individually selected public product pages, followed by human review.
+The approval does not provide a catalogue feed, sitemap index, API, downloadable export, stock feed, request-rate agreement or an exhaustive product-URL list. It also does not authorize copying authenticated dealer data, private pricing, credentials, removing watermarks, bypassing access controls or representing dated observations as live stock. Completing the entire ECS catalogue therefore still requires:
 
-The project must not crawl or bulk-fetch the ECS website under the current permission. The offline ingestion workflow checkpoints and resumes manual batches, rejects private/sensitive fields, deduplicates by ECS number and URL, and creates a non-publishing review queue. It cannot truthfully report the full supplier catalogue as complete until an authorized complete source is supplied.
+1. an ECS-supplied export, sitemap index or complete product-URL source;
+2. an agreed collection rate and confirmation of public image/media reuse terms;
+3. a streaming, sharded importer and online storage sized for more than two million products; and
+4. staged count, duplicate, fitment, price, search and load validation before publication.
+
+The current automated-access workflow may fetch only explicitly allowlisted public ECS product URLs while the private authorization gate remains valid. It checkpoints and resumes bounded batches, rejects private/sensitive fields, deduplicates by ECS number and URL, and creates a non-publishing review queue. It must not traverse login areas, bypass Cloudflare or other controls, or claim the full supplier catalogue is complete until a complete source has been collected and verified.
+
+At the current minimum two-second request interval, two million individual page requests would require about 46 days of uninterrupted collection before retries or review. The existing single-file workflow and current free Neon project are not sized for that run. The measured database footprint projects to roughly 9 GB for one sparse two-million-product snapshot and more than 18 GB during atomic blue/green publication, before detailed fitment, variants or media.
 
 ## Verification commands
 

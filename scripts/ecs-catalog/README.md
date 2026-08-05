@@ -4,9 +4,9 @@ This isolated workflow prepares public ECS product records for later storefront 
 
 ## Important access rule
 
-The permission currently recorded for this project is **manual-copy only**. It does not authorize crawling, bulk downloading, automated retrieval, use of an authenticated dealer area, or access to non-public ECS data. Do not use `--fetch` with the current permission record and do not use this workflow to traverse the ECS site.
+Projx Racing has retained written ECS approval dated 5 August 2026 for automated copying of ECS products onto the Projx website. The approval evidence and reviewed authorization record are private, ignored by Git and required by the `--fetch` safety gate.
 
-The optional network code is a dormant safety-gated path for a possible future, separately documented automated-access grant. A local authorization file cannot create permission. Until ECS explicitly grants automated access in writing and a Projx reviewer records that separate grant, only saved snapshots collected manually from specific public product pages and allowlisted manual records may be ingested.
+The approval does not provide a feed, API, sitemap index, complete URL list, collection-rate agreement or access to non-public dealer data. It does not permit bypassing access controls, copying credentials/private pricing, removing watermarks or treating dated public observations as guaranteed live stock. Network mode is limited to explicitly listed public ECS product URLs on the approved host and must stop when authorization validation or normal HTTP access fails.
 
 Permission evidence must remain under the ignored `private-imports/ecs-catalog-authorization/` directory and must never be committed.
 
@@ -16,7 +16,7 @@ The offline workflow remains available and accepts:
 - allowlisted manual JSON records; or
 - a supplier-provided export, converted into manifest records.
 
-Do not use `--fetch` under the current manual-copy-only permission. If ECS later supplies a separate automated-access grant, `--fetch` may be considered only after that retained grant has been reviewed and the private authorization record passes validation. The authorization file is a safety gate; creating or filling it in does not itself create permission.
+Use `--fetch` only after the retained grant has been reviewed and the private authorization record passes validation. The authorization file is a safety gate; creating or filling it in does not itself create permission or a complete product source.
 
 Network mode requires all of the following:
 
@@ -111,9 +111,9 @@ The queue reconciles candidates against the 14 current products by ECS part numb
 
 This step never edits the storefront, database or public assets. `publishApproved` remains false for every candidate. A person must review the evidence, approve local media, add bilingual copy and sign off before any separate publication/import change is made.
 
-## Dormant future automated-access safeguards
+## Automated-access safeguards
 
-Only if a separate valid written automated-access grant exists, `--fetch` additionally enforces:
+With a valid retained automated-access grant, `--fetch` additionally enforces:
 
 - a minimum two-second request interval;
 - authorization revalidation immediately before every request;

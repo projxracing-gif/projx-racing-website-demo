@@ -69,7 +69,7 @@ This design avoids hourly Git commits, full Vercel deployments, and a database r
 ## Update cadence
 
 - Tegiwa: hourly is technically practical because the approved stockfeed is available. Product identity/catalogue rebuilds should run less frequently than stock-only refreshes. A SKU-mapping change must be held for a matching search-index release; ordinary price, availability, lead-time, and check-date changes do not rebuild search.
-- ECS Tuning: ECS has stated that no API or downloadable stockfeed is available. A complete hourly inventory check is not reliable or responsible. Use scheduled checks only for explicitly monitored public SKUs, with bounded requests, or update from a supplier-provided feed if one becomes available.
+- ECS Tuning: ECS has approved automated product copying but has not supplied an API, downloadable catalogue/stock feed, sitemap index, complete URL source or approved hourly request cadence. Use bounded scheduled checks only for explicitly listed public SKUs while the private authorization gate is valid. Do not bypass access controls or label observations as live stock. A complete hourly update remains impractical without a supplier-provided feed.
 - Other suppliers: enable hourly checks only when the supplier provides an authorized API, stockfeed, SFTP file, or scheduled export.
 
 Every public stock record must include `supplier`, `supplier SKU`, `checked at`, `availability`, `lead time`, `currency`, and `source`. Stale or failed checks must retain the previous snapshot and display a confirmation-required state rather than guessing.
