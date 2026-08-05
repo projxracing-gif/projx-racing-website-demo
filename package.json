@@ -18,7 +18,7 @@
     "vehicles:validate": "node scripts/validate-tegiwa-vehicle-directory.mjs",
     "test:ecs-catalog": "node --test scripts/ecs-catalog/test.mjs",
     "test": "npm run test:api && npm run test:ecs-catalog",
-    "check": "npm run lint && npm run build && npm run validate && npm run vehicles:validate && npm run test:api",
+    "check": "npm run lint && npm run build && npm run validate && npm run vehicles:validate && npm run test:api && npm run test:ecs-catalog",
     "preview": "node scripts/serve.mjs dist 4173"
   },
   "engines": {

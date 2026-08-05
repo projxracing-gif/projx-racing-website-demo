@@ -1,14 +1,16 @@
 import { createHash } from "node:crypto";
 import {
-  copyFile,
   mkdir,
   readFile,
+  realpath,
   rename,
   writeFile
 } from "node:fs/promises";
 import path from "node:path";
 
 export const SCHEMA_VERSION = 1;
+export const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+export const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 export const AUTOMATION_ACKNOWLEDGEMENT =
   "I CONFIRM THAT ECS TUNING HAS GRANTED WRITTEN PERMISSION FOR AUTOMATED ACCESS TO THE URLS IN THIS RUN.";
@@ -31,6 +33,18 @@ const ALLOWED_PRODUCT_KEYS = new Set([
 
 const FORBIDDEN_KEY =
   /(?:dealer|wholesale|trade|tax|vat|cost|margin|credential|password|secret|token|api[-_]?key|cookie|session)/i;
+
+const ALLOWED_PRICE_KEYS = new Set(["amount", "currency", "display"]);
+const ALLOWED_AUTHORIZATION_KEYS = new Set([
+  "acknowledgement",
+  "grantedBy",
+  "permissionReference",
+  "reviewedBy",
+  "reviewedAt",
+  "allowedHosts",
+  "validUntil"
+]);
+const ECS_HOST = "www.ecstuning.com";
 
 const HTML_ENTITY_MAP = Object.freeze({
   amp: "&",
@@ -237,14 +251,26 @@ function extractVisiblePrice(html, lines) {
 export function canonicalizeProductUrl(value) {
   const url = new URL(String(value));
   if (url.protocol !== "https:") throw new Error(`Product URL must use HTTPS: ${value}`);
+  if (url.username || url.password) {
+    throw new Error(`Product URL must not contain credentials: ${value}`);
+  }
+  if (url.port) throw new Error(`Product URL must use the default HTTPS port: ${value}`);
   url.hostname = url.hostname.toLowerCase();
   if (url.hostname !== "www.ecstuning.com" && url.hostname !== "ecstuning.com") {
     throw new Error(`Product URL is not on the ECS Tuning public host: ${value}`);
   }
-  url.hostname = "www.ecstuning.com";
+  url.hostname = ECS_HOST;
   url.hash = "";
   url.search = "";
   url.pathname = url.pathname.replace(/\/{2,}/g, "/");
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (
+    segments.length < 3 ||
+    !/^b-[a-z0-9][a-z0-9-]*-parts$/i.test(segments[0]) ||
+    segments.slice(1).some((segment) => !segment || segment === "." || segment === "..")
+  ) {
+    throw new Error(`Product URL does not use an ECS public product path: ${value}`);
+  }
   if (!url.pathname.endsWith("/")) url.pathname += "/";
   return url.href;
 }
@@ -319,10 +345,113 @@ export function normalizeManualRecord(record, { sourceUrl, checkedAt }) {
   return normalized;
 }
 
+function isPlainObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function findForbiddenKeys(value, currentPath = "record", errors = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => findForbiddenKeys(item, `${currentPath}[${index}]`, errors));
+    return errors;
+  }
+  if (!value || typeof value !== "object") return errors;
+  for (const [key, child] of Object.entries(value)) {
+    const fieldPath = `${currentPath}.${key}`;
+    if (FORBIDDEN_KEY.test(key)) errors.push(`Forbidden field: ${fieldPath}`);
+    findForbiddenKeys(child, fieldPath, errors);
+  }
+  return errors;
+}
+
+export function validateManualRecordInput(record) {
+  const errors = [];
+  if (!isPlainObject(record)) return ["Manual record must be a JSON object"];
+  findForbiddenKeys(record, "record", errors);
+  for (const key of Object.keys(record)) {
+    if (!ALLOWED_PRODUCT_KEYS.has(key)) errors.push(`Unexpected manual field: record.${key}`);
+  }
+  if ("schemaVersion" in record && record.schemaVersion !== SCHEMA_VERSION) {
+    errors.push(`record.schemaVersion must be ${SCHEMA_VERSION}`);
+  }
+  if ("supplier" in record && record.supplier !== "ECS Tuning") {
+    errors.push("record.supplier must be ECS Tuning");
+  }
+  for (const field of [
+    "title",
+    "brand",
+    "ecsSku",
+    "manufacturerMpn",
+    "publicAvailability",
+    "sourceUrl",
+    "checkedAt",
+    "category"
+  ]) {
+    if (field in record && typeof record[field] !== "string") {
+      errors.push(`record.${field} must be a string`);
+    }
+  }
+  if ("publicPrice" in record) {
+    if (!isPlainObject(record.publicPrice)) {
+      errors.push("record.publicPrice must be an object");
+    } else {
+      for (const key of Object.keys(record.publicPrice)) {
+        if (!ALLOWED_PRICE_KEYS.has(key)) {
+          errors.push(`Unexpected manual field: record.publicPrice.${key}`);
+        }
+      }
+      if ("amount" in record.publicPrice && typeof record.publicPrice.amount !== "number") {
+        errors.push("record.publicPrice.amount must be a number");
+      }
+      for (const field of ["currency", "display"]) {
+        if (field in record.publicPrice && typeof record.publicPrice[field] !== "string") {
+          errors.push(`record.publicPrice.${field} must be a string`);
+        }
+      }
+    }
+  }
+  for (const field of ["imageUrls", "fitment"]) {
+    if (field in record) {
+      if (!Array.isArray(record[field])) {
+        errors.push(`record.${field} must be an array`);
+      } else {
+        record[field].forEach((value, index) => {
+          if (typeof value !== "string") errors.push(`record.${field}[${index}] must be a string`);
+        });
+      }
+    }
+  }
+  return [...new Set(errors)];
+}
+
+function parseCollectedAt(value, { required = false, at = new Date() } = {}) {
+  if ((value === undefined || value === null || value === "") && required) {
+    throw new Error("collectedAt is required for every offline manifest entry");
+  }
+  const candidate = value ?? at;
+  if (typeof candidate !== "string" && !(candidate instanceof Date) && typeof candidate !== "number") {
+    throw new Error("collectedAt must be an ISO date-time");
+  }
+  if (typeof candidate === "string" && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(candidate)) {
+    throw new Error("collectedAt must be an ISO date-time with a timezone");
+  }
+  const parsed = new Date(candidate);
+  if (!Number.isFinite(parsed.getTime())) throw new Error("collectedAt must be a valid ISO date-time");
+  const reference = at instanceof Date ? at : new Date(at);
+  if (!Number.isFinite(reference.getTime())) throw new Error("The ingestion clock returned an invalid date");
+  if (parsed.getTime() > reference.getTime() + MAX_FUTURE_CLOCK_SKEW_MS) {
+    throw new Error("collectedAt cannot be more than five minutes in the future");
+  }
+  return parsed.toISOString();
+}
+
 function validateHttpsUrl(value, label, errors, allowedHosts = null) {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") errors.push(`${label} must use HTTPS`);
+    if (url.username || url.password) errors.push(`${label} must not contain credentials`);
+    if (url.port) errors.push(`${label} must use the default HTTPS port`);
     if (allowedHosts && !allowedHosts.has(url.hostname.toLowerCase())) {
       errors.push(`${label} uses an unapproved host: ${url.hostname}`);
     }
@@ -349,9 +478,8 @@ export function validateProduct(record) {
   if (!record.publicPrice || typeof record.publicPrice !== "object") {
     errors.push("publicPrice is required");
   } else {
-    const allowedPriceKeys = new Set(["amount", "currency", "display"]);
     for (const key of Object.keys(record.publicPrice)) {
-      if (!allowedPriceKeys.has(key)) errors.push(`Unexpected publicPrice field: ${key}`);
+      if (!ALLOWED_PRICE_KEYS.has(key)) errors.push(`Unexpected publicPrice field: ${key}`);
       if (FORBIDDEN_KEY.test(key)) errors.push(`Forbidden publicPrice field: ${key}`);
     }
     if (!Number.isFinite(record.publicPrice.amount) || record.publicPrice.amount < 0) {
@@ -362,8 +490,16 @@ export function validateProduct(record) {
       errors.push("publicPrice.display does not match the public USD amount");
     }
   }
-  validateHttpsUrl(record.sourceUrl, "sourceUrl", errors, new Set(["www.ecstuning.com"]));
-  if (!Number.isFinite(Date.parse(record.checkedAt))) errors.push("checkedAt must be an ISO timestamp");
+  try {
+    canonicalizeProductUrl(record.sourceUrl);
+  } catch (error) {
+    errors.push(String(error?.message ?? error).replace(/^Product URL/, "sourceUrl"));
+  }
+  try {
+    parseCollectedAt(record.checkedAt, { required: true });
+  } catch (error) {
+    errors.push(String(error?.message ?? error).replace(/^collectedAt/, "checkedAt"));
+  }
   if (!Array.isArray(record.imageUrls) || record.imageUrls.length === 0) {
     errors.push("imageUrls must contain at least one image");
   } else {
@@ -424,8 +560,55 @@ function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+async function writeImmutableSnapshot(rawDir, { checkedAt, urlKey, extension, contents }) {
+  const buffer = Buffer.isBuffer(contents) ? contents : Buffer.from(String(contents), "utf8");
+  const contentHash = sha256(buffer);
+  const snapshotName = `${safeTimestamp(checkedAt)}-${urlKey.slice(0, 16)}-${contentHash}.${extension}`;
+  const snapshotPath = path.join(rawDir, snapshotName);
+  try {
+    await writeFile(snapshotPath, buffer, { flag: "wx" });
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error;
+    const existing = await readFile(snapshotPath);
+    if (!existing.equals(buffer)) {
+      throw new Error(`Immutable raw snapshot collision detected: ${snapshotName}`);
+    }
+  }
+  return snapshotPath;
+}
+
 function safeTimestamp(value) {
   return new Date(value).toISOString().replace(/[:.]/g, "-");
+}
+
+function optionInteger(value, name, { minimum, maximum }) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${name} must be an integer from ${minimum} to ${maximum}`);
+  }
+  return parsed;
+}
+
+function nowDate(now) {
+  const value = typeof now === "function" ? now() : new Date();
+  const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (!Number.isFinite(parsed.getTime())) throw new Error("The ingestion clock returned an invalid date");
+  return parsed;
+}
+
+async function resolveSnapshotWithinRoot(snapshotPath, snapshotRoot) {
+  if (!snapshotRoot) {
+    throw new Error("snapshotRoot is required when a manifest entry uses snapshotPath");
+  }
+  const [resolvedRoot, resolvedSnapshot] = await Promise.all([
+    realpath(path.resolve(snapshotRoot)),
+    realpath(path.resolve(snapshotPath))
+  ]);
+  const relative = path.relative(resolvedRoot, resolvedSnapshot);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("snapshotPath must stay inside the manifest snapshot root");
+  }
+  return resolvedSnapshot;
 }
 
 function newerRecord(left, right) {
@@ -450,28 +633,46 @@ function dedupeRecords(records) {
 
 export function validateAutomationAuthorization(value, entries, at = new Date()) {
   const errors = [];
-  if (!value || typeof value !== "object") return ["Authorization file must contain a JSON object"];
+  if (!isPlainObject(value)) return ["Authorization file must contain a JSON object"];
+  findForbiddenKeys(value, "authorization", errors);
+  for (const key of Object.keys(value)) {
+    if (!ALLOWED_AUTHORIZATION_KEYS.has(key)) errors.push(`Unexpected authorization field: ${key}`);
+  }
   if (value.acknowledgement !== AUTOMATION_ACKNOWLEDGEMENT) {
     errors.push("The exact automated-access acknowledgement is missing");
   }
   if (typeof value.grantedBy !== "string" || !value.grantedBy.trim()) {
     errors.push("grantedBy is required");
   }
-  if (typeof value.permissionReference !== "string" || !value.permissionReference.trim()) {
-    errors.push("permissionReference is required");
+  if (
+    typeof value.permissionReference !== "string" ||
+    value.permissionReference.trim().length < 8 ||
+    value.permissionReference.length > 500 ||
+    !/^(?:email|file|https|document):[^\r\n]+$/i.test(value.permissionReference.trim())
+  ) {
+    errors.push("permissionReference must identify the retained written grant using email:, file:, https: or document:");
   }
-  if (!Array.isArray(value.allowedHosts) || !value.allowedHosts.includes("www.ecstuning.com")) {
-    errors.push("allowedHosts must explicitly include www.ecstuning.com");
+  if (typeof value.reviewedBy !== "string" || !value.reviewedBy.trim()) {
+    errors.push("reviewedBy is required to confirm a human reviewed the written grant");
   }
-  if (!Number.isFinite(Date.parse(value.validUntil)) || Date.parse(value.validUntil) < at.getTime()) {
+  const referenceTime = at instanceof Date ? at : new Date(at);
+  if (!Number.isFinite(referenceTime.getTime())) return ["Authorization validation time is invalid"];
+  if (!Array.isArray(value.allowedHosts) || value.allowedHosts.length !== 1 || value.allowedHosts[0] !== ECS_HOST) {
+    errors.push(`allowedHosts must contain only ${ECS_HOST}`);
+  }
+  const isoDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+  if (!isoDateTime.test(value.reviewedAt ?? "") || !Number.isFinite(Date.parse(value.reviewedAt)) || Date.parse(value.reviewedAt) > referenceTime.getTime() + MAX_FUTURE_CLOCK_SKEW_MS) {
+    errors.push("reviewedAt must be a valid ISO timestamp that is not in the future");
+  }
+  if (!isoDateTime.test(value.validUntil ?? "") || !Number.isFinite(Date.parse(value.validUntil)) || Date.parse(value.validUntil) < referenceTime.getTime()) {
     errors.push("validUntil must be a future ISO timestamp");
   }
-  for (const entry of entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    errors.push("At least one authorized manifest entry is required");
+  }
+  for (const entry of Array.isArray(entries) ? entries : []) {
     try {
-      const host = new URL(entry.sourceUrl).hostname.toLowerCase();
-      if (!value.allowedHosts?.includes(host) && !(host === "ecstuning.com" && value.allowedHosts?.includes("www.ecstuning.com"))) {
-        errors.push(`Authorization does not include host: ${host}`);
-      }
+      canonicalizeProductUrl(entry.sourceUrl);
     } catch {
       errors.push(`Invalid authorized URL: ${entry.sourceUrl}`);
     }
@@ -479,15 +680,61 @@ export function validateAutomationAuthorization(value, entries, at = new Date())
   return [...new Set(errors)];
 }
 
+class PermanentFetchError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PermanentFetchError";
+    this.permanent = true;
+  }
+}
+
+async function responseTextWithinLimit(response, maximumBytes) {
+  const contentLength = Number(response.headers?.get?.("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
+    throw new PermanentFetchError(`Response exceeds the ${maximumBytes}-byte limit`);
+  }
+  if (response.body?.getReader) {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > maximumBytes) {
+        await reader.cancel("Response too large").catch(() => {});
+        throw new PermanentFetchError(`Response exceeds the ${maximumBytes}-byte limit`);
+      }
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks, total).toString("utf8");
+  }
+  const text = await response.text();
+  if (Buffer.byteLength(text, "utf8") > maximumBytes) {
+    throw new PermanentFetchError(`Response exceeds the ${maximumBytes}-byte limit`);
+  }
+  return text;
+}
+
 export async function fetchWithRetry(url, options = {}) {
-  const retries = Math.max(0, Math.min(5, Number(options.retries ?? 3)));
-  const timeoutMs = Math.max(1_000, Number(options.timeoutMs ?? 30_000));
+  const requestedUrl = canonicalizeProductUrl(url);
+  const retries = optionInteger(options.retries ?? 3, "retries", { minimum: 0, maximum: 5 });
+  const timeoutMs = optionInteger(options.timeoutMs ?? 30_000, "timeoutMs", { minimum: 1_000, maximum: 120_000 });
+  const maximumBytes = optionInteger(options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES, "maxResponseBytes", {
+    minimum: 1_024,
+    maximum: 10 * 1024 * 1024
+  });
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  const sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  if (typeof fetchImpl !== "function") throw new Error("fetchImpl must be a function");
+  if (typeof sleep !== "function") throw new Error("sleep must be a function");
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, {
+      const response = await fetchImpl(requestedUrl, {
         headers: {
           accept: "text/html,application/xhtml+xml",
           "user-agent": "ProjxRacingAuthorizedCatalogueIngest/1.0"
@@ -495,19 +742,32 @@ export async function fetchWithRetry(url, options = {}) {
         redirect: "follow",
         signal: controller.signal
       });
-      if (response.ok) return await response.text();
-      if (response.status !== 429 && response.status < 500) {
-        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        try {
+          canonicalizeProductUrl(response.url || requestedUrl);
+        } catch (error) {
+          throw new PermanentFetchError(`Final response URL is not an approved ECS product URL: ${error.message}`);
+        }
+        const contentType = String(response.headers?.get?.("content-type") ?? "").toLowerCase();
+        if (!/^(?:text\/html|application\/xhtml\+xml)(?:\s*;|$)/.test(contentType)) {
+          throw new PermanentFetchError(`Response content type is not HTML: ${contentType || "missing"}`);
+        }
+        return await responseTextWithinLimit(response, maximumBytes);
       }
-      lastError = new Error(`HTTP ${response.status} ${response.statusText}`);
+      const message = `HTTP ${response.status} ${response.statusText}`.trim();
+      if (response.status !== 408 && response.status !== 429 && response.status < 500) {
+        throw new PermanentFetchError(message);
+      }
+      lastError = new Error(message);
     } catch (error) {
+      if (error?.permanent) throw error;
       lastError = error;
     } finally {
       clearTimeout(timeout);
     }
     if (attempt < retries) {
       const waitMs = Math.min(60_000, 1_000 * 2 ** attempt);
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      await sleep(waitMs);
     }
   }
   throw lastError;
@@ -521,9 +781,24 @@ export async function runIngestion({
   rateLimitMs = 5_000,
   retries = 3,
   timeoutMs = 30_000,
-  refresh = false
+  maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
+  refresh = false,
+  snapshotRoot = null,
+  fetchImpl = globalThis.fetch,
+  sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  now = () => new Date()
 }) {
   if (!Array.isArray(entries) || entries.length === 0) throw new Error("At least one manifest entry is required");
+  const validatedRateLimitMs = optionInteger(rateLimitMs, "rateLimitMs", { minimum: 2_000, maximum: 300_000 });
+  const validatedRetries = optionInteger(retries, "retries", { minimum: 0, maximum: 5 });
+  const validatedTimeoutMs = optionInteger(timeoutMs, "timeoutMs", { minimum: 1_000, maximum: 120_000 });
+  const validatedMaximumBytes = optionInteger(maxResponseBytes, "maxResponseBytes", {
+    minimum: 1_024,
+    maximum: 10 * 1024 * 1024
+  });
+  if (typeof sleep !== "function") throw new Error("sleep must be a function");
+  if (typeof now !== "function") throw new Error("now must be a function");
+  const runStartedAt = nowDate(now);
   const normalizedOutput = path.resolve(outputDir);
   const rawDir = path.join(normalizedOutput, "raw");
   const statePath = path.join(normalizedOutput, "checkpoint.json");
@@ -532,69 +807,117 @@ export async function runIngestion({
   await mkdir(rawDir, { recursive: true });
 
   if (fetchMode) {
-    const authErrors = validateAutomationAuthorization(authorization, entries);
+    if (typeof fetchImpl !== "function") throw new Error("fetchImpl must be a function");
+    const authErrors = validateAutomationAuthorization(authorization, entries, runStartedAt);
     if (authErrors.length) throw new Error(`Automated access is not authorized:\n- ${authErrors.join("\n- ")}`);
   }
 
   const state = await readJsonIfPresent(statePath, {
     schemaVersion: 1,
-    startedAt: new Date().toISOString(),
+    startedAt: runStartedAt.toISOString(),
     updatedAt: null,
     items: {}
   });
   const existingCatalog = await readJsonIfPresent(catalogPath, { products: [] });
   const collected = Array.isArray(existingCatalog.products) ? [...existingCatalog.products] : [];
   const summary = { completed: 0, skipped: 0, failed: 0, deduplicated: 0 };
-  let lastNetworkRequestAt = 0;
+  let lastNetworkRequestAt = null;
 
-  for (const entry of entries) {
-    const canonicalUrl = canonicalizeProductUrl(entry.sourceUrl);
-    const key = sha256(canonicalUrl);
-    if (!refresh && state.items[key]?.status === "completed") {
-      summary.skipped += 1;
-      continue;
-    }
-
-    const checkedAt = new Date(entry.collectedAt ?? new Date()).toISOString();
-    state.items[key] = {
-      sourceUrl: canonicalUrl,
-      status: "processing",
-      attempts: Number(state.items[key]?.attempts ?? 0) + 1,
-      updatedAt: new Date().toISOString(),
-      error: null,
-      rawSnapshot: state.items[key]?.rawSnapshot ?? null,
-      ecsSku: state.items[key]?.ecsSku ?? null
-    };
-    state.updatedAt = new Date().toISOString();
-    await writeJsonAtomic(statePath, state);
-
+  for (const [entryIndex, entry] of entries.entries()) {
+    const rawSourceUrl = entry && typeof entry === "object" ? entry.sourceUrl : "";
+    let key = sha256(`manifest-entry:${entryIndex}:${String(rawSourceUrl)}`);
+    let canonicalUrl = String(rawSourceUrl || "");
     try {
+      if (!isPlainObject(entry)) throw new Error("Manifest entry must be a JSON object");
+      canonicalUrl = canonicalizeProductUrl(entry.sourceUrl);
+      key = sha256(canonicalUrl);
+      const checkedAt = parseCollectedAt(entry.collectedAt, {
+        required: !fetchMode,
+        at: nowDate(now)
+      });
+      const priorState = state.items[key];
+      const durableMatch = priorState?.ecsSku
+        ? collected.some(
+            (record) =>
+              validateProduct(record).length === 0 &&
+              (record.ecsSku === priorState.ecsSku || record.sourceUrl === canonicalUrl)
+          )
+        : false;
+      if (!refresh && priorState?.status === "completed" && durableMatch) {
+        summary.skipped += 1;
+        continue;
+      }
+
+      const processingAt = nowDate(now).toISOString();
+      state.items[key] = {
+        sourceUrl: canonicalUrl,
+        status: "processing",
+        attempts: Number(priorState?.attempts ?? 0) + 1,
+        updatedAt: processingAt,
+        error: null,
+        rawSnapshot: priorState?.rawSnapshot ?? null,
+        ecsSku: priorState?.ecsSku ?? null
+      };
+      state.updatedAt = processingAt;
+      await writeJsonAtomic(statePath, state);
+
       let record;
       let rawPath;
       if (entry.record && typeof entry.record === "object") {
+        const manualErrors = validateManualRecordInput(entry.record);
+        if (manualErrors.length) throw new Error(`Manual record validation failed:\n- ${manualErrors.join("\n- ")}`);
         record = normalizeManualRecord(entry.record, { sourceUrl: canonicalUrl, checkedAt });
-        rawPath = path.join(rawDir, `${safeTimestamp(checkedAt)}-${key}.json`);
-        await writeJsonAtomic(rawPath, entry.record);
+        const recordErrors = validateProduct(record);
+        if (recordErrors.length) throw new Error(`Product validation failed:\n- ${recordErrors.join("\n- ")}`);
+        rawPath = await writeImmutableSnapshot(rawDir, {
+          checkedAt,
+          urlKey: key,
+          extension: "json",
+          contents: `${JSON.stringify(entry.record, null, 2)}\n`
+        });
       } else {
         let html;
         if (entry.snapshotPath) {
-          const sourcePath = path.resolve(entry.snapshotPath);
-          html = await readFile(sourcePath, "utf8");
-          rawPath = path.join(rawDir, `${safeTimestamp(checkedAt)}-${key}.html`);
-          await copyFile(sourcePath, rawPath);
+          const sourcePath = await resolveSnapshotWithinRoot(entry.snapshotPath, snapshotRoot);
+          const snapshot = await readFile(sourcePath);
+          html = snapshot.toString("utf8");
+          rawPath = await writeImmutableSnapshot(rawDir, {
+            checkedAt,
+            urlKey: key,
+            extension: "html",
+            contents: snapshot
+          });
         } else {
           if (!fetchMode) {
             throw new Error("Entry needs snapshotPath or record unless the separately authorized --fetch mode is enabled");
           }
-          const elapsed = Date.now() - lastNetworkRequestAt;
-          const minimumDelay = Math.max(2_000, Number(rateLimitMs));
-          if (elapsed < minimumDelay) {
-            await new Promise((resolve) => setTimeout(resolve, minimumDelay - elapsed));
+          const requestAuthorizationErrors = validateAutomationAuthorization(
+            authorization,
+            [entry],
+            nowDate(now)
+          );
+          if (requestAuthorizationErrors.length) {
+            throw new Error(`Automated access is no longer authorized:\n- ${requestAuthorizationErrors.join("\n- ")}`);
           }
-          html = await fetchWithRetry(canonicalUrl, { retries, timeoutMs });
-          lastNetworkRequestAt = Date.now();
-          rawPath = path.join(rawDir, `${safeTimestamp(checkedAt)}-${key}.html`);
-          await writeFile(rawPath, html, "utf8");
+          const requestAt = nowDate(now).getTime();
+          if (lastNetworkRequestAt !== null) {
+            const elapsed = requestAt - lastNetworkRequestAt;
+            if (elapsed < validatedRateLimitMs) await sleep(validatedRateLimitMs - elapsed);
+          }
+          html = await fetchWithRetry(canonicalUrl, {
+            retries: validatedRetries,
+            timeoutMs: validatedTimeoutMs,
+            maxResponseBytes: validatedMaximumBytes,
+            fetchImpl,
+            sleep
+          });
+          lastNetworkRequestAt = nowDate(now).getTime();
+          rawPath = await writeImmutableSnapshot(rawDir, {
+            checkedAt,
+            urlKey: key,
+            extension: "html",
+            contents: html
+          });
         }
         record = parseProductHtml(html, { sourceUrl: canonicalUrl, checkedAt });
       }
@@ -605,21 +928,25 @@ export async function runIngestion({
       state.items[key] = {
         ...state.items[key],
         status: "completed",
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowDate(now).toISOString(),
         rawSnapshot: path.relative(normalizedOutput, rawPath).replace(/\\/g, "/"),
         ecsSku: record.ecsSku
       };
       summary.completed += 1;
     } catch (error) {
+      const failedWhileProcessing = state.items[key]?.status === "processing";
+      const previousAttempts = Number(state.items[key]?.attempts ?? 0);
       state.items[key] = {
         ...state.items[key],
+        sourceUrl: canonicalUrl,
         status: "failed",
-        updatedAt: new Date().toISOString(),
+        attempts: Math.max(1, failedWhileProcessing ? previousAttempts : previousAttempts + 1),
+        updatedAt: nowDate(now).toISOString(),
         error: String(error?.message ?? error)
       };
       summary.failed += 1;
     }
-    state.updatedAt = new Date().toISOString();
+    state.updatedAt = nowDate(now).toISOString();
     await writeJsonAtomic(statePath, state);
   }
 
@@ -629,7 +956,7 @@ export async function runIngestion({
   const catalog = {
     schemaVersion: SCHEMA_VERSION,
     supplier: "ECS Tuning",
-    generatedAt: new Date().toISOString(),
+    generatedAt: nowDate(now).toISOString(),
     productCount: products.length,
     products
   };

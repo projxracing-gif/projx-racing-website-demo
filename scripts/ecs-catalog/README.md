@@ -10,17 +10,30 @@ The supplier permission currently on file authorizes **manual copying**. It does
 - allowlisted manual JSON records; or
 - a supplier-provided export, converted into manifest records.
 
-Do not use `--fetch` unless ECS Tuning provides a new written grant that explicitly permits automated access. Network mode requires a separate authorization JSON file, an exact acknowledgement, the approved host, the grantor, a permission reference and a future expiry. The included example is intentionally invalid and cannot unlock network access by itself.
+Do not use `--fetch` unless ECS Tuning provides a new written grant that explicitly permits automated access. The authorization file is only a safety gate; creating or filling it in does not itself create permission.
+
+Network mode requires all of the following:
+
+- the exact acknowledgement printed by `--help`;
+- the person at ECS who granted automated access;
+- a retained evidence reference beginning with `email:`, `file:`, `https:` or `document:`;
+- the Projx person who reviewed the grant and the review time;
+- only `www.ecstuning.com` in `allowedHosts`; and
+- a future expiry time.
+
+Only the documented authorization keys are accepted. A human must review the written grant before network mode is enabled.
 
 No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT, credential or private customer data belongs in any manifest, snapshot or normalized product.
 
 ## Offline manifest
 
+Every offline entry must include a real `collectedAt` ISO date-time with a timezone. Dates more than five minutes in the future are rejected. A bad timestamp fails only that entry, so the remaining batch can still finish.
+
 ```json
 {
   "entries": [
     {
-      "sourceUrl": "https://www.ecstuning.com/b-brand-parts/example/example/",
+      "sourceUrl": "https://www.ecstuning.com/b-brand-parts/example/example~brand/",
       "snapshotPath": "snapshots/example.html",
       "collectedAt": "2026-08-04T09:30:00.000Z",
       "collectionMethod": "manual-public-page"
@@ -29,11 +42,13 @@ No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT
 }
 ```
 
-`snapshotPath` is resolved relative to the manifest. A manually prepared entry can instead contain a `record` object with only the normalized public fields demonstrated in `lib.mjs`.
+`snapshotPath` is resolved relative to the manifest and, after resolving links, must remain inside the manifest's folder. This prevents a supplied manifest from reading unrelated local or network files. A manually prepared entry can instead contain a `record` object with only the normalized public fields demonstrated in `lib.mjs`. Unknown or sensitive field names are rejected recursively before the raw manual record is written.
+
+Source URLs must use HTTPS, the default HTTPS port, no embedded credentials, an ECS public host and an ECS product path beginning with `/b-…-parts/`. Search, account and category-only URLs are rejected.
 
 ## Run
 
-Use the Node 24 runtime configured for this project:
+Use the Node runtime configured for this project:
 
 ```text
 node scripts/ecs-catalog/ingest.mjs \
@@ -41,19 +56,30 @@ node scripts/ecs-catalog/ingest.mjs \
   --output private-imports/ecs-catalog-review
 ```
 
-If the output is inside this repository, the command accepts only the ignored
-`private-imports/` area. An external review directory is also allowed. This
-prevents raw snapshots, checkpoints or supplier review data from being added to
-Git accidentally.
+If the output is inside this repository, it must stay under the ignored `private-imports/` area. An external review directory is also allowed. This prevents raw snapshots, checkpoints or supplier review data from being added to Git accidentally.
 
 The output directory contains:
 
-- `checkpoint.json` — per-URL processing state, attempts, failures and resume information;
-- `raw/` — immutable-by-convention timestamped copies of the input snapshot or manual record;
+- `checkpoint.json` — per-URL state, attempts, failures and resume information;
+- `raw/` — immutable snapshots whose names include the full content SHA-256 hash;
 - `catalog.json` — normalized, ECS-SKU/URL-deduplicated public product records;
 - `validation.json` — field, URL, currency and duplicate checks.
 
-Run the same command again to resume. Completed URLs are skipped. Failed entries are retried. Use `--refresh` only when intentionally collecting a newer public snapshot.
+Run the same command again to resume. A completed checkpoint is skipped only when its product is still present and valid in the durable catalogue. If the catalogue record is missing, the entry is reprocessed. Failed entries are retried. Use `--refresh` only when intentionally collecting a newer public snapshot.
+
+## Authorized network safeguards
+
+When a valid written grant exists, `--fetch` additionally enforces:
+
+- a minimum two-second request interval;
+- authorization revalidation immediately before every request;
+- bounded retry, timeout and response-size options;
+- retries only for network errors, HTTP 408, 429 and 5xx responses;
+- final redirect validation back to an approved ECS product URL;
+- HTML/XHTML content types; and
+- a default maximum response size of 5 MiB (configurable from 1 KiB to 10 MiB).
+
+Invalid numeric options are rejected rather than silently clamped.
 
 ## Normalized record
 
@@ -76,4 +102,4 @@ Unexpected fields are rejected. Sensitive or non-public field names—including 
 node --test scripts/ecs-catalog/test.mjs
 ```
 
-The fixtures exercise parsing, canonical URLs, sensitive-field rejection, the automated-access gate, raw snapshot retention, checkpoint/resume and ECS-SKU deduplication without contacting ECS Tuning.
+The tests use local fixtures and injected network responses. They do not contact ECS Tuning.

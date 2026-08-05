@@ -38,6 +38,7 @@ Options:
   --rate-ms <milliseconds>     Minimum delay between requests (minimum 2000; default 5000)
   --retries <count>            Retry count for 429/5xx/network errors (maximum 5; default 3)
   --timeout-ms <milliseconds>  Per-request timeout (default 30000)
+  --max-response-bytes <bytes> Maximum fetched HTML size (1 KiB-10 MiB; default 5 MiB)
   --refresh                    Reprocess entries already completed in the checkpoint
   --help                       Show this help
 
@@ -70,23 +71,29 @@ async function loadManifest(filePath) {
   const absolutePath = path.resolve(filePath);
   const contents = await readFile(absolutePath, "utf8");
   if (path.extname(absolutePath).toLowerCase() === ".txt") {
-    return contents
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#"))
-      .map((sourceUrl) => ({ sourceUrl }));
+    return {
+      snapshotRoot: path.dirname(absolutePath),
+      entries: contents
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"))
+        .map((sourceUrl) => ({ sourceUrl }))
+    };
   }
   const manifest = JSON.parse(contents);
   const entries = Array.isArray(manifest) ? manifest : manifest.entries;
   if (!Array.isArray(entries)) throw new Error("Manifest JSON must be an array or contain an entries array");
-  return entries.map((entry) => {
-    if (typeof entry === "string") return { sourceUrl: entry };
-    const normalized = { ...entry };
-    if (normalized.snapshotPath) {
-      normalized.snapshotPath = path.resolve(path.dirname(absolutePath), normalized.snapshotPath);
-    }
-    return normalized;
-  });
+  return {
+    snapshotRoot: path.dirname(absolutePath),
+    entries: entries.map((entry) => {
+      if (typeof entry === "string") return { sourceUrl: entry };
+      const normalized = { ...entry };
+      if (normalized.snapshotPath) {
+        normalized.snapshotPath = path.resolve(path.dirname(absolutePath), normalized.snapshotPath);
+      }
+      return normalized;
+    })
+  };
 }
 
 async function main() {
@@ -99,7 +106,7 @@ async function main() {
   if (!outputPathIsSafe(options.output)) {
     throw new Error("Catalogue review output inside this repository must stay under ignored private-imports/. Use an external directory or private-imports/ecs-catalog-review.");
   }
-  const entries = await loadManifest(options.manifest);
+  const { entries, snapshotRoot } = await loadManifest(options.manifest);
   let authorization = null;
   if (options.fetch) {
     if (!options["authorization-file"]) {
@@ -118,7 +125,9 @@ async function main() {
     rateLimitMs: Number(options["rate-ms"] ?? 5_000),
     retries: Number(options.retries ?? 3),
     timeoutMs: Number(options["timeout-ms"] ?? 30_000),
-    refresh: Boolean(options.refresh)
+    maxResponseBytes: Number(options["max-response-bytes"] ?? 5 * 1024 * 1024),
+    refresh: Boolean(options.refresh),
+    snapshotRoot
   });
   process.stdout.write(`${JSON.stringify({ summary: result.summary, validation: {
     valid: result.validation.valid,

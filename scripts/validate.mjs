@@ -9,6 +9,11 @@ const dist = path.join(repo, 'dist');
 const failures = [];
 const warnings = [];
 const assert = (condition, message) => { if (!condition) failures.push(message); };
+const isIsoDate = value => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
 
 function filesRecursive(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -340,6 +345,14 @@ assert(data.brands.length >= 44, `Expected at least 44 brand records; found ${da
 assert(Array.isArray(data.storeProducts), 'Verified store-products model is missing.');
 assert(Array.isArray(ecsProducts) && ecsProducts.length > 0, 'Manual ECS product collection is missing or empty.');
 assert(!Object.hasOwn(data, 'engineProducts'), 'Removed engine-product catalogue remains in data.js.');
+assert(translations.en?.ui?.nav?.parts === 'Performance Parts', 'English catalogue card label must remain Performance Parts.');
+assert(translations.ar?.ui?.nav?.parts === 'قطع الأداء', 'Arabic catalogue card label must remain قطع الأداء.');
+assert(appSource.includes('${esc(U().nav.parts)} · '), 'Product cards and details must use the localized Performance Parts label.');
+assert(appSource.includes('storeProductPriceCheckIsFresh(product)')
+  && appSource.includes('storeProductStockCheckIsFresh(product)'), 'Independent manual price and stock freshness checks are missing.');
+assert(appSource.includes('const observedAvailability = storeProductStockCheckIsFresh(product)')
+  && appSource.includes('!storeProductPriceCheckIsFresh(product) ? "quote" : "published"'), 'Stale stock or price data can still leak into catalogue cards.');
+assert(stylesSource.includes('.parts-paths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));'), 'The three parts pathways are not using three desktop columns.');
 
 const catalogueSlugs = new Set();
 const ecsPartNumbers = new Set();
@@ -361,11 +374,11 @@ for (const product of data.storeProducts) {
     assert(String(product[field] || '').trim(), `${product.slug}: missing ${field}.`);
   }
   for (const privateField of ['sourceUrl', 'sourceCurrency', 'sourceRrp', 'vatIncluded', 'imageProvenance', 'tradeCost', 'wholesalePrice']) assert(!Object.hasOwn(product, privateField), `${product.slug}: private supplier field exposed in public data: ${privateField}.`);
-  assert(/^\d{4}-\d{2}-\d{2}$/.test(product.checkedAt || ''), `${product.slug}: missing source check date.`);
+  assert(isIsoDate(product.checkedAt), `${product.slug}: missing or invalid source check date.`);
   assert(['supplier-title-confirm', 'universal-confirm', 'verified'].includes(product.fitmentStatus), `${product.slug}: invalid fitment status.`);
   assert(Array.isArray(product.fitments) && product.fitments.length > 0, `${product.slug}: structured fitment is missing.`);
   assert(product.fitments?.every(fitment => fitment.make && fitment.model && fitment.generation && Array.isArray(fitment.engines) && fitment.engines.length), `${product.slug}: incomplete fitment record.`);
-  const hasVerifiedPrice = /^[A-Z]{3}$/.test(product.priceCurrency || '') && Number(product.priceAmount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(product.priceVerifiedAt || '');
+  const hasVerifiedPrice = /^[A-Z]{3}$/.test(product.priceCurrency || '') && Number(product.priceAmount) > 0 && isIsoDate(product.priceVerifiedAt);
   assert(product.quoteOnly === true || hasVerifiedPrice, `${product.slug}: use request-price state or a verified price in the supplier's original currency.`);
   if (hasVerifiedPrice) assert(String(product.priceNote || '').trim() && String(product.priceNoteAr || '').trim(), `${product.slug}: priced products need a bilingual currency and confirmation note.`);
   if (product.provider === 'ECS Tuning') {
@@ -374,6 +387,8 @@ for (const product of data.storeProducts) {
     ecsPartNumbers.add(product.ecsPartNumber);
     assert(product.stockPolicy === 'manual-confirm', `${product.slug}: ECS availability must remain confirmation-only without a stock feed.`);
     assert(Number.isInteger(product.staleAfterDays) && product.staleAfterDays === 7, `${product.slug}: ECS manual review must expire after seven days.`);
+    assert(isIsoDate(product.checkedAt), `${product.slug}: ECS stock review date is missing or invalid.`);
+    assert(isIsoDate(product.priceVerifiedAt), `${product.slug}: ECS price review date is missing or invalid.`);
     assert(String(product.observedAvailability || '').trim() && String(product.observedAvailabilityAr || '').trim(), `${product.slug}: bilingual manually observed supplier stock information is missing.`);
     assert(product.priceCurrency === 'USD', `${product.slug}: manually reviewed ECS prices must remain in USD.`);
     assert(!/(?:dealer|trade|wholesale|vat|tax)/i.test(product.priceNote || ''), `${product.slug}: public ECS price note exposes tax or dealer-pricing language.`);

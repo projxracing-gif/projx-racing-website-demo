@@ -959,22 +959,30 @@
   function storeProductPrice(product) {
     const amount = Number(product.priceAmount);
     const currency = String(product.priceCurrency || "").toUpperCase();
-    if (product.quoteOnly || !storeProductManualCheckIsFresh(product) || !Number.isFinite(amount) || !/^[A-Z]{3}$/.test(currency)) return storeText().requestPrice;
+    if (product.quoteOnly || !storeProductPriceCheckIsFresh(product) || !Number.isFinite(amount) || !/^[A-Z]{3}$/.test(currency)) return storeText().requestPrice;
     const locale = state.locale === "ar" ? "ar-KW" : (currency === "GBP" ? "en-GB" : "en-US");
     const formatted = new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
     return product.priceStartingAt ? `${storeText().startingAt} ${formatted}` : formatted;
   }
 
-  function storeProductManualCheckIsFresh(product) {
+  function storeProductManualFieldIsFresh(product, field) {
     if (product.stockPolicy !== "manual-confirm") return true;
-    const checkedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(product.checkedAt || "")) ? Date.parse(`${product.checkedAt}T00:00:00.000Z`) : NaN;
+    const verifiedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(product[field] || "")) ? Date.parse(`${product[field]}T00:00:00.000Z`) : NaN;
     const staleAfterDays = Math.min(30, Math.max(1, Number.parseInt(product.staleAfterDays, 10) || 7));
-    return Number.isFinite(checkedAt) && Date.now() < checkedAt + staleAfterDays * 86_400_000;
+    return Number.isFinite(verifiedAt) && Date.now() < verifiedAt + staleAfterDays * 86_400_000;
+  }
+
+  function storeProductPriceCheckIsFresh(product) {
+    return storeProductManualFieldIsFresh(product, "priceVerifiedAt");
+  }
+
+  function storeProductStockCheckIsFresh(product) {
+    return storeProductManualFieldIsFresh(product, "checkedAt");
   }
 
   function storeProductStatus(product, localizedProduct = localizedStoreProduct(product)) {
     if (product.stockPolicy !== "manual-confirm") return localizedProduct.status;
-    return storeProductManualCheckIsFresh(product) ? localizedProduct.status : storeText().manualStockStale;
+    return storeProductStockCheckIsFresh(product) ? localizedProduct.status : storeText().manualStockStale;
   }
 
   function productCard(product, index) {
@@ -983,17 +991,24 @@
     const provider = cleanText(local.provider || "", 80);
     const partNumber = cleanText(local.ecsPartNumber || local.sku || local.mpn || "", 120);
     const effectiveStatus = storeProductStatus(product, local);
-    const observedAvailability = cleanText(local.observedAvailability || "", 160);
-    const search = [local.title, local.category, local.subcategory, local.brand, provider, local.ecsPartNumber, local.sku, local.mpn, local.summary].join(" ").toLowerCase();
+    const observedAvailability = storeProductStockCheckIsFresh(product) ? cleanText(local.observedAvailability || "", 160) : "";
+    const search = [
+      product.title, product.titleAr, product.category, product.categoryAr, product.subcategory, product.subcategoryAr,
+      product.brand, provider, product.ecsPartNumber, product.sku, product.mpn, product.summary, product.summaryAr,
+      local.title, local.category, local.subcategory, local.summary
+    ].filter(Boolean).join(" ").toLowerCase();
     const fitment = fitmentMakes(product).map(normalizedBrandWords).flat().join("|");
-    const pricing = product.quoteOnly || !storeProductManualCheckIsFresh(product) ? "quote" : "published";
+    const pricing = product.quoteOnly || !storeProductPriceCheckIsFresh(product) ? "quote" : "published";
     const details = [provider, local.brand, partNumber].filter(Boolean).join(" • ");
     return `<article class="part-card store-product-card filter-item" data-item-type="product" data-category="${esc(local.category)}" data-brand="${esc(String(local.brand || "").toLowerCase())}" data-supplier="${esc(provider.toLowerCase())}" data-availability="${esc(effectiveStatus)}" data-pricing="${pricing}" data-fitment-mode="${esc(product.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${index}" data-search="${esc(search)}"><a class="part-media store-product-media" href="${routeUrl(`/parts/${local.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"><span>${statusBadge(effectiveStatus)}</span></a><div class="part-body"><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${local.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl>${provider ? `<div><dt>${esc(storeText().supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div><div><dt>${esc(storeText().skuMpn)}</dt><dd><bdi dir="ltr">${esc(partNumber)}</bdi></dd></div>${observedAvailability ? `<div><dt>${esc(storeText().supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}<div><dt>${esc(storeText().price)}</dt><dd>${esc(storeProductPrice(product))}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${local.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(details)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
   }
 
   function partCard(part, index) {
     const local = localizedPart(part, index);
-    const search = [local.title, local.category, local.brand, local.vehicle, local.summary].join(" ").toLowerCase();
+    const search = [
+      part.title, part.category, part.brand, part.vehicle, part.summary,
+      local.title, local.category, local.brand, local.vehicle, local.summary
+    ].filter(Boolean).join(" ").toLowerCase();
     const brandKeys = brandsForPart(part.brand).map(brand => brand.name.toLowerCase()).join("|");
     const fitment = fitmentMakes(part).map(normalizedBrandWords).flat().join("|");
     return `<article class="part-card quote-package-card filter-item" data-item-type="package" data-category="${esc(local.category)}" data-brand="${esc(brandKeys)}" data-availability="${esc(local.status)}" data-pricing="quote" data-fitment-mode="${esc(part.fitmentStatus)}" data-fitment-makes="${esc(fitment)}" data-sort-name="${esc(local.title.toLowerCase())}" data-sort-category="${esc(local.category.toLowerCase())}" data-sort-brand="${esc(String(local.brand || "").toLowerCase())}" data-sort-index="${1000 + index}" data-search="${esc(search)}"><a class="part-media quote-package-media" href="${routeUrl(`/parts/${part.slug}`)}">${mediaImage(local.media, { thumb: true, className: "contain-img" })}<span>${statusBadge(local.status)}</span><small>${esc(storeText().contextImage)}</small></a><div class="part-body"><span class="mini-label">${esc(storeText().configuredPackage)} · ${esc(local.category)}</span><h3><a href="${routeUrl(`/parts/${part.slug}`)}">${esc(local.title)}</a></h3><p>${esc(local.summary)}</p><dl><div><dt>${esc(U().common.brand)}</dt><dd>${esc(local.brand)}</dd></div><div><dt>${esc(U().common.vehicle)}</dt><dd>${esc(local.vehicle)}</dd></div><div><dt>${esc(storeText().fitment)}</dt><dd>${esc(fitmentLabel(part))}</dd></div><div><dt>${esc(U().common.quotation)}</dt><dd>${esc(storeText().requestPrice)}</dd></div></dl><div class="card-footer"><a class="btn btn-sm" href="${routeUrl(`/parts/${part.slug}`)}">${esc(storeText().viewDetails)}${icons.arrow}</a><button class="icon-action" type="button" data-action="add-quote" data-id="package-${esc(part.slug)}" data-kind="Parts Package" data-title="${esc(local.title)}" data-details="${esc(`${local.brand} • ${local.vehicle}`)}" aria-label="${esc(`${storeText().addToQuote}: ${local.title}`)}">${icons.quote}</button></div></div></article>`;
@@ -1754,14 +1769,14 @@
     const provider = cleanText(local.provider || "", 80);
     const partNumber = cleanText(local.ecsPartNumber || local.sku || local.mpn || "", 120);
     const effectiveStatus = storeProductStatus(product, local);
-    const observedAvailability = cleanText(local.observedAvailability || "", 160);
+    const observedAvailability = storeProductStockCheckIsFresh(product) ? cleanText(local.observedAvailability || "", 160) : "";
     const checked = tegiwaCheckedLabel(local.checkedAt);
     const context = [local.title, provider, local.brand, partNumber, partsVehicleLabel()].filter(Boolean).join(" | ");
     return `<section class="section store-product-page"><div class="container">
       ${breadcrumbs([[U().nav.parts, "/parts"], [local.title]])}
       <div class="store-detail-layout">
         <figure class="store-detail-media store-product-detail-media"><img src="${esc(versionedAsset(image.src))}" width="${Number(image.width)}" height="${Number(image.height)}" alt="${esc(image.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure>
-        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(effectiveStatus)}</div><dl class="store-facts">${provider ? `<div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div>${local.ecsPartNumber ? `<div><dt>${esc(labels.ecsPartNumber)}</dt><dd><bdi dir="ltr">${esc(local.ecsPartNumber)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.skuMpn)}</dt><dd><bdi dir="ltr">${esc(local.mpn || local.sku || partNumber)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(effectiveStatus)}</dd></div>${observedAvailability ? `<div><dt>${esc(labels.supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}${checked ? `<div><dt>${esc(labels.lastChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><div class="store-price"><small>${esc(storeProductManualCheckIsFresh(product) ? (local.priceNote || U().common.quotation) : labels.manualStockStale)}</small><strong>${esc(storeProductPrice(product))}</strong></div>${local.stockPolicy === "manual-confirm" ? `<div class="notice notice-info">${icons.check}<span>${esc(labels.manualStockNotice)}</span></div>` : ""}<label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(context)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>${local.originalUrl ? `<a class="btn btn-outline" href="${esc(local.originalUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalListing)}${icons.arrow}</a>` : ""}</div></aside>
+        <aside class="store-detail-buy"><span class="eyebrow">${esc(labels.verifiedProducts)}</span><span class="mini-label">${provider ? `${esc(U().nav.parts)} · ` : ""}${esc(local.category)}</span><h1>${esc(local.title)}</h1><p>${esc(local.summary)}</p><div>${statusBadge(effectiveStatus)}</div><dl class="store-facts">${provider ? `<div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(provider)}</bdi></dd></div>` : ""}<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(local.brand)}</bdi></dd></div>${local.ecsPartNumber ? `<div><dt>${esc(labels.ecsPartNumber)}</dt><dd><bdi dir="ltr">${esc(local.ecsPartNumber)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.skuMpn)}</dt><dd><bdi dir="ltr">${esc(local.mpn || local.sku || partNumber)}</bdi></dd></div><div><dt>${esc(labels.fitment)}</dt><dd>${esc(fitmentLabel(product))}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(effectiveStatus)}</dd></div>${observedAvailability ? `<div><dt>${esc(labels.supplierListing)}</dt><dd>${esc(observedAvailability)}</dd></div>` : ""}${checked ? `<div><dt>${esc(labels.lastChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl><div class="store-price"><small>${esc(storeProductPriceCheckIsFresh(product) ? (local.priceNote || U().common.quotation) : labels.manualStockStale)}</small><strong>${esc(storeProductPrice(product))}</strong></div>${local.stockPolicy === "manual-confirm" ? `<div class="notice notice-info">${icons.check}<span>${esc(labels.manualStockNotice)}</span></div>` : ""}<label class="quantity-field"><span>${esc(labels.quantity)}</span><input class="input" data-quote-quantity type="number" min="1" max="99" value="1" inputmode="numeric"></label><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" data-id="product-${esc(local.slug)}" data-kind="Parts Product" data-title="${esc(local.title)}" data-sku="${esc(partNumber)}" data-details="${esc(context)}">${esc(labels.addToQuote)}${icons.quote}</button><button class="btn btn-outline" type="button" data-action="open-form" data-form-type="Parts Shipping Quote" data-context="${esc(context)}">${esc(labels.shippingQuote)}${icons.arrow}</button>${local.originalUrl ? `<a class="btn btn-outline" href="${esc(local.originalUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalListing)}${icons.arrow}</a>` : ""}</div></aside>
       </div>
     </div></section><section class="section section-tone"><div class="container narrow"><div class="notice notice-info"><strong>${esc(labels.shippingHeading)}</strong> ${esc(labels.shippingText)}</div></div></section>`;
   }

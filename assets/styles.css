@@ -765,7 +765,7 @@ html[lang^="ar"] .review-toolbar-title, html[lang^="ar"] .review-key, html[lang^
 .part-body dd { margin: 0; color: var(--text); font-size: .78rem; font-weight: 700; text-align: end; }
 .parts-entry-section { padding-bottom: clamp(72px, 8vw, 112px); }
 [data-parts-shop] [id] { scroll-margin-top: calc(var(--header-h) + 18px); }
-.parts-paths { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 30px; }
+.parts-paths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 30px; }
 .parts-paths a {
   position: relative;
   display: grid;
