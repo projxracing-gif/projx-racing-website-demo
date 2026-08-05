@@ -953,7 +953,10 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-product-media > .tegiwa-fitment-badge { position: absolute; inset-inline-end: 12px; inset-block-start: 12px; box-shadow: 0 7px 20px rgba(10,14,20,.12); }
 .tegiwa-fitment-badge.is-exact { border-color: color-mix(in srgb, var(--green) 45%, var(--line)); color: color-mix(in srgb, var(--green) 80%, var(--text-strong)); background: color-mix(in srgb, var(--green) 9%, var(--surface)); }
 .tegiwa-fitment-badge.is-possible { border-color: color-mix(in srgb, #d59a21 45%, var(--line)); background: color-mix(in srgb, #d59a21 9%, var(--surface)); }
-.catalogue-fallback-notice { margin-block: 14px; }
+.catalogue-fallback-notice { display: flex; margin-block: 14px; align-items: flex-start; gap: 9px; font-size: .74rem; line-height: 1.55; }
+.catalogue-fallback-notice[hidden] { display: none; }
+.catalogue-fallback-notice > svg { width: 18px; height: 18px; min-width: 18px; flex: 0 0 18px; color: var(--blue); }
+.catalogue-fallback-notice > span { min-width: 0; }
 .tegiwa-product-body { display: grid; min-width: 0; padding: 18px; align-content: start; gap: 12px; }
 .tegiwa-product-body h3 { margin: 0; overflow-wrap: anywhere; color: var(--text-strong); font-size: 1.05rem; line-height: 1.25; }
 .tegiwa-product-body dl { margin: 0; }
