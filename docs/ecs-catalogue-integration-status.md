@@ -60,9 +60,11 @@ The source observations include a manually checked availability phrase for each 
 
 Projx Racing now has a written ECS approval dated 5 August 2026 for automated copying of ECS products onto the Projx website. The retained evidence and reviewed authorization record are private and excluded from Git. This supersedes the earlier manual-copy-only interpretation.
 
-The approval does not provide a catalogue feed, sitemap index, API, downloadable export, stock feed, request-rate agreement or an exhaustive product-URL list. It also does not authorize copying authenticated dealer data, private pricing, credentials, removing watermarks, bypassing access controls or representing dated observations as live stock. Completing the entire ECS catalogue therefore still requires:
+The approval does not provide an API, approved downloadable export, stock feed, request-rate agreement or an accessible exhaustive product-URL list. ECS publishes a sitemap index with product shards, but normal automated requests to the product shards encounter an interactive Cloudflare challenge and the project must not bypass that control. It also does not authorize copying authenticated dealer data, publishing private dealer cost, credentials, removing watermarks or representing dated observations as live stock.
 
-1. an ECS-supplied export, sitemap index or complete product-URL source;
+On 5 August 2026, ECS Wholesale advised by email that a private FTP file may be possible, containing ES numbers, manufacturer numbers, product descriptions, dealer cost, retail prices, weights and dimensions. ECS has not yet approved or delivered that feed; access is normally reserved for established high-volume customers. Dealer cost must remain private even if supplied. Completing the entire ECS catalogue therefore still requires:
+
+1. approval and credentials for the proposed ECS FTP export, or another complete authorized product source;
 2. an agreed collection rate and confirmation of public image/media reuse terms;
 3. a streaming, sharded importer and online storage sized for more than two million products; and
 4. staged count, duplicate, fitment, price, search and load validation before publication.

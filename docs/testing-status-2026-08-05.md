@@ -26,7 +26,7 @@ All 14 reviewed ECS products and all other supplier products remain Request a Qu
 - Transactional email: provide a Resend key, verified sender address/domain, SPF, DKIM, DMARC, durable CAPTCHA/WAF protection, and explicit enablement flags; then run real inbox delivery tests.
 - Hourly supplier stock: provide a supported vendor feed or publication permission plus Vercel Blob token, manifest secret, and an approved scheduler.
 - Payments: no payment gateway is connected. Staging checkout must remain non-charging until separate explicit approval and test credentials are supplied.
-- ECS completeness: 14 reviewed products are currently published. ECS has approved automated copying, but provides no API, export, stock feed, sitemap index or complete product-URL source. The full catalogue cannot be represented accurately until a complete source, collection-rate agreement, scalable storage/import path and staged validation are available.
+- ECS completeness: 14 reviewed products are currently published. ECS has approved automated copying and advised that an FTP export may be possible, but FTP access is not yet approved or delivered. The public product sitemap shards encounter an interactive access-control challenge that must not be bypassed. The full catalogue cannot be represented accurately until the FTP source, field/update contract, scalable storage/import path and staged validation are available.
 
 ## Safety statement
 

@@ -16,6 +16,8 @@ const files = [
   'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs',
   'scripts/build-tegiwa-sitemap-manifest.mjs', 'scripts/build-tegiwa-catalog-snapshot.mjs',
   'scripts/build-tegiwa-search-index.mjs',
+  'scripts/ecs-catalog/ingest.mjs', 'scripts/ecs-catalog/lib.mjs',
+  'scripts/ecs-catalog/build-url-manifests.mjs', 'scripts/ecs-catalog/shard-jobs.mjs',
   'scripts/scrape-tegiwa-vehicle-directory.mjs', 'scripts/validate-tegiwa-vehicle-directory.mjs', 'sw.js'
 ];
 

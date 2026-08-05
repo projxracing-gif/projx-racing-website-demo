@@ -6,7 +6,7 @@ This isolated workflow prepares public ECS product records for later storefront 
 
 Projx Racing has retained written ECS approval dated 5 August 2026 for automated copying of ECS products onto the Projx website. The approval evidence and reviewed authorization record are private, ignored by Git and required by the `--fetch` safety gate.
 
-The approval does not provide a feed, API, sitemap index, complete URL list, collection-rate agreement or access to non-public dealer data. It does not permit bypassing access controls, copying credentials/private pricing, removing watermarks or treating dated public observations as guaranteed live stock. Network mode is limited to explicitly listed public ECS product URLs on the approved host and must stop when authorization validation or normal HTTP access fails.
+The approval does not provide an API, approved feed, accessible complete URL list, collection-rate agreement or access to non-public dealer data. ECS publishes a sitemap index, but its product shards encounter an interactive Cloudflare challenge during normal automated access; this workflow must not bypass it. ECS Wholesale has separately advised that a private FTP catalogue export may be possible, but access is not yet approved or delivered. Network mode is limited to explicitly listed public ECS product URLs on the approved host and must stop when authorization validation or normal HTTP access fails. Dealer cost from any future FTP file is private input and must never enter public catalogue artifacts.
 
 Permission evidence must remain under the ignored `private-imports/ecs-catalog-authorization/` directory and must never be committed.
 
@@ -110,6 +110,31 @@ node scripts/ecs-catalog/prepare-review.mjs \
 The queue reconciles candidates against the 14 current products by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
 
 This step never edits the storefront, database or public assets. `publishApproved` remains false for every candidate. A person must review the evidence, approve local media, add bilingual copy and sign off before any separate publication/import change is made.
+
+## Bounded shard jobs
+
+After `build-url-manifests.mjs` creates a checksum-bound `index.json`, prepare independent jobs in a new private workspace:
+
+```text
+npm run catalog:ecs:shards -- plan \
+  --index private-imports/ecs-url-manifests/<snapshot>/index.json \
+  --workspace private-imports/ecs-shard-jobs/<snapshot> \
+  --authorization-file private-imports/ecs-catalog-authorization/authorization.json
+```
+
+The planner verifies the index sidecar, every shard checksum, canonical URL and the retained authorization separately for each shard. It creates immutable job bindings and one checkpoint per shard, but stores no URLs in the plan. Run only one bounded shard per process; there is deliberately no `--all` or URL discovery mode:
+
+```text
+npm run catalog:ecs:shards -- run \
+  --workspace private-imports/ecs-shard-jobs/<snapshot> \
+  --shard 1 \
+  --authorization-file private-imports/ecs-catalog-authorization/authorization.json \
+  --fetch
+```
+
+Each shard has its own lock, ingestion checkpoint, raw evidence, normalized private review catalogue and result marker. A completed shard is skipped only when its checksum-bound result is still durable; failed or interrupted ingestion resumes through the existing per-URL checkpoint. Authorization is revalidated when the plan is made, when a shard starts and before each request. The workspace never edits the database, `assets/`, `dist/` or any storefront file.
+
+The plan schema identifies the source adapter as `ecs-public-url-v1`, so a separately reviewed supplier-export adapter can be added later without treating the URL list as the only possible source. Any future FTP/export adapter must quarantine private source rows, strip dealer cost, wholesale pricing, credentials, tax and VAT from normalized review data, and keep those fields out of every public artifact.
 
 ## Automated-access safeguards
 
