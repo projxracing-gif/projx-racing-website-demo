@@ -163,6 +163,15 @@ test("authorized fetch rejects redirect escapes, non-HTML and oversized response
   const cases = [
     {
       response: {
+        ok: false,
+        status: 302,
+        statusText: "Found",
+        headers: new Headers({ location: "https://example.com/escape" })
+      },
+      expected: /Redirects are not allowed/
+    },
+    {
+      response: {
         ok: true,
         url: "https://example.com/b-csf-parts/example/example~csf/",
         headers: new Headers({ "content-type": "text/html" }),
@@ -201,8 +210,9 @@ test("authorized fetch rejects redirect escapes, non-HTML and oversized response
       fetchWithRetry(sourceUrl, {
         retries: 3,
         maxResponseBytes: 1024,
-        fetchImpl: async () => {
+        fetchImpl: async (_url, options) => {
           attempts += 1;
+          assert.equal(options.redirect, "manual");
           return testCase.response;
         },
         sleep: async () => {
@@ -214,6 +224,28 @@ test("authorized fetch rejects redirect escapes, non-HTML and oversized response
     assert.equal(attempts, 1);
     assert.equal(sleeps, 0);
   }
+});
+
+test("authorized fetch rate-gates every retry attempt", async () => {
+  const sourceUrl = "https://www.ecstuning.com/b-csf-parts/example/example~csf/";
+  let attempts = 0;
+  const gatedAttempts = [];
+  const result = await fetchWithRetry(sourceUrl, {
+    retries: 2,
+    beforeAttempt: async (attempt) => gatedAttempts.push(attempt),
+    sleep: async () => {},
+    fetchImpl: async () => {
+      attempts += 1;
+      if (attempts < 3) return new Response("unavailable", { status: 503 });
+      return new Response("<html><body>ok</body></html>", {
+        status: 200,
+        headers: { "content-type": "text/html" }
+      });
+    }
+  });
+  assert.equal(result, "<html><body>ok</body></html>");
+  assert.equal(attempts, 3);
+  assert.deepEqual(gatedAttempts, [0, 1, 2]);
 });
 
 test("invalid numeric ingestion options are rejected", async () => {

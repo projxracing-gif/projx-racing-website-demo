@@ -6,11 +6,12 @@ import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
   'assets/app.js', 'assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js',
-  'assets/i18n/en.js', 'assets/i18n/ar.js', 'api/enquiry.js', 'api/tegiwa-catalog.js',
+  'assets/i18n/en.js', 'assets/i18n/ar.js', 'api/enquiry.js', 'api/tegiwa-catalog.js', 'api/parts-catalog.js',
   'api/account.js', 'api/addresses.js', 'api/cart.js', 'api/quotes.js', 'api/orders.js', 'api/clerk-webhook.js',
   'server/tegiwa-public-manifest.js', 'server/http.js', 'server/clerk-auth.js', 'server/clerk-webhook.js',
   'server/commerce-validation.js', 'server/commerce-database.js', 'server/commerce-repository.js',
   'server/transactional-email.js', 'server/customer-commerce-api.js', 'server/clerk-webhook-api.js',
+  'server/ecs-discovery-catalog.js',
   'scripts/build.mjs', 'scripts/validate.mjs', 'scripts/serve.mjs',
   'scripts/test-api.mjs', 'scripts/test-tegiwa-catalog-api.mjs', 'scripts/test-customer-commerce.mjs', 'scripts/lint.mjs',
   'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs',
@@ -18,6 +19,7 @@ const files = [
   'scripts/build-tegiwa-search-index.mjs',
   'scripts/ecs-catalog/ingest.mjs', 'scripts/ecs-catalog/lib.mjs',
   'scripts/ecs-catalog/build-url-manifests.mjs', 'scripts/ecs-catalog/shard-jobs.mjs',
+  'scripts/ecs-catalog/collect-sitemaps.mjs', 'scripts/ecs-catalog/publish-discovery-blob.mjs',
   'scripts/scrape-tegiwa-vehicle-directory.mjs', 'scripts/validate-tegiwa-vehicle-directory.mjs', 'sw.js'
 ];
 

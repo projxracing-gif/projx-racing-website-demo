@@ -4,6 +4,11 @@ import {
   ReviewedFallbackError,
   reviewedFallbackResponse
 } from '../server/ecs-reviewed-catalog.js';
+import {
+  EcsDiscoveryError,
+  canonicalizeEcsDiscoveryProductUrl,
+  createConfiguredEcsDiscoveryCatalogueProvider
+} from '../server/ecs-discovery-catalog.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -16,7 +21,8 @@ const SEARCH_RATE_BUCKETS = 512;
 
 const ALLOWED_PARAMETERS = new Set([
   'q', 'handle', 'page', 'cursor', 'suggest', 'sort', 'availability', 'pricing', 'match',
-  'supplier', 'brand', 'partType', 'currency', 'fitment', 'year', 'make', 'model', 'generation', 'engine'
+  'supplier', 'brand', 'partType', 'currency', 'fitment', 'year', 'make', 'model', 'generation', 'engine',
+  'discovery'
 ]);
 const SORTS = new Set(['relevance', 'name_asc', 'name_desc', 'price_asc', 'price_desc']);
 const AVAILABILITY_FILTERS = new Set(['all', 'available', 'in_stock', 'supplier_stock', 'check', 'unavailable']);
@@ -113,6 +119,15 @@ function currencyValue(value) {
   return currency;
 }
 
+function discoveryCursorValue(value) {
+  if (value === undefined) return null;
+  const cursor = String(singleValue(value));
+  if (!cursor || cursor.length > 1_024 || /[\u0000-\u001f\u007f]/.test(cursor)) {
+    throw new PublicApiError(400, 'invalid_ecs_discovery_cursor', 'The ECS discovery cursor is invalid.');
+  }
+  return cursor;
+}
+
 function identifierIdentity(value) {
   return String(value || '').normalize('NFKC').toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]+/gu, '');
 }
@@ -159,6 +174,16 @@ function decodeCursor(value, fingerprint) {
 
 function parseRequest(req) {
   const values = requestValues(req);
+  if (values.discovery !== undefined) {
+    if (String(singleValue(values.discovery)).trim() !== '1') {
+      throw new PublicApiError(400, 'invalid_discovery', 'ECS discovery mode requires discovery=1.');
+    }
+    const unsupported = Object.keys(values).filter(key => !['discovery', 'cursor'].includes(key));
+    if (unsupported.length) {
+      throw new PublicApiError(400, 'discovery_filters_unsupported', 'ECS discovery references do not support product or vehicle filters.');
+    }
+    return { mode: 'discovery', cursor: discoveryCursorValue(values.cursor) };
+  }
   const query = cleanText(values.q, 120, 'query', { minimum: 2 });
   if (query && !/[\p{L}\p{N}]/u.test(query)) throw new PublicApiError(400, 'invalid_query', 'Search queries must contain a letter or number.');
   const handle = cleanText(values.handle, 255, 'handle', { pattern: /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/ });
@@ -657,6 +682,51 @@ function safeUrl(value) {
   }
 }
 
+function discoveryPublicItem(value) {
+  let sourceUrl;
+  try {
+    sourceUrl = canonicalizeEcsDiscoveryProductUrl(value?.sourceUrl);
+  } catch {
+    throw new Error('invalid_ecs_discovery_record');
+  }
+  if (sourceUrl !== value?.sourceUrl || sourceUrl !== value?.canonicalSourceUrl) {
+    throw new Error('invalid_ecs_discovery_record');
+  }
+  const digest = String(value?.sha256Key || '');
+  const handle = String(value?.handle || '');
+  if (!/^[a-f0-9]{64}$/.test(digest) || handle !== `ecs-discovery-${digest}`
+    || value?.publicKey !== handle || value?.key !== `sha256:${digest}`) {
+    throw new Error('invalid_ecs_discovery_record');
+  }
+  return {
+    handle,
+    publicKey: handle,
+    key: `sha256:${digest}`,
+    sha256Key: digest,
+    supplier: { slug: 'ecs', name: 'ECS Tuning' },
+    sourceUrl,
+    canonicalSourceUrl: sourceUrl,
+    dataStatus: 'url_discovered',
+    title: null,
+    sku: null,
+    mpn: null,
+    brand: null,
+    category: null,
+    subcategory: null,
+    price: null,
+    pricing: 'request_price',
+    stock: null,
+    availability: 'check',
+    image: null,
+    images: null,
+    fitment: null,
+    fitments: null,
+    purchaseMode: 'request_details',
+    requestDetailsOnly: true,
+    quoteOnly: true
+  };
+}
+
 function parseArray(value, maximum = 2048) {
   let candidate = value;
   if (typeof candidate === 'string') {
@@ -801,6 +871,9 @@ export function createPartsCatalogHandler({
   searchRateLimit,
   reviewedFallback = true,
   reviewedProducts = REVIEWED_ECS_PRODUCTS,
+  ecsDiscoveryEnabled = process.env.ECS_DISCOVERY_ENABLED === 'true' && process.env.VERCEL_ENV === 'preview',
+  ecsDiscoveryProvider = null,
+  ecsDiscoveryProviderLoader = createConfiguredEcsDiscoveryCatalogueProvider,
   legacyHandler,
   legacyHandlerLoader = loadDefaultLegacyHandler,
   logger = console
@@ -808,6 +881,11 @@ export function createPartsCatalogHandler({
   if (query !== null && typeof query !== 'function') throw new TypeError('The query adapter must be a function.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   if (!Array.isArray(reviewedProducts)) throw new TypeError('Reviewed fallback products must be an array.');
+  if (typeof ecsDiscoveryEnabled !== 'boolean') throw new TypeError('ECS discovery feature state must be boolean.');
+  if (ecsDiscoveryProvider !== null && typeof ecsDiscoveryProvider?.list !== 'function') {
+    throw new TypeError('The ECS discovery provider must expose list().');
+  }
+  if (typeof ecsDiscoveryProviderLoader !== 'function') throw new TypeError('The ECS discovery provider loader must be a function.');
   if (legacyHandler !== undefined && legacyHandler !== null && legacyHandler !== false && typeof legacyHandler !== 'function') {
     throw new TypeError('The legacy catalog handler must be a function, null or false.');
   }
@@ -816,6 +894,8 @@ export function createPartsCatalogHandler({
   let adapterPromise = null;
   let loadedLegacyHandler = typeof legacyHandler === 'function' ? legacyHandler : null;
   let legacyHandlerPromise = null;
+  let loadedEcsDiscoveryProvider = ecsDiscoveryProvider;
+  let ecsDiscoveryProviderPromise = null;
   const rateLimit = createRateLimiter(now, searchRateLimit);
   const getAdapter = async () => {
     if (adapter) return adapter;
@@ -831,6 +911,13 @@ export function createPartsCatalogHandler({
     loadedLegacyHandler = await legacyHandlerPromise;
     return typeof loadedLegacyHandler === 'function' ? loadedLegacyHandler : null;
   };
+  const getEcsDiscoveryProvider = async () => {
+    if (loadedEcsDiscoveryProvider) return loadedEcsDiscoveryProvider;
+    ecsDiscoveryProviderPromise ||= Promise.resolve().then(() => ecsDiscoveryProviderLoader());
+    loadedEcsDiscoveryProvider = await ecsDiscoveryProviderPromise;
+    if (typeof loadedEcsDiscoveryProvider?.list !== 'function') throw new Error('invalid_ecs_discovery_provider');
+    return loadedEcsDiscoveryProvider;
+  };
 
   return async function partsCatalogHandler(req, res) {
     if (req.method !== 'GET') {
@@ -845,12 +932,56 @@ export function createPartsCatalogHandler({
       if (error instanceof PublicApiError) return sendError(res, error.status, error.code, error.message);
       return sendError(res, 400, 'invalid_parameters', 'The catalog request is invalid.');
     }
-    if (request.mode === 'search' || request.mode === 'suggest') {
+    if (request.mode === 'search' || request.mode === 'suggest' || request.mode === 'discovery') {
       const rate = rateLimit(req);
       res.setHeader('RateLimit-Policy', `${rate.limit};w=${Math.ceil(rate.windowMs / 1000)}`);
       if (!rate.allowed) {
         res.setHeader('Retry-After', String(rate.retryAfter));
         return sendError(res, 429, 'rate_limited', 'Too many catalog searches were requested. Please try again shortly.');
+      }
+    }
+
+    if (request.mode === 'discovery') {
+      if (!ecsDiscoveryEnabled) {
+        return sendError(res, 404, 'discovery_unavailable', 'The ECS reference directory is not enabled.');
+      }
+      try {
+        const provider = await getEcsDiscoveryProvider();
+        const result = await provider.list({ cursor: request.cursor, limit: PAGE_SIZE });
+        const items = Array.isArray(result?.items) ? result.items.map(discoveryPublicItem) : null;
+        if (!items || items.length > PAGE_SIZE || result?.count !== items.length) throw new Error('invalid_ecs_discovery_response');
+        const releaseId = safeOutputText(result.releaseId || result.meta?.releaseId, 128);
+        if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/.test(releaseId)) throw new Error('invalid_ecs_discovery_response');
+        const nextCursor = result.nextCursor === null ? null : discoveryCursorValue(result.nextCursor);
+        const discoveredUrlCount = boundedInteger(result.meta?.discoveredUrlCount, 0, 10_000_000);
+        return sendJson(res, 200, {
+          mode: 'discovery',
+          items,
+          meta: {
+            count: items.length,
+            pageSize: PAGE_SIZE,
+            discoveredUrlCount,
+            releaseId,
+            catalogueSource: 'ecs-public-sitemap-discovery',
+            dataStatus: 'url_discovered',
+            searchable: false,
+            filterable: false,
+            numberedPagination: false,
+            reviewedEcsProductCount: reviewedProducts.length
+          },
+          nextCursor
+        }, true);
+      } catch (error) {
+        if (error instanceof EcsDiscoveryError && error.status === 409) {
+          return sendError(res, 409, 'discovery_release_changed', 'The ECS reference release changed. Restart from the first page.');
+        }
+        if (error instanceof EcsDiscoveryError && error.status === 400) {
+          return sendError(res, 400, 'invalid_ecs_discovery_cursor', 'The ECS discovery cursor is invalid.');
+        }
+        logger?.warn?.('ECS discovery reference directory is unavailable', {
+          code: error instanceof EcsDiscoveryError ? error.code : 'provider_unavailable'
+        });
+        return sendError(res, 503, 'discovery_unavailable', 'The ECS reference directory is temporarily unavailable.');
       }
     }
 

@@ -74,7 +74,7 @@ Every offline entry must include a real `collectedAt` ISO date-time with a timez
 
 `snapshotPath` is resolved relative to the manifest and, after resolving links, must remain inside the manifest's folder. This prevents a supplied manifest from reading unrelated local or network files. A manually prepared entry can instead contain a `record` object with only the normalized public fields demonstrated in `lib.mjs`. Unknown or sensitive field names are rejected recursively before the raw manual record is written.
 
-Source URLs must use HTTPS, the default HTTPS port, no embedded credentials, an ECS public host and an ECS product path beginning with `/b-…-parts/`. Search, account and category-only URLs are rejected.
+Source URLs must use HTTPS, the default HTTPS port, no embedded credentials, an ECS public host and a sitemap-observed ECS product path beginning with `/b-`. Search, account and category-only URLs are rejected.
 
 ## Run
 
@@ -110,6 +110,41 @@ node scripts/ecs-catalog/prepare-review.mjs \
 The queue reconciles candidates against the 14 current products by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
 
 This step never edits the storefront, database or public assets. `publishApproved` remains false for every candidate. A person must review the evidence, approve local media, add bilingual copy and sign off before any separate publication/import change is made.
+
+## Public sitemap discovery
+
+With the retained written automated-copy approval, the public sitemap collector can create a checksum-bound, private URL directory without opening any product page:
+
+```text
+node scripts/ecs-catalog/collect-sitemaps.mjs \
+  --output private-imports/ecs-sitemap-collection/<snapshot> \
+  --authorization-file private-imports/ecs-catalog-authorization/authorization.json \
+  --fetch
+```
+
+It requests the one official sitemap index and exactly 177 product sitemap shards. ECS currently lists each shard with a trailing slash even though the ordinary XML response is available only after removing that one final slash; every other host, path, redirect and shard number is rejected. Requests are serialized at a minimum two-second start-to-start interval, the authorization is hash-bound and revalidated before each attempt, interactive challenges stop the run, and completed shard files are checksum-verified when resuming.
+
+The collector produces `product-urls.txt`, per-sitemap private URL shards, a resumable checkpoint and `url-manifests/index.json`. These are discovery records only. They contain no verified price, stock, image, detailed specification or vehicle fitment and must remain outside Git, Vercel function bundles and the public storefront until a separately reviewed storage and enrichment release is approved.
+
+### Preview-only discovery release
+
+The completed, checksum-bound URL manifests can be staged in Vercel Blob without adding the private files to Git or a Function bundle. First validate the entire local set without credentials or network access:
+
+```powershell
+npm run catalog:ecs:publish-discovery -- --index private-imports/ecs-sitemap-collection/<snapshot>/url-manifests/index.json --dry-run
+```
+
+A real release is intentionally preview-only and requires both server-side secrets plus an explicit confirmation:
+
+```powershell
+$env:BLOB_READ_WRITE_TOKEN = '<server-only token>'
+$env:ECS_DISCOVERY_MANIFEST_SECRET = '<independent high-entropy secret>'
+npm run catalog:ecs:publish-discovery -- --index private-imports/ecs-sitemap-collection/<snapshot>/url-manifests/index.json --preview
+```
+
+The publisher validates the index, sidecar checksum, every shard checksum, exact URL-only schema and every canonical public ECS URL. Each shard and the index are uploaded with deterministic immutable names below `projx-racing/ecs-discovery/releases/<release>/`, then read back and checksum-verified. Only after every object verifies does it conditionally move the HMAC-signed `projx-racing/ecs-discovery/preview/current.json` pointer. The signature is the lowercase SHA-256 HMAC produced from the strict ordered-array payload exported by `server/ecs-discovery-catalog.js`, so publisher and reader cannot disagree because of object key insertion order. Interrupted runs safely resume by verifying existing immutable objects; invalid remote signatures, checksum drift and concurrent pointer changes fail closed. Known-safe failures before the pointer write make a best-effort conditional cleanup of only the immutable objects created by that run; pre-existing, ambiguous and possibly referenced objects are never deleted. It never publishes credentials and has no production mode.
+
+Direct ECS product pages currently return an interactive Cloudflare challenge to normal automated requests. Do not use cookies, CAPTCHA handling, a logged-in dealer session or another workaround. Product-page enrichment remains disabled when this happens.
 
 ## Bounded shard jobs
 

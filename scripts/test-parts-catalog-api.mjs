@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
+import { EcsDiscoveryError } from '../server/ecs-discovery-catalog.js';
 
 const FIXED_NOW = Date.parse('2026-08-05T09:30:00Z');
 
@@ -52,6 +54,20 @@ function row(index, overrides = {}) {
     fitment_confidence: 'exact',
     total_results: 250,
     ...overrides
+  };
+}
+
+function discoveryItem(index) {
+  const sourceUrl = `https://www.ecstuning.com/b-ecs-parts/reference-${index}/item-${index}/`;
+  const digest = createHash('sha256').update(sourceUrl, 'utf8').digest('hex');
+  const handle = `ecs-discovery-${digest}`;
+  return {
+    handle, publicKey: handle, key: `sha256:${digest}`, sha256Key: digest,
+    supplier: { slug: 'ecs', name: 'ECS Tuning' }, sourceUrl, canonicalSourceUrl: sourceUrl,
+    dataStatus: 'url_discovered', title: null, sku: null, mpn: null, brand: null,
+    category: null, subcategory: null, price: null, pricing: 'request_price', stock: null,
+    availability: 'check', image: null, images: null, fitment: null, fitments: null,
+    purchaseMode: 'request_details', requestDetailsOnly: true, quoteOnly: true
   };
 }
 
@@ -576,5 +592,99 @@ const request = __test.parseRequest({
 const cursor = __test.encodeCursor(100, request.fingerprint);
 assert.equal(__test.decodeCursor(cursor, request.fingerprint), 100);
 assert.throws(() => __test.decodeCursor(cursor, 'different-filter'), /cursor is invalid/i);
+
+let disabledDiscoveryCalls = 0;
+const discoveryDisabled = createPartsCatalogHandler({
+  databaseUrl: '',
+  ecsDiscoveryEnabled: false,
+  ecsDiscoveryProvider: { async list() { disabledDiscoveryCalls += 1; return null; } },
+  now: () => FIXED_NOW
+});
+const disabledDiscovery = await invoke(discoveryDisabled, { query: { discovery: '1' } });
+assert.equal(disabledDiscovery.status, 404);
+assert.equal(disabledDiscovery.body.error.code, 'discovery_unavailable');
+assert.equal(disabledDiscoveryCalls, 0);
+
+const providerCursor = `${Buffer.from('next-page').toString('base64url')}.${'a'.repeat(64)}`;
+const discoveryCalls = [];
+const discoveryProvider = {
+  async list({ cursor: requestedCursor, limit }) {
+    discoveryCalls.push({ cursor: requestedCursor, limit });
+    const first = requestedCursor === null;
+    const items = Array.from({ length: first ? 100 : 3 }, (_, index) => discoveryItem((first ? 0 : 100) + index + 1));
+    return {
+      releaseId: '20260805T212305813Z-591144905c3f9719',
+      items,
+      count: items.length,
+      nextCursor: first ? providerCursor : null,
+      meta: { releaseId: '20260805T212305813Z-591144905c3f9719', discoveredUrlCount: 1_361_533 }
+    };
+  }
+};
+const discoveryEnabled = createPartsCatalogHandler({
+  query: queryAdapter,
+  ecsDiscoveryEnabled: true,
+  ecsDiscoveryProvider: discoveryProvider,
+  now: () => FIXED_NOW
+});
+const firstDiscovery = await invoke(discoveryEnabled, { query: { discovery: '1' } });
+assert.equal(firstDiscovery.status, 200);
+assert.equal(firstDiscovery.body.mode, 'discovery');
+assert.equal(firstDiscovery.body.items.length, 100);
+assert.equal(firstDiscovery.body.meta.discoveredUrlCount, 1_361_533);
+assert.equal(firstDiscovery.body.meta.pageSize, 100);
+assert.equal(firstDiscovery.body.meta.searchable, false);
+assert.equal(firstDiscovery.body.meta.filterable, false);
+assert.equal(firstDiscovery.body.meta.numberedPagination, false);
+assert.equal(Object.hasOwn(firstDiscovery.body.meta, 'catalogProductCount'), false);
+assert.equal(firstDiscovery.body.nextCursor, providerCursor);
+assert.ok(firstDiscovery.body.items.every(item => item.title === null && item.sku === null
+  && item.price === null && item.stock === null && item.image === null && item.fitment === null
+  && item.quoteOnly === true && item.requestDetailsOnly === true));
+assert.equal(new Set(firstDiscovery.body.items.map(item => item.sourceUrl)).size, 100);
+assert.ok(firstDiscovery.body.items.every(item => item.sourceUrl.startsWith('https://www.ecstuning.com/b-')));
+assert.ok(Buffer.byteLength(JSON.stringify(firstDiscovery.body), 'utf8') < 2_000_000);
+assert.deepEqual(discoveryCalls[0], { cursor: null, limit: 100 });
+
+const nextDiscovery = await invoke(discoveryEnabled, { query: { discovery: '1', cursor: providerCursor } });
+assert.equal(nextDiscovery.status, 200);
+assert.equal(nextDiscovery.body.items.length, 3);
+assert.equal(nextDiscovery.body.nextCursor, null);
+assert.deepEqual(discoveryCalls[1], { cursor: providerCursor, limit: 100 });
+assert.equal((await invoke(discoveryEnabled, { query: { discovery: '1', q: 'brakes' } })).body.error.code, 'discovery_filters_unsupported');
+assert.equal((await invoke(discoveryEnabled, { query: { discovery: 'yes' } })).body.error.code, 'invalid_discovery');
+assert.equal((await invoke(discoveryEnabled, { query: { discovery: '1', cursor: "bad\u0000cursor" } })).body.error.code, 'invalid_ecs_discovery_cursor');
+
+const invalidProviderCursor = createPartsCatalogHandler({
+  databaseUrl: '', ecsDiscoveryEnabled: true, now: () => FIXED_NOW,
+  ecsDiscoveryProvider: { async list() { throw new EcsDiscoveryError(400, 'invalid_ecs_discovery_cursor', 'private cursor detail'); } }
+});
+const invalidProviderCursorResponse = await invoke(invalidProviderCursor, { query: { discovery: '1', cursor: 'future.cursor-format' } });
+assert.equal(invalidProviderCursorResponse.status, 400);
+assert.equal(invalidProviderCursorResponse.body.error.code, 'invalid_ecs_discovery_cursor');
+assert.doesNotMatch(JSON.stringify(invalidProviderCursorResponse.body), /private cursor detail/);
+
+const releaseChanged = createPartsCatalogHandler({
+  databaseUrl: '', ecsDiscoveryEnabled: true, now: () => FIXED_NOW,
+  ecsDiscoveryProvider: { async list() { throw new EcsDiscoveryError(409, 'ecs_discovery_release_changed', 'private release detail'); } }
+});
+const releaseChangedResponse = await invoke(releaseChanged, { query: { discovery: '1' } });
+assert.equal(releaseChangedResponse.status, 409);
+assert.equal(releaseChangedResponse.body.error.code, 'discovery_release_changed');
+assert.doesNotMatch(JSON.stringify(releaseChangedResponse.body), /private release detail/);
+
+const discoveryUnavailable = createPartsCatalogHandler({
+  databaseUrl: '', ecsDiscoveryEnabled: true, now: () => FIXED_NOW, logger: { warn() {} },
+  ecsDiscoveryProvider: { async list() { throw new Error('secret upstream storage message'); } }
+});
+const discoveryUnavailableResponse = await invoke(discoveryUnavailable, { query: { discovery: '1' } });
+assert.equal(discoveryUnavailableResponse.status, 503);
+assert.equal(discoveryUnavailableResponse.body.error.code, 'discovery_unavailable');
+assert.doesNotMatch(JSON.stringify(discoveryUnavailableResponse.body), /secret|upstream|storage/i);
+
+const normalWithDiscoveryConfigured = await invoke(discoveryEnabled);
+assert.equal(normalWithDiscoveryConfigured.status, 200);
+assert.equal(normalWithDiscoveryConfigured.body.meta.catalogProductCount, 193_270);
+assert.equal(discoveryCalls.length, 2);
 
 console.log('Unified parts catalog API tests passed.');

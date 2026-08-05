@@ -616,7 +616,10 @@ assert(/html\[dir="rtl"\]/.test(css), 'RTL layout styles are missing.');
 assert(/prefers-reduced-motion/.test(css), 'Reduced-motion support is missing.');
 assert(/viewport-fit=cover/.test(fs.readFileSync(path.join(repo, 'template.html'), 'utf8')), 'iOS safe-area viewport support is missing.');
 
-const sourceFiles = filesRecursive(repo).filter(file => !file.includes(`${path.sep}dist${path.sep}`) && !file.includes(`${path.sep}.git${path.sep}`) && !file.includes(`${path.sep}node_modules${path.sep}`));
+const sourceFiles = filesRecursive(repo).filter(file => !file.includes(`${path.sep}dist${path.sep}`)
+  && !file.includes(`${path.sep}.git${path.sep}`)
+  && !file.includes(`${path.sep}node_modules${path.sep}`)
+  && !file.includes(`${path.sep}private-imports${path.sep}`));
 const searchableSource = sourceFiles
   .filter(file => /\.(?:js|mjs|html|css|json|webmanifest)$/i.test(file))
   .filter(file => !file.endsWith(`${path.sep}scripts${path.sep}validate.mjs`))

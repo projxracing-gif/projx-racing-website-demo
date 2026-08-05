@@ -26,6 +26,36 @@ assert.doesNotMatch(partsPage, /\.map\(productCard\)|\.map\(partCard\)/);
 assert.match(partsPage, /id="parts-results" data-tegiwa-results/);
 assert.equal((partsPage.match(/data-tegiwa-pagination/g) || []).length, 1, 'Parts page must render one pagination region.');
 
+const discoveryStart = app.indexOf('  function ecsDiscoveryReferenceUrl(');
+const discoveryEnd = app.indexOf('\n  function tegiwaVariantAvailability(', discoveryStart);
+assert.ok(discoveryStart >= 0 && discoveryEnd > discoveryStart, 'ECS discovery UI source could not be isolated.');
+const discoveryUi = app.slice(discoveryStart, discoveryEnd);
+assert.ok(partsPage.indexOf('data-ecs-discovery-section') > partsPage.indexOf('id="parts-results"'), 'The ECS reference directory must follow the existing catalogue.');
+assert.match(partsPage, /data-action="toggle-ecs-discovery" aria-expanded="false"/);
+assert.match(partsPage, /data-ecs-discovery-panel hidden/);
+assert.match(discoveryUi, /endpoint\.searchParams\.set\("discovery", "1"\)/);
+assert.match(discoveryUi, /endpoint\.searchParams\.set\("cursor", cursor\)/);
+assert.match(discoveryUi, /items\.length > ECS_DISCOVERY_PAGE_SIZE/);
+assert.match(app, /const ECS_DISCOVERY_PAGE_SIZE = 100/);
+assert.match(app, /const ECS_DISCOVERY_CURSOR_HISTORY_LIMIT = 20/);
+assert.match(discoveryUi, /\^b-\[a-z0-9\._~!/);
+assert.match(discoveryUi, /cursorHistory\.length > ECS_DISCOVERY_CURSOR_HISTORY_LIMIT/);
+assert.match(app, /data-action="ecs-discovery-reset"/);
+assert.match(app, /if \(action === "ecs-discovery-reset"\)/);
+assert.match(discoveryUi, /if \(response\.status === 404\)[\s\S]*section\.hidden = true/);
+assert.match(discoveryUi, /response\.status === 409 && allowReleaseReset/);
+assert.match(discoveryUi, /allowReleaseReset: false/);
+assert.match(discoveryUi, /ecsDiscoveryUnavailable/);
+assert.match(discoveryUi, /grid\.innerHTML = ecsDiscoveryCards\(payload\.items\)/);
+assert.match(discoveryUi, /target="_blank" rel="noopener noreferrer"/);
+assert.match(discoveryUi, /data-form-type="ECS Parts Reference Enquiry"/);
+assert.doesNotMatch(discoveryUi, /Add to Cart|add-cart|data-action="add-cart"|tegiwaPriceLabel|item\.title|item\.sku|item\.stock|item\.fitment/);
+for (const field of ['title', 'sku', 'mpn', 'brand', 'category', 'subcategory', 'price', 'stock', 'image', 'images', 'fitment', 'fitments']) {
+  assert.match(discoveryUi, new RegExp(`"${field}"`), `Discovery UI must fail closed when ${field} is unexpectedly populated.`);
+}
+assert.match(app, /ecsDiscoveryHeading: "Discovered ECS catalogue links\."/);
+assert.match(app, /ecsDiscoveryHeading: "روابط كتالوج ECS المكتشفة\."/);
+
 for (const field of ['year', 'make', 'model', 'generation', 'engine']) {
   assert.match(app, new RegExp(`result\\.${field}|\\[key, value\\].*params\\.set`, 's'), `Structured vehicle field ${field} is not wired.`);
 }
@@ -54,5 +84,9 @@ assert.match(styles, /\.tegiwa-fitment-badge\.is-exact/);
 assert.match(styles, /\.tegiwa-fitment-badge\.is-possible/);
 assert.match(styles, /\.catalogue-fallback-notice/);
 assert.match(styles, /\.tegiwa-fitment-list/);
+assert.match(styles, /\.ecs-discovery-section\[hidden\]/);
+assert.match(styles, /\.ecs-discovery-panel\[hidden\]/);
+assert.match(styles, /\.ecs-discovery-grid/);
+assert.match(styles, /html\[dir="rtl"\] \.ecs-discovery-pagination/);
 
 console.log('Unified catalogue UI source checks passed.');

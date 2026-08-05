@@ -265,8 +265,10 @@ export function canonicalizeProductUrl(value) {
   url.pathname = url.pathname.replace(/\/{2,}/g, "/");
   const segments = url.pathname.split("/").filter(Boolean);
   if (
-    segments.length < 3 ||
-    !/^b-[a-z0-9][a-z0-9-]*-parts$/i.test(segments[0]) ||
+    segments.length < 2 ||
+    segments[0].length > 180 ||
+    !/^b-[a-z0-9._~!$&'()*+,;=:@%-]+$/i.test(segments[0]) ||
+    !/[a-z0-9]/i.test(segments[0].slice(2)) ||
     segments.slice(1).some((segment) => !segment || segment === "." || segment === "..")
   ) {
     throw new Error(`Product URL does not use an ECS public product path: ${value}`);
@@ -631,7 +633,7 @@ function dedupeRecords(records) {
   return [...new Set(bySku.values())].sort((left, right) => left.ecsSku.localeCompare(right.ecsSku));
 }
 
-export function validateAutomationAuthorization(value, entries, at = new Date()) {
+export function validateAutomationAuthorizationGrant(value, at = new Date()) {
   const errors = [];
   if (!isPlainObject(value)) return ["Authorization file must contain a JSON object"];
   findForbiddenKeys(value, "authorization", errors);
@@ -664,9 +666,14 @@ export function validateAutomationAuthorization(value, entries, at = new Date())
   if (!isoDateTime.test(value.reviewedAt ?? "") || !Number.isFinite(Date.parse(value.reviewedAt)) || Date.parse(value.reviewedAt) > referenceTime.getTime() + MAX_FUTURE_CLOCK_SKEW_MS) {
     errors.push("reviewedAt must be a valid ISO timestamp that is not in the future");
   }
-  if (!isoDateTime.test(value.validUntil ?? "") || !Number.isFinite(Date.parse(value.validUntil)) || Date.parse(value.validUntil) < referenceTime.getTime()) {
+  if (!isoDateTime.test(value.validUntil ?? "") || !Number.isFinite(Date.parse(value.validUntil)) || Date.parse(value.validUntil) <= referenceTime.getTime()) {
     errors.push("validUntil must be a future ISO timestamp");
   }
+  return [...new Set(errors)];
+}
+
+export function validateAutomationAuthorization(value, entries, at = new Date()) {
+  const errors = validateAutomationAuthorizationGrant(value, at);
   if (!Array.isArray(entries) || entries.length === 0) {
     errors.push("At least one authorized manifest entry is required");
   }
@@ -727,10 +734,13 @@ export async function fetchWithRetry(url, options = {}) {
   });
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const beforeAttempt = options.beforeAttempt ?? (async () => {});
   if (typeof fetchImpl !== "function") throw new Error("fetchImpl must be a function");
   if (typeof sleep !== "function") throw new Error("sleep must be a function");
+  if (typeof beforeAttempt !== "function") throw new Error("beforeAttempt must be a function");
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
+    await beforeAttempt(attempt);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -739,9 +749,12 @@ export async function fetchWithRetry(url, options = {}) {
           accept: "text/html,application/xhtml+xml",
           "user-agent": "ProjxRacingAuthorizedCatalogueIngest/1.0"
         },
-        redirect: "follow",
+        redirect: "manual",
         signal: controller.signal
       });
+      if (response.status >= 300 && response.status < 400) {
+        throw new PermanentFetchError("Redirects are not allowed for ECS product-page ingestion");
+      }
       if (response.ok) {
         try {
           canonicalizeProductUrl(response.url || requestedUrl);
@@ -899,19 +912,21 @@ export async function runIngestion({
           if (requestAuthorizationErrors.length) {
             throw new Error(`Automated access is no longer authorized:\n- ${requestAuthorizationErrors.join("\n- ")}`);
           }
-          const requestAt = nowDate(now).getTime();
-          if (lastNetworkRequestAt !== null) {
-            const elapsed = requestAt - lastNetworkRequestAt;
-            if (elapsed < validatedRateLimitMs) await sleep(validatedRateLimitMs - elapsed);
-          }
           html = await fetchWithRetry(canonicalUrl, {
             retries: validatedRetries,
             timeoutMs: validatedTimeoutMs,
             maxResponseBytes: validatedMaximumBytes,
             fetchImpl,
-            sleep
+            sleep,
+            beforeAttempt: async () => {
+              const requestAt = nowDate(now).getTime();
+              if (lastNetworkRequestAt !== null) {
+                const elapsed = requestAt - lastNetworkRequestAt;
+                if (elapsed < validatedRateLimitMs) await sleep(validatedRateLimitMs - elapsed);
+              }
+              lastNetworkRequestAt = nowDate(now).getTime();
+            }
           });
-          lastNetworkRequestAt = nowDate(now).getTime();
           rawPath = await writeImmutableSnapshot(rawDir, {
             checkedAt,
             urlKey: key,
