@@ -637,6 +637,80 @@ export function createEcsDiscoveryCatalogueProvider({
     });
   }
 
+  async function listByOffset({ offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
+    if (!safeInteger(offset, 0, MAX_TOTAL_URLS)) {
+      fail(400, 'invalid_ecs_discovery_offset', 'The ECS catalogue position is invalid.');
+    }
+    if (!safeInteger(limit, 1, MAX_PAGE_SIZE)) {
+      fail(400, 'invalid_ecs_discovery_limit', `ECS catalogue page size must be between 1 and ${MAX_PAGE_SIZE}.`);
+    }
+    const manifest = await loadManifest();
+    if (offset >= manifest.counts.urlCount) {
+      return Object.freeze({
+        releaseId: manifest.releaseId,
+        items: Object.freeze([]),
+        nextOffset: null,
+        count: 0,
+        meta: Object.freeze({
+          supplier: 'ecs',
+          pricing: 'request_price',
+          availability: 'check',
+          dataStatus: 'url_discovered',
+          discoveryOnly: false,
+          discoveredUrlCount: manifest.counts.urlCount,
+          shardCount: manifest.counts.shardCount,
+          releaseId: manifest.releaseId
+        })
+      });
+    }
+
+    let shardIndex = 0;
+    let shardOffset = offset;
+    while (shardIndex < manifest.shards.length
+      && shardOffset >= manifest.shards[shardIndex].urlCount) {
+      shardOffset -= manifest.shards[shardIndex].urlCount;
+      shardIndex += 1;
+    }
+    if (shardIndex >= manifest.shards.length) {
+      fail(503, 'invalid_ecs_discovery_manifest', 'The ECS catalogue position exceeds its signed manifest.');
+    }
+
+    const items = [];
+    while (shardIndex < manifest.shards.length && items.length < limit) {
+      const entries = await loadShard(manifest, shardIndex);
+      if (shardOffset > entries.length) {
+        fail(503, 'invalid_ecs_discovery_manifest', 'The ECS catalogue shard position is invalid.');
+      }
+      while (shardOffset < entries.length && items.length < limit) {
+        items.push(discoveryRecord(entries[shardOffset]));
+        shardOffset += 1;
+      }
+      if (shardOffset >= entries.length) {
+        shardIndex += 1;
+        shardOffset = 0;
+      }
+    }
+    const nextOffset = offset + items.length < manifest.counts.urlCount
+      ? offset + items.length
+      : null;
+    return Object.freeze({
+      releaseId: manifest.releaseId,
+      items: Object.freeze(items),
+      nextOffset,
+      count: items.length,
+      meta: Object.freeze({
+        supplier: 'ecs',
+        pricing: 'request_price',
+        availability: 'check',
+        dataStatus: 'url_discovered',
+        discoveryOnly: false,
+        discoveredUrlCount: manifest.counts.urlCount,
+        shardCount: manifest.counts.shardCount,
+        releaseId: manifest.releaseId
+      })
+    });
+  }
+
   async function findByCanonicalUrl(canonicalUrl) {
     if (canonicalUrl && reviewedUrls.has(canonicalUrl)) return null;
     const manifest = await loadManifest();
@@ -660,13 +734,22 @@ export function createEcsDiscoveryCatalogueProvider({
     return findByCanonicalUrl(canonical);
   }
 
+  async function getMeta() {
+    const manifest = await loadManifest();
+    return Object.freeze({
+      releaseId: manifest.releaseId,
+      discoveredUrlCount: manifest.counts.urlCount,
+      shardCount: manifest.counts.shardCount
+    });
+  }
+
   function clearCache() {
     manifestCache = null;
     manifestPromise = null;
     clearShardCache();
   }
 
-  return Object.freeze({ list, getByCanonicalUrl, clearCache });
+  return Object.freeze({ list, listByOffset, getByCanonicalUrl, getMeta, clearCache });
 }
 
 export function createConfiguredEcsDiscoveryCatalogueProvider({

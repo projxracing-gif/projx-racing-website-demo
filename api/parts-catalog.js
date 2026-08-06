@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   REVIEWED_ECS_PRODUCTS,
   ReviewedFallbackError,
+  reviewedEcsProductCard,
   reviewedFallbackResponse
 } from '../server/ecs-reviewed-catalog.js';
 import {
@@ -18,6 +19,13 @@ const CACHE_CONTROL = 'public, max-age=30, s-maxage=120, stale-while-revalidate=
 const SEARCH_RATE_LIMIT = 120;
 const SEARCH_RATE_WINDOW_MS = 60_000;
 const SEARCH_RATE_BUCKETS = 512;
+const REVIEWED_ECS_PRODUCTS_OUTSIDE_DISCOVERY_RELEASE = Object.freeze({
+  '20260805T212305813Z-591144905c3f9719': Object.freeze([
+    'ecs-s55-pro-series-1000-turbo-build-kit',
+    'ecs-racingline-stage2-evo-big-brake-kit-red',
+    'ecs-mercedes-c63s-c205-br-coilovers'
+  ])
+});
 
 const ALLOWED_PARAMETERS = new Set([
   'q', 'handle', 'page', 'cursor', 'suggest', 'sort', 'availability', 'pricing', 'match',
@@ -727,6 +735,20 @@ function discoveryPublicItem(value) {
   };
 }
 
+function ecsReferenceCatalogueEligible(request) {
+  return request.mode === 'browse'
+    && request.supplier === 'ecs'
+    && request.sort === 'relevance'
+    && request.availability === 'all'
+    && request.pricing === 'all'
+    && request.match === 'any'
+    && request.fitment === 'all'
+    && !request.currency
+    && !request.brand
+    && !request.partType
+    && !request.structuredVehicle;
+}
+
 function parseArray(value, maximum = 2048) {
   let candidate = value;
   if (typeof candidate === 'string') {
@@ -896,6 +918,17 @@ export function createPartsCatalogHandler({
   let legacyHandlerPromise = null;
   let loadedEcsDiscoveryProvider = ecsDiscoveryProvider;
   let ecsDiscoveryProviderPromise = null;
+  const reviewedProductsByUrl = new Map();
+  for (const product of reviewedProducts) {
+    try {
+      const sourceUrl = canonicalizeEcsDiscoveryProductUrl(product?.originalUrl);
+      reviewedProductsByUrl.set(sourceUrl, product);
+    } catch {
+      logger?.warn?.('A reviewed ECS product has an invalid public source URL', {
+        publicKey: safeOutputText(product?.publicKey, 255)
+      });
+    }
+  }
   const rateLimit = createRateLimiter(now, searchRateLimit);
   const getAdapter = async () => {
     if (adapter) return adapter;
@@ -917,6 +950,101 @@ export function createPartsCatalogHandler({
     loadedEcsDiscoveryProvider = await ecsDiscoveryProviderPromise;
     if (typeof loadedEcsDiscoveryProvider?.list !== 'function') throw new Error('invalid_ecs_discovery_provider');
     return loadedEcsDiscoveryProvider;
+  };
+
+  const sendEcsReferenceCatalogue = async (request, res) => {
+    const provider = await getEcsDiscoveryProvider();
+    if (typeof provider?.listByOffset !== 'function' || typeof provider?.getMeta !== 'function') {
+      throw new Error('invalid_ecs_discovery_provider');
+    }
+    const providerMeta = await provider.getMeta();
+    const releaseId = safeOutputText(providerMeta?.releaseId, 128);
+    const discoveredUrlCount = boundedInteger(providerMeta?.discoveredUrlCount, 0, 10_000_000);
+    if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/.test(releaseId) || discoveredUrlCount < 1) {
+      throw new Error('invalid_ecs_discovery_response');
+    }
+    const outsideKeys = REVIEWED_ECS_PRODUCTS_OUTSIDE_DISCOVERY_RELEASE[releaseId] || [];
+    const outsideProducts = outsideKeys.map(publicKey => reviewedProducts.find(product => product?.publicKey === publicKey))
+      .filter(Boolean);
+    if (outsideProducts.length !== outsideKeys.length) throw new Error('invalid_reviewed_ecs_release_coverage');
+    const catalogueCount = discoveredUrlCount + outsideProducts.length;
+    if (request.offset >= catalogueCount) {
+      throw new EcsDiscoveryError(400, 'invalid_ecs_discovery_offset', 'The ECS catalogue position is invalid.');
+    }
+    const nowValue = Number(now());
+    const items = [];
+    if (request.offset < outsideProducts.length) {
+      const outsideSlice = outsideProducts.slice(request.offset, request.offset + PAGE_SIZE);
+      items.push(...outsideSlice.map(product => reviewedEcsProductCard(product, request, nowValue)));
+    }
+
+    const rawOffset = Math.max(0, request.offset - outsideProducts.length);
+    const remaining = PAGE_SIZE - items.length;
+    if (remaining > 0 && rawOffset < discoveredUrlCount) {
+      const result = await provider.listByOffset({ offset: rawOffset, limit: remaining });
+      const sourceItems = Array.isArray(result?.items) ? result.items : null;
+      const resultReleaseId = safeOutputText(result?.releaseId || result?.meta?.releaseId, 128);
+      const resultUrlCount = boundedInteger(result?.meta?.discoveredUrlCount, 0, 10_000_000);
+      if (!sourceItems || sourceItems.length > remaining || result?.count !== sourceItems.length
+        || resultReleaseId !== releaseId || resultUrlCount !== discoveredUrlCount) {
+        throw new Error('invalid_ecs_discovery_response');
+      }
+      items.push(...sourceItems.map(value => {
+        const publicItem = discoveryPublicItem(value);
+        const reviewed = reviewedProductsByUrl.get(publicItem.sourceUrl);
+        return reviewed ? reviewedEcsProductCard(reviewed, request, nowValue) : publicItem;
+      }));
+    }
+    if (!items.length || items.length > PAGE_SIZE) throw new Error('invalid_ecs_discovery_response');
+    const nextOffset = request.offset + items.length < catalogueCount ? request.offset + items.length : null;
+    const totalPages = Math.ceil(catalogueCount / PAGE_SIZE);
+    return sendJson(res, 200, {
+      mode: 'browse',
+      items,
+      meta: {
+        count: items.length,
+        catalogProductCount: catalogueCount,
+        stockIndexedProductCount: 0,
+        skuIndexedProductCount: reviewedProductsByUrl.size,
+        availableProductCount: 0,
+        checkedAt: null,
+        stockSnapshotStale: true,
+        suppliers: [
+          { slug: 'tegiwa', name: 'Tegiwa' },
+          { slug: 'ecs', name: 'ECS Tuning', productCount: catalogueCount }
+        ],
+        currencies: ['GBP', 'USD'],
+        query: null,
+        canonicalQuery: null,
+        translated: false,
+        corrected: false,
+        corrections: [],
+        page: request.page,
+        pageSize: PAGE_SIZE,
+        totalResults: catalogueCount,
+        totalPages,
+        sort: request.sort,
+        availability: request.availability,
+        pricing: request.pricing,
+        match: request.match,
+        filters: filtersMeta(request),
+        partialCatalogue: true,
+        catalogueSource: 'ecs-public-url-catalogue',
+        fallbackReason: 'ecs_supplier_feed_unavailable',
+        fallbackOrdering: 'signed-ecs-url-manifest',
+        reviewedEcsProductCount: reviewedProductsByUrl.size,
+        ecsUrlReferenceCount: discoveredUrlCount,
+        ecsCatalogueListingCount: catalogueCount,
+        ecsReferenceOnlyCount: Math.max(0, catalogueCount - reviewedProductsByUrl.size),
+        reviewedOutsideDiscoveryCount: outsideProducts.length,
+        releaseId,
+        dataStatus: 'url_discovered',
+        searchable: false,
+        filterable: false,
+        numberedPagination: true
+      },
+      nextCursor: nextOffset === null ? null : encodeCursor(nextOffset, request.fingerprint)
+    }, true);
   };
 
   return async function partsCatalogHandler(req, res) {
@@ -982,6 +1110,19 @@ export function createPartsCatalogHandler({
           code: error instanceof EcsDiscoveryError ? error.code : 'provider_unavailable'
         });
         return sendError(res, 503, 'discovery_unavailable', 'The ECS reference directory is temporarily unavailable.');
+      }
+    }
+
+    if (ecsDiscoveryEnabled && ecsReferenceCatalogueEligible(request)) {
+      try {
+        return await sendEcsReferenceCatalogue(request, res);
+      } catch (error) {
+        if (error instanceof EcsDiscoveryError && error.status === 400) {
+          return sendError(res, 400, request.positionSource === 'cursor' ? 'invalid_cursor' : 'invalid_page', 'The requested ECS catalogue position does not exist.');
+        }
+        logger?.warn?.('The full ECS reference catalogue is unavailable; using reviewed products only', {
+          code: error instanceof EcsDiscoveryError ? error.code : 'provider_unavailable'
+        });
       }
     }
 

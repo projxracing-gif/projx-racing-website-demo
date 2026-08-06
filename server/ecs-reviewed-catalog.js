@@ -211,6 +211,13 @@ function card(product, request, nowValue) {
   };
 }
 
+export function reviewedEcsProductCard(product, request, nowValue) {
+  if (!product || typeof product !== 'object' || !request || typeof request !== 'object') {
+    throw new ReviewedFallbackError(500, 'invalid_reviewed_product', 'A reviewed ECS product could not be rendered.');
+  }
+  return card(product, request, nowValue);
+}
+
 function detailFitments(product) {
   return (product.fitments || []).map(fitment => ({
     confidence: 'possible',

@@ -125,6 +125,37 @@ test('serves only truthful discovery records with release-pinned cursor paginati
   assert.equal(network.calls.filter(call => call.url === CURRENT_URL).length, 1);
 });
 
+test('serves every signed ECS URL through numbered catalogue offsets without suppressing reviewed URLs', async () => {
+  const fixture = releaseFixture();
+  const network = fetchFixture(fixture.bodies);
+  const provider = createEcsDiscoveryCatalogueProvider({
+    currentUrl: CURRENT_URL,
+    manifestSecret: SECRET,
+    fetchImpl: network.fetchImpl,
+    now: () => NOW
+  });
+
+  const first = await provider.listByOffset({ offset: 0, limit: 3 });
+  assert.deepEqual(first.items.map(item => item.sourceUrl), [REVIEWED_URL, URL_A, URL_B]);
+  assert.equal(first.nextOffset, 3);
+  assert.equal(first.meta.discoveryOnly, false);
+  assert.equal(first.meta.discoveredUrlCount, 4);
+  assert.deepEqual(await provider.getMeta(), {
+    releaseId: fixture.manifest.releaseId,
+    discoveredUrlCount: 4,
+    shardCount: 2
+  });
+
+  const final = await provider.listByOffset({ offset: 3, limit: 100 });
+  assert.deepEqual(final.items.map(item => item.sourceUrl), [URL_C]);
+  assert.equal(final.nextOffset, null);
+
+  const exhausted = await provider.listByOffset({ offset: 4, limit: 100 });
+  assert.equal(exhausted.count, 0);
+  assert.equal(exhausted.nextOffset, null);
+  await rejectsCode(() => provider.listByOffset({ offset: -1 }), 'invalid_ecs_discovery_offset');
+});
+
 test('exact lookup works while every reviewed ECS URL is suppressed before network access', async () => {
   const fixture = releaseFixture();
   const network = fetchFixture(fixture.bodies);

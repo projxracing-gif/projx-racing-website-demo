@@ -1,6 +1,6 @@
 # ECS catalogue integration status
 
-Status date: 5 August 2026
+Status date: 6 August 2026
 
 ## Verified outcome
 
@@ -17,6 +17,21 @@ The reviewed collection contains exactly **14 ECS Tuning products**. The catalog
 - 0 exact fitment claims, 0 live-stock claims and 0 duplicate products.
 
 The unified API now exposes the records when the database is unconfigured, unpublished or has not yet seeded ECS. The server merges the 14 reviewed ECS cards ahead of the existing Tegiwa fallback, uses stable global pagination, and returns a `partialCatalogue` marker. Filtering is supported for ECS supplier, brand, category/subcategory, USD pricing, confirmation-required availability, make, model, available chassis/year/engine evidence and possible fitment. Exact-fitment filtering returns no ECS records because none is independently verified.
+
+## Full public ECS reference integration
+
+The preview catalogue also exposes the complete signed public-URL collection inside the normal Parts result grid when ECS is selected:
+
+- **1,766,523** ECS sitemap URL observations collected from all 177 product sitemap shards;
+- **404,990** exact duplicate observations removed;
+- **1,361,533** unique canonical public ECS product-page URLs in 137 checksum-verified manifests;
+- 11 reviewed products replace their matching URL-only records;
+- 3 reviewed products absent from the sitemap release are added separately; and
+- **1,361,536** duplicate-free ECS catalogue entries in the storefront union.
+
+The integrated ECS view uses 100 entries per numbered page. The 14 reviewed records retain their verified fields. The other **1,361,522** entries remain explicitly labelled URL-derived catalogue references. They provide only a canonical public ECS link, a stable identity, a human-readable URL-derived label, `Request price`, `Availability confirmation required`, an original-page link and an enquiry action. They do not expose or infer a product title, ECS/SKU/MPN, category, price, stock, image, fitment, variation or Add to Cart action.
+
+Search and vehicle/product filters apply only to reviewed or supplier-fed product data. They are disabled while browsing the full URL-reference layer because the sitemap does not contain those facts. This limitation is deliberate and prevents URL tokens from being misrepresented as verified commercial or fitment data.
 
 ## Reviewed products
 
@@ -60,7 +75,7 @@ The source observations include a manually checked availability phrase for each 
 
 Projx Racing now has a written ECS approval dated 5 August 2026 for automated copying of ECS products onto the Projx website. The retained evidence and reviewed authorization record are private and excluded from Git. This supersedes the earlier manual-copy-only interpretation.
 
-The approval does not provide an API, approved downloadable export, stock feed, request-rate agreement or an accessible exhaustive product-URL list. ECS publishes a sitemap index with product shards, but normal automated requests to the product shards encounter an interactive Cloudflare challenge and the project must not bypass that control. It also does not authorize copying authenticated dealer data, publishing private dealer cost, credentials, removing watermarks or representing dated observations as live stock.
+The approval does not provide an API, approved downloadable export, stock feed or request-rate agreement. ECS publishes a sitemap index with product shards, and all 177 product sitemap shards were collected successfully; however, normal automated requests to the individual product pages encounter an interactive Cloudflare challenge and the project must not bypass that control. The approval also does not authorize copying authenticated dealer data, publishing private dealer cost, credentials, removing watermarks or representing dated observations as live stock.
 
 On 5 August 2026, ECS Wholesale advised by email that a private FTP file may be possible, containing ES numbers, manufacturer numbers, product descriptions, dealer cost, retail prices, weights and dimensions. ECS has not yet approved or delivered that feed; access is normally reserved for established high-volume customers. Dealer cost must remain private even if supplied. Completing the entire ECS catalogue therefore still requires:
 

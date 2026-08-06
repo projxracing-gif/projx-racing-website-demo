@@ -607,7 +607,15 @@ assert.equal(disabledDiscoveryCalls, 0);
 
 const providerCursor = `${Buffer.from('next-page').toString('base64url')}.${'a'.repeat(64)}`;
 const discoveryCalls = [];
+const discoveryOffsetCalls = [];
 const discoveryProvider = {
+  async getMeta() {
+    return {
+      releaseId: '20260805T212305813Z-591144905c3f9719',
+      discoveredUrlCount: 1_361_533,
+      shardCount: 137
+    };
+  },
   async list({ cursor: requestedCursor, limit }) {
     discoveryCalls.push({ cursor: requestedCursor, limit });
     const first = requestedCursor === null;
@@ -618,6 +626,19 @@ const discoveryProvider = {
       count: items.length,
       nextCursor: first ? providerCursor : null,
       meta: { releaseId: '20260805T212305813Z-591144905c3f9719', discoveredUrlCount: 1_361_533 }
+    };
+  },
+  async listByOffset({ offset, limit }) {
+    discoveryOffsetCalls.push({ offset, limit });
+    const total = 1_361_533;
+    const count = offset >= total ? 0 : Math.min(limit, total - offset);
+    const items = Array.from({ length: count }, (_, index) => discoveryItem(offset + index + 1));
+    return {
+      releaseId: '20260805T212305813Z-591144905c3f9719',
+      items,
+      count: items.length,
+      nextOffset: offset + count < total ? offset + count : null,
+      meta: { releaseId: '20260805T212305813Z-591144905c3f9719', discoveredUrlCount: total }
     };
   }
 };
@@ -681,6 +702,31 @@ const discoveryUnavailableResponse = await invoke(discoveryUnavailable, { query:
 assert.equal(discoveryUnavailableResponse.status, 503);
 assert.equal(discoveryUnavailableResponse.body.error.code, 'discovery_unavailable');
 assert.doesNotMatch(JSON.stringify(discoveryUnavailableResponse.body), /secret|upstream|storage/i);
+
+const fullEcsCatalogue = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '1' } });
+assert.equal(fullEcsCatalogue.status, 200);
+assert.equal(fullEcsCatalogue.body.mode, 'browse');
+assert.equal(fullEcsCatalogue.body.items.length, 100);
+assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, 1_361_536);
+assert.equal(fullEcsCatalogue.body.meta.totalResults, 1_361_536);
+assert.equal(fullEcsCatalogue.body.meta.totalPages, 13_616);
+assert.equal(fullEcsCatalogue.body.meta.ecsUrlReferenceCount, 1_361_533);
+assert.equal(fullEcsCatalogue.body.meta.ecsCatalogueListingCount, 1_361_536);
+assert.equal(fullEcsCatalogue.body.meta.ecsReferenceOnlyCount, 1_361_522);
+assert.equal(fullEcsCatalogue.body.meta.reviewedOutsideDiscoveryCount, 3);
+assert.equal(fullEcsCatalogue.body.meta.numberedPagination, true);
+assert.equal(fullEcsCatalogue.body.meta.searchable, false);
+assert.equal(fullEcsCatalogue.body.meta.filterable, false);
+assert.ok(fullEcsCatalogue.body.items.slice(3).every(item => item.dataStatus === 'url_discovered'));
+assert.deepEqual(discoveryOffsetCalls[0], { offset: 0, limit: 97 });
+
+const secondEcsPage = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '2' } });
+assert.equal(secondEcsPage.status, 200);
+assert.equal(secondEcsPage.body.meta.page, 2);
+assert.deepEqual(discoveryOffsetCalls[1], { offset: 97, limit: 100 });
+const beyondEcsCatalogue = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '13617' } });
+assert.equal(beyondEcsCatalogue.status, 400);
+assert.equal(beyondEcsCatalogue.body.error.code, 'invalid_page');
 
 const normalWithDiscoveryConfigured = await invoke(discoveryEnabled);
 assert.equal(normalWithDiscoveryConfigured.status, 200);

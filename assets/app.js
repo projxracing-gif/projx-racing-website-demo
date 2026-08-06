@@ -9,8 +9,6 @@
   const SUPPLIER_CONFIRM_ENGINE = "confirm-engine";
   const PARTS_CATALOG_ENDPOINT = "/api/parts-catalog/";
   const PARTS_CATALOG_FALLBACK_ENDPOINT = "/api/tegiwa-catalog/";
-  const ECS_DISCOVERY_PAGE_SIZE = 100;
-  const ECS_DISCOVERY_CURSOR_HISTORY_LIMIT = 20;
   const STAGING_ORDER_ENDPOINT = "/api/staging-order/";
   const TEGIWA_PRODUCT_QUERY = "product";
   const TEGIWA_PRODUCT_HISTORY_KEY = "projxSupplierProduct";
@@ -201,6 +199,7 @@
       partialCatalogue: false,
       catalogueSource: "",
       fallbackReason: "",
+      referenceCatalogue: false,
       controller: null,
       detailController: null,
       detailHandle: "",
@@ -209,14 +208,6 @@
       activeSuggestion: -1,
       lastRequest: {}
     },
-    ecsDiscovery: {
-      controller: null,
-      currentCursor: "",
-      nextCursor: null,
-      cursorHistory: [],
-      releaseId: "",
-      page: 1
-    }
   };
 
   function parsePreviewLocation() {
@@ -335,11 +326,12 @@
       tegiwaLoadError: "تعذر تحميل كتالوج القطع حالياً.",
       tegiwaRetry: "حاول مرة ثانية",
       ecsDiscoveryEyebrow: "دليل مراجع ECS",
-      ecsDiscoveryHeading: "روابط كتالوج ECS المكتشفة.",
-      ecsDiscoveryText: "دليل منفصل لروابط صفحات ECS العامة. هذه الروابط ليست بيانات منتجات مراجعة، لذلك ما نعرض منها اسماً أو سعراً أو مخزوناً أو توافقاً قبل التحقق.",
-      ecsDiscoveryOpen: "افتح دليل المراجع",
+      ecsDiscoveryHeading: "تصفح جميع مراجع كتالوج ECS.",
+      ecsDiscoveryText: "جميع روابط صفحات ECS العامة متاحة الآن داخل كتالوج القطع نفسه. السجلات غير المراجعة تبقى مراجع URL فقط إلى أن يتم تأكيد الاسم ورقم القطعة والسعر والمخزون والتوافق.",
+      ecsDiscoveryOpen: "تصفح جميع مراجع ECS",
       ecsDiscoveryClose: "أغلق دليل المراجع",
       ecsDiscoveryReference: "مرجع كتالوج ECS",
+      ecsUrlDerived: "مستخرج من رابط URL — غير موثّق",
       ecsDiscoveryOriginal: "افتح صفحة ECS الأصلية",
       ecsDiscoveryEnquire: "استفسر عن هذا المرجع",
       ecsDiscoveryLoading: "جاري تحميل 100 مرجع من ECS…",
@@ -387,7 +379,7 @@
       tegiwaPageOf: "الصفحة {page} من {total}",
       tegiwaGoToPage: "انتقل إلى الصفحة {page}",
       tegiwaShowingRange: "عرض {start}–{end} من {total} منتج",
-      tegiwaCatalogCount: "منتج في كتالوج المخزون",
+      tegiwaCatalogCount: "منتج أو مرجع في الكتالوج",
       tegiwaAvailableCount: "منتج عليه توفر مؤكد أو من المورد",
       tegiwaViewProduct: "شوف المنتج",
       tegiwaSupplierListing: "صفحة المنتج الأصلية",
@@ -509,11 +501,12 @@
       tegiwaLoadError: "The parts catalogue could not be loaded right now.",
       tegiwaRetry: "Try again",
       ecsDiscoveryEyebrow: "ECS reference directory",
-      ecsDiscoveryHeading: "Discovered ECS catalogue links.",
-      ecsDiscoveryText: "A separate directory of public ECS page links. These are not reviewed product records, so no name, SKU, price, stock or fitment is shown until verified.",
-      ecsDiscoveryOpen: "Open reference directory",
+      ecsDiscoveryHeading: "Browse every ECS catalogue reference.",
+      ecsDiscoveryText: "Every collected public ECS page link is now available inside the same parts catalogue. Unreviewed records remain URL-only references until the name, part number, price, stock and fitment are confirmed.",
+      ecsDiscoveryOpen: "Browse all ECS references",
       ecsDiscoveryClose: "Close reference directory",
       ecsDiscoveryReference: "ECS catalogue reference",
+      ecsUrlDerived: "URL-derived — not verified",
       ecsDiscoveryOriginal: "Open original ECS page",
       ecsDiscoveryEnquire: "Enquire about this reference",
       ecsDiscoveryLoading: "Loading 100 ECS references…",
@@ -561,7 +554,7 @@
       tegiwaPageOf: "Page {page} of {total}",
       tegiwaGoToPage: "Go to page {page}",
       tegiwaShowingRange: "Showing {start}–{end} of {total} products",
-      tegiwaCatalogCount: "products in the stock catalogue",
+      tegiwaCatalogCount: "products or references in the catalogue",
       tegiwaAvailableCount: "products with direct or supplier availability",
       tegiwaViewProduct: "View product",
       tegiwaSupplierListing: "Original product listing",
@@ -2267,6 +2260,7 @@
     root.querySelectorAll("[data-tegiwa-filter]").forEach(control => {
       const key = control.dataset.tegiwaFilter;
       if (Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) control.value = state.tegiwaCatalog[key];
+      control.disabled = Boolean(state.tegiwaCatalog.referenceCatalogue && key !== "supplier");
     });
     const count = tegiwaFilterCount();
     const badge = root.querySelector("[data-tegiwa-filter-count]");
@@ -2278,7 +2272,7 @@
     if (clear) clear.disabled = count === 0;
     const fitment = root.querySelector('[data-tegiwa-filter="fitment"]');
     if (fitment) {
-      fitment.disabled = !partsVehicleLabel();
+      fitment.disabled = state.tegiwaCatalog.referenceCatalogue || !partsVehicleLabel();
       if (fitment.disabled && state.tegiwaCatalog.fitment !== "all") {
         state.tegiwaCatalog.fitment = "all";
         fitment.value = "all";
@@ -2323,9 +2317,15 @@
     const key = control?.dataset.tegiwaFilter;
     if (!Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) return;
     state.tegiwaCatalog[key] = catalogueFilterValue(key, control.value);
+    if (key === "supplier" && state.tegiwaCatalog.supplier === "ecs") {
+      const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
+      if (search) search.value = "";
+      Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, { supplier: "ecs", query: "", match: "any" });
+    }
     hideTegiwaSuggestions();
     syncTegiwaFilterUi();
-    loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
+    const match = state.tegiwaCatalog.supplier === "ecs" ? "any" : (partsVehicleLabel() ? "vehicle" : "any");
+    loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match, page: 1, scrollResults: true });
   }
 
   function partsCatalogueParams({ query = state.tegiwaCatalog.query, page = 1, suggest = false, handle = "" } = {}) {
@@ -2465,6 +2465,7 @@
     state.tegiwaCatalog.partialCatalogue = result.partialCatalogue === true;
     state.tegiwaCatalog.catalogueSource = cleanText(result.catalogueSource || "", 100);
     state.tegiwaCatalog.fallbackReason = cleanText(result.fallbackReason || "", 120);
+    state.tegiwaCatalog.referenceCatalogue = state.tegiwaCatalog.catalogueSource === "ecs-public-url-catalogue";
   }
 
   function hideTegiwaSuggestions() {
@@ -2646,7 +2647,7 @@
     const currentPage = totalPages ? Math.min(totalPages, Math.max(1, requestedPage)) : 1;
     const grid = root.querySelector("[data-tegiwa-results]");
     const status = root.querySelector("[data-tegiwa-status]");
-    if (grid) grid.innerHTML = items.length ? items.map(tegiwaProductCard).join("") : `<div class="empty-state tegiwa-empty"><p>${esc(labels.tegiwaNoResults)}</p></div>`;
+    if (grid) grid.innerHTML = items.length ? items.map(partsCatalogueCard).join("") : `<div class="empty-state tegiwa-empty"><p>${esc(labels.tegiwaNoResults)}</p></div>`;
     if (status) {
       if (isSearch && totalResults > 0 && items.length) {
         const start = ((currentPage - 1) * pageSize) + 1;
@@ -2668,8 +2669,8 @@
     }
     const catalogueStat = root.querySelector("[data-tegiwa-catalog-count]");
     const availableStat = root.querySelector("[data-tegiwa-available-count]");
-    if (catalogueStat && Number.isFinite(count) && count > 0) catalogueStat.textContent = tegiwaNumber(count);
-    if (availableStat && Number.isFinite(available) && available > 0) availableStat.textContent = tegiwaNumber(available);
+    if (catalogueStat && Number.isFinite(count) && count >= 0) catalogueStat.textContent = tegiwaNumber(count);
+    if (availableStat && Number.isFinite(available) && available >= 0) availableStat.textContent = tegiwaNumber(available);
     state.tegiwaCatalog.currentPage = currentPage;
     state.tegiwaCatalog.totalPages = totalPages;
     state.tegiwaCatalog.pageSize = pageSize;
@@ -2700,7 +2701,9 @@
     if (fallback) {
       const active = state.tegiwaCatalog.backend === "tegiwa-fallback" || state.tegiwaCatalog.partialCatalogue;
       fallback.hidden = !active;
-      const message = state.tegiwaCatalog.partialCatalogue && state.tegiwaCatalog.backend !== "tegiwa-fallback"
+      const message = state.tegiwaCatalog.referenceCatalogue
+        ? labels.ecsDiscoveryNotice
+        : state.tegiwaCatalog.partialCatalogue && state.tegiwaCatalog.backend !== "tegiwa-fallback"
         ? labels.cataloguePartial
         : labels.catalogueFallback;
       fallback.innerHTML = active ? `${icons.check}<span>${esc(message)}</span>` : "";
@@ -2800,6 +2803,21 @@
     else loadTegiwaCatalog({ query: "", match: "any", page: 1 });
   }
 
+  function browseFullEcsCatalogue() {
+    const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
+    if (search) search.value = "";
+    hideTegiwaSuggestions();
+    clearTegiwaDirectorySelection();
+    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, {
+      supplier: "ecs",
+      match: "any",
+      query: "",
+      currentPage: 1
+    });
+    syncTegiwaFilterUi();
+    loadTegiwaCatalog({ query: "", supplier: "ecs", match: "any", page: 1, scrollResults: true });
+  }
+
   function ecsDiscoveryReferenceUrl(item) {
     if (!item || typeof item !== "object" || item.dataStatus !== "url_discovered"
       || item.supplier?.slug !== "ecs" || item.requestDetailsOnly !== true || item.quoteOnly !== true) return "";
@@ -2824,141 +2842,41 @@
     }
   }
 
-  function ecsDiscoveryCards(items = []) {
-    const labels = storeText();
-    return items.map(item => {
-      const sourceUrl = ecsDiscoveryReferenceUrl(item);
-      if (!sourceUrl) return "";
-      const context = `${labels.ecsDiscoveryReference} | ${sourceUrl}`;
-      return `<article class="ecs-discovery-card"><span class="mini-label">${esc(labels.ecsDiscoveryReference)}</span><p><bdi dir="ltr">${esc(sourceUrl)}</bdi></p><div class="ecs-discovery-actions"><a class="btn btn-outline btn-sm" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.ecsDiscoveryOriginal)}${icons.arrow}</a><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="ECS Parts Reference Enquiry" data-context="${esc(context)}">${esc(labels.ecsDiscoveryEnquire)}${icons.quote}</button></div></article>`;
-    }).filter(Boolean).join("");
-  }
-
-  function resetEcsDiscoveryPagination() {
-    state.ecsDiscovery.currentCursor = "";
-    state.ecsDiscovery.nextCursor = null;
-    state.ecsDiscovery.cursorHistory = [];
-    state.ecsDiscovery.releaseId = "";
-    state.ecsDiscovery.page = 1;
-  }
-
-  function renderEcsDiscoveryError(message) {
-    const root = document.querySelector("[data-ecs-discovery]");
-    if (!root) return;
-    const labels = storeText();
-    const grid = root.querySelector("[data-ecs-discovery-results]");
-    const status = root.querySelector("[data-ecs-discovery-status]");
-    if (grid) grid.innerHTML = `<div class="notice notice-info ecs-discovery-error"><strong>${esc(message)}</strong><button class="btn btn-sm" type="button" data-action="ecs-discovery-retry">${esc(labels.tegiwaRetry)}${icons.arrow}</button></div>`;
-    if (status) status.textContent = message;
-  }
-
-  async function loadEcsDiscoveryPage({ cursor = "", direction = "initial", allowReleaseReset = true } = {}) {
-    const root = document.querySelector("[data-ecs-discovery]");
-    if (!root) return;
-    const section = root.closest("[data-ecs-discovery-section]");
-    const labels = storeText();
-    state.ecsDiscovery.controller?.abort();
-    const controller = new AbortController();
-    state.ecsDiscovery.controller = controller;
-    const grid = root.querySelector("[data-ecs-discovery-results]");
-    const status = root.querySelector("[data-ecs-discovery-status]");
-    const panel = root.querySelector("[data-ecs-discovery-panel]");
-    const controls = root.querySelectorAll("[data-ecs-discovery-control]");
-    if (panel) panel.setAttribute("aria-busy", "true");
-    if (grid) grid.innerHTML = `<div class="ecs-discovery-loading" role="status">${icons.search}<span>${esc(labels.ecsDiscoveryLoading)}</span></div>`;
-    if (status) status.textContent = labels.ecsDiscoveryLoading;
-    controls.forEach(control => { control.disabled = true; });
+  function ecsReferencePathEvidence(sourceUrl) {
     try {
-      const endpoint = new URL(PARTS_CATALOG_ENDPOINT, location.origin);
-      endpoint.searchParams.set("discovery", "1");
-      if (cursor) endpoint.searchParams.set("cursor", cursor);
-      const response = await fetch(endpoint, { headers: { Accept: "application/json" }, signal: controller.signal });
-      const payload = await response.json().catch(() => null);
-      if (response.status === 404) {
-        if (section) section.hidden = true;
-        return;
-      }
-      if (response.status === 409 && allowReleaseReset) {
-        resetEcsDiscoveryPagination();
-        return loadEcsDiscoveryPage({ cursor: "", direction: "initial", allowReleaseReset: false });
-      }
-      if (!response.ok || !payload || payload.mode !== "discovery" || !Array.isArray(payload.items)
-        || payload.items.length > ECS_DISCOVERY_PAGE_SIZE || payload.meta?.count !== payload.items.length
-        || payload.meta?.pageSize !== ECS_DISCOVERY_PAGE_SIZE || payload.meta?.dataStatus !== "url_discovered"
-        || payload.meta?.searchable !== false || payload.meta?.filterable !== false
-        || payload.meta?.numberedPagination !== false) {
-        const changed = response.status === 409;
-        throw Object.assign(new Error(changed ? "discovery_release_changed" : "discovery_unavailable"), { changed });
-      }
-      const references = payload.items.map(item => ({ item, url: ecsDiscoveryReferenceUrl(item) }));
-      if (references.some(entry => !entry.url)) throw new Error("invalid_ecs_discovery_response");
-      const releaseId = cleanText(payload.meta?.releaseId || "", 128);
-      if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/.test(releaseId)) throw new Error("invalid_ecs_discovery_response");
-      const nextCursor = payload.nextCursor;
-      if (nextCursor !== null && (typeof nextCursor !== "string" || !nextCursor
-        || nextCursor.length > 1024 || /[\u0000-\u001f\u007f]/.test(nextCursor))) {
-        throw new Error("invalid_ecs_discovery_response");
-      }
-
-      if (direction === "next") {
-        state.ecsDiscovery.cursorHistory.push(state.ecsDiscovery.currentCursor);
-        if (state.ecsDiscovery.cursorHistory.length > ECS_DISCOVERY_CURSOR_HISTORY_LIMIT) state.ecsDiscovery.cursorHistory.shift();
-        state.ecsDiscovery.page += 1;
-      } else if (direction === "previous") {
-        state.ecsDiscovery.cursorHistory.pop();
-        state.ecsDiscovery.page = Math.max(1, state.ecsDiscovery.page - 1);
-      } else if (direction === "initial") {
-        state.ecsDiscovery.cursorHistory = [];
-        state.ecsDiscovery.page = 1;
-      }
-      state.ecsDiscovery.currentCursor = cursor;
-      state.ecsDiscovery.nextCursor = nextCursor;
-      state.ecsDiscovery.releaseId = releaseId;
-      root.dataset.loaded = "true";
-      if (section) section.hidden = false;
-      if (grid) grid.innerHTML = ecsDiscoveryCards(payload.items);
-      const total = Math.max(0, Number(payload.meta?.discoveredUrlCount) || 0);
-      if (status) status.textContent = tegiwaTemplate(labels.ecsDiscoveryStatus, {
-        count: tegiwaNumber(payload.items.length),
-        page: tegiwaNumber(state.ecsDiscovery.page),
-        total: tegiwaNumber(total)
-      });
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-      renderEcsDiscoveryError(error?.changed ? labels.ecsDiscoveryChanged : labels.ecsDiscoveryUnavailable);
-    } finally {
-      if (state.ecsDiscovery.controller === controller) {
-        state.ecsDiscovery.controller = null;
-        if (panel) panel.removeAttribute("aria-busy");
-        controls.forEach(control => { control.disabled = false; });
-        const previous = root.querySelector('[data-action="ecs-discovery-previous"]');
-        const next = root.querySelector('[data-action="ecs-discovery-next"]');
-        const reset = root.querySelector('[data-action="ecs-discovery-reset"]');
-        if (previous) previous.disabled = state.ecsDiscovery.cursorHistory.length === 0;
-        if (next) next.disabled = !state.ecsDiscovery.nextCursor;
-        if (reset) reset.disabled = state.ecsDiscovery.page === 1;
-      }
+      const parsed = new URL(sourceUrl);
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      const decode = value => {
+        let decoded = String(value || "");
+        try { decoded = decodeURIComponent(decoded); } catch { /* keep the canonical path token */ }
+        return cleanText(decoded.replace(/^b-/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " "), 220);
+      };
+      const descriptive = segments.length >= 3 ? decode(segments[1]) : "";
+      const brandToken = decode(segments[0]);
+      const reference = cleanText(segments.at(-1) || "", 180);
+      return {
+        label: descriptive || `${storeText().ecsDiscoveryReference} — ${reference}`,
+        brandToken,
+        reference
+      };
+    } catch {
+      return { label: storeText().ecsDiscoveryReference, brandToken: "", reference: "" };
     }
   }
 
-  function setupEcsDiscoveryDirectory() {
-    state.ecsDiscovery.controller?.abort();
-    const root = document.querySelector("[data-ecs-discovery]");
-    resetEcsDiscoveryPagination();
-    if (!root || root.dataset.ready === "true") return;
-    root.dataset.ready = "true";
+  function ecsReferenceCatalogueCard(item) {
+    const labels = storeText();
+    const sourceUrl = ecsDiscoveryReferenceUrl(item);
+    if (!sourceUrl) return "";
+    const evidence = ecsReferencePathEvidence(sourceUrl);
+    const context = `${labels.ecsDiscoveryReference} | ${sourceUrl}`;
+    return `<article class="tegiwa-product-card ecs-reference-product-card" data-supplier="ecs"><div class="tegiwa-product-media ecs-reference-media"><div class="tegiwa-image-empty">${icons.search}<span>${esc(labels.ecsDiscoveryReference)}</span></div><span class="tegiwa-stock-badge is-check">${esc(labels.tegiwaCheckAvailability)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(labels.ecsDiscoveryReference)}</span><h3>${esc(evidence.label)}</h3><p class="ecs-reference-disclaimer">${esc(labels.ecsDiscoveryNotice)}</p><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>ECS Tuning</bdi></dd></div>${evidence.brandToken ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.brandToken)}</bdi></dd></div>` : ""}${evidence.reference ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.reference)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd>${esc(labels.requestPrice)}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(labels.tegiwaCheckAvailability)}</dd></div></dl><p class="ecs-reference-url"><bdi dir="ltr">${esc(sourceUrl)}</bdi></p><div class="card-footer ecs-reference-actions"><a class="btn btn-outline btn-sm" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.ecsDiscoveryOriginal)}${icons.arrow}</a><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="ECS Parts Reference Enquiry" data-context="${esc(context)}">${esc(labels.ecsDiscoveryEnquire)}${icons.quote}</button></div></div></article>`;
   }
 
-  function toggleEcsDiscoveryDirectory(trigger) {
-    const root = document.querySelector("[data-ecs-discovery]");
-    if (!trigger || !root) return;
-    const panel = root.querySelector("[data-ecs-discovery-panel]");
-    const expanded = trigger.getAttribute("aria-expanded") === "true";
-    trigger.setAttribute("aria-expanded", String(!expanded));
-    const label = trigger.querySelector("[data-ecs-discovery-toggle-label]");
-    if (label) label.textContent = expanded ? storeText().ecsDiscoveryOpen : storeText().ecsDiscoveryClose;
-    if (panel) panel.hidden = expanded;
-    if (!expanded && root.dataset.loaded !== "true") loadEcsDiscoveryPage();
+  function partsCatalogueCard(item) {
+    return item?.dataStatus === "url_discovered"
+      ? ecsReferenceCatalogueCard(item)
+      : tegiwaProductCard(item);
   }
 
   function tegiwaVariantAvailability(variant = {}) {
@@ -3185,7 +3103,7 @@
         ${partsCatalogueDirectory()}
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
         <section class="section tegiwa-catalog-section" id="tegiwa-catalog"><div class="container"><div class="tegiwa-catalog-shell" data-tegiwa-catalog>
-          <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
+          <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p><div class="tegiwa-catalog-actions"><button class="btn btn-outline btn-sm" type="button" data-action="browse-ecs-catalogue">${esc(labels.ecsDiscoveryOpen)}${icons.arrow}</button></div></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
           <form class="tegiwa-search" data-tegiwa-search>
             <label for="tegiwa-search-input">${esc(labels.tegiwaSearchLabel)}</label>
             <div class="tegiwa-search-row">
@@ -3211,15 +3129,6 @@
           <div class="tegiwa-product-grid" id="parts-results" data-tegiwa-results>${tegiwaLoadingCards()}</div>
           <nav class="tegiwa-pagination" data-tegiwa-pagination aria-label="${esc(labels.tegiwaPaginationLabel)}" hidden><button class="btn btn-outline" type="button" data-action="tegiwa-previous" data-tegiwa-control disabled>${icons.arrow}<span>${esc(labels.tegiwaPrevious)}</span></button><div class="tegiwa-pagination-center"><div class="tegiwa-page-list" data-tegiwa-pages dir="ltr"></div><button class="text-link" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaReset)}</button></div><button class="btn btn-outline" type="button" data-action="tegiwa-next" data-tegiwa-control disabled><span>${esc(labels.tegiwaNext)}</span>${icons.arrow}</button></nav>
           <div class="parts-fitment-note">${icons.check}<span>${esc(finder.compatibility)}</span></div>
-        </div></div></section>
-        <section class="section ecs-discovery-section" data-ecs-discovery-section><div class="container"><div class="ecs-discovery-shell" data-ecs-discovery>
-          <button class="ecs-discovery-toggle" type="button" data-action="toggle-ecs-discovery" aria-expanded="false" aria-controls="ecs-discovery-panel"><span><small class="eyebrow">${esc(labels.ecsDiscoveryEyebrow)}</small><strong>${esc(labels.ecsDiscoveryHeading)}</strong><span>${esc(labels.ecsDiscoveryText)}</span></span><b data-ecs-discovery-toggle-label>${esc(labels.ecsDiscoveryOpen)}</b><i aria-hidden="true"></i></button>
-          <div class="ecs-discovery-panel" id="ecs-discovery-panel" data-ecs-discovery-panel hidden>
-            <p class="ecs-discovery-notice">${icons.check}<span>${esc(labels.ecsDiscoveryNotice)}</span></p>
-            <div class="ecs-discovery-status" data-ecs-discovery-status role="status" aria-live="polite"></div>
-            <div class="ecs-discovery-grid" data-ecs-discovery-results></div>
-            <nav class="ecs-discovery-pagination" aria-label="${esc(labels.ecsDiscoveryEyebrow)}"><button class="btn btn-outline" type="button" data-action="ecs-discovery-previous" data-ecs-discovery-control disabled>${icons.arrow}<span>${esc(labels.ecsDiscoveryPrevious)}</span></button><button class="text-link" type="button" data-action="ecs-discovery-reset" data-ecs-discovery-control disabled>${esc(labels.ecsDiscoveryReset)}</button><button class="btn btn-outline" type="button" data-action="ecs-discovery-next" data-ecs-discovery-control disabled><span>${esc(labels.ecsDiscoveryNext)}</span>${icons.arrow}</button></nav>
-          </div>
         </div></div></section>
       </div>
       ${ctaBlock(state.locale === "ar" ? "عندك رقم قطعة محدد؟" : "Have an exact part number?", state.locale === "ar" ? "أرسل رقم القطعة والسيارة وVIN عند الحاجة ومكان التسليم وخيار التركيب." : "Send the part number, vehicle, VIN where required, delivery location and whether installation is needed.", U().actions.enquire, "Parts Enquiry")}`;
@@ -4046,7 +3955,6 @@
     setupFilters();
     setupPartsStore();
     setupTegiwaCatalog();
-    setupEcsDiscoveryDirectory();
     setupTuningFinder();
     syncTegiwaProductFromUrl();
     if (path === "/account") mountAccountPortal("sign-in");
@@ -4701,25 +4609,7 @@
       return;
     }
     if (action === "tegiwa-retry") { loadTegiwaCatalog(state.tegiwaCatalog.lastRequest); return; }
-    if (action === "toggle-ecs-discovery") { toggleEcsDiscoveryDirectory(target); return; }
-    if (action === "ecs-discovery-retry") {
-      loadEcsDiscoveryPage({ cursor: state.ecsDiscovery.currentCursor, direction: "retry" });
-      return;
-    }
-    if (action === "ecs-discovery-next") {
-      if (state.ecsDiscovery.nextCursor) loadEcsDiscoveryPage({ cursor: state.ecsDiscovery.nextCursor, direction: "next" });
-      return;
-    }
-    if (action === "ecs-discovery-previous") {
-      const previousCursor = state.ecsDiscovery.cursorHistory.at(-1);
-      if (previousCursor !== undefined) loadEcsDiscoveryPage({ cursor: previousCursor, direction: "previous" });
-      return;
-    }
-    if (action === "ecs-discovery-reset") {
-      resetEcsDiscoveryPagination();
-      loadEcsDiscoveryPage({ cursor: "", direction: "initial" });
-      return;
-    }
+    if (action === "browse-ecs-catalogue") { browseFullEcsCatalogue(); return; }
     if (action === "clear-parts-vehicle") {
       const resetLiveCatalogue = state.tegiwaCatalog.match === "vehicle";
       const activeQuery = state.tegiwaCatalog.query;
