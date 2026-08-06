@@ -5,6 +5,13 @@ import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 const FIXED_NOW = Date.parse('2026-08-06T09:30:00Z');
 const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length;
 const TEGIWA_FIXTURE_COUNT = 193_256;
+const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
+const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => product.categorySlug === categorySlug).length;
+const reviewedModelCount = model => REVIEWED_ECS_PRODUCTS.filter(product => (product.fitments || []).some(fitment =>
+  [fitment.model, ...(fitment.models || [])].some(value => String(value || '').split('/').some(item =>
+    item.trim().toLocaleLowerCase('en-US').split(/[^a-z0-9]+/u).includes(model.toLocaleLowerCase('en-US'))
+  ))
+)).length;
 
 function responseRecorder() {
   return {
@@ -175,27 +182,79 @@ assert.ok(reviewedClampDetail.body.product.images.every(image => image.altAr));
 assert.match(reviewedClampDetail.body.product.availability.leadTimeAr, /تأكيد التوفر/);
 assert.ok(reviewedClampDetail.body.product.fitments.every(fitment => fitment.noteAr));
 
+const reviewedF8xSearch = await invoke(reviewedOnly, { query: { q: '055023LA02', supplier: 'ecs' } });
+assert.equal(reviewedF8xSearch.status, 200);
+assert.equal(reviewedF8xSearch.body.items.length, 1);
+assert.equal(reviewedF8xSearch.body.items[0].handle, 'ecs-f8x-s55-luft-technik-intake');
+assert.equal(reviewedF8xSearch.body.items[0].sku, 'ES#4877104');
+assert.equal(reviewedF8xSearch.body.items[0].mpn, '055023LA02');
+assert.equal(reviewedF8xSearch.body.items[0].price.min, 442.79);
+assert.match(reviewedF8xSearch.body.items[0].image.src, /f8x-s55-luft-technik-intake\.jpg$/);
+
+const reviewedF8xDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-f8x-s55-luft-technik-intake', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedF8xDetail.status, 200);
+assert.deepEqual(new Set(reviewedF8xDetail.body.product.fitments.flatMap(fitment => fitment.chassis)), new Set(['F80', 'F82']));
+assert.ok(reviewedF8xDetail.body.product.fitments.every(fitment => fitment.engine === 'S55'));
+assert.ok(reviewedF8xDetail.body.product.titleAr);
+assert.ok(reviewedF8xDetail.body.product.images.every(image => image.altAr));
+
+const reviewedG8xSearch = await invoke(reviewedOnly, { query: { q: 'EVE-G8XMV2-CF-IN', supplier: 'ecs' } });
+assert.equal(reviewedG8xSearch.status, 200);
+assert.equal(reviewedG8xSearch.body.items.length, 1);
+assert.equal(reviewedG8xSearch.body.items[0].handle, 'ecs-eventuri-g8x-carbon-intake-v2-gloss');
+assert.equal(reviewedG8xSearch.body.items[0].sku, 'ES#4716362');
+assert.equal(reviewedG8xSearch.body.items[0].price.min, 2995);
+assert.match(reviewedG8xSearch.body.items[0].image.src, /eventuri-g8x-carbon-intake-v2-gloss\.jpg$/);
+
+const reviewedG8xDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-eventuri-g8x-carbon-intake-v2-gloss', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedG8xDetail.status, 200);
+assert.deepEqual(new Set(reviewedG8xDetail.body.product.fitments.flatMap(fitment => fitment.chassis)), new Set(['G80', 'G82']));
+assert.ok(reviewedG8xDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
+assert.equal(reviewedG8xDetail.body.product.availability.checkedAt, '2026-08-06');
+assert.ok(reviewedG8xDetail.body.product.descriptionAr);
+
 const reviewedBrandFilter = await invoke(reviewedOnly, { query: { brand: 'csf-cooling' } });
 assert.equal(reviewedBrandFilter.status, 200);
-assert.equal(reviewedBrandFilter.body.meta.totalResults, 3);
+assert.equal(reviewedBrandFilter.body.meta.totalResults, reviewedBrandCount('csf-cooling'));
 assert.ok(reviewedBrandFilter.body.items.every(item => item.vendor === 'CSF Cooling'));
 
 const reviewedCategoryFilter = await invoke(reviewedOnly, { query: { partType: 'cooling' } });
 assert.equal(reviewedCategoryFilter.status, 200);
-assert.equal(reviewedCategoryFilter.body.meta.totalResults, 5);
+assert.equal(reviewedCategoryFilter.body.meta.totalResults, reviewedCategoryCount('cooling'));
 assert.ok(reviewedCategoryFilter.body.items.every(item => item.category.startsWith('Cooling')));
 
 const reviewedPossibleFitment = await invoke(reviewedOnly, {
   query: { fitment: 'possible', make: 'BMW', model: 'M3' }
 });
 assert.equal(reviewedPossibleFitment.status, 200);
-assert.equal(reviewedPossibleFitment.body.meta.totalResults, 2);
+assert.equal(reviewedPossibleFitment.body.meta.totalResults, reviewedModelCount('M3'));
 assert.ok(reviewedPossibleFitment.body.items.every(item => item.fitmentConfidence === 'possible'));
 const reviewedM2Fitment = await invoke(reviewedOnly, {
   query: { fitment: 'possible', make: 'BMW', model: 'M2' }
 });
-assert.equal(reviewedM2Fitment.body.meta.totalResults, 2);
+assert.equal(reviewedM2Fitment.body.meta.totalResults, reviewedModelCount('M2'));
 assert.ok(reviewedM2Fitment.body.items.every(item => !/m240/i.test(item.title)));
+const reviewedF80Vehicle = await invoke(reviewedOnly, {
+  query: { fitment: 'possible', make: 'BMW', model: 'M3', generation: 'F80', year: '2017' }
+});
+assert.ok(reviewedF80Vehicle.body.meta.totalResults >= 8);
+assert.ok(reviewedF80Vehicle.body.items.every(item => item.fitmentConfidence === 'possible'));
+const reviewedF82Vehicle = await invoke(reviewedOnly, {
+  query: { fitment: 'possible', make: 'BMW', model: 'M4', generation: 'F82', year: '2018' }
+});
+assert.ok(reviewedF82Vehicle.body.meta.totalResults >= 8);
+const reviewedG80Vehicle = await invoke(reviewedOnly, {
+  query: { fitment: 'possible', make: 'BMW', model: 'M3', generation: 'G80', year: '2023' }
+});
+assert.ok(reviewedG80Vehicle.body.meta.totalResults >= 10);
+const reviewedG82Vehicle = await invoke(reviewedOnly, {
+  query: { fitment: 'possible', make: 'BMW', model: 'M4', generation: 'G82', year: '2023' }
+});
+assert.ok(reviewedG82Vehicle.body.meta.totalResults >= 10);
 assert.equal((await invoke(reviewedOnly, {
   query: { fitment: 'exact', make: 'BMW', model: 'M3' }
 })).body.meta.totalResults, 0);

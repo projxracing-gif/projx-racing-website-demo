@@ -4,19 +4,19 @@ Status date: 6 August 2026
 
 ## Verified outcome
 
-The reviewed collection contains exactly **15 ECS Tuning products**. The catalogue audit passes with:
+The reviewed collection contains exactly **41 ECS Tuning products**. The catalogue audit passes with:
 
-- 15 unique storefront slugs and global `ecs-...` public handles;
-- 15 unique ECS part numbers;
-- 15 unique manufacturer MPNs;
-- 15 unique canonical ECS product URLs;
-- 15 unique local primary-image hashes;
-- 15 reviewed public USD supplier prices dated 4 or 6 August 2026;
-- 15 bilingual titles, summaries and primary-image alternative texts;
-- possible-only supplier-title fitment evidence for all 15 products; and
-- 0 exact fitment claims, 0 live-stock claims and 0 duplicate products.
+- 41 unique storefront slugs and global `ecs-...` public handles;
+- 41 unique ECS part numbers;
+- 41 unique manufacturer MPNs;
+- 41 unique canonical ECS product URLs;
+- 43 unique local image hashes across the 41 products;
+- 41 reviewed public USD supplier prices dated 4 or 6 August 2026;
+- 41 bilingual titles, summaries and primary-image alternative texts;
+- possible-only supplier-title fitment evidence for all 41 products; and
+- 0 structured independently verified exact-fitment records, 0 live-stock claims and 0 duplicate products.
 
-The unified API now exposes the records when the database is unconfigured, unpublished or has not yet seeded ECS. The server merges the 15 reviewed ECS cards ahead of the existing Tegiwa fallback, uses stable global pagination, and returns a `partialCatalogue` marker. Filtering is supported for ECS supplier, brand, category/subcategory, USD pricing, confirmation-required availability, make, model, available chassis/year/engine evidence and possible fitment. Exact-fitment filtering returns no ECS records because none is independently verified.
+The unified API now exposes the records when the database is unconfigured, unpublished or has not yet seeded ECS. The server merges the 41 reviewed ECS cards ahead of the existing Tegiwa fallback, uses stable global pagination, and returns a `partialCatalogue` marker. Filtering is supported for ECS supplier, brand, category/subcategory, USD pricing, confirmation-required availability, make, model, available chassis/year/engine evidence and possible fitment. Exact-fitment filtering returns no ECS records because none is independently verified.
 
 ## Private ECS discovery queue
 
@@ -30,15 +30,49 @@ The ECS sitemap inventory is retained as private ingestion data only. It is not 
 
 The earlier preview incorrectly exposed URL-derived cards and added URL counts to the public product total. That path has been removed. The public discovery API now fails closed, normal ECS browsing returns reviewed structured products only, and the UI rejects a stale response containing `url_discovered` records.
 
-Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **193,268 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
+Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **193,294 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
 
 ## ECS image coverage
 
-All **15 reviewed ECS products** have a unique, readable local product image. Fourteen use 800 by 600 media; the newly reviewed 034Motorsport clamp includes three 1200 by 1200 product views. The signed discovery manifests contain **1,361,533 canonical URL strings and zero image fields**, so those private intake records do not have an accurate supplier image mapping and are never rendered as product cards.
+All **41 reviewed ECS products** have a unique, readable local primary product image. Forty use 800 by 600 media; the 034Motorsport clamp includes three 1200 by 1200 product views. All 43 local image files have unique hashes. The signed discovery manifests contain **1,361,533 canonical URL strings and zero image fields**, so those private intake records do not have an accurate supplier image mapping and are never rendered as product cards.
 
 Completing ECS image coverage requires an authorised ECS number, manufacturer part number or canonical URL to image mapping. Imported media must be validated, checksummed, deduplicated, kept with its supplier attribution or watermark intact, mirrored to approved object storage and reviewed before publication. Search thumbnails, guessed images and watermark removal are not acceptable substitutes.
 
 Search and vehicle/product filters apply only to reviewed or supplier-fed product data. URL tokens are never used as product facts.
+
+## Featured reviewed BMW M selections
+
+This 26-product batch was manually reviewed on 6 August 2026 from ECS vehicle-category relevance and editorial placement for BMW M3/M4 F80, F82, G80 and G82 applications. ECS does not publish unit-sales counts or a verifiable bestseller ranking, so the storefront labels these as **featured reviewed selections**, not proven best sellers. All fitments remain possible-only and all stock phrases are dated observations requiring supplier confirmation.
+
+| ECS part number | Manufacturer MPN | Product | Brand | Public USD price | Supplier observation on 6 August 2026 |
+|---|---|---|---|---:|---|
+| ES#4716362 | EVE-G8XMV2-CF-IN | Eventuri G8X Carbon Intake System V2 — Gloss | Eventuri | 2995.00 | In stock when checked — dispatch timing requires confirmation |
+| ES#4642623 | D760-0063 | Dinan G8X Carbon Fiber Cold-Air Intake — Gloss | Dinan | 1664.96 | In stock — estimated dispatch today when checked |
+| ES#4642560 | 013859LA10 | Turner G80/G82 Carbon Cold-Air Intake | Turner Motorsport | 1981.70 | In stock — estimated dispatch today when checked |
+| ES#4465353 | BW-S5801 | MST S58 Cold-Air Intake — G80/G82 M3/M4 | MST Performance | 767.99 | Back ordered — no ETA when checked |
+| ES#4658164 | 008621LA01 | Turner G80/G82 Stainless Valved Cat-Back Exhaust | Turner Motorsport | 1137.49 | Selected configuration in stock — estimated dispatch today when checked |
+| ES#4361903 | 253200EB | KW H.A.S. Height-Adjustable Spring Kit — G80/G82 | KW Suspension | 1284.00 | Ships directly from supplier — estimated 5 business days when checked |
+| ES#4726451 | CTS-LS-015 | CTS Turbo Lowering Springs — G82 M4 | CTS Turbo | 299.99 | Ships directly from supplier — estimated 7 business days when checked |
+| ES#4726444 | CTS-LS-014 | CTS Turbo Lowering Springs — G80 M3 | CTS Turbo | 254.99 | Ships directly from supplier — estimated 7 business days when checked |
+| ES#4430972 | 50496-77 | H&R Super Sport Springs — G80 M3 | H&R | 509.15 | In stock when checked — dispatch timing requires confirmation |
+| ES#4375774 | 008771LA01-01 | Turner Aluminum Skid Plate — G80/G82 | Turner Motorsport | 866.99 | In stock — estimated dispatch today when checked |
+| ES#4642692 | 008686LA01KT | Turner Carbon Fiber Front Lip — G80/G82 | Turner Motorsport | 893.34 | In stock when checked — dispatch timing requires confirmation |
+| ES#4391015 | 013800LA01 | Turner Carbon Fiber Strut Brace — G80/G82 | Turner Motorsport | 1138.99 | In stock — estimated dispatch today when checked |
+| ES#4642935 | 8221 | CSF Automatic Transmission Oil Cooler — G80/G82 | CSF Cooling | 599.00 | In stock — estimated 1 business day when checked |
+| ES#4773018 | D650-0009KT2 | Dinan S58 Performance Ignition Coils — Red, Set of Six | Dinan | 233.99 | In stock — estimated dispatch today when checked |
+| ES#3006162 | 002411ECSKT18 | ECS 12.5mm Wheel Spacer and Extended Bolt Kit | ECS Tuning | 153.70 | In stock — estimated dispatch today when checked |
+| ES#4751482 | 008686LA01EBKT | G80 M3 Carbon Front Lip and High-Kick Spoiler Bundle | Enthusiast Bundles | 1399.00 | In stock when checked — dispatch timing requires confirmation |
+| ES#4877104 | 055023LA02 | F8X S55 Luft-Technik Performance Intake System | ECS Tuning | 442.79 | In stock — estimated ship date in 3 business days when checked |
+| ES#3984876 | 10801050 | VRSF S55 Charge Pipe Upgrade Kit | VRSF | 299.99 | In stock — estimated to ship today when checked |
+| ES#4213325 | F8XDCTSKKT3 | F8X Ultimate DCT Transmission Service Kit | Assembled by ECS | 771.02 | On order — estimated ship date in 3 business days when checked |
+| ES#4630139 | MAD-2050 | MAD S55 Catted Downpipes with Flex Sections | MAD | 569.00 | Available from supplier — estimated to ship in 6 business days when checked |
+| ES#4674312 | 049453LA01-02 | Turner S55 Crank Seal Guard | Turner Motorsport | 99.99 | In stock — estimated to ship today when checked |
+| ES#4690610 | D401-0042 | Dinan S55 High-Flow Drop-in Air Filter | Dinan | 86.30 | In stock — estimated to ship today when checked |
+| ES#4745170 | 34112284809SKT | F8X Front and Rear Performance Brake Service Kit | Assembled by ECS | 1396.74 | In stock — estimated to ship today when checked |
+| ES#4669181 | 34112284809-X | F8X Front V5 Drilled Brake Rotors — 380×30 mm Set | ECS Tuning | 467.38 | In stock — estimated to ship today when checked |
+| ES#3006376 | 010025ECS02AKT | F8X Exact-Fit Stainless-Steel Brake Lines — Complete Kit | ECS Tuning | 190.79 | In stock — estimated to ship today when checked |
+| ES#3508709 | JB4-S55 | Burger Motorsports S55 JB4 Tuning Module | Burger Motorsports | 599.00 | In stock — estimated to ship today when checked |
+
 
 ## Reviewed products
 
@@ -64,18 +98,18 @@ Search and vehicle/product filters apply only to reviewed or supplier-fed produc
 
 ## Data still missing
 
-These gaps apply to all 15 products unless stated otherwise:
+These gaps apply to all 41 products unless stated otherwise:
 
-- verified detailed supplier description: missing for 14;
-- verified technical specifications: missing for 14;
-- verified product options: missing for 15;
-- verified variations: missing for 15;
-- independently verified exact vehicle fitment: missing for 15;
-- drivetrain fitment: missing for 15;
-- Projx Racing selling price: missing for 15;
-- live supplier stock feed: missing for 15;
-- additional approved product gallery images: missing for 14; and
-- model-year ranges: present for 4, missing for 11.
+- verified detailed supplier description: missing for 40;
+- verified technical specifications: missing for 40;
+- verified product options: missing for 41;
+- verified variations: missing for 41;
+- independently verified exact vehicle fitment: missing for 41;
+- drivetrain fitment: missing for 41;
+- Projx Racing selling price: missing for 41;
+- live supplier stock feed: missing for 41;
+- additional approved product gallery images: missing for 40; and
+- model-year ranges: present for 5, missing for 36.
 
 The source observations include a manually checked availability phrase for each product, but the API deliberately returns `check_availability`. Supplier dispatch estimates are retained as dated observations only and are not published as guaranteed delivery times.
 

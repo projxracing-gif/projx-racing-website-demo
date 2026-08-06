@@ -35,9 +35,9 @@ No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT
 
 ## Current reviewed storefront collection
 
-The storefront currently contains 14 manually reviewed ECS products in `assets/ecs-products.js`. They are unique by public handle, ECS part number, manufacturer MPN, source URL and local image content.
+The storefront currently contains 41 manually reviewed ECS products in `assets/ecs-products.js`. They are unique by public handle, ECS part number, manufacturer MPN, source URL and local image content. The latest 26 are featured BMW M3/M4 F80, F82, G80 and G82 selections curated from ECS vehicle-category relevance; they are not represented as a supplier-published sales ranking.
 
-All 14 deliberately retain these limitations:
+All 41 deliberately retain these limitations:
 
 - supplier-title/application fitment is `possible`, never `exact`;
 - supplier availability is an observation and the API returns `check_availability`;
@@ -107,7 +107,7 @@ node scripts/ecs-catalog/prepare-review.mjs \
   --output private-imports/ecs-catalog-review/review-queue.json
 ```
 
-The queue reconciles candidates against the 14 current products by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
+The queue reconciles candidates against the 41 current products by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
 
 This step never edits the storefront, database or public assets. `publishApproved` remains false for every candidate. A person must review the evidence, approve local media, add bilingual copy and sign off before any separate publication/import change is made.
 
@@ -200,7 +200,7 @@ Every accepted product has exactly these fields:
 
 Unexpected fields are rejected. Sensitive or non-public field names—including dealer, wholesale, trade, tax, VAT, cost, credentials, cookies and tokens—are rejected.
 
-The public fallback API adds storefront-safe normalized fields to the 14 reviewed products: globally unique `ecs-...` handles, supplier/brand/category slugs, possible-only fitment records, available year/chassis/engine filters, USD retail-price metadata, confirmation-only availability, local images, SEO metadata and related products. Missing specifications, variants, drivetrain data and exact fitment remain empty rather than inferred.
+The public fallback API adds storefront-safe normalized fields to the 41 reviewed products: globally unique `ecs-...` handles, supplier/brand/category slugs, possible-only fitment records, available year/chassis/engine filters, USD retail-price metadata, confirmation-only availability, local images, SEO metadata and related products. Missing specifications, variants, drivetrain data and exact fitment remain empty rather than inferred.
 
 ## Tests
 

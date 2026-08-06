@@ -1,5 +1,17 @@
 # Projx Racing staging changelog
 
+## 6 August 2026
+
+### Featured BMW M catalogue batch
+
+- Added 26 manually reviewed ECS products for BMW M3/M4 F80, F82, G80 and G82, bringing the reviewed ECS collection to 41 products and the structured ECS-plus-Tegiwa total to 193,294.
+- The separately reviewed 034Motorsport exhaust clamp became the 15th ECS product before this 26-item batch; the 5 August entry below records the earlier 14-product state.
+- Added official local 800-by-600 product media, bilingual descriptions and alternative text, ECS and manufacturer part numbers, public USD price observations, and dated supplier-stock observations for every new item.
+- Excluded the Akrapovič candidate because its supplier image and availability evidence conflicted; no blank image or guessed stock state was published.
+- Added four bilingual one-tap ECS catalogue searches for the reviewed BMW M chassis and clearly described them as featured relevance-based selections, not a supplier-published sales ranking.
+- Corrected the BMW M vehicle-directory mapping so M3/M4 generation selections send F80, F82, G80 or G82 structured fitment evidence to the unified catalogue.
+- Kept all new items on fitment and supplier confirmation; no ECS item was added to the direct-cart allowlist.
+
 ## 5 August 2026
 
 ### Unified parts catalogue

@@ -2021,12 +2021,23 @@
   function partsVehicleApiFields() {
     const vehicle = state.partsVehicle && typeof state.partsVehicle === "object" ? state.partsVehicle : null;
     if (!vehicle) return {};
+    const make = cleanText(vehicle.make || "", 80);
+    const directoryModel = cleanText(vehicle.model || "", 100);
+    const bmwMDirectory = new Map([
+      ["M3 (14-20)", { model: "M3", generation: "F80" }],
+      ["M3 (20-24)", { model: "M3", generation: "G80" }],
+      ["M4 (14-20)", { model: "M4", generation: "F82" }],
+      ["M4 (21-24)", { model: "M4", generation: "G82" }]
+    ]);
+    const mappedBmwM = make === "BMW" ? bmwMDirectory.get(directoryModel) : null;
+    const model = mappedBmwM?.model || directoryModel;
     const result = {
       year: cleanText(vehicle.year || "", 4),
-      make: cleanText(vehicle.make || "", 80),
-      model: cleanText(vehicle.model || "", 100)
+      make,
+      model
     };
-    const generation = cleanText(vehicle.generation || "", 120);
+    const supplierGeneration = cleanText(vehicle.generation || "", 120);
+    const generation = mappedBmwM?.generation || supplierGeneration;
     const engine = cleanText(vehicle.engine || "", 120);
     if (generation && generation !== SUPPLIER_DIRECTORY_GENERATION) result.generation = generation;
     if (engine && engine !== SUPPLIER_CONFIRM_ENGINE) result.engine = engine;
@@ -2087,6 +2098,8 @@
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
     const query = cleanText(searchInput?.value || state.tegiwaCatalog.query || "", 120);
     clearTegiwaDirectorySelection();
+    state.tegiwaCatalog.supplier = "";
+    syncTegiwaFilterUi();
     loadTegiwaCatalog({ query, match: "vehicle", page: 1, scrollResults: true });
     scrollElementIntoView(document.getElementById("tegiwa-catalog"));
   }
@@ -2382,6 +2395,7 @@
       if (search) search.value = "";
       Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, { supplier: "ecs", query: "", match: "any" });
     }
+    clearTegiwaDirectorySelection();
     hideTegiwaSuggestions();
     syncTegiwaFilterUi();
     const match = state.tegiwaCatalog.supplier === "ecs" ? "any" : (partsVehicleLabel() ? "vehicle" : "any");
@@ -3075,6 +3089,26 @@
     const generationsMap = modelsMap.get(vehicle.model) || new Map();
     const engines = [...(generationsMap.get(vehicle.generation) || [])];
     const modelYears = partsModelYears();
+    const popularM = state.locale === "ar"
+      ? {
+          eyebrow: "اختيارات BMW M المراجعة",
+          heading: "ترقيات M3 وM4 المراجعة.",
+          text: "اختيارات من صفحات ECS المخصصة للسيارة وترتيب الملاءمة الافتراضي. لا تمثل أرقام مبيعات منشورة، ويجب تأكيد السعر والمخزون والتوافق قبل الطلب.",
+          action: "ابحث في قطع ECS"
+        }
+      : {
+          eyebrow: "Featured reviewed BMW M selections",
+          heading: "Reviewed M3 and M4 upgrades.",
+          text: "Curated from ECS vehicle pages and their default relevance ordering. These are not published sales figures; price, stock and exact fitment still require confirmation.",
+          action: "Search ECS parts"
+        };
+    const popularMModels = [
+      ["BMW M3 F80", "M3", "F80", "S55"],
+      ["BMW M4 F82", "M4", "F82", "S55"],
+      ["BMW M3 G80", "M3", "G80", "S58"],
+      ["BMW M4 G82", "M4", "G82", "S58"]
+    ];
+    const popularMMarkup = popularMModels.map(([query, model, chassis, engine]) => `<button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" data-tegiwa-directory-supplier="ecs" aria-pressed="false"><span><strong>${esc(model)} <bdi dir="ltr">${esc(chassis)}</bdi></strong><small><bdi dir="ltr">${esc(engine)}</bdi> · ECS Tuning</small></span><span>${esc(popularM.action)}${icons.arrow}</span></button>`).join("");
     const brandTiles = brandCounts.map(({ brand }) => `<button class="parts-brand-card" type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(brand.name)}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${esc(finder.byBrand)}</small></span>${icons.arrow}</button>`).join("");
     return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<a class="btn" href="#parts-vehicle">${esc(finder.byVehicle)}${icons.arrow}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.quote}</button>` })}
       <div data-parts-shop>
@@ -3098,6 +3132,10 @@
             <div class="parts-selected-vehicle ${partsVehicleLabel() ? "is-active" : ""}" data-parts-vehicle-summary>${partsVehicleSummaryMarkup()}</div>
             <p class="parts-directory-note">${icons.check}<span>${esc(labels.fitmentDirectoryNote)}</span></p>
           </div>
+          <section class="parts-popular-m" aria-labelledby="parts-popular-m-title">
+            <div><span class="mini-label">${esc(popularM.eyebrow)}</span><h2 id="parts-popular-m-title">${esc(popularM.heading)}</h2><p>${esc(popularM.text)}</p></div>
+            <div class="parts-popular-m-grid">${popularMMarkup}</div>
+          </section>
         </div></section>
         ${partsCatalogueDirectory()}
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
@@ -4246,6 +4284,9 @@
   function searchTegiwaDirectory(query, trigger) {
     const normalizedQuery = cleanText(query, 120);
     if (normalizedQuery.length < 2) return;
+    const requestedSupplier = catalogueFilterValue("supplier", trigger?.dataset.tegiwaDirectorySupplier || "");
+    state.tegiwaCatalog.supplier = requestedSupplier;
+    syncTegiwaFilterUi();
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
     if (searchInput) searchInput.value = normalizedQuery;
     hideTegiwaSuggestions();
@@ -4257,7 +4298,11 @@
     const catalogue = document.getElementById("tegiwa-catalog");
     const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     catalogue?.scrollIntoView({ behavior, block: "start" });
-    loadTegiwaCatalog({ query: normalizedQuery, match: partsVehicleLabel() ? "vehicle" : "any", page: 1 });
+    loadTegiwaCatalog({
+      query: normalizedQuery,
+      match: state.tegiwaCatalog.supplier === "ecs" ? "any" : (partsVehicleLabel() ? "vehicle" : "any"),
+      page: 1
+    });
     window.setTimeout(() => searchInput?.focus({ preventScroll: true }), behavior === "smooth" ? 450 : 0);
   }
 

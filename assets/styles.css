@@ -828,6 +828,45 @@ html[lang^="ar"] .parts-vehicle-copy h2 { line-height: 1.16; letter-spacing: 0; 
 .parts-selected-vehicle .text-link { padding: 8px; border: 0; color: var(--muted); background: transparent; cursor: pointer; }
 .parts-directory-note { display: flex; margin: 0; grid-column: 2; align-items: flex-start; gap: 8px; color: var(--muted); font-size: .72rem; line-height: 1.5; }
 .parts-directory-note svg { width: 17px; min-width: 17px; color: var(--red-label); }
+.parts-popular-m {
+  display: grid;
+  margin-top: 18px;
+  padding: clamp(22px, 3vw, 34px);
+  grid-template-columns: minmax(220px, .72fr) minmax(0, 1.28fr);
+  gap: 24px clamp(26px, 4vw, 54px);
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--red) 22%, var(--line));
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--red) 5%, var(--surface)), var(--surface-2));
+  box-shadow: var(--shadow-sm);
+}
+.parts-popular-m h2 { margin: 8px 0 11px; color: var(--text-strong); font-size: clamp(1.7rem, 3vw, 2.8rem); line-height: 1; letter-spacing: -.035em; }
+.parts-popular-m p { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.65; }
+html[lang^="ar"] .parts-popular-m h2 { line-height: 1.18; letter-spacing: 0; }
+.parts-popular-m-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.parts-popular-m-grid button {
+  display: flex;
+  min-height: 76px;
+  padding: 13px 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.parts-popular-m-grid button:hover, .parts-popular-m-grid button:focus-visible, .parts-popular-m-grid button.is-active { transform: translateY(-2px); border-color: color-mix(in srgb, var(--red) 48%, var(--line)); box-shadow: var(--shadow-sm); }
+.parts-popular-m-grid button > span { display: grid; gap: 4px; }
+.parts-popular-m-grid button > span:first-child { min-width: 0; }
+.parts-popular-m-grid button > span:last-child { flex-shrink: 0; grid-auto-flow: column; align-items: center; color: var(--red-label); font-size: .64rem; font-weight: 850; white-space: nowrap; }
+.parts-popular-m-grid strong { color: var(--text-strong); font-size: .94rem; }
+.parts-popular-m-grid small { color: var(--muted); font-size: .66rem; }
+.parts-popular-m-grid svg { width: 15px; }
 .parts-directory-section { background: linear-gradient(165deg, color-mix(in srgb, var(--red) 3%, var(--bg)), var(--bg) 54%); }
 .parts-directory-shell { display: grid; padding: clamp(24px, 4vw, 46px); gap: 22px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
 .parts-directory-shell > .section-head { margin-bottom: 0; }
@@ -1436,6 +1475,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .filter-bar .search-control { grid-column: 1 / -1; }
   .brand-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .parts-brand-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parts-popular-m { grid-template-columns: 1fr; }
   .tegiwa-catalog-head { grid-template-columns: 1fr; }
   .tegiwa-filter-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tegiwa-filter-panel .btn { width: 100%; }
@@ -1487,6 +1527,8 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .parts-vehicle-panel { padding: 20px 17px; }
   .parts-vehicle-form { grid-template-columns: 1fr; }
   .parts-vehicle-form .btn { width: 100%; grid-column: auto; }
+  .parts-popular-m { padding: 20px 17px; }
+  .parts-popular-m-grid { grid-template-columns: 1fr; }
   .parts-selected-vehicle { grid-template-columns: 22px minmax(0, 1fr); }
   .parts-selected-vehicle .text-link { grid-column: 2; justify-self: start; }
   .parts-directory-shell { padding: 20px 16px; }
