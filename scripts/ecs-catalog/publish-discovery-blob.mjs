@@ -667,7 +667,7 @@ async function main() {
   }, null, 2)}\n`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (process.argv?.[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main().catch((error) => {
     const safe = error instanceof EcsDiscoveryPublisherError
       ? { code: error.code, message: error.message }
