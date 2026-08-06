@@ -106,9 +106,17 @@ function stream(value) {
   return new Response(value).body;
 }
 
-function sdkMock({ corruptReadPath = null, initial = new Map(), currentReadError = null } = {}) {
+function sdkMock({
+  corruptReadPath = null,
+  initial = new Map(),
+  currentReadError = null,
+  compressedReads = false,
+  transientMissingReads = 0,
+  publicCurrentEtag = null
+} = {}) {
   const objects = new Map(initial);
   const calls = [];
+  const readCounts = new Map();
   let counter = 0;
   return {
     calls,
@@ -134,20 +142,39 @@ function sdkMock({ corruptReadPath = null, initial = new Map(), currentReadError
     async get(pathname) {
       calls.push(["get", pathname]);
       if (pathname === ECS_DISCOVERY_CURRENT_PATH && currentReadError) throw currentReadError;
+      const readCount = (readCounts.get(pathname) || 0) + 1;
+      readCounts.set(pathname, readCount);
+      if (pathname !== ECS_DISCOVERY_CURRENT_PATH && readCount <= transientMissingReads) return null;
       const item = objects.get(pathname);
       if (!item) return null;
       const body = pathname === corruptReadPath ? Buffer.from("{}") : item.body;
       return {
         statusCode: 200,
         stream: stream(body),
+        headers: new Headers(compressedReads ? { 'content-encoding': 'gzip' } : {}),
         blob: {
           pathname,
           url: `https://${HOST}/${pathname}`,
-          etag: item.etag,
-          size: body.length,
+          etag: pathname === ECS_DISCOVERY_CURRENT_PATH && publicCurrentEtag
+            ? publicCurrentEtag : item.etag,
+          size: compressedReads ? Math.max(1, Math.floor(body.length / 2)) : body.length,
           contentType: "application/json"
         }
       };
+    },
+    async list(options) {
+      calls.push(["list", options]);
+      const blobs = [...objects.entries()]
+        .filter(([pathname]) => !options?.prefix || pathname.startsWith(options.prefix))
+        .slice(0, options?.limit || 1_000)
+        .map(([pathname, item]) => ({
+          pathname,
+          url: `https://${HOST}/${pathname}`,
+          etag: item.etag,
+          size: item.body.length,
+          contentType: "application/json"
+        }));
+      return { blobs, hasMore: false, cursor: undefined };
     },
     async del(url, options) {
       calls.push(["del", url, options]);
@@ -268,6 +295,37 @@ test("a read-back checksum mismatch aborts without publishing current", async (t
   assert.equal(sdk.calls.some(call => call[0] === "put" && call[1] === ECS_DISCOVERY_CURRENT_PATH), false);
 });
 
+test("compressed public read-back uses the bounded stream checksum instead of encoded size", async (t) => {
+  const fixture = await makeFixture();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const result = await publishEcsDiscoveryToVercelBlob({
+    indexPath: fixture.indexPath,
+    previewConfirmed: true,
+    token: TOKEN,
+    manifestSecret: SECRET,
+    blobSdk: sdkMock({ compressedReads: true }),
+    now: NOW
+  });
+  assert.equal(result.status, "published");
+  assert.equal(verifyEcsDiscoveryManifestSignature(result.currentManifest, SECRET), true);
+});
+
+test("a newly uploaded immutable Blob is retried while its public read path becomes visible", async (t) => {
+  const fixture = await makeFixture();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const sdk = sdkMock({ transientMissingReads: 1 });
+  const result = await publishEcsDiscoveryToVercelBlob({
+    indexPath: fixture.indexPath,
+    previewConfirmed: true,
+    token: TOKEN,
+    manifestSecret: SECRET,
+    blobSdk: sdk,
+    now: NOW
+  });
+  assert.equal(result.status, "published");
+  assert.ok(sdk.calls.filter(call => call[0] === "get" && call[1].includes("ecs-product-urls-")).length > 2);
+});
+
 test("immutable conflicts resume safely and the same signed release is idempotent", async (t) => {
   const fixture = await makeFixture();
   t.after(() => rm(fixture.root, { recursive: true, force: true }));
@@ -284,6 +342,33 @@ test("immutable conflicts resume safely and the same signed release is idempoten
   assert.equal(second.status, "no_change");
   assert.equal(sdk.calls.filter(call => call[0] === "put").length, putCount);
   assert.equal(first.indexSha256, second.indexSha256);
+});
+
+test("pointer renewal uses authoritative list metadata when the public read ETag differs", async (t) => {
+  const fixture = await makeFixture();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const sdk = sdkMock({ publicCurrentEtag: "public-cache-etag" });
+  await publishEcsDiscoveryToVercelBlob({
+    indexPath: fixture.indexPath,
+    previewConfirmed: true,
+    token: TOKEN,
+    manifestSecret: SECRET,
+    blobSdk: sdk,
+    now: NOW
+  });
+  const renewed = await publishEcsDiscoveryToVercelBlob({
+    indexPath: fixture.indexPath,
+    previewConfirmed: true,
+    token: TOKEN,
+    manifestSecret: SECRET,
+    blobSdk: sdk,
+    now: NOW + (7 * 24 * 60 * 60 * 1_000) - (30 * 60 * 1_000)
+  });
+  assert.equal(renewed.status, "published");
+  assert.equal(verifyEcsDiscoveryManifestSignature(renewed.currentManifest, SECRET), true);
+  const currentPuts = sdk.calls.filter(call => call[0] === "put" && call[1] === ECS_DISCOVERY_CURRENT_PATH);
+  assert.equal(currentPuts.length, 2);
+  assert.equal(currentPuts.at(-1)[3].allowOverwrite, true);
 });
 
 test("invalid remote signatures fail before any immutable upload", async (t) => {

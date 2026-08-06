@@ -32,6 +32,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const FILE_NAME = /^ecs-product-urls-(\d{8})\.json$/;
 const RELEASE_ID = /^\d{8}T\d{9}Z-[a-f0-9]{16}$/;
 const PUBLIC_BLOB_HOST = /\.public\.blob\.vercel-storage\.com$/;
+const READ_BACK_RETRY_DELAYS_MS = Object.freeze([200, 500, 1_000, 2_000, 4_000, 8_000, 16_000]);
 
 const INDEX_KEYS = [
   "schemaVersion", "supplier", "kind", "generatedAt", "offlineOnly", "source",
@@ -314,15 +315,34 @@ async function readBoundedStream(stream, maximumBytes) {
 
 async function getAndVerify(sdk, token, pathname, expectedBuffer, maximumBytes, expectedHostname = null) {
   let result;
-  try {
-    result = await sdk.get(pathname, { access: "public", token, headers: { "Cache-Control": "no-cache" } });
-  } catch {
-    throw new EcsDiscoveryPublisherError("remote_verify_failed", "An uploaded discovery Blob could not be read back.");
+  for (let attempt = 0; attempt <= READ_BACK_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      result = await sdk.get(pathname, { access: "public", token, headers: { "Cache-Control": "no-cache" } });
+    } catch {
+      throw new EcsDiscoveryPublisherError("remote_verify_failed", "An uploaded discovery Blob could not be read back.");
+    }
+    if (result != null || attempt === READ_BACK_RETRY_DELAYS_MS.length) break;
+    await new Promise(resolve => setTimeout(resolve, READ_BACK_RETRY_DELAYS_MS[attempt]));
   }
   const metadata = validBlobMetadata(result?.blob, pathname, expectedHostname);
+  const reportedSize = result?.blob?.size;
+  const contentEncoded = Boolean(result?.headers?.get?.('content-encoding'));
   if (!metadata || result.statusCode !== 200 || !result.stream
-    || (result.blob.size != null && result.blob.size !== expectedBuffer.length)) {
-    throw new EcsDiscoveryPublisherError("remote_verify_failed", "An uploaded discovery Blob has invalid metadata.");
+    || (!contentEncoded && Number.isSafeInteger(reportedSize) && reportedSize > 0
+      && reportedSize !== expectedBuffer.length)) {
+    const diagnostic = [
+      `object=${pathname.split("/").pop()}`,
+      `metadata=${metadata ? "valid" : "invalid"}`,
+      `status=${Number.isSafeInteger(result?.statusCode) ? result.statusCode : "missing"}`,
+      `stream=${result?.stream ? "present" : "missing"}`,
+      `encoding=${contentEncoded ? "present" : "none"}`,
+      `reportedSize=${Number.isSafeInteger(reportedSize) ? reportedSize : "missing"}`,
+      `expectedSize=${expectedBuffer.length}`
+    ].join(", ");
+    throw new EcsDiscoveryPublisherError(
+      "remote_verify_failed",
+      `An uploaded discovery Blob has invalid metadata (${diagnostic}).`
+    );
   }
   const remoteBuffer = await readBoundedStream(result.stream, maximumBytes);
   if (remoteBuffer.length !== expectedBuffer.length
@@ -374,7 +394,8 @@ async function uploadImmutableAndVerify(sdk, token, pathname, buffer, maximumByt
 }
 
 function validateSdk(sdk) {
-  if (!sdk || typeof sdk.put !== "function" || typeof sdk.get !== "function" || typeof sdk.del !== "function") {
+  if (!sdk || typeof sdk.put !== "function" || typeof sdk.get !== "function"
+    || typeof sdk.list !== "function" || typeof sdk.del !== "function") {
     throw new EcsDiscoveryPublisherError("blob_sdk_unavailable", "The official Vercel Blob SDK is unavailable.");
   }
   return sdk;
@@ -442,7 +463,28 @@ async function loadRemoteCurrent(sdk, token, secret) {
   const buffer = await readBoundedStream(result.stream, CURRENT_MAX_BYTES);
   const manifest = parseObject(buffer, "invalid_remote_manifest", "Remote preview manifest");
   validateRemoteCurrent(manifest, metadata.url, secret);
-  return Object.freeze({ manifest, etag: metadata.etag, hostname: new URL(metadata.url).hostname });
+  let listing;
+  try {
+    listing = await sdk.list({ token, prefix: ECS_DISCOVERY_CURRENT_PATH, limit: 2 });
+  } catch {
+    throw new EcsDiscoveryPublisherError("remote_read_failed", "The authoritative preview manifest metadata could not be read.");
+  }
+  const listedCurrent = Array.isArray(listing?.blobs)
+    ? listing.blobs.find(blob => blob?.pathname === ECS_DISCOVERY_CURRENT_PATH)
+    : null;
+  const authoritativeMetadata = validBlobMetadata(
+    listedCurrent,
+    ECS_DISCOVERY_CURRENT_PATH,
+    new URL(metadata.url).hostname
+  );
+  if (!authoritativeMetadata) {
+    throw new EcsDiscoveryPublisherError("invalid_remote_manifest", "The authoritative preview manifest metadata is invalid.");
+  }
+  return Object.freeze({
+    manifest,
+    etag: authoritativeMetadata.etag,
+    hostname: new URL(metadata.url).hostname
+  });
 }
 
 export async function publishEcsDiscoveryToVercelBlob({
