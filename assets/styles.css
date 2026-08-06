@@ -1399,7 +1399,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
 .account-cart-status { margin-top: 10px; }
 #account-user-profile { width: 100%; min-height: 420px; }
 
-@media (min-width: 1261px) and (max-width: 1500px) {
+@media (min-width: 1261px) and (max-width: 1699px) {
   .header-inner { gap: 12px; }
   .brand-logo-frame { width: 128px; }
   .desktop-nav { gap: 2px; }
@@ -1661,6 +1661,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .brand-logo-frame { width: 88px; }
   .header-inner { gap: 6px; }
   .header-tools { gap: 4px; }
+  .header-tools .theme-button { display: none; }
 }
 
 @media (min-width: 1700px) {
