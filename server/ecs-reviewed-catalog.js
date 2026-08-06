@@ -32,6 +32,13 @@ function identifierIdentity(value) {
   return identity(value).replace(/\s+/g, '');
 }
 
+function exactIdentifierMatch(product, query) {
+  if (!query) return false;
+  const queryIdentifier = identifierIdentity(query);
+  return Boolean(queryIdentifier) && [product.ecsPartNumber, product.sku, product.mpn]
+    .some(value => identifierIdentity(value) === queryIdentifier);
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -166,6 +173,7 @@ function availability(product, nowValue) {
   const maximumAge = Number.isFinite(staleAfter) && staleAfter > 0 ? staleAfter : PRICE_MAX_AGE_MS;
   const snapshotStale = !Number.isFinite(checkedValue) || Number(nowValue) - checkedValue > maximumAge;
   const observation = text(product.observedAvailability, 180);
+  const observationAr = text(product.observedAvailabilityAr, 180);
   return {
     code: 'check_availability',
     checkedAt,
@@ -174,6 +182,11 @@ function availability(product, nowValue) {
       : observation
       ? `Supplier listing observed: ${observation}. Availability and lead time require confirmation.`
       : 'Availability and lead time require confirmation.',
+    leadTimeAr: snapshotStale
+      ? 'يلزم تأكيد التوفر؛ انتهت صلاحية المراجعة السابقة لحالة المورد.'
+      : observationAr
+      ? `كانت حالة المورد عند المراجعة: ${observationAr}. يجب تأكيد التوفر ومدة التجهيز قبل الطلب.`
+      : 'يجب تأكيد التوفر ومدة التجهيز قبل الطلب.',
     snapshotStale
   };
 }
@@ -185,7 +198,8 @@ function image(product) {
     src: rootAsset(source.src),
     width: Number(source.width) || null,
     height: Number(source.height) || null,
-    alt: text(source.alt || product.title, 220)
+    alt: text(source.alt || product.title, 220),
+    altAr: text(source.altAr || product.titleAr, 220) || null
   };
 }
 
@@ -195,8 +209,10 @@ function card(product, request, nowValue) {
     handle: product.publicKey,
     publicKey: product.publicKey,
     title: text(product.title, 300),
+    titleAr: text(product.titleAr, 300) || null,
     vendor: text(product.brand, 160) || null,
     category: text([product.category, product.subcategory].filter(Boolean).join(' / '), 160) || null,
+    categoryAr: text([product.categoryAr, product.subcategoryAr].filter(Boolean).join(' / '), 160) || null,
     image: image(product),
     sku: text(product.ecsPartNumber, 120) || null,
     skuCount: product.ecsPartNumber ? 1 : 0,
@@ -229,7 +245,8 @@ function detailFitments(product) {
     chassis: unique((fitment.chassis || []).map(value => text(value, 40))),
     engine: text((fitment.engines || []).join(' / '), 120) || null,
     drivetrain: null,
-    note: text(fitment.note, 300) || 'Fitment confirmation required before order.'
+    note: text(fitment.note, 300) || 'Fitment confirmation required before order.',
+    noteAr: text(fitment.noteAr, 300) || 'يجب تأكيد توافق القطعة مع السيارة قبل الطلب.'
   }));
 }
 
@@ -423,7 +440,10 @@ function overallMeta({ request, localProducts, legacyMeta, count, totalResults, 
 }
 
 async function listResponse({ request, req, nowValue, reason, legacyHandler, products }) {
-  const localAll = sortProducts(products.filter(product => productMatches(product, request, nowValue)), request, nowValue);
+  const localMatches = products.filter(product => productMatches(product, request, nowValue));
+  const exactIdentifierMatches = localMatches.filter(product => exactIdentifierMatch(product, request.query));
+  const exactIdentifierOnly = exactIdentifierMatches.length > 0;
+  const localAll = sortProducts(exactIdentifierOnly ? exactIdentifierMatches : localMatches, request, nowValue);
   const localSlice = localAll.slice(request.offset, request.offset + PAGE_SIZE);
   const items = localSlice.map(product => card(product, request, nowValue));
   let legacyMeta = null;
@@ -449,6 +469,7 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
         throw error;
       }
       legacyMeta ||= payload?.meta || {};
+      if (exactIdentifierOnly) break;
       legacyTotal = Number(payload?.meta?.totalResults ?? payload?.meta?.catalogProductCount) || 0;
       const pageItems = (payload?.items || []).slice(skip);
       items.push(...pageItems.slice(0, PAGE_SIZE - items.length));
@@ -479,13 +500,18 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
 }
 
 async function suggestionResponse({ request, req, nowValue, reason, legacyHandler, products }) {
-  const local = sortProducts(products.filter(product => productMatches(product, {
+  const localMatches = products.filter(product => productMatches(product, {
     ...request, availability: 'all', pricing: 'all', fitment: 'all', structuredVehicle: Boolean(
       request.year || request.make || request.model || request.generation || request.engine
     )
-  }, nowValue)), { ...request, sort: 'relevance' }, nowValue).slice(0, SUGGESTION_LIMIT);
+  }, nowValue));
+  const exactIdentifierMatches = localMatches.filter(product => exactIdentifierMatch(product, request.query));
+  const exactIdentifierOnly = exactIdentifierMatches.length > 0;
+  const local = sortProducts(exactIdentifierOnly ? exactIdentifierMatches : localMatches,
+    { ...request, sort: 'relevance' }, nowValue).slice(0, SUGGESTION_LIMIT);
   const suggestions = local.map(product => ({
     query: product.title, label: product.title, kind: 'product',
+    labelAr: text(product.titleAr, 300) || null,
     handle: product.publicKey, supplier: { slug: 'ecs', name: 'ECS Tuning' }
   }));
   let legacyMeta = null;
@@ -495,11 +521,13 @@ async function suggestionResponse({ request, req, nowValue, reason, legacyHandle
     try {
       const payload = normalizedLegacyPayload(await invokeLegacy(legacyHandler, req, parameters), request);
       legacyMeta = payload?.meta || {};
-      const seen = new Set(suggestions.map(item => item.handle));
-      for (const suggestion of payload?.suggestions || []) {
-        if (!seen.has(suggestion.handle)) suggestions.push(suggestion);
-        seen.add(suggestion.handle);
-        if (suggestions.length === SUGGESTION_LIMIT) break;
+      if (!exactIdentifierOnly) {
+        const seen = new Set(suggestions.map(item => item.handle));
+        for (const suggestion of payload?.suggestions || []) {
+          if (!seen.has(suggestion.handle)) suggestions.push(suggestion);
+          seen.add(suggestion.handle);
+          if (suggestions.length === SUGGESTION_LIMIT) break;
+        }
       }
     } catch (error) {
       if (error instanceof ReviewedFallbackError && error.status >= 500) legacyError = error;

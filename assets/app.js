@@ -213,8 +213,7 @@
       partialCatalogue: false,
       catalogueSource: "",
       fallbackReason: "",
-      referenceCatalogue: false,
-      catalogueListingCount: null,
+      catalogProductCount: null,
       availableProductCount: null,
       controller: null,
       detailController: null,
@@ -327,7 +326,7 @@
       reviewedItemsHeading: "منتجات مراجعة وباقات مجهزة.",
       reviewedItemsText: "تصفح منتجات الموردين التي راجعها فريق Projx Racing وباقات الأداء المجهزة. استخدم الفلاتر للوصول للقطعة المطلوبة بسرعة.",
       tegiwaEyebrow: "كتالوج القطع المباشر",
-      tegiwaHeading: "تصفح كتالوج القطع الكامل.",
+      tegiwaHeading: "تصفح كتالوج القطع.",
       tegiwaText: "ابحث باسم القطعة أو العلامة أو السيارة أو المحرك أو رقم القطعة، أو تصفح المنتجات بالتدريج. يجمع هذا القسم الكتالوج المباشر مع منتجات الموردين المراجعة وباقات Projx Racing في مكان واحد.",
       tegiwaSearchLabel: "ابحث في المنتجات",
       tegiwaSearchPlaceholder: "اسم القطعة، العلامة، السيارة، المحرك أو رقم القطعة",
@@ -341,24 +340,6 @@
       tegiwaLoading: "جاري تحميل منتجات الكتالوج…",
       tegiwaLoadError: "تعذر تحميل كتالوج القطع حالياً.",
       tegiwaRetry: "حاول مرة ثانية",
-      ecsDiscoveryEyebrow: "دليل مراجع ECS",
-      ecsDiscoveryHeading: "تصفح جميع مراجع كتالوج ECS.",
-      ecsDiscoveryText: "جميع روابط صفحات ECS العامة متاحة الآن داخل كتالوج القطع نفسه. السجلات غير المراجعة تبقى مراجع URL فقط إلى أن يتم تأكيد الاسم ورقم القطعة والسعر والمخزون والتوافق.",
-      ecsDiscoveryOpen: "تصفح جميع مراجع ECS",
-      ecsDiscoveryClose: "أغلق دليل المراجع",
-      ecsDiscoveryReference: "مرجع كتالوج ECS",
-      ecsReferenceImagePending: "صورة المنتج بانتظار وسائط موثّقة من المورّد",
-      ecsUrlDerived: "مستخرج من رابط URL — غير موثّق",
-      ecsDiscoveryOriginal: "افتح صفحة ECS الأصلية",
-      ecsDiscoveryEnquire: "استفسر عن هذا المرجع",
-      ecsDiscoveryLoading: "جاري تحميل 100 مرجع من ECS…",
-      ecsDiscoveryUnavailable: "دليل مراجع ECS غير متاح مؤقتاً. حاول مرة ثانية لاحقاً.",
-      ecsDiscoveryChanged: "تغيّر إصدار دليل ECS أثناء التصفح. أعدنا المحاولة من البداية ولم نتمكن من تحميله.",
-      ecsDiscoveryStatus: "عرض {count} مرجع في الصفحة {page} من أصل {total} رابط مكتشف",
-      ecsDiscoveryNext: "المراجع التالية",
-      ecsDiscoveryPrevious: "المراجع السابقة",
-      ecsDiscoveryReset: "الرجوع لأول المراجع",
-      ecsDiscoveryNotice: "مرجع URL فقط — يؤكد Projx Racing اسم القطعة ورقمها وسعرها ومخزونها وتوافقها قبل أي طلب.",
       tegiwaNext: "المنتجات التالية",
       tegiwaPrevious: "المنتجات السابقة",
       tegiwaReset: "الرجوع لبداية الكتالوج",
@@ -396,7 +377,7 @@
       tegiwaPageOf: "الصفحة {page} من {total}",
       tegiwaGoToPage: "انتقل إلى الصفحة {page}",
       tegiwaShowingRange: "عرض {start}–{end} من {total} منتج",
-      tegiwaCatalogCount: "منتج أو مرجع في الكتالوج",
+      tegiwaCatalogCount: "منتج موثّق في الكتالوج",
       tegiwaAvailableCount: "منتج عليه توفر مؤكد أو من المورد",
       tegiwaViewProduct: "شوف المنتج",
       tegiwaSupplierListing: "صفحة المنتج الأصلية",
@@ -503,7 +484,7 @@
       reviewedItemsHeading: "Reviewed products and configured packages.",
       reviewedItemsText: "Browse supplier products reviewed by Projx Racing and configured performance packages. Use the filters to reach the right item quickly.",
       tegiwaEyebrow: "Live Parts Catalogue",
-      tegiwaHeading: "Browse the complete parts catalogue.",
+      tegiwaHeading: "Browse the parts catalogue.",
       tegiwaText: "Search by product, brand, vehicle, engine or part number, or browse in manageable pages. The live supplier catalogue, reviewed products and Projx Racing packages are presented together in one place.",
       tegiwaSearchLabel: "Search products",
       tegiwaSearchPlaceholder: "Product, brand, vehicle, engine or part number",
@@ -517,24 +498,6 @@
       tegiwaLoading: "Loading catalogue products…",
       tegiwaLoadError: "The parts catalogue could not be loaded right now.",
       tegiwaRetry: "Try again",
-      ecsDiscoveryEyebrow: "ECS reference directory",
-      ecsDiscoveryHeading: "Browse every ECS catalogue reference.",
-      ecsDiscoveryText: "Every collected public ECS page link is now available inside the same parts catalogue. Unreviewed records remain URL-only references until the name, part number, price, stock and fitment are confirmed.",
-      ecsDiscoveryOpen: "Browse all ECS references",
-      ecsDiscoveryClose: "Close reference directory",
-      ecsDiscoveryReference: "ECS catalogue reference",
-      ecsReferenceImagePending: "Product image awaiting verified supplier media",
-      ecsUrlDerived: "URL-derived — not verified",
-      ecsDiscoveryOriginal: "Open original ECS page",
-      ecsDiscoveryEnquire: "Enquire about this reference",
-      ecsDiscoveryLoading: "Loading 100 ECS references…",
-      ecsDiscoveryUnavailable: "The ECS reference directory is temporarily unavailable. Please try again later.",
-      ecsDiscoveryChanged: "The ECS reference release changed while browsing. A single restart was attempted but the directory could not be loaded.",
-      ecsDiscoveryStatus: "Showing {count} references on page {page} from {total} discovered links",
-      ecsDiscoveryNext: "Next references",
-      ecsDiscoveryPrevious: "Previous references",
-      ecsDiscoveryReset: "Back to first references",
-      ecsDiscoveryNotice: "URL reference only — Projx Racing confirms the product name, part number, price, stock and fitment before any order.",
       tegiwaNext: "Next products",
       tegiwaPrevious: "Previous products",
       tegiwaReset: "Back to catalogue start",
@@ -572,7 +535,7 @@
       tegiwaPageOf: "Page {page} of {total}",
       tegiwaGoToPage: "Go to page {page}",
       tegiwaShowingRange: "Showing {start}–{end} of {total} products",
-      tegiwaCatalogCount: "products or references in the catalogue",
+      tegiwaCatalogCount: "verified products in the catalogue",
       tegiwaAvailableCount: "products with direct or supplier availability",
       tegiwaViewProduct: "View product",
       tegiwaSupplierListing: "Original product listing",
@@ -2256,7 +2219,34 @@
     return `<img src="${esc(source)}" width="${Math.max(1, Number(image.width) || 900)}" height="${Math.max(1, Number(image.height) || 900)}" alt="${esc(image.alt || title)}" loading="${eager ? "eager" : "lazy"}" decoding="async" referrerpolicy="no-referrer">`;
   }
 
+  function localizedCatalogueProduct(source) {
+    if (!source || state.locale !== "ar") return source;
+    const localizeImage = image => image ? { ...image, alt: image.altAr || image.alt } : image;
+    return {
+      ...source,
+      title: source.titleAr || source.title,
+      description: source.descriptionAr || source.description,
+      category: source.categoryAr || source.category,
+      image: localizeImage(source.image),
+      images: Array.isArray(source.images) ? source.images.map(localizeImage) : source.images,
+      availability: source.availability ? {
+        ...source.availability,
+        leadTime: source.availability.leadTimeAr || source.availability.leadTime
+      } : source.availability,
+      specifications: Array.isArray(source.specifications) ? source.specifications.map(specification => ({
+        ...specification,
+        label: specification.labelAr || specification.label,
+        value: specification.valueAr || specification.value
+      })) : source.specifications,
+      fitments: Array.isArray(source.fitments) ? source.fitments.map(fitment => ({
+        ...fitment,
+        note: fitment.noteAr || fitment.note
+      })) : source.fitments
+    };
+  }
+
   function tegiwaProductCard(item) {
+    item = localizedCatalogueProduct(item);
     const labels = storeText();
     const handle = tegiwaProductHandle(item.handle);
     const availability = tegiwaAvailability(item.availability);
@@ -2322,15 +2312,14 @@
   function syncTegiwaFilterUi() {
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root) return;
-    const referenceCatalogue = state.tegiwaCatalog.referenceCatalogue && state.tegiwaCatalog.supplier === "ecs";
     root.querySelectorAll("[data-tegiwa-filter]").forEach(control => {
       const key = control.dataset.tegiwaFilter;
       if (Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) control.value = state.tegiwaCatalog[key];
-      control.disabled = Boolean(referenceCatalogue && key !== "supplier");
+      control.disabled = false;
     });
     const fitment = root.querySelector('[data-tegiwa-filter="fitment"]');
     if (fitment) {
-      fitment.disabled = referenceCatalogue || !partsVehicleLabel();
+      fitment.disabled = !partsVehicleLabel();
       if (fitment.disabled && state.tegiwaCatalog.fitment !== "all") {
         state.tegiwaCatalog.fitment = "all";
         fitment.value = "all";
@@ -2371,8 +2360,7 @@
       backend: "unified",
       partialCatalogue: false,
       catalogueSource: "",
-      fallbackReason: "",
-      referenceCatalogue: false
+      fallbackReason: ""
     });
     syncTegiwaFilterUi();
     if (reload) loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
@@ -2500,6 +2488,11 @@
       const payload = await response.json().catch(() => null);
       if (response.ok) {
         if (!payload || typeof payload !== "object") throw catalogueResponseError(response, { error: { code: "invalid_response", message: "catalogue_invalid_response" } });
+        if (Array.isArray(payload.items) && payload.items.some(item => item?.dataStatus === "url_discovered")) {
+          throw catalogueResponseError({ status: 503 }, {
+            error: { code: "unverified_reference_data", message: "URL-only supplier references are not storefront products." }
+          });
+        }
         const partialCatalogue = payload.meta?.partialCatalogue === true;
         return {
           payload,
@@ -2537,7 +2530,6 @@
     state.tegiwaCatalog.partialCatalogue = result.partialCatalogue === true;
     state.tegiwaCatalog.catalogueSource = cleanText(result.catalogueSource || "", 100);
     state.tegiwaCatalog.fallbackReason = cleanText(result.fallbackReason || "", 120);
-    state.tegiwaCatalog.referenceCatalogue = state.tegiwaCatalog.catalogueSource === "ecs-public-url-catalogue";
   }
 
   function hideTegiwaSuggestions() {
@@ -2591,7 +2583,7 @@
       const key = query.toLocaleLowerCase();
       if (query.length < 2 || seen.has(key)) continue;
       seen.add(key);
-      entries.push({ query, label: cleanText(suggestion.label || query, 180), kind: suggestion.kind || "product", supplier: cleanText(suggestion.supplier?.name || "", 120) });
+      entries.push({ query, label: cleanText(state.locale === "ar" ? (suggestion.labelAr || suggestion.label || query) : (suggestion.label || query), 180), kind: suggestion.kind || "product", supplier: cleanText(suggestion.supplier?.name || "", 120) });
       if (entries.length >= 8) break;
     }
     if (!entries.length) {
@@ -2707,7 +2699,6 @@
     const items = Array.isArray(payload.items) ? payload.items : [];
     const meta = payload.meta || {};
     const count = Number(meta.catalogProductCount);
-    const listingCount = Number(meta.catalogueListingCount);
     const available = Number(meta.availableProductCount);
     const isSearch = payload.mode === "search";
     const pageSize = Math.max(1, Number.parseInt(meta.pageSize, 10) || state.tegiwaCatalog.pageSize || 100);
@@ -2742,10 +2733,9 @@
     }
     const catalogueStat = root.querySelector("[data-tegiwa-catalog-count]");
     const availableStat = root.querySelector("[data-tegiwa-available-count]");
-    if (Number.isFinite(listingCount) && listingCount >= 0) state.tegiwaCatalog.catalogueListingCount = listingCount;
-    else if (Number.isFinite(count) && count >= 0 && state.tegiwaCatalog.catalogueListingCount === null) state.tegiwaCatalog.catalogueListingCount = count;
+    if (Number.isFinite(count) && count >= 0) state.tegiwaCatalog.catalogProductCount = count;
     if (Number.isFinite(available) && available >= 0) state.tegiwaCatalog.availableProductCount = available;
-    if (catalogueStat && state.tegiwaCatalog.catalogueListingCount !== null) catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogueListingCount);
+    if (catalogueStat && state.tegiwaCatalog.catalogProductCount !== null) catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogProductCount);
     if (availableStat && state.tegiwaCatalog.availableProductCount !== null) availableStat.textContent = tegiwaNumber(state.tegiwaCatalog.availableProductCount);
     state.tegiwaCatalog.currentPage = currentPage;
     state.tegiwaCatalog.totalPages = totalPages;
@@ -2777,9 +2767,7 @@
     if (fallback) {
       const active = state.tegiwaCatalog.backend === "tegiwa-fallback" || state.tegiwaCatalog.partialCatalogue;
       fallback.hidden = !active;
-      const message = state.tegiwaCatalog.referenceCatalogue
-        ? labels.ecsDiscoveryNotice
-        : state.tegiwaCatalog.partialCatalogue && state.tegiwaCatalog.backend !== "tegiwa-fallback"
+      const message = state.tegiwaCatalog.partialCatalogue && state.tegiwaCatalog.backend !== "tegiwa-fallback"
         ? labels.cataloguePartial
         : labels.catalogueFallback;
       fallback.innerHTML = active ? `${icons.check}<span>${esc(message)}</span>` : "";
@@ -2870,8 +2858,7 @@
       partialCatalogue: false,
       catalogueSource: "",
       fallbackReason: "",
-      referenceCatalogue: false,
-      catalogueListingCount: null,
+      catalogProductCount: null,
       availableProductCount: null
     });
     const input = root.querySelector("[data-tegiwa-search-input]");
@@ -2887,80 +2874,8 @@
     else loadTegiwaCatalog({ query: "", match: "any", page: 1 });
   }
 
-  function browseFullEcsCatalogue() {
-    const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
-    if (search) search.value = "";
-    hideTegiwaSuggestions();
-    clearTegiwaDirectorySelection();
-    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, {
-      supplier: "ecs",
-      match: "any",
-      query: "",
-      currentPage: 1
-    });
-    syncTegiwaFilterUi();
-    loadTegiwaCatalog({ query: "", supplier: "ecs", match: "any", page: 1, scrollResults: true });
-  }
-
-  function ecsDiscoveryReferenceUrl(item) {
-    if (!item || typeof item !== "object" || item.dataStatus !== "url_discovered"
-      || item.supplier?.slug !== "ecs" || item.requestDetailsOnly !== true || item.quoteOnly !== true) return "";
-    const unavailableFacts = [
-      "title", "sku", "mpn", "brand", "category", "subcategory", "price", "stock",
-      "image", "images", "fitment", "fitments"
-    ];
-    if (unavailableFacts.some(field => item[field] !== null)) return "";
-    const sourceUrl = typeof item.sourceUrl === "string" ? item.sourceUrl : "";
-    if (!sourceUrl || sourceUrl !== item.canonicalSourceUrl) return "";
-    try {
-      const parsed = new URL(sourceUrl);
-      if (parsed.protocol !== "https:" || parsed.hostname !== "www.ecstuning.com" || parsed.username
-        || parsed.password || parsed.port || parsed.search || parsed.hash || !parsed.pathname.endsWith("/")
-        || parsed.href !== sourceUrl) return "";
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      if (segments.length < 2 || !/^b-[a-z0-9._~!$&'()*+,;=:@%-]+$/i.test(segments[0])
-        || !/[a-z0-9]/i.test(segments[0].slice(2))) return "";
-      return sourceUrl;
-    } catch {
-      return "";
-    }
-  }
-
-  function ecsReferencePathEvidence(sourceUrl) {
-    try {
-      const parsed = new URL(sourceUrl);
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      const decode = value => {
-        let decoded = String(value || "");
-        try { decoded = decodeURIComponent(decoded); } catch { /* keep the canonical path token */ }
-        return cleanText(decoded.replace(/^b-/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " "), 220);
-      };
-      const descriptive = segments.length >= 3 ? decode(segments[1]) : "";
-      const brandToken = decode(segments[0]);
-      const reference = cleanText(segments.at(-1) || "", 180);
-      return {
-        label: descriptive || `${storeText().ecsDiscoveryReference} — ${reference}`,
-        brandToken,
-        reference
-      };
-    } catch {
-      return { label: storeText().ecsDiscoveryReference, brandToken: "", reference: "" };
-    }
-  }
-
-  function ecsReferenceCatalogueCard(item) {
-    const labels = storeText();
-    const sourceUrl = ecsDiscoveryReferenceUrl(item);
-    if (!sourceUrl) return "";
-    const evidence = ecsReferencePathEvidence(sourceUrl);
-    const context = `${labels.ecsDiscoveryReference} | ${sourceUrl}`;
-    return `<article class="tegiwa-product-card ecs-reference-product-card" data-supplier="ecs"><div class="tegiwa-product-media ecs-reference-media"><div class="ecs-reference-image-placeholder"><img class="ecs-reference-logo" src="${esc(versionedAsset("assets/brand/partners/ecs-tuning.png"))}" width="180" height="180" alt="ECS Tuning" loading="lazy" decoding="async"><span>${esc(labels.ecsReferenceImagePending)}</span></div><span class="tegiwa-stock-badge is-check">${esc(labels.tegiwaCheckAvailability)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(labels.ecsDiscoveryReference)}</span><h3>${esc(evidence.label)}</h3><p class="ecs-reference-disclaimer">${esc(labels.ecsDiscoveryNotice)}</p><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>ECS Tuning</bdi></dd></div>${evidence.brandToken ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.brandToken)}</bdi></dd></div>` : ""}${evidence.reference ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.reference)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd>${esc(labels.requestPrice)}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(labels.tegiwaCheckAvailability)}</dd></div></dl><p class="ecs-reference-url"><bdi dir="ltr">${esc(sourceUrl)}</bdi></p><div class="card-footer ecs-reference-actions"><a class="btn btn-outline btn-sm" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.ecsDiscoveryOriginal)}${icons.arrow}</a><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="ECS Parts Reference Enquiry" data-context="${esc(context)}">${esc(labels.ecsDiscoveryEnquire)}${icons.quote}</button></div></div></article>`;
-  }
-
   function partsCatalogueCard(item) {
-    return item?.dataStatus === "url_discovered"
-      ? ecsReferenceCatalogueCard(item)
-      : tegiwaProductCard(item);
+    return tegiwaProductCard(item);
   }
 
   function tegiwaVariantAvailability(variant = {}) {
@@ -3056,7 +2971,7 @@
       if (!payload.product) throw new Error("product_unavailable");
       if (state.tegiwaCatalog.detailController !== detailController || detailController.signal.aborted) return;
       applyCatalogueSource(result);
-      const product = payload.product;
+      const product = localizedCatalogueProduct(payload.product);
       const availability = tegiwaAvailability(product.availability);
       const checked = tegiwaCheckedLabel(product.availability?.checkedAt);
       const variantOptions = Array.isArray(product.variants) ? product.variants : [];
@@ -3075,7 +2990,7 @@
         : cleanText(variantOptions.length === 0 ? productSku : "", 120);
       const productSkuMarkup = productSkus.map(sku => `<bdi dir="ltr">${esc(sku)}</bdi>`).join("");
       const showSelectedSku = Boolean(selectedVariant && selectedSku && (productSkus.length > 1 || productSkus[0] !== selectedSku));
-      const leadTime = cleanText(product.availability?.leadTime || "", 120);
+      const leadTime = cleanText(product.availability?.leadTime || "", 240);
       const supplier = cleanText(product.supplier?.name || "Tegiwa", 160);
       const baseDetails = [supplier, cleanText(product.vendor || "", 120), cleanText(product.category || labels.productType, 120)].filter(Boolean).join(" • ");
       const details = selectedVariant
@@ -3187,7 +3102,7 @@
         ${partsCatalogueDirectory()}
         <section class="section" id="parts-brands"><div class="container">${sectionHead(finder.brandEyebrow, finder.brandHeading, finder.brandText, `<a class="text-link" href="${routeUrl("/brands")}">${esc(finder.viewAllBrands)}${icons.arrow}</a>`)}<div class="parts-brand-grid">${brandTiles}</div></div></section>
         <section class="section tegiwa-catalog-section" id="tegiwa-catalog"><div class="container"><div class="tegiwa-catalog-shell" data-tegiwa-catalog>
-          <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p><div class="tegiwa-catalog-actions"><button class="btn btn-outline btn-sm" type="button" data-action="browse-ecs-catalogue">${esc(labels.ecsDiscoveryOpen)}${icons.arrow}</button></div></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
+          <header class="tegiwa-catalog-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2>${esc(labels.tegiwaHeading)}</h2><p>${esc(labels.tegiwaText)}</p></div><div class="tegiwa-catalog-stats"><article><strong data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaCatalogCount)}</span></article><article><strong data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—</strong><span>${esc(labels.tegiwaAvailableCount)}</span></article></div></header>
           <form class="tegiwa-search" data-tegiwa-search>
             <label for="tegiwa-search-input">${esc(labels.tegiwaSearchLabel)}</label>
             <div class="tegiwa-search-row">
@@ -4900,7 +4815,6 @@
       return;
     }
     if (action === "tegiwa-retry") { loadTegiwaCatalog(state.tegiwaCatalog.lastRequest); return; }
-    if (action === "browse-ecs-catalogue") { browseFullEcsCatalogue(); return; }
     if (action === "clear-parts-vehicle") {
       const resetLiveCatalogue = state.tegiwaCatalog.match === "vehicle";
       const activeQuery = state.tegiwaCatalog.query;

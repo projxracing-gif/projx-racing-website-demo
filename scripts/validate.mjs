@@ -465,8 +465,8 @@ assert(appSource.includes('data-tegiwa-catalog')
   && appSource.includes('data-action="tegiwa-page"')
   && appSource.includes('aria-current="page"'), 'Numbered Tegiwa storefront pagination is missing.');
 assert(appSource.includes('data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—<')
-  && appSource.includes('const listingCount = Number(meta.catalogueListingCount)')
-  && appSource.includes('catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogueListingCount)'), 'Unified catalogue totals must load from the API instead of a stale hard-coded count.');
+  && appSource.includes('const count = Number(meta.catalogProductCount)')
+  && appSource.includes('catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogProductCount)'), 'Unified product totals must load from the verified API product count instead of a stale or URL-reference total.');
 assert(appSource.includes('data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—<')
   && appSource.includes('availableStat.textContent = tegiwaNumber(state.tegiwaCatalog.availableProductCount)'), 'Unified availability totals must load from the API instead of a stale hard-coded count.');
 assert(appSource.includes('(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))'), 'Tegiwa storefront product-detail guard does not support all validated official handles.');
@@ -494,12 +494,13 @@ assert(appSource.includes('data-action="toggle-parts-directory-group"')
   && appSource.includes('partDirectoryViewAll')
   && appSource.includes('togglePartsDirectoryGroup')
   && stylesSource.includes('.parts-directory-panel[hidden]'), 'The compact, single-open Part Type Directory accordion is incomplete.');
-assert(appSource.includes('tegiwaHeading: "Browse the complete parts catalogue."')
+assert(appSource.includes('tegiwaHeading: "Browse the parts catalogue."')
   && (appSource.match(/tegiwaHeading:/g) || []).length === 2
   && appSource.includes('PARTS_CATALOG_ENDPOINT = "/api/parts-catalog/"')
   && appSource.includes('id="parts-results" data-tegiwa-results')
   && !appSource.includes('store-catalogue-review" id="parts-results"')
   && !appSource.includes('<div class="store-grid" data-filter-grid="parts"')
+  && !appSource.includes('Browse the complete parts catalogue.')
   && !appSource.includes('Browse the complete Tegiwa catalogue.'), 'The supplier-neutral unified Parts Catalogue presentation is incomplete.');
 assert(appSource.includes('partsVehicleApiFields')
   && appSource.includes('match: "vehicle"')

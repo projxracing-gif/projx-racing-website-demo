@@ -396,6 +396,45 @@
       images: [
         { src: "assets/products/ecs/m177-gen2-cold-air-intake-e63-gt63.jpg", width: 800, height: 600, alt: "BlackBoost Gen 2 M177 cold-air intake for Mercedes-AMG E63 and GT63", altAr: "نظام سحب هواء بارد BlackBoost الجيل الثاني لمحرك M177 في مرسيدس-AMG E63 وGT63" }
       ]
+    },
+    {
+      ...common,
+      slug: "034motorsport-55mm-exhaust-clamp",
+      title: "034Motorsport 55mm Exhaust Clamp",
+      titleAr: "مشبك عادم 55 مم من 034Motorsport",
+      summary: "OE-style stainless-steel clamp for 55 mm outside-diameter exhaust tubing. ECS lists it for supported Audi applications; confirm the exact vehicle and exhaust configuration before order.",
+      summaryAr: "مشبك عادم من الستانلس ستيل بتصميم مماثل للوكالة لأنابيب عادم بقطر خارجي 55 مم. تعرضه ECS لتطبيقات أودي المدعومة؛ يجب تأكيد السيارة ومواصفات العادم قبل الطلب.",
+      brand: "034Motorsport",
+      category: "Exhaust",
+      categoryAr: "العادم",
+      subcategory: "Clamps & Hardware",
+      subcategoryAr: "المشابك وملحقات التثبيت",
+      sku: "ES#4877039",
+      ecsPartNumber: "ES#4877039",
+      mpn: "034-105-D300",
+      priceAmount: 33,
+      priceVerifiedAt: "2026-08-06",
+      priceNote: "ECS public USD price — manually checked 2026-08-06",
+      priceNoteAr: "سعر ECS العام بالدولار الأمريكي — تمت المراجعة اليدوية في 2026-08-06",
+      checkedAt: "2026-08-06",
+      originalUrl: "https://www.ecstuning.com/b-034motorsport-parts/55mm-exhaust-clamp/034-105-d300~034/",
+      observedAvailability: "In stock — estimated to ship in 1 business day when checked",
+      observedAvailabilityAr: "متوفر عند الفحص — تقدير الشحن خلال يوم عمل واحد",
+      detailedDescriptionAvailable: true,
+      specifications: [
+        { label: "Construction", value: "Stainless steel", labelAr: "الخامة", valueAr: "ستانلس ستيل" },
+        { label: "Tube outside diameter", value: "55 mm", labelAr: "القطر الخارجي للأنبوب", valueAr: "55 مم" },
+        { label: "Design", value: "OE-style even-clamping sleeve", labelAr: "التصميم", valueAr: "غلاف تثبيت مماثل للوكالة يوزّع الضغط بالتساوي" }
+      ],
+      fitments: [
+        { make: "Audi", model: "S4", generation: "B8 / B8.5 — 2010–2017", engines: ["3.0 TFSI Supercharged"] },
+        { make: "Audi", model: "S4", generation: "B9 — 2018–2026", engines: ["3.0 TFSI"] }
+      ],
+      images: [
+        { src: "assets/products/ecs/034motorsport-55mm-exhaust-clamp.jpg", width: 1200, height: 1200, alt: "034Motorsport 55 mm stainless-steel exhaust clamp", altAr: "مشبك عادم 55 مم من الستانلس ستيل من 034Motorsport" },
+        { src: "assets/products/ecs/034motorsport-55mm-exhaust-clamp-2.jpg", width: 1200, height: 1200, alt: "Rear view of the 034Motorsport 55 mm exhaust clamp", altAr: "منظر خلفي لمشبك عادم 55 مم من 034Motorsport" },
+        { src: "assets/products/ecs/034motorsport-55mm-exhaust-clamp-3.jpg", width: 1200, height: 1200, alt: "Top view of the 034Motorsport 55 mm exhaust clamp", altAr: "منظر علوي لمشبك عادم 55 مم من 034Motorsport" }
+      ]
     }
   ];
   const slugify = value => String(value || "")
@@ -449,11 +488,11 @@
       subcategorySlug: slugify(product.subcategory),
       description: product.summary,
       descriptionAr: product.summaryAr,
-      detailedDescriptionAvailable: false,
+      detailedDescriptionAvailable: product.detailedDescriptionAvailable === true,
       identifiers: Object.freeze({ ecs: product.ecsPartNumber, sku: product.sku, mpn: product.mpn }),
-      specifications: [],
-      options: [],
-      variants: [],
+      specifications: Array.isArray(product.specifications) ? product.specifications : [],
+      options: Array.isArray(product.options) ? product.options : [],
+      variants: Array.isArray(product.variants) ? product.variants : [],
       fitments,
       filters: Object.freeze({
         supplier: ["ecs"],

@@ -4,42 +4,41 @@ Status date: 6 August 2026
 
 ## Verified outcome
 
-The reviewed collection contains exactly **14 ECS Tuning products**. The catalogue audit passes with:
+The reviewed collection contains exactly **15 ECS Tuning products**. The catalogue audit passes with:
 
-- 14 unique storefront slugs and global `ecs-...` public handles;
-- 14 unique ECS part numbers;
-- 14 unique manufacturer MPNs;
-- 14 unique canonical ECS product URLs;
-- 14 unique local primary-image hashes;
-- 14 reviewed public USD supplier prices dated 4 August 2026;
-- 14 bilingual titles, summaries and primary-image alternative texts;
-- 14 possible-only supplier-title fitment records; and
+- 15 unique storefront slugs and global `ecs-...` public handles;
+- 15 unique ECS part numbers;
+- 15 unique manufacturer MPNs;
+- 15 unique canonical ECS product URLs;
+- 15 unique local primary-image hashes;
+- 15 reviewed public USD supplier prices dated 4 or 6 August 2026;
+- 15 bilingual titles, summaries and primary-image alternative texts;
+- possible-only supplier-title fitment evidence for all 15 products; and
 - 0 exact fitment claims, 0 live-stock claims and 0 duplicate products.
 
-The unified API now exposes the records when the database is unconfigured, unpublished or has not yet seeded ECS. The server merges the 14 reviewed ECS cards ahead of the existing Tegiwa fallback, uses stable global pagination, and returns a `partialCatalogue` marker. Filtering is supported for ECS supplier, brand, category/subcategory, USD pricing, confirmation-required availability, make, model, available chassis/year/engine evidence and possible fitment. Exact-fitment filtering returns no ECS records because none is independently verified.
+The unified API now exposes the records when the database is unconfigured, unpublished or has not yet seeded ECS. The server merges the 15 reviewed ECS cards ahead of the existing Tegiwa fallback, uses stable global pagination, and returns a `partialCatalogue` marker. Filtering is supported for ECS supplier, brand, category/subcategory, USD pricing, confirmation-required availability, make, model, available chassis/year/engine evidence and possible fitment. Exact-fitment filtering returns no ECS records because none is independently verified.
 
-## Full public ECS reference integration
+## Private ECS discovery queue
 
-The preview catalogue also exposes the complete signed public-URL collection inside the normal Parts result grid when ECS is selected:
+The ECS sitemap inventory is retained as private ingestion data only. It is not a product catalogue and is not shown or counted in the customer storefront:
 
 - **1,766,523** ECS sitemap URL observations collected from all 177 product sitemap shards;
 - **404,990** exact duplicate observations removed;
 - **1,361,533** unique canonical public ECS product-page URLs in 137 checksum-verified manifests;
-- 11 reviewed products replace their matching URL-only records;
-- 3 reviewed products absent from the sitemap release are added separately; and
-- **1,361,536** duplicate-free ECS catalogue entries in the storefront union.
+- each manifest record contains only a canonical URL and discovery metadata; and
+- there are zero verified titles, ECS/SKU/MPNs, prices, stock values, images or fitments in those URL-only records.
 
-The integrated ECS view uses 100 entries per numbered page. The 14 reviewed records retain their verified fields. The other **1,361,522** entries remain explicitly labelled URL-derived catalogue references. They provide only a canonical public ECS link, a stable identity, a human-readable URL-derived label, `Request price`, `Availability confirmation required`, an original-page link and an enquiry action. They do not expose or infer a product title, ECS/SKU/MPN, category, price, stock, image, fitment, variation or Add to Cart action.
+The earlier preview incorrectly exposed URL-derived cards and added URL counts to the public product total. That path has been removed. The public discovery API now fails closed, normal ECS browsing returns reviewed structured products only, and the UI rejects a stale response containing `url_discovered` records.
 
-Together with the **193,253** Tegiwa catalogue entries, the supplier-neutral catalogue coverage total is **1,554,789 products or references**. The total is deduplicated within each supplier collection and does not count the 14 reviewed ECS records twice. URL-only ECS references are excluded from structured product search, vehicle-fitment filtering and direct cart purchase until their facts are verified.
+Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **193,268 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
 
 ## ECS image coverage
 
-All **14 reviewed ECS products** have a unique, readable 800 by 600 local product image. The 137 signed ECS discovery manifests contain **1,361,533 canonical URL strings and zero image fields**, so the other **1,361,522** reference-only storefront entries do not currently have an accurate supplier image mapping. Their cards use an explicit `Product image awaiting verified supplier media` reference tile instead of a blank or guessed product photo.
+All **15 reviewed ECS products** have a unique, readable local product image. Fourteen use 800 by 600 media; the newly reviewed 034Motorsport clamp includes three 1200 by 1200 product views. The signed discovery manifests contain **1,361,533 canonical URL strings and zero image fields**, so those private intake records do not have an accurate supplier image mapping and are never rendered as product cards.
 
 Completing ECS image coverage requires an authorised ECS number, manufacturer part number or canonical URL to image mapping. Imported media must be validated, checksummed, deduplicated, kept with its supplier attribution or watermark intact, mirrored to approved object storage and reviewed before publication. Search thumbnails, guessed images and watermark removal are not acceptable substitutes.
 
-Search and vehicle/product filters apply only to reviewed or supplier-fed product data. They are disabled while browsing the full URL-reference layer because the sitemap does not contain those facts. This limitation is deliberate and prevents URL tokens from being misrepresented as verified commercial or fitment data.
+Search and vehicle/product filters apply only to reviewed or supplier-fed product data. URL tokens are never used as product facts.
 
 ## Reviewed products
 
@@ -59,23 +58,24 @@ Search and vehicle/product filters apply only to reviewed or supplier-fed produc
 | ES#4872489 | J-27 | BR Series Coilover Suspension Kit — Mercedes-AMG C63 S Coupe | BC Racing | Suspension / Coilovers | 1,195.00 | 2017–2021 |
 | ES#5375145 | 01-177-022XXX | Weistec M177 Upgraded Intake Manifolds — W205 C63 AMG | Weistec | Engine / Intake Manifolds | 3,499.00 | Not supplied |
 | ES#4814055 | BBCAIS002 | Mercedes-AMG E63 / GT63 M177 Cold Air Intake System — Gen 2 | BlackBoost | Intake / Cold-Air Intake | 1,799.00 | Not supplied |
+| ES#4877039 | 034-105-D300 | 034Motorsport 55mm Exhaust Clamp | 034Motorsport | Exhaust / Clamps & Hardware | 33.00 | 2010–2026 |
 
-\* Public ECS USD retail observation checked 4 August 2026. It is not a Projx selling price and excludes confirmed shipping, customs and Kuwait delivery.
+\* Public ECS USD retail observations checked 4 or 6 August 2026. They are not Projx selling prices and exclude confirmed shipping, customs and Kuwait delivery.
 
 ## Data still missing
 
-These gaps apply to all 14 products unless stated otherwise:
+These gaps apply to all 15 products unless stated otherwise:
 
 - verified detailed supplier description: missing for 14;
 - verified technical specifications: missing for 14;
-- verified product options: missing for 14;
-- verified variations: missing for 14;
-- independently verified exact vehicle fitment: missing for 14;
-- drivetrain fitment: missing for 14;
-- Projx Racing selling price: missing for 14;
-- live supplier stock feed: missing for 14;
+- verified product options: missing for 15;
+- verified variations: missing for 15;
+- independently verified exact vehicle fitment: missing for 15;
+- drivetrain fitment: missing for 15;
+- Projx Racing selling price: missing for 15;
+- live supplier stock feed: missing for 15;
 - additional approved product gallery images: missing for 14; and
-- model-year ranges: present for 3, missing for 11.
+- model-year ranges: present for 4, missing for 11.
 
 The source observations include a manually checked availability phrase for each product, but the API deliberately returns `check_availability`. Supplier dispatch estimates are retained as dated observations only and are not published as guaranteed delivery times.
 

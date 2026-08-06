@@ -968,15 +968,6 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-product-body .tegiwa-sku-count { display: block; margin-top: 2px; color: var(--muted); font-size: .64rem; font-weight: 650; }
 .tegiwa-checked { color: var(--muted); font-size: .66rem; }
 .tegiwa-product-body .card-footer { align-self: end; }
-.ecs-reference-product-card { border-color: color-mix(in srgb, #d59a21 28%, var(--line)); }
-.ecs-reference-media { min-height: 178px; aspect-ratio: 16 / 9; background: linear-gradient(145deg, color-mix(in srgb, #d59a21 8%, var(--surface)), var(--surface-2)); }
-.ecs-reference-image-placeholder { display: grid; width: min(78%, 260px); padding: 18px 18px 44px; place-items: center; gap: 10px; border: 1px solid color-mix(in srgb, var(--line) 78%, transparent); border-radius: 14px; color: var(--muted); background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: 0 10px 26px rgba(10,14,20,.08); font-size: .72rem; font-weight: 750; line-height: 1.45; text-align: center; }
-.ecs-reference-logo { display: block; width: 60px; height: 60px; padding: 0; object-fit: contain; }
-.ecs-reference-disclaimer { margin: 0; color: var(--muted); font-size: .7rem; line-height: 1.55; }
-.ecs-reference-url { min-width: 0; margin: 0; padding: 10px; overflow-wrap: anywhere; word-break: break-word; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: var(--surface); font-size: .64rem; line-height: 1.5; }
-.ecs-reference-url bdi { display: block; overflow-wrap: anywhere; word-break: break-word; }
-.ecs-reference-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.ecs-reference-actions .btn { width: 100%; min-width: 0; min-height: 44px; white-space: normal; text-align: center; }
 .tegiwa-product-card.is-loading { min-height: 490px; pointer-events: none; }
 .tegiwa-product-card.is-loading .tegiwa-product-media, .tegiwa-product-card.is-loading .tegiwa-product-body > * { border: 0; border-radius: 8px; background: linear-gradient(100deg, var(--surface-2) 20%, var(--surface) 40%, var(--surface-2) 60%); background-size: 220% 100%; animation: tegiwa-shimmer 1.25s linear infinite; }
 .tegiwa-product-card.is-loading .tegiwa-product-body > span { width: 38%; height: 14px; }
@@ -1513,7 +1504,6 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .tegiwa-filter-panel { grid-template-columns: 1fr; }
   .tegiwa-suggestions { max-height: min(360px, 55vh); }
   .tegiwa-product-grid { grid-template-columns: 1fr; }
-  .ecs-reference-actions { grid-template-columns: 1fr; }
   .tegiwa-product-card.is-loading { min-height: 430px; }
   .tegiwa-pagination { grid-template-columns: 1fr 1fr; }
   .tegiwa-pagination > :first-child { grid-column: 1; grid-row: 1; }

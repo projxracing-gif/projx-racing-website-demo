@@ -15,6 +15,7 @@ import {
   validateProduct
 } from "./lib.mjs";
 import { buildReviewQueue } from "./prepare-review.mjs";
+import { REVIEWED_ECS_PRODUCTS } from "../../server/ecs-reviewed-catalog.js";
 
 const fixtures = path.resolve("scripts/ecs-catalog/fixtures");
 const fixedNow = () => new Date("2026-08-05T12:00:00.000Z");
@@ -84,7 +85,7 @@ test("prepares a non-publishing review queue and reconciles existing ECS numbers
     generatedAt: "2026-08-05T12:00:00.000Z",
     products: [existing, added]
   });
-  assert.equal(queue.baselineProductCount, 14);
+  assert.equal(queue.baselineProductCount, REVIEWED_ECS_PRODUCTS.length);
   assert.equal(queue.candidateCount, 2);
   assert.equal(queue.existingReviewCount, 1);
   assert.equal(queue.newReviewCount, 1);

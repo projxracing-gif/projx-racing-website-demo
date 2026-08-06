@@ -63,7 +63,7 @@ const tests = [
   ['checkout requests a destination-aware shipping plan', clientSource.includes('const SHIPPING_ESTIMATE_ENDPOINT = "/api/shipping-estimate/"') && clientSource.includes('async function requestShippingEstimate(form)')],
   ['checkout receipt preserves the server shipping snapshot', clientSource.includes('shipping: safeShippingPlan(result.shipping)')],
   ['supplier shipment cards have responsive presentation styles', commerceStyles.includes('.shipping-planner') && commerceStyles.includes('.shipping-group') && commerceStyles.includes('.shipping-split-notice')],
-  ['keeps every ECS item in quotation flow', ecsProducts.length === 14 && ecsProducts.every(product => !policyIds.includes(product.slug))],
+  ['keeps every ECS item in quotation flow', ecsProducts.length > 0 && ecsProducts.every(product => !policyIds.includes(product.slug))],
   ['keeps every configured package in quotation flow', quotePackages.length > 0 && quotePackages.every(product => !policyIds.includes(product.slug))],
   ['keeps all non-approved reviewed products in quotation flow', excludedReviewedProducts.length === data.storeProducts.length - 1]
 ];

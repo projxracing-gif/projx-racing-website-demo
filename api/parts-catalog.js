@@ -2,14 +2,8 @@ import { createHash } from 'node:crypto';
 import {
   REVIEWED_ECS_PRODUCTS,
   ReviewedFallbackError,
-  reviewedEcsProductCard,
   reviewedFallbackResponse
 } from '../server/ecs-reviewed-catalog.js';
-import {
-  EcsDiscoveryError,
-  canonicalizeEcsDiscoveryProductUrl,
-  createConfiguredEcsDiscoveryCatalogueProvider
-} from '../server/ecs-discovery-catalog.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -19,14 +13,6 @@ const CACHE_CONTROL = 'public, max-age=30, s-maxage=120, stale-while-revalidate=
 const SEARCH_RATE_LIMIT = 120;
 const SEARCH_RATE_WINDOW_MS = 60_000;
 const SEARCH_RATE_BUCKETS = 512;
-const REVIEWED_ECS_PRODUCTS_OUTSIDE_DISCOVERY_RELEASE = Object.freeze({
-  '20260805T212305813Z-591144905c3f9719': Object.freeze([
-    'ecs-s55-pro-series-1000-turbo-build-kit',
-    'ecs-racingline-stage2-evo-big-brake-kit-red',
-    'ecs-mercedes-c63s-c205-br-coilovers'
-  ])
-});
-
 const ALLOWED_PARAMETERS = new Set([
   'q', 'handle', 'page', 'cursor', 'suggest', 'sort', 'availability', 'pricing', 'match',
   'supplier', 'brand', 'partType', 'currency', 'fitment', 'year', 'make', 'model', 'generation', 'engine',
@@ -690,65 +676,6 @@ function safeUrl(value) {
   }
 }
 
-function discoveryPublicItem(value) {
-  let sourceUrl;
-  try {
-    sourceUrl = canonicalizeEcsDiscoveryProductUrl(value?.sourceUrl);
-  } catch {
-    throw new Error('invalid_ecs_discovery_record');
-  }
-  if (sourceUrl !== value?.sourceUrl || sourceUrl !== value?.canonicalSourceUrl) {
-    throw new Error('invalid_ecs_discovery_record');
-  }
-  const digest = String(value?.sha256Key || '');
-  const handle = String(value?.handle || '');
-  if (!/^[a-f0-9]{64}$/.test(digest) || handle !== `ecs-discovery-${digest}`
-    || value?.publicKey !== handle || value?.key !== `sha256:${digest}`) {
-    throw new Error('invalid_ecs_discovery_record');
-  }
-  return {
-    handle,
-    publicKey: handle,
-    key: `sha256:${digest}`,
-    sha256Key: digest,
-    supplier: { slug: 'ecs', name: 'ECS Tuning' },
-    sourceUrl,
-    canonicalSourceUrl: sourceUrl,
-    dataStatus: 'url_discovered',
-    title: null,
-    sku: null,
-    mpn: null,
-    brand: null,
-    category: null,
-    subcategory: null,
-    price: null,
-    pricing: 'request_price',
-    stock: null,
-    availability: 'check',
-    image: null,
-    images: null,
-    fitment: null,
-    fitments: null,
-    purchaseMode: 'request_details',
-    requestDetailsOnly: true,
-    quoteOnly: true
-  };
-}
-
-function ecsReferenceCatalogueEligible(request) {
-  return request.mode === 'browse'
-    && request.supplier === 'ecs'
-    && request.sort === 'relevance'
-    && request.availability === 'all'
-    && request.pricing === 'all'
-    && request.match === 'any'
-    && request.fitment === 'all'
-    && !request.currency
-    && !request.brand
-    && !request.partType
-    && !request.structuredVehicle;
-}
-
 function parseArray(value, maximum = 2048) {
   let candidate = value;
   if (typeof candidate === 'string') {
@@ -893,9 +820,6 @@ export function createPartsCatalogHandler({
   searchRateLimit,
   reviewedFallback = true,
   reviewedProducts = REVIEWED_ECS_PRODUCTS,
-  ecsDiscoveryEnabled = process.env.ECS_DISCOVERY_ENABLED === 'true' && process.env.VERCEL_ENV === 'preview',
-  ecsDiscoveryProvider = null,
-  ecsDiscoveryProviderLoader = createConfiguredEcsDiscoveryCatalogueProvider,
   legacyHandler,
   legacyHandlerLoader = loadDefaultLegacyHandler,
   logger = console
@@ -903,11 +827,6 @@ export function createPartsCatalogHandler({
   if (query !== null && typeof query !== 'function') throw new TypeError('The query adapter must be a function.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   if (!Array.isArray(reviewedProducts)) throw new TypeError('Reviewed fallback products must be an array.');
-  if (typeof ecsDiscoveryEnabled !== 'boolean') throw new TypeError('ECS discovery feature state must be boolean.');
-  if (ecsDiscoveryProvider !== null && typeof ecsDiscoveryProvider?.list !== 'function') {
-    throw new TypeError('The ECS discovery provider must expose list().');
-  }
-  if (typeof ecsDiscoveryProviderLoader !== 'function') throw new TypeError('The ECS discovery provider loader must be a function.');
   if (legacyHandler !== undefined && legacyHandler !== null && legacyHandler !== false && typeof legacyHandler !== 'function') {
     throw new TypeError('The legacy catalog handler must be a function, null or false.');
   }
@@ -916,19 +835,6 @@ export function createPartsCatalogHandler({
   let adapterPromise = null;
   let loadedLegacyHandler = typeof legacyHandler === 'function' ? legacyHandler : null;
   let legacyHandlerPromise = null;
-  let loadedEcsDiscoveryProvider = ecsDiscoveryProvider;
-  let ecsDiscoveryProviderPromise = null;
-  const reviewedProductsByUrl = new Map();
-  for (const product of reviewedProducts) {
-    try {
-      const sourceUrl = canonicalizeEcsDiscoveryProductUrl(product?.originalUrl);
-      reviewedProductsByUrl.set(sourceUrl, product);
-    } catch {
-      logger?.warn?.('A reviewed ECS product has an invalid public source URL', {
-        publicKey: safeOutputText(product?.publicKey, 255)
-      });
-    }
-  }
   const rateLimit = createRateLimiter(now, searchRateLimit);
   const getAdapter = async () => {
     if (adapter) return adapter;
@@ -944,198 +850,7 @@ export function createPartsCatalogHandler({
     loadedLegacyHandler = await legacyHandlerPromise;
     return typeof loadedLegacyHandler === 'function' ? loadedLegacyHandler : null;
   };
-  const getEcsDiscoveryProvider = async () => {
-    if (loadedEcsDiscoveryProvider) return loadedEcsDiscoveryProvider;
-    ecsDiscoveryProviderPromise ||= Promise.resolve().then(() => ecsDiscoveryProviderLoader());
-    loadedEcsDiscoveryProvider = await ecsDiscoveryProviderPromise;
-    if (typeof loadedEcsDiscoveryProvider?.list !== 'function') throw new Error('invalid_ecs_discovery_provider');
-    return loadedEcsDiscoveryProvider;
-  };
-
-  const loadEcsReferenceSummary = async () => {
-    const provider = await getEcsDiscoveryProvider();
-    if (typeof provider?.getMeta !== 'function') throw new Error('invalid_ecs_discovery_provider');
-    const providerMeta = await provider.getMeta();
-    const releaseId = safeOutputText(providerMeta?.releaseId, 128);
-    const discoveredUrlCount = boundedInteger(providerMeta?.discoveredUrlCount, 0, 10_000_000);
-    if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/.test(releaseId) || discoveredUrlCount < 1) {
-      throw new Error('invalid_ecs_discovery_response');
-    }
-    const outsideKeys = REVIEWED_ECS_PRODUCTS_OUTSIDE_DISCOVERY_RELEASE[releaseId] || [];
-    const outsideProducts = outsideKeys.map(publicKey => reviewedProducts.find(product => product?.publicKey === publicKey))
-      .filter(Boolean);
-    if (outsideProducts.length !== outsideKeys.length) throw new Error('invalid_reviewed_ecs_release_coverage');
-    const ecsCatalogueListingCount = discoveredUrlCount + outsideProducts.length;
-    const ecsReferenceOnlyCount = Math.max(0, ecsCatalogueListingCount - reviewedProductsByUrl.size);
-    const imageIndexedProductCount = reviewedProducts.filter(product => Array.isArray(product?.images)
-      && product.images.some(image => image?.src)).length;
-    return {
-      provider,
-      releaseId,
-      discoveredUrlCount,
-      outsideProducts,
-      ecsCatalogueListingCount,
-      ecsReferenceOnlyCount,
-      imageIndexedProductCount
-    };
-  };
-
-  const augmentCatalogueStats = (stats, summary) => {
-    const verifiedSearchableProductCount = boundedInteger(stats?.catalogProductCount, 0, 100_000_000);
-    const suppliers = Array.isArray(stats?.suppliers) ? stats.suppliers.map(supplier => ({ ...supplier })) : [];
-    const ecsSupplier = suppliers.find(supplier => supplier.slug === 'ecs');
-    const indexedEcsProductCount = boundedInteger(
-      ecsSupplier?.productCount,
-      reviewedProductsByUrl.size,
-      100_000_000
-    );
-    const unindexedEcsListingCount = Math.max(0, summary.ecsCatalogueListingCount - indexedEcsProductCount);
-    if (ecsSupplier) ecsSupplier.productCount = summary.ecsCatalogueListingCount;
-    else suppliers.push({ slug: 'ecs', name: 'ECS Tuning', productCount: summary.ecsCatalogueListingCount });
-    return {
-      ...stats,
-      suppliers,
-      verifiedSearchableProductCount,
-      catalogueListingCount: verifiedSearchableProductCount + unindexedEcsListingCount,
-      imageIndexedProductCount: summary.imageIndexedProductCount,
-      ecsUrlReferenceCount: summary.discoveredUrlCount,
-      ecsCatalogueListingCount: summary.ecsCatalogueListingCount,
-      ecsReferenceOnlyCount: summary.ecsReferenceOnlyCount,
-      ecsReferenceReleaseId: summary.releaseId
-    };
-  };
-
-  const withEcsReferenceStats = async stats => {
-    if (!ecsDiscoveryEnabled) return stats;
-    try {
-      return augmentCatalogueStats(stats, await loadEcsReferenceSummary());
-    } catch (error) {
-      logger?.warn?.('ECS reference totals are unavailable; retaining verified catalogue totals', {
-        code: error instanceof EcsDiscoveryError ? error.code : 'provider_unavailable'
-      });
-      return stats;
-    }
-  };
-
-  const loadVerifiedCatalogueStats = async req => {
-    if (query !== null || databaseUrl) {
-      try {
-        const sql = await getAdapter();
-        if (sql) {
-          const rows = await execute(sql, buildStatsQuery());
-          return requirePublishedCatalogue(rows[0]);
-        }
-      } catch (error) {
-        logger?.warn?.('Verified catalogue statistics could not be loaded from the unified catalogue', {
-          message: error instanceof Error ? error.message : 'unknown_error'
-        });
-      }
-    }
-    let fallbackLegacyHandler = null;
-    try {
-      fallbackLegacyHandler = await getLegacyHandler();
-    } catch (error) {
-      logger?.warn?.('Legacy supplier statistics could not be loaded', {
-        message: error instanceof Error ? error.message : 'unknown_error'
-      });
-    }
-    const request = {
-      mode: 'browse', query: null, sort: 'relevance', availability: 'all', pricing: 'all', match: 'any',
-      supplier: 'tegiwa', brand: null, partType: null, currency: null, fitment: 'all',
-      year: null, make: null, model: null, generation: null, engine: null,
-      structuredVehicle: false, page: 1, offset: 0, positionSource: 'page'
-    };
-    const body = await reviewedFallbackResponse({
-      request,
-      req,
-      nowValue: Number(now()),
-      reason: 'verified_catalogue_stats',
-      legacyHandler: fallbackLegacyHandler,
-      products: reviewedProducts
-    });
-    return body.meta;
-  };
-
-  const sendEcsReferenceCatalogue = async (request, req, res) => {
-    const summary = await loadEcsReferenceSummary();
-    const { provider } = summary;
-    if (typeof provider?.listByOffset !== 'function' || typeof provider?.getMeta !== 'function') {
-      throw new Error('invalid_ecs_discovery_provider');
-    }
-    const {
-      releaseId, discoveredUrlCount, outsideProducts,
-      ecsCatalogueListingCount: catalogueCount
-    } = summary;
-    if (request.offset >= catalogueCount) {
-      throw new EcsDiscoveryError(400, 'invalid_ecs_discovery_offset', 'The ECS catalogue position is invalid.');
-    }
-    const globalStats = augmentCatalogueStats(await loadVerifiedCatalogueStats(req), summary);
-    const nowValue = Number(now());
-    const items = [];
-    if (request.offset < outsideProducts.length) {
-      const outsideSlice = outsideProducts.slice(request.offset, request.offset + PAGE_SIZE);
-      items.push(...outsideSlice.map(product => reviewedEcsProductCard(product, request, nowValue)));
-    }
-
-    const rawOffset = Math.max(0, request.offset - outsideProducts.length);
-    const remaining = PAGE_SIZE - items.length;
-    if (remaining > 0 && rawOffset < discoveredUrlCount) {
-      const result = await provider.listByOffset({ offset: rawOffset, limit: remaining });
-      const sourceItems = Array.isArray(result?.items) ? result.items : null;
-      const resultReleaseId = safeOutputText(result?.releaseId || result?.meta?.releaseId, 128);
-      const resultUrlCount = boundedInteger(result?.meta?.discoveredUrlCount, 0, 10_000_000);
-      if (!sourceItems || sourceItems.length > remaining || result?.count !== sourceItems.length
-        || resultReleaseId !== releaseId || resultUrlCount !== discoveredUrlCount) {
-        throw new Error('invalid_ecs_discovery_response');
-      }
-      items.push(...sourceItems.map(value => {
-        const publicItem = discoveryPublicItem(value);
-        const reviewed = reviewedProductsByUrl.get(publicItem.sourceUrl);
-        return reviewed ? reviewedEcsProductCard(reviewed, request, nowValue) : publicItem;
-      }));
-    }
-    if (!items.length || items.length > PAGE_SIZE) throw new Error('invalid_ecs_discovery_response');
-    const nextOffset = request.offset + items.length < catalogueCount ? request.offset + items.length : null;
-    const totalPages = Math.ceil(catalogueCount / PAGE_SIZE);
-    return sendJson(res, 200, {
-      mode: 'browse',
-      items,
-      meta: {
-        ...globalStats,
-        count: items.length,
-        query: null,
-        canonicalQuery: null,
-        translated: false,
-        corrected: false,
-        corrections: [],
-        page: request.page,
-        pageSize: PAGE_SIZE,
-        totalResults: catalogueCount,
-        totalPages,
-        sort: request.sort,
-        availability: request.availability,
-        pricing: request.pricing,
-        match: request.match,
-        filters: filtersMeta(request),
-        partialCatalogue: true,
-        catalogueSource: 'ecs-public-url-catalogue',
-        fallbackReason: 'ecs_supplier_feed_unavailable',
-        fallbackOrdering: 'signed-ecs-url-manifest',
-        reviewedEcsProductCount: reviewedProductsByUrl.size,
-        ecsUrlReferenceCount: discoveredUrlCount,
-        ecsCatalogueListingCount: catalogueCount,
-        ecsReferenceOnlyCount: summary.ecsReferenceOnlyCount,
-        reviewedOutsideDiscoveryCount: outsideProducts.length,
-        releaseId,
-        dataStatus: 'url_discovered',
-        searchable: false,
-        filterable: false,
-        numberedPagination: true
-      },
-      nextCursor: nextOffset === null ? null : encodeCursor(nextOffset, request.fingerprint)
-    }, true);
-  };
-
+  const withEcsReferenceStats = async stats => stats;
   return async function partsCatalogHandler(req, res) {
     if (req.method !== 'GET') {
       res.setHeader('Allow', 'GET');
@@ -1159,71 +874,7 @@ export function createPartsCatalogHandler({
     }
 
     if (request.mode === 'discovery') {
-      if (!ecsDiscoveryEnabled) {
-        return sendError(res, 404, 'discovery_unavailable', 'The ECS reference directory is not enabled.');
-      }
-      try {
-        const provider = await getEcsDiscoveryProvider();
-        const result = await provider.list({ cursor: request.cursor, limit: PAGE_SIZE });
-        const items = Array.isArray(result?.items) ? result.items.map(discoveryPublicItem) : null;
-        if (!items || items.length > PAGE_SIZE || result?.count !== items.length) throw new Error('invalid_ecs_discovery_response');
-        const releaseId = safeOutputText(result.releaseId || result.meta?.releaseId, 128);
-        if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,127})$/.test(releaseId)) throw new Error('invalid_ecs_discovery_response');
-        const nextCursor = result.nextCursor === null ? null : discoveryCursorValue(result.nextCursor);
-        const discoveredUrlCount = boundedInteger(result.meta?.discoveredUrlCount, 0, 10_000_000);
-        const outsideKeys = REVIEWED_ECS_PRODUCTS_OUTSIDE_DISCOVERY_RELEASE[releaseId] || [];
-        const outsideProducts = outsideKeys.map(publicKey => reviewedProducts.find(product => product?.publicKey === publicKey))
-          .filter(Boolean);
-        if (outsideProducts.length !== outsideKeys.length || discoveredUrlCount < 1) throw new Error('invalid_ecs_discovery_response');
-        const ecsCatalogueListingCount = discoveredUrlCount + outsideProducts.length;
-        const ecsReferenceOnlyCount = Math.max(0, ecsCatalogueListingCount - reviewedProductsByUrl.size);
-        const imageIndexedProductCount = reviewedProducts.filter(product => Array.isArray(product?.images)
-          && product.images.some(image => image?.src)).length;
-        return sendJson(res, 200, {
-          mode: 'discovery',
-          items,
-          meta: {
-            count: items.length,
-            pageSize: PAGE_SIZE,
-            discoveredUrlCount,
-            ecsCatalogueListingCount,
-            ecsReferenceOnlyCount,
-            imageIndexedProductCount,
-            releaseId,
-            catalogueSource: 'ecs-public-sitemap-discovery',
-            dataStatus: 'url_discovered',
-            searchable: false,
-            filterable: false,
-            numberedPagination: false,
-            reviewedEcsProductCount: reviewedProducts.length
-          },
-          nextCursor
-        }, true);
-      } catch (error) {
-        if (error instanceof EcsDiscoveryError && error.status === 409) {
-          return sendError(res, 409, 'discovery_release_changed', 'The ECS reference release changed. Restart from the first page.');
-        }
-        if (error instanceof EcsDiscoveryError && error.status === 400) {
-          return sendError(res, 400, 'invalid_ecs_discovery_cursor', 'The ECS discovery cursor is invalid.');
-        }
-        logger?.warn?.('ECS discovery reference directory is unavailable', {
-          code: error instanceof EcsDiscoveryError ? error.code : 'provider_unavailable'
-        });
-        return sendError(res, 503, 'discovery_unavailable', 'The ECS reference directory is temporarily unavailable.');
-      }
-    }
-
-    if (ecsDiscoveryEnabled && ecsReferenceCatalogueEligible(request)) {
-      try {
-        return await sendEcsReferenceCatalogue(request, req, res);
-      } catch (error) {
-        if (error instanceof EcsDiscoveryError && error.status === 400) {
-          return sendError(res, 400, request.positionSource === 'cursor' ? 'invalid_cursor' : 'invalid_page', 'The requested ECS catalogue position does not exist.');
-        }
-        logger?.warn?.('The full ECS reference catalogue is unavailable; using reviewed products only', {
-          code: error instanceof EcsDiscoveryError ? error.code : 'provider_unavailable'
-        });
-      }
+      return sendError(res, 404, 'discovery_unavailable', 'URL-only supplier references are private ingestion data and are not storefront products.');
     }
 
     const sendReviewedFallback = async reason => {

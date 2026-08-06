@@ -28,40 +28,22 @@ assert.doesNotMatch(partsPage, /\.map\(productCard\)|\.map\(partCard\)/);
 assert.match(partsPage, /id="parts-results" data-tegiwa-results/);
 assert.equal((partsPage.match(/data-tegiwa-pagination/g) || []).length, 1, 'Parts page must render one pagination region.');
 
-const discoveryStart = app.indexOf('  function ecsDiscoveryReferenceUrl(');
-const discoveryEnd = app.indexOf('\n  function tegiwaVariantAvailability(', discoveryStart);
-assert.ok(discoveryStart >= 0 && discoveryEnd > discoveryStart, 'ECS discovery UI source could not be isolated.');
-const discoveryUi = app.slice(discoveryStart, discoveryEnd);
-const referenceCardStart = app.indexOf('  function ecsReferenceCatalogueCard(');
-const referenceCardEnd = app.indexOf('\n  function partsCatalogueCard(', referenceCardStart);
-assert.ok(referenceCardStart >= 0 && referenceCardEnd > referenceCardStart, 'Integrated ECS reference card could not be isolated.');
-const referenceCard = app.slice(referenceCardStart, referenceCardEnd);
 assert.doesNotMatch(partsPage, /data-ecs-discovery-section|data-ecs-discovery-panel/);
-assert.match(partsPage, /data-action="browse-ecs-catalogue"/);
-assert.match(app, /function browseFullEcsCatalogue\(\)/);
-assert.match(app, /supplier:\s*"ecs"/);
-assert.match(app, /referenceCatalogue\s*=\s*state\.tegiwaCatalog\.referenceCatalogue\s*&&\s*state\.tegiwaCatalog\.supplier\s*===\s*"ecs"/,
-  'Reference-only filter locking must be limited to the explicit ECS scope.');
+assert.doesNotMatch(partsPage, /data-action="browse-ecs-catalogue"/);
+for (const removedReferenceIdentifier of [
+  'browseFullEcsCatalogue', 'ecsDiscoveryReferenceUrl', 'ecsReferencePathEvidence',
+  'ecsReferenceCatalogueCard', 'referenceCatalogue', 'ecsDiscovery', 'ecsReference',
+  'ecsUrlDerived', 'ECS Parts Reference Enquiry'
+]) {
+  assert.doesNotMatch(app, new RegExp(removedReferenceIdentifier),
+    `Dormant URL-reference client code must not ship: ${removedReferenceIdentifier}`);
+}
 assert.match(app, /items\.map\(partsCatalogueCard\)/);
 assert.match(app, /item\?\.dataStatus === "url_discovered"/);
-assert.match(referenceCard, /target="_blank" rel="noopener noreferrer"/);
-assert.match(referenceCard, /data-form-type="ECS Parts Reference Enquiry"/);
-assert.match(referenceCard, /ecsUrlDerived/);
-assert.match(referenceCard, /ecsDiscoveryNotice/);
-assert.doesNotMatch(referenceCard, /Add to Cart|add-cart|data-action="add-cart"|tegiwaPriceLabel|view-tegiwa-product/);
-assert.match(referenceCard, /class="ecs-reference-image-placeholder"/);
-assert.match(referenceCard, /class="ecs-reference-logo"/);
-assert.match(referenceCard, /assets\/brand\/partners\/ecs-tuning\.png/);
-assert.match(referenceCard, /ecsReferenceImagePending/);
-assert.doesNotMatch(referenceCard, /src="\s*"|src='\s*'/);
-for (const field of ['title', 'sku', 'mpn', 'brand', 'category', 'subcategory', 'price', 'stock', 'image', 'images', 'fitment', 'fitments']) {
-  assert.match(discoveryUi, new RegExp(`"${field}"`), `Discovery UI must fail closed when ${field} is unexpectedly populated.`);
-}
-assert.match(app, /ecsDiscoveryHeading: "Browse every ECS catalogue reference\."/);
-assert.match(app, /ecsDiscoveryHeading: "تصفح جميع مراجع كتالوج ECS\."/);
-assert.match(app, /ecsReferenceImagePending: "Product image awaiting verified supplier media"/);
-assert.match(app, /ecsReferenceImagePending: "صورة المنتج بانتظار وسائط موثّقة من المورّد"/);
-
+assert.match(app, /unverified_reference_data/,
+  'A stale API response containing URL-only records must be rejected before rendering.');
+assert.match(app, /function partsCatalogueCard\(item\)\s*\{\s*return tegiwaProductCard\(item\);\s*\}/s,
+  'Only structured catalogue products may reach the normal product-card renderer.');
 for (const field of ['year', 'make', 'model', 'generation', 'engine']) {
   assert.match(app, new RegExp(`result\\.${field}|\\[key, value\\].*params\\.set`, 's'), `Structured vehicle field ${field} is not wired.`);
 }
@@ -75,8 +57,11 @@ for (const filter of ['sort', 'availability', 'pricing', 'supplier', 'currency',
 }
 assert.match(app, /loadTegiwaCatalog\(\{ query: state\.tegiwaCatalog\.query, match: partsVehicleLabel\(\) \? "vehicle" : "any"/);
 assert.match(app, /syncCatalogueFacetOptions\(meta\)/);
-assert.match(app, /Number\(meta\.catalogueListingCount\)/,
-  'The global catalogue statistic must use the combined products-and-references total.');
+assert.match(app, /Number\(meta\.catalogProductCount\)/,
+  'The global catalogue statistic must use verified structured product records only.');
+assert.doesNotMatch(app, /Number\(meta\.catalogueListingCount\)/);
+assert.doesNotMatch(app, /products or references in the catalogue/);
+assert.match(app, /verified products in the catalogue/);
 assert.match(app, /tegiwaShowingRange[^;]+total:\s*tegiwaNumber\(totalResults\)/s,
   'Result ranges must use scoped totalResults instead of the global catalogue total.');
 const syncFilterStart = app.indexOf('  function syncTegiwaFilterUi()');
@@ -85,11 +70,10 @@ const syncFilterUi = app.slice(syncFilterStart, syncFilterEnd);
 assert.ok(syncFilterUi.indexOf('state.tegiwaCatalog.fitment = "all"') < syncFilterUi.indexOf('const count = tegiwaFilterCount()'),
   'Disabled fitment must be normalized before the active-filter badge is counted.');
 const setupStart = app.indexOf('  function setupTegiwaCatalog()');
-const setupEnd = app.indexOf('\n  function browseFullEcsCatalogue()', setupStart);
+const setupEnd = app.indexOf('\n  function partsCatalogueCard(', setupStart);
 const setupCatalogue = app.slice(setupStart, setupEnd);
 assert.match(setupCatalogue, /supplier:\s*""|TEGIWA_SEARCH_DEFAULTS/);
-assert.match(setupCatalogue, /referenceCatalogue:\s*false/,
-  'Re-entering the parts page must clear a stale ECS reference scope.');
+assert.doesNotMatch(setupCatalogue, /referenceCatalogue/);
 
 assert.match(app, /currencyDisplay:\s*"code"/);
 assert.match(app, /item\.supplier\?\.name/);
@@ -105,10 +89,6 @@ assert.match(styles, /\.tegiwa-fitment-badge\.is-exact/);
 assert.match(styles, /\.tegiwa-fitment-badge\.is-possible/);
 assert.match(styles, /\.catalogue-fallback-notice/);
 assert.match(styles, /\.tegiwa-fitment-list/);
-assert.match(styles, /\.ecs-reference-product-card/);
-assert.match(styles, /\.ecs-reference-image-placeholder/);
-assert.match(styles, /\.ecs-reference-logo/);
-assert.match(styles, /\.ecs-reference-url/);
-assert.match(styles, /\.ecs-reference-actions/);
+assert.doesNotMatch(styles, /\.ecs-reference-/);
 
 console.log('Unified catalogue UI source checks passed.');

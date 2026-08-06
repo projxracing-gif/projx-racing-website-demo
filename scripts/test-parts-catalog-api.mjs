@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
-import { EcsDiscoveryError } from '../server/ecs-discovery-catalog.js';
+import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 
-const FIXED_NOW = Date.parse('2026-08-05T09:30:00Z');
+const FIXED_NOW = Date.parse('2026-08-06T09:30:00Z');
+const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length;
+const TEGIWA_FIXTURE_COUNT = 193_256;
 
 function responseRecorder() {
   return {
@@ -57,30 +58,16 @@ function row(index, overrides = {}) {
   };
 }
 
-function discoveryItem(index) {
-  const sourceUrl = `https://www.ecstuning.com/b-ecs-parts/reference-${index}/item-${index}/`;
-  const digest = createHash('sha256').update(sourceUrl, 'utf8').digest('hex');
-  const handle = `ecs-discovery-${digest}`;
-  return {
-    handle, publicKey: handle, key: `sha256:${digest}`, sha256Key: digest,
-    supplier: { slug: 'ecs', name: 'ECS Tuning' }, sourceUrl, canonicalSourceUrl: sourceUrl,
-    dataStatus: 'url_discovered', title: null, sku: null, mpn: null, brand: null,
-    category: null, subcategory: null, price: null, pricing: 'request_price', stock: null,
-    availability: 'check', image: null, images: null, fitment: null, fitments: null,
-    purchaseMode: 'request_details', requestDetailsOnly: true, quoteOnly: true
-  };
-}
-
 const stats = {
-  catalog_product_count: 193_270,
+  catalog_product_count: TEGIWA_FIXTURE_COUNT + REVIEWED_ECS_COUNT,
   available_product_count: 26_360,
   priced_product_count: 26_370,
   sku_product_count: 188_840,
   checked_at: '2026-08-05T08:00:00Z',
   stale_offer_count: 0,
   suppliers: [
-    { slug: 'ecs', name: 'ECS Tuning', productCount: 14 },
-    { slug: 'tegiwa', name: 'Tegiwa', productCount: 193_256 }
+    { slug: 'ecs', name: 'ECS Tuning', productCount: REVIEWED_ECS_COUNT },
+    { slug: 'tegiwa', name: 'Tegiwa', productCount: TEGIWA_FIXTURE_COUNT }
   ],
   currencies: ['GBP', 'USD']
 };
@@ -133,15 +120,15 @@ const reviewedOnly = createPartsCatalogHandler({
 const reviewedBrowse = await invoke(reviewedOnly);
 assert.equal(reviewedBrowse.status, 200);
 assert.equal(reviewedBrowse.body.mode, 'browse');
-assert.equal(reviewedBrowse.body.items.length, 14);
-assert.equal(reviewedBrowse.body.meta.totalResults, 14);
-assert.equal(reviewedBrowse.body.meta.reviewedEcsProductCount, 14);
+assert.equal(reviewedBrowse.body.items.length, REVIEWED_ECS_COUNT);
+assert.equal(reviewedBrowse.body.meta.totalResults, REVIEWED_ECS_COUNT);
+assert.equal(reviewedBrowse.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 assert.equal(reviewedBrowse.body.meta.partialCatalogue, true);
 assert.equal(reviewedBrowse.body.meta.catalogueSource, 'reviewed-local-fallback');
 assert.deepEqual(reviewedBrowse.body.meta.suppliers, [{ slug: 'ecs', name: 'ECS Tuning' }]);
 assert.deepEqual(reviewedBrowse.body.meta.currencies, ['USD']);
-assert.equal(new Set(reviewedBrowse.body.items.map(item => item.handle)).size, 14);
-assert.equal(new Set(reviewedBrowse.body.items.map(item => item.sku)).size, 14);
+assert.equal(new Set(reviewedBrowse.body.items.map(item => item.handle)).size, REVIEWED_ECS_COUNT);
+assert.equal(new Set(reviewedBrowse.body.items.map(item => item.sku)).size, REVIEWED_ECS_COUNT);
 assert.ok(reviewedBrowse.body.items.every(item => item.handle.startsWith('ecs-')));
 assert.ok(reviewedBrowse.body.items.every(item => item.supplier.slug === 'ecs'));
 assert.ok(reviewedBrowse.body.items.every(item => item.price.currency === 'USD'));
@@ -149,7 +136,7 @@ assert.ok(reviewedBrowse.body.items.every(item => item.availability.code === 'ch
 assert.ok(reviewedBrowse.body.items.every(item => item.fitmentConfidence === null));
 
 const staleReviewedOnly = createPartsCatalogHandler({
-  databaseUrl: '', legacyHandler: false, now: () => Date.parse('2026-08-13T00:00:00Z')
+  databaseUrl: '', legacyHandler: false, now: () => Date.parse('2026-08-15T00:00:00Z')
 });
 const staleReviewedBrowse = await invoke(staleReviewedOnly);
 assert.ok(staleReviewedBrowse.body.items.every(item => item.price.min === null));
@@ -162,6 +149,31 @@ assert.equal(reviewedIdentifierSearch.status, 200);
 assert.equal(reviewedIdentifierSearch.body.items.length, 1);
 assert.equal(reviewedIdentifierSearch.body.items[0].handle, 'ecs-high-performance-heat-exchanger-polished');
 assert.equal(reviewedIdentifierSearch.body.items[0].sku, 'ES#3987599');
+
+const reviewedClampSearch = await invoke(reviewedOnly, { query: { q: '034-105-D300', supplier: 'ecs' } });
+assert.equal(reviewedClampSearch.status, 200);
+assert.equal(reviewedClampSearch.body.items.length, 1);
+assert.equal(reviewedClampSearch.body.items[0].handle, 'ecs-034motorsport-55mm-exhaust-clamp');
+assert.equal(reviewedClampSearch.body.items[0].sku, 'ES#4877039');
+assert.equal(reviewedClampSearch.body.items[0].mpn, '034-105-D300');
+assert.equal(reviewedClampSearch.body.items[0].price.min, 33);
+assert.match(reviewedClampSearch.body.items[0].image.src, /034motorsport-55mm-exhaust-clamp\.jpg$/);
+
+const reviewedClampDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-034motorsport-55mm-exhaust-clamp', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedClampDetail.status, 200);
+assert.equal(reviewedClampDetail.body.product.images.length, 3);
+assert.equal(reviewedClampDetail.body.product.fitments.length, 2);
+assert.ok(reviewedClampDetail.body.product.images.every(image => image.src.endsWith('.jpg')));
+assert.equal(reviewedClampDetail.body.product.specifications.length, 3);
+assert.equal(reviewedClampDetail.body.product.dataQuality.detailedDescriptionAvailable, true);
+assert.equal(reviewedClampDetail.body.product.dataQuality.specificationsAvailable, true);
+assert.match(reviewedClampDetail.body.product.titleAr, /مشبك عادم/);
+assert.match(reviewedClampDetail.body.product.descriptionAr, /الستانلس ستيل/);
+assert.ok(reviewedClampDetail.body.product.images.every(image => image.altAr));
+assert.match(reviewedClampDetail.body.product.availability.leadTimeAr, /تأكيد التوفر/);
+assert.ok(reviewedClampDetail.body.product.fitments.every(fitment => fitment.noteAr));
 
 const reviewedBrandFilter = await invoke(reviewedOnly, { query: { brand: 'csf-cooling' } });
 assert.equal(reviewedBrandFilter.status, 200);
@@ -188,7 +200,7 @@ assert.equal((await invoke(reviewedOnly, {
   query: { fitment: 'exact', make: 'BMW', model: 'M3' }
 })).body.meta.totalResults, 0);
 assert.equal((await invoke(reviewedOnly, { query: { availability: 'in_stock' } })).body.meta.totalResults, 0);
-assert.equal((await invoke(reviewedOnly, { query: { availability: 'check' } })).body.meta.totalResults, 14);
+assert.equal((await invoke(reviewedOnly, { query: { availability: 'check' } })).body.meta.totalResults, REVIEWED_ECS_COUNT);
 
 const reviewedDetail = await invoke(reviewedOnly, {
   query: { handle: 'ecs-porsche-718-high-flow-catted-downpipe', supplier: 'ecs', currency: 'USD' }
@@ -267,19 +279,34 @@ const mergedFallback = createPartsCatalogHandler({
 const mergedPageOne = await invoke(mergedFallback);
 assert.equal(mergedPageOne.status, 200);
 assert.equal(mergedPageOne.body.items.length, 100);
-assert.equal(mergedPageOne.body.meta.totalResults, 264);
-assert.equal(mergedPageOne.body.meta.catalogProductCount, 264);
-assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'ecs').length, 14);
-assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'tegiwa').length, 86);
-assert.equal(mergedPageOne.body.items[14].handle, 'tegiwa-legacy-1');
+assert.equal(mergedPageOne.body.meta.totalResults, 250 + REVIEWED_ECS_COUNT);
+assert.equal(mergedPageOne.body.meta.catalogProductCount, 250 + REVIEWED_ECS_COUNT);
+assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'ecs').length, REVIEWED_ECS_COUNT);
+assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'tegiwa').length, 100 - REVIEWED_ECS_COUNT);
+assert.equal(mergedPageOne.body.items[REVIEWED_ECS_COUNT].handle, 'tegiwa-legacy-1');
 const mergedPageTwo = await invoke(mergedFallback, { query: { cursor: mergedPageOne.body.nextCursor } });
 assert.equal(mergedPageTwo.status, 200);
 assert.equal(mergedPageTwo.body.items.length, 100);
-assert.equal(mergedPageTwo.body.items[0].handle, 'tegiwa-legacy-87');
+assert.equal(mergedPageTwo.body.items[0].handle, `tegiwa-legacy-${101 - REVIEWED_ECS_COUNT}`);
 assert.equal(new Set([
   ...mergedPageOne.body.items.map(item => item.handle),
   ...mergedPageTwo.body.items.map(item => item.handle)
 ]).size, 200);
+
+for (const exactIdentifier of ['034-105-D300', 'ES#4877039']) {
+  const exactMergedSearch = await invoke(mergedFallback, { query: { q: exactIdentifier } });
+  assert.equal(exactMergedSearch.status, 200);
+  assert.equal(exactMergedSearch.body.items.length, 1);
+  assert.equal(exactMergedSearch.body.meta.totalResults, 1);
+  assert.equal(exactMergedSearch.body.meta.catalogProductCount, 250 + REVIEWED_ECS_COUNT);
+  assert.equal(exactMergedSearch.body.items[0].handle, 'ecs-034motorsport-55mm-exhaust-clamp');
+  assert.ok(exactMergedSearch.body.items.every(item => item.supplier.slug === 'ecs'));
+
+  const exactMergedSuggestion = await invoke(mergedFallback, { query: { q: exactIdentifier, suggest: '1' } });
+  assert.equal(exactMergedSuggestion.status, 200);
+  assert.equal(exactMergedSuggestion.body.suggestions.length, 1);
+  assert.equal(exactMergedSuggestion.body.suggestions[0].handle, 'ecs-034motorsport-55mm-exhaust-clamp');
+}
 
 async function legacyDetailOutageHandler(req, res) {
   if (req.query?.handle) {
@@ -333,9 +360,9 @@ const incompleteDatabaseEcs = createPartsCatalogHandler({
 });
 const incompleteDatabaseFallback = await invoke(incompleteDatabaseEcs);
 assert.equal(incompleteDatabaseFallback.status, 200);
-assert.equal(incompleteDatabaseFallback.body.items.length, 14);
+assert.equal(incompleteDatabaseFallback.body.items.length, REVIEWED_ECS_COUNT);
 assert.equal(incompleteDatabaseFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
-assert.equal(incompleteDatabaseFallback.body.meta.reviewedEcsProductCount, 14);
+assert.equal(incompleteDatabaseFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 
 const unconfigured = createPartsCatalogHandler({ databaseUrl: '', reviewedFallback: false, now: () => FIXED_NOW });
 const unconfiguredResponse = await invoke(unconfigured);
@@ -381,13 +408,13 @@ const emptySearch = await invoke(zeroMatches, { query: { q: 'nonexistent product
 assert.equal(emptySearch.status, 200);
 assert.equal(emptySearch.body.mode, 'search');
 assert.deepEqual(emptySearch.body.items, []);
-assert.equal(emptySearch.body.meta.catalogProductCount, 193_270);
+assert.equal(emptySearch.body.meta.catalogProductCount, stats.catalog_product_count);
 assert.equal(emptySearch.body.meta.totalResults, 0);
 const emptySuggestions = await invoke(zeroMatches, { query: { q: 'nonexistent product', suggest: '1' } });
 assert.equal(emptySuggestions.status, 200);
 assert.equal(emptySuggestions.body.mode, 'suggest');
 assert.deepEqual(emptySuggestions.body.suggestions, []);
-assert.equal(emptySuggestions.body.meta.catalogProductCount, 193_270);
+assert.equal(emptySuggestions.body.meta.catalogProductCount, stats.catalog_product_count);
 assert.ok(zeroMatchStatements.every(statement => !statement.text.includes('nonexistent product')));
 assert.ok(zeroMatchStatements.some(statement => statement.values.includes('nonexistent product')));
 
@@ -429,7 +456,7 @@ assert.equal(browse.body.meta.pageSize, 100);
 assert.equal(browse.body.meta.page, 1);
 assert.equal(browse.body.meta.totalResults, 250);
 assert.equal(browse.body.meta.totalPages, 3);
-assert.equal(browse.body.meta.catalogProductCount, 193_270);
+assert.equal(browse.body.meta.catalogProductCount, stats.catalog_product_count);
 assert.deepEqual(browse.body.meta.currencies, ['GBP', 'USD']);
 assert.match(browse.body.nextCursor, /^[A-Za-z0-9_-]+$/);
 assert.equal(browse.body.items[0].price.currency, 'GBP');
@@ -605,106 +632,36 @@ assert.equal(disabledDiscovery.status, 404);
 assert.equal(disabledDiscovery.body.error.code, 'discovery_unavailable');
 assert.equal(disabledDiscoveryCalls, 0);
 
-const providerCursor = `${Buffer.from('next-page').toString('base64url')}.${'a'.repeat(64)}`;
-const discoveryCalls = [];
-const discoveryOffsetCalls = [];
+let discoveryProviderCalls = 0;
 const discoveryProvider = {
   async getMeta() {
-    return {
-      releaseId: '20260805T212305813Z-591144905c3f9719',
-      discoveredUrlCount: 1_361_533,
-      shardCount: 137
-    };
+    discoveryProviderCalls += 1;
+    throw new Error('Private URL intake must not be called by the storefront.');
   },
-  async list({ cursor: requestedCursor, limit }) {
-    discoveryCalls.push({ cursor: requestedCursor, limit });
-    const first = requestedCursor === null;
-    const items = Array.from({ length: first ? 100 : 3 }, (_, index) => discoveryItem((first ? 0 : 100) + index + 1));
-    return {
-      releaseId: '20260805T212305813Z-591144905c3f9719',
-      items,
-      count: items.length,
-      nextCursor: first ? providerCursor : null,
-      meta: { releaseId: '20260805T212305813Z-591144905c3f9719', discoveredUrlCount: 1_361_533 }
-    };
+  async list() {
+    discoveryProviderCalls += 1;
+    throw new Error('Private URL intake must not be called by the storefront.');
   },
-  async listByOffset({ offset, limit }) {
-    discoveryOffsetCalls.push({ offset, limit });
-    const total = 1_361_533;
-    const count = offset >= total ? 0 : Math.min(limit, total - offset);
-    const items = Array.from({ length: count }, (_, index) => discoveryItem(offset + index + 1));
-    return {
-      releaseId: '20260805T212305813Z-591144905c3f9719',
-      items,
-      count: items.length,
-      nextOffset: offset + count < total ? offset + count : null,
-      meta: { releaseId: '20260805T212305813Z-591144905c3f9719', discoveredUrlCount: total }
-    };
+  async listByOffset() {
+    discoveryProviderCalls += 1;
+    throw new Error('Private URL intake must not be called by the storefront.');
   }
 };
 const discoveryEnabled = createPartsCatalogHandler({
-  query: queryAdapter,
+  databaseUrl: '',
+  legacyHandler: false,
   ecsDiscoveryEnabled: true,
   ecsDiscoveryProvider: discoveryProvider,
   now: () => FIXED_NOW
 });
 const firstDiscovery = await invoke(discoveryEnabled, { query: { discovery: '1' } });
-assert.equal(firstDiscovery.status, 200);
-assert.equal(firstDiscovery.body.mode, 'discovery');
-assert.equal(firstDiscovery.body.items.length, 100);
-assert.equal(firstDiscovery.body.meta.discoveredUrlCount, 1_361_533);
-assert.equal(firstDiscovery.body.meta.ecsCatalogueListingCount, 1_361_536);
-assert.equal(firstDiscovery.body.meta.ecsReferenceOnlyCount, 1_361_522);
-assert.equal(firstDiscovery.body.meta.imageIndexedProductCount, 14);
-assert.equal(firstDiscovery.body.meta.pageSize, 100);
-assert.equal(firstDiscovery.body.meta.searchable, false);
-assert.equal(firstDiscovery.body.meta.filterable, false);
-assert.equal(firstDiscovery.body.meta.numberedPagination, false);
-assert.equal(Object.hasOwn(firstDiscovery.body.meta, 'catalogProductCount'), false);
-assert.equal(firstDiscovery.body.nextCursor, providerCursor);
-assert.ok(firstDiscovery.body.items.every(item => item.title === null && item.sku === null
-  && item.price === null && item.stock === null && item.image === null && item.fitment === null
-  && item.quoteOnly === true && item.requestDetailsOnly === true));
-assert.equal(new Set(firstDiscovery.body.items.map(item => item.sourceUrl)).size, 100);
-assert.ok(firstDiscovery.body.items.every(item => item.sourceUrl.startsWith('https://www.ecstuning.com/b-')));
-assert.ok(Buffer.byteLength(JSON.stringify(firstDiscovery.body), 'utf8') < 2_000_000);
-assert.deepEqual(discoveryCalls[0], { cursor: null, limit: 100 });
-
-const nextDiscovery = await invoke(discoveryEnabled, { query: { discovery: '1', cursor: providerCursor } });
-assert.equal(nextDiscovery.status, 200);
-assert.equal(nextDiscovery.body.items.length, 3);
-assert.equal(nextDiscovery.body.nextCursor, null);
-assert.deepEqual(discoveryCalls[1], { cursor: providerCursor, limit: 100 });
+assert.equal(firstDiscovery.status, 404);
+assert.equal(firstDiscovery.body.error.code, 'discovery_unavailable');
+assert.match(firstDiscovery.body.error.message, /private ingestion data/i);
+assert.equal(discoveryProviderCalls, 0);
 assert.equal((await invoke(discoveryEnabled, { query: { discovery: '1', q: 'brakes' } })).body.error.code, 'discovery_filters_unsupported');
 assert.equal((await invoke(discoveryEnabled, { query: { discovery: 'yes' } })).body.error.code, 'invalid_discovery');
 assert.equal((await invoke(discoveryEnabled, { query: { discovery: '1', cursor: "bad\u0000cursor" } })).body.error.code, 'invalid_ecs_discovery_cursor');
-
-const invalidProviderCursor = createPartsCatalogHandler({
-  databaseUrl: '', ecsDiscoveryEnabled: true, now: () => FIXED_NOW,
-  ecsDiscoveryProvider: { async list() { throw new EcsDiscoveryError(400, 'invalid_ecs_discovery_cursor', 'private cursor detail'); } }
-});
-const invalidProviderCursorResponse = await invoke(invalidProviderCursor, { query: { discovery: '1', cursor: 'future.cursor-format' } });
-assert.equal(invalidProviderCursorResponse.status, 400);
-assert.equal(invalidProviderCursorResponse.body.error.code, 'invalid_ecs_discovery_cursor');
-assert.doesNotMatch(JSON.stringify(invalidProviderCursorResponse.body), /private cursor detail/);
-
-const releaseChanged = createPartsCatalogHandler({
-  databaseUrl: '', ecsDiscoveryEnabled: true, now: () => FIXED_NOW,
-  ecsDiscoveryProvider: { async list() { throw new EcsDiscoveryError(409, 'ecs_discovery_release_changed', 'private release detail'); } }
-});
-const releaseChangedResponse = await invoke(releaseChanged, { query: { discovery: '1' } });
-assert.equal(releaseChangedResponse.status, 409);
-assert.equal(releaseChangedResponse.body.error.code, 'discovery_release_changed');
-assert.doesNotMatch(JSON.stringify(releaseChangedResponse.body), /private release detail/);
-
-const discoveryUnavailable = createPartsCatalogHandler({
-  databaseUrl: '', ecsDiscoveryEnabled: true, now: () => FIXED_NOW, logger: { warn() {} },
-  ecsDiscoveryProvider: { async list() { throw new Error('secret upstream storage message'); } }
-});
-const discoveryUnavailableResponse = await invoke(discoveryUnavailable, { query: { discovery: '1' } });
-assert.equal(discoveryUnavailableResponse.status, 503);
-assert.equal(discoveryUnavailableResponse.body.error.code, 'discovery_unavailable');
-assert.doesNotMatch(JSON.stringify(discoveryUnavailableResponse.body), /secret|upstream|storage/i);
 
 const referenceTotalsUnavailable = createPartsCatalogHandler({
   databaseUrl: '', legacyHandler: false, ecsDiscoveryEnabled: true, now: () => FIXED_NOW,
@@ -712,51 +669,38 @@ const referenceTotalsUnavailable = createPartsCatalogHandler({
 });
 const safeVerifiedCatalogue = await invoke(referenceTotalsUnavailable);
 assert.equal(safeVerifiedCatalogue.status, 200);
-assert.equal(safeVerifiedCatalogue.body.meta.catalogProductCount, 14);
+assert.equal(safeVerifiedCatalogue.body.meta.catalogProductCount, REVIEWED_ECS_COUNT);
 assert.equal(Object.hasOwn(safeVerifiedCatalogue.body.meta, 'catalogueListingCount'), false);
 
 const fullEcsCatalogue = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '1' } });
 assert.equal(fullEcsCatalogue.status, 200);
 assert.equal(fullEcsCatalogue.body.mode, 'browse');
-assert.equal(fullEcsCatalogue.body.items.length, 100);
-assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, 193_270);
-assert.equal(fullEcsCatalogue.body.meta.verifiedSearchableProductCount, 193_270);
-assert.equal(fullEcsCatalogue.body.meta.catalogueListingCount, 1_554_792);
-assert.equal(fullEcsCatalogue.body.meta.availableProductCount, 26_360);
-assert.equal(fullEcsCatalogue.body.meta.imageIndexedProductCount, 14);
-assert.equal(fullEcsCatalogue.body.meta.totalResults, 1_361_536);
-assert.equal(fullEcsCatalogue.body.meta.totalPages, 13_616);
-assert.equal(fullEcsCatalogue.body.meta.ecsUrlReferenceCount, 1_361_533);
-assert.equal(fullEcsCatalogue.body.meta.ecsCatalogueListingCount, 1_361_536);
-assert.equal(fullEcsCatalogue.body.meta.ecsReferenceOnlyCount, 1_361_522);
-assert.equal(fullEcsCatalogue.body.meta.catalogueListingCount,
-  fullEcsCatalogue.body.meta.verifiedSearchableProductCount + fullEcsCatalogue.body.meta.ecsReferenceOnlyCount);
-assert.equal(fullEcsCatalogue.body.meta.reviewedOutsideDiscoveryCount, 3);
-assert.equal(fullEcsCatalogue.body.meta.numberedPagination, true);
-assert.equal(fullEcsCatalogue.body.meta.searchable, false);
-assert.equal(fullEcsCatalogue.body.meta.filterable, false);
-assert.ok(fullEcsCatalogue.body.items.slice(3).every(item => item.dataStatus === 'url_discovered'));
-assert.ok(fullEcsCatalogue.body.items.slice(3).every(item => item.image === null && item.images === null));
-assert.deepEqual(discoveryOffsetCalls[0], { offset: 0, limit: 97 });
+assert.equal(fullEcsCatalogue.body.items.length, REVIEWED_ECS_COUNT);
+assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, REVIEWED_ECS_COUNT);
+assert.equal(fullEcsCatalogue.body.meta.totalResults, REVIEWED_ECS_COUNT);
+assert.equal(fullEcsCatalogue.body.meta.totalPages, 1);
+assert.ok(fullEcsCatalogue.body.items.every(item => item.title && item.sku && item.image?.src));
+assert.ok(fullEcsCatalogue.body.items.every(item => item.dataStatus !== 'url_discovered'));
+for (const field of ['catalogueListingCount', 'verifiedSearchableProductCount', 'ecsUrlReferenceCount',
+  'ecsCatalogueListingCount', 'ecsReferenceOnlyCount', 'reviewedOutsideDiscoveryCount']) {
+  assert.equal(Object.hasOwn(fullEcsCatalogue.body.meta, field), false);
+}
+assert.equal(discoveryProviderCalls, 0);
 
-const secondEcsPage = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '2' } });
-assert.equal(secondEcsPage.status, 200);
-assert.equal(secondEcsPage.body.meta.page, 2);
-assert.deepEqual(discoveryOffsetCalls[1], { offset: 97, limit: 100 });
-const beyondEcsCatalogue = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '13617' } });
-assert.equal(beyondEcsCatalogue.status, 400);
-assert.equal(beyondEcsCatalogue.body.error.code, 'invalid_page');
-
-const normalWithDiscoveryConfigured = await invoke(discoveryEnabled);
+const discoveryConfiguredDatabase = createPartsCatalogHandler({
+  query: queryAdapter,
+  ecsDiscoveryEnabled: true,
+  ecsDiscoveryProvider: discoveryProvider,
+  now: () => FIXED_NOW
+});
+const normalWithDiscoveryConfigured = await invoke(discoveryConfiguredDatabase);
 assert.equal(normalWithDiscoveryConfigured.status, 200);
-assert.equal(normalWithDiscoveryConfigured.body.meta.catalogProductCount, 193_270);
-assert.equal(normalWithDiscoveryConfigured.body.meta.verifiedSearchableProductCount, 193_270);
-assert.equal(normalWithDiscoveryConfigured.body.meta.catalogueListingCount, 1_554_792);
+assert.equal(normalWithDiscoveryConfigured.body.meta.catalogProductCount, stats.catalog_product_count);
 assert.equal(normalWithDiscoveryConfigured.body.meta.availableProductCount, 26_360);
-assert.equal(normalWithDiscoveryConfigured.body.meta.imageIndexedProductCount, 14);
-assert.equal(normalWithDiscoveryConfigured.body.meta.ecsReferenceOnlyCount, 1_361_522);
+assert.equal(Object.hasOwn(normalWithDiscoveryConfigured.body.meta, 'catalogueListingCount'), false);
+assert.equal(Object.hasOwn(normalWithDiscoveryConfigured.body.meta, 'ecsReferenceOnlyCount'), false);
 assert.equal(normalWithDiscoveryConfigured.body.meta.filters.supplier, null);
 assert.equal(normalWithDiscoveryConfigured.body.meta.totalResults, 250);
-assert.equal(discoveryCalls.length, 2);
+assert.equal(discoveryProviderCalls, 0);
 
 console.log('Unified parts catalog API tests passed.');
