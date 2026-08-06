@@ -13,6 +13,7 @@ let partsCatalogHandlerPromise;
 const localApiHandlerPromises = new Map();
 const localApiRoutes = new Map([
   ['/api/staging-order', { module: '../api/staging-order.js', limit: 24_000 }],
+  ['/api/shipping-estimate', { module: '../api/shipping-estimate.js', limit: 16_000 }],
   ['/api/enquiry', { module: '../api/enquiry.js', limit: 32_000 }],
   ['/api/account', { module: '../api/account.js', limit: 128_000 }],
   ['/api/addresses', { module: '../api/addresses.js', limit: 128_000 }],

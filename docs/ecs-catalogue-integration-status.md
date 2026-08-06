@@ -31,6 +31,14 @@ The preview catalogue also exposes the complete signed public-URL collection ins
 
 The integrated ECS view uses 100 entries per numbered page. The 14 reviewed records retain their verified fields. The other **1,361,522** entries remain explicitly labelled URL-derived catalogue references. They provide only a canonical public ECS link, a stable identity, a human-readable URL-derived label, `Request price`, `Availability confirmation required`, an original-page link and an enquiry action. They do not expose or infer a product title, ECS/SKU/MPN, category, price, stock, image, fitment, variation or Add to Cart action.
 
+Together with the **193,253** Tegiwa catalogue entries, the supplier-neutral catalogue coverage total is **1,554,789 products or references**. The total is deduplicated within each supplier collection and does not count the 14 reviewed ECS records twice. URL-only ECS references are excluded from structured product search, vehicle-fitment filtering and direct cart purchase until their facts are verified.
+
+## ECS image coverage
+
+All **14 reviewed ECS products** have a unique, readable 800 by 600 local product image. The 137 signed ECS discovery manifests contain **1,361,533 canonical URL strings and zero image fields**, so the other **1,361,522** reference-only storefront entries do not currently have an accurate supplier image mapping. Their cards use an explicit `Product image awaiting verified supplier media` reference tile instead of a blank or guessed product photo.
+
+Completing ECS image coverage requires an authorised ECS number, manufacturer part number or canonical URL to image mapping. Imported media must be validated, checksummed, deduplicated, kept with its supplier attribution or watermark intact, mirrored to approved object storage and reviewed before publication. Search thumbnails, guessed images and watermark removal are not acceptable substitutes.
+
 Search and vehicle/product filters apply only to reviewed or supplier-fed product data. They are disabled while browsing the full URL-reference layer because the sitemap does not contain those facts. This limitation is deliberate and prevents URL tokens from being misrepresented as verified commercial or fitment data.
 
 ## Reviewed products

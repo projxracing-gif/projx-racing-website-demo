@@ -3,7 +3,9 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import handler from '../api/staging-order.js';
+import shippingHandler from '../api/shipping-estimate.js';
 import { DIRECT_CART_PRODUCTS, policyPriceIsFresh } from '../server/commerce-policy.js';
+import { shippingPlan } from '../server/shipping-policy.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -34,7 +36,16 @@ async function invoke({ method = 'POST', body = {}, origin = 'https://projxracin
   return { status: res.statusCode, body: JSON.parse(res.body || '{}'), headers: res.headers };
 }
 
+async function invokeShipping({ method = 'POST', body = {}, origin = 'https://projxracing.com' } = {}) {
+  const req = { method, body, headers: { host: 'projxracing.com', origin } };
+  const res = response();
+  await shippingHandler(req, res);
+  return { status: res.statusCode, body: JSON.parse(res.body || '{}'), headers: res.headers };
+}
+
 const data = loadCatalogue();
+const clientSource = fs.readFileSync(path.join(repo, 'assets/app.js'), 'utf8');
+const commerceStyles = fs.readFileSync(path.join(repo, 'assets/styles.css'), 'utf8');
 const policyIds = Object.keys(DIRECT_CART_PRODUCTS);
 const directProduct = data.storeProducts.find(product => product.slug === policyIds[0]);
 const ecsProducts = data.storeProducts.filter(product => product.provider === 'ECS Tuning');
@@ -47,6 +58,11 @@ const tests = [
   ['approved product exists in reviewed catalogue', Boolean(directProduct)],
   ['approved SKU and price match reviewed data', directProduct?.sku === policy.sku && directProduct?.priceCurrency === policy.currency && directProduct?.priceAmount === policy.unitAmount],
   ['approved price review is fresh on 2026-08-05', policyPriceIsFresh(policy, Date.parse('2026-08-05T12:00:00.000Z'))],
+  ['approved cart product has a verified supplier fulfilment profile', policy.supplier?.slug === 'tegiwa' && policy.supplier?.originCountryCode === 'GB'],
+  ['client cart policy carries the same supplier origin profile', clientSource.includes('originCountryCode: "GB"') && clientSource.includes('originCountryName: "Great Britain"')],
+  ['checkout requests a destination-aware shipping plan', clientSource.includes('const SHIPPING_ESTIMATE_ENDPOINT = "/api/shipping-estimate/"') && clientSource.includes('async function requestShippingEstimate(form)')],
+  ['checkout receipt preserves the server shipping snapshot', clientSource.includes('shipping: safeShippingPlan(result.shipping)')],
+  ['supplier shipment cards have responsive presentation styles', commerceStyles.includes('.shipping-planner') && commerceStyles.includes('.shipping-group') && commerceStyles.includes('.shipping-split-notice')],
   ['keeps every ECS item in quotation flow', ecsProducts.length === 14 && ecsProducts.every(product => !policyIds.includes(product.slug))],
   ['keeps every configured package in quotation flow', quotePackages.length > 0 && quotePackages.every(product => !policyIds.includes(product.slug))],
   ['keeps all non-approved reviewed products in quotation flow', excludedReviewedProducts.length === data.storeProducts.length - 1]
@@ -66,6 +82,31 @@ const basePayload = {
   consent: true,
   items: [{ productId: policy.productId, sku: policy.sku, quantity: 2, unitAmount: policy.unitAmount, currency: policy.currency }]
 };
+
+const shippingPayload = {
+  destination: basePayload.destination,
+  items: basePayload.items.map(({ productId, sku, quantity }) => ({ productId, sku, quantity }))
+};
+
+tests.push(['shipping estimator rejects non-POST methods', (await invokeShipping({ method: 'GET' })).status === 405]);
+tests.push(['shipping estimator rejects cross-origin submission', (await invokeShipping({ body: shippingPayload, origin: 'https://example.com' })).status === 403]);
+tests.push(['shipping estimator requires a usable destination', (await invokeShipping({ body: { ...shippingPayload, destination: { country: '', city: '' } } })).status === 400]);
+tests.push(['shipping estimator rejects a tampered product identity', (await invokeShipping({ body: { ...shippingPayload, items: [{ ...shippingPayload.items[0], sku: 'TAMPERED' }] } })).status === 409]);
+const shippingEstimate = await invokeShipping({ body: shippingPayload });
+tests.push(['shipping estimator returns one truthful Great Britain supplier group', shippingEstimate.status === 200
+  && shippingEstimate.body.estimate?.groupCount === 1
+  && shippingEstimate.body.estimate?.groups?.[0]?.supplier === 'tegiwa'
+  && shippingEstimate.body.estimate?.groups?.[0]?.originCountryCode === 'GB']);
+tests.push(['shipping estimator never fabricates an unavailable rate', shippingEstimate.body.estimate?.status === 'confirmation_required'
+  && shippingEstimate.body.estimate?.groups?.[0]?.rate === null
+  && shippingEstimate.body.estimate?.groups?.[0]?.reason === 'authorised_supplier_rate_access_required']);
+const mixedPlan = shippingPlan([
+  { productId: 'tegiwa-test', sku: 'TEG-1', quantity: 1, supplier: { slug: 'tegiwa', name: 'Tegiwa', originCountryCode: 'GB', originCountryName: 'Great Britain' } },
+  { productId: 'ecs-test', sku: 'ECS-1', quantity: 2, supplier: { slug: 'ecs', name: 'ECS Tuning', originCountryCode: 'US', originCountryName: 'United States' } }
+], basePayload.destination);
+tests.push(['mixed supplier carts are explicitly split into separate origin groups', mixedPlan.splitShipment === true
+  && mixedPlan.groupCount === 2
+  && mixedPlan.groups.map(group => group.originCountryCode).sort().join(',') === 'GB,US']);
 
 tests.push(['rejects non-POST methods', (await invoke({ method: 'GET' })).status === 405]);
 tests.push(['rejects cross-origin submission', (await invoke({ body: basePayload, origin: 'https://example.com' })).status === 403]);
@@ -88,6 +129,9 @@ delete process.env.PUBLIC_FORM_ANTI_ABUSE_READY;
 delete process.env.STAGING_ORDER_EMAIL_DELIVERY_ENABLED;
 const simulated = await invoke({ body: { ...basePayload, idempotencyKey: 'd'.repeat(48) } });
 tests.push(['defaults to a no-send simulated completion', simulated.status === 200 && simulated.body.accepted === true && simulated.body.simulated === true && simulated.body.notificationSent === false && simulated.body.completionStatus === 'simulated_only' && simulated.body.durableOrderCreated === false]);
+tests.push(['staging order snapshots supplier shipping groups without inventing charges', simulated.body.shipping?.status === 'confirmation_required'
+  && simulated.body.shipping?.groups?.[0]?.originCountryCode === 'GB'
+  && simulated.body.shipping?.groups?.[0]?.rate === null]);
 
 process.env.STAGING_ORDER_EMAIL_DELIVERY_ENABLED = 'true';
 const blockedWithoutAntiAbuse = await invoke({ body: { ...basePayload, idempotencyKey: 'f'.repeat(48) } });

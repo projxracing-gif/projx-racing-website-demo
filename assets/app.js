@@ -10,6 +10,7 @@
   const PARTS_CATALOG_ENDPOINT = "/api/parts-catalog/";
   const PARTS_CATALOG_FALLBACK_ENDPOINT = "/api/tegiwa-catalog/";
   const STAGING_ORDER_ENDPOINT = "/api/staging-order/";
+  const SHIPPING_ESTIMATE_ENDPOINT = "/api/shipping-estimate/";
   const TEGIWA_PRODUCT_QUERY = "product";
   const TEGIWA_PRODUCT_HISTORY_KEY = "projxSupplierProduct";
   const TEGIWA_PRODUCT_HANDLE_LIMIT = 255;
@@ -25,7 +26,13 @@
       maxPriceAgeDays: 7,
       fitmentConfirmationRequired: true,
       notice: "Left-hand-drive GR Yaris and seat/headrest compatibility must be confirmed before fulfilment.",
-      noticeAr: "يجب تأكيد توافق سيارة GR Yaris ذات المقود اليسار والمقعد ومسند الرأس قبل التجهيز."
+      noticeAr: "يجب تأكيد توافق سيارة GR Yaris ذات المقود اليسار والمقعد ومسند الرأس قبل التجهيز.",
+      supplier: Object.freeze({
+        slug: "tegiwa",
+        name: "Tegiwa",
+        originCountryCode: "GB",
+        originCountryName: "Great Britain"
+      })
     })
   });
   const main = document.getElementById("main-content");
@@ -145,7 +152,8 @@
       unitAmount: policy.unitAmount,
       currency: policy.currency,
       priceVerifiedAt: policy.priceVerifiedAt,
-      fitmentConfirmationRequired: Boolean(policy.fitmentConfirmationRequired)
+      fitmentConfirmationRequired: Boolean(policy.fitmentConfirmationRequired),
+      supplier: policy.supplier ? { ...policy.supplier } : null
     };
   }
 
@@ -177,6 +185,12 @@
     cart: normalizeCart(safeParse(storage.get(CART_STORAGE_KEY), [])),
     partsVehicle: normalizePartsVehicle(safeParse(storage.get("projxPartsVehicle"), null)),
     checkoutSubmitting: false,
+    shippingEstimate: null,
+    shippingEstimateStatus: "idle",
+    shippingEstimateError: "",
+    shippingEstimateController: null,
+    shippingEstimateTimer: null,
+    shippingEstimateRequestId: 0,
     mobileOpen: false,
     lightbox: null,
     galleries: Object.create(null),
@@ -200,6 +214,8 @@
       catalogueSource: "",
       fallbackReason: "",
       referenceCatalogue: false,
+      catalogueListingCount: null,
+      availableProductCount: null,
       controller: null,
       detailController: null,
       detailHandle: "",
@@ -331,6 +347,7 @@
       ecsDiscoveryOpen: "تصفح جميع مراجع ECS",
       ecsDiscoveryClose: "أغلق دليل المراجع",
       ecsDiscoveryReference: "مرجع كتالوج ECS",
+      ecsReferenceImagePending: "صورة المنتج بانتظار وسائط موثّقة من المورّد",
       ecsUrlDerived: "مستخرج من رابط URL — غير موثّق",
       ecsDiscoveryOriginal: "افتح صفحة ECS الأصلية",
       ecsDiscoveryEnquire: "استفسر عن هذا المرجع",
@@ -506,6 +523,7 @@
       ecsDiscoveryOpen: "Browse all ECS references",
       ecsDiscoveryClose: "Close reference directory",
       ecsDiscoveryReference: "ECS catalogue reference",
+      ecsReferenceImagePending: "Product image awaiting verified supplier media",
       ecsUrlDerived: "URL-derived — not verified",
       ecsDiscoveryOriginal: "Open original ECS page",
       ecsDiscoveryEnquire: "Enquire about this reference",
@@ -596,6 +614,27 @@
       subtotal: "المجموع المرجعي",
       shippingPending: "الشحن غير محسوب",
       dutiesPending: "الضرائب والجمارك والتوصيل المحلي غير محسوبة",
+      shippingPlannerTitle: "خطة الشحن حسب المورد",
+      shippingPlannerIntro: "يتم فصل الشحن حسب بلد المورد حتى تكون التكاليف واضحة.",
+      shippingFrom: "يشحن من",
+      shippingSupplier: "المورد",
+      shippingUnit: "وحدة",
+      shippingUnits: "وحدات",
+      originGB: "بريطانيا",
+      originUS: "الولايات المتحدة",
+      singleSupplierShipment: "شحنة مورد واحدة",
+      splitSupplierShipment: "سيتم تقسيم الطلب إلى {count} شحنات",
+      splitSupplierNotice: "تُشحن منتجات ECS Tuning من الولايات المتحدة ومنتجات Tegiwa من بريطانيا. تظهر كل شحنة بشكل منفصل.",
+      shippingEnterDestination: "أدخل الدولة والمدينة لفحص مسار الشحن.",
+      shippingEstimating: "جارٍ فحص مسار الشحن…",
+      shippingConfirmationRequired: "سعر الشحن يحتاج تأكيد",
+      shippingAuthorisedAccessRequired: "لا تتوفر أسعار مباشرة معتمدة من المورد حالياً، لذلك لم يتم تخمين أي رسوم.",
+      shippingEstimateError: "تعذر فحص الشحن الآن. سيؤكد Projx Racing الرسوم قبل أي طلب حقيقي.",
+      shippingDestination: "الوجهة",
+      shippingRate: "تكلفة الشحن",
+      shippingDutiesExcluded: "لا تشمل الضرائب أو الجمارك أو التوصيل المحلي.",
+      shippingNotCharged: "لن تتم إضافة أو تحصيل رسوم شحن غير مؤكدة.",
+      shippingPlannerReceipt: "خطة الشحن المسجلة",
       continueShopping: "متابعة التسوق",
       proceedCheckout: "المتابعة للطلب التجريبي",
       savedOnDevice: "تُحفظ هذه السلة تلقائياً على هذا الجهاز.",
@@ -665,6 +704,27 @@
       subtotal: "Reference subtotal",
       shippingPending: "Shipping not calculated",
       dutiesPending: "Tax, customs and local delivery are not calculated",
+      shippingPlannerTitle: "Supplier shipping plan",
+      shippingPlannerIntro: "Shipments are separated by supplier origin so every route and pending charge stays clear.",
+      shippingFrom: "Ships from",
+      shippingSupplier: "Supplier",
+      shippingUnit: "unit",
+      shippingUnits: "units",
+      originGB: "Great Britain",
+      originUS: "United States",
+      singleSupplierShipment: "One supplier shipment",
+      splitSupplierShipment: "This order will be split into {count} supplier shipments",
+      splitSupplierNotice: "ECS Tuning items ship from the United States and Tegiwa items ship from Great Britain. Each shipment is shown separately.",
+      shippingEnterDestination: "Enter the country and city to check the shipping route.",
+      shippingEstimating: "Checking the shipping route…",
+      shippingConfirmationRequired: "Shipping charge requires confirmation",
+      shippingAuthorisedAccessRequired: "Authorised live supplier rates are not available yet, so no delivery charge has been guessed.",
+      shippingEstimateError: "Shipping could not be checked now. Projx Racing will confirm the charge before any real order.",
+      shippingDestination: "Destination",
+      shippingRate: "Shipping charge",
+      shippingDutiesExcluded: "Tax, customs and local delivery are not included.",
+      shippingNotCharged: "No unconfirmed shipping charge is added or collected.",
+      shippingPlannerReceipt: "Recorded shipping plan",
       continueShopping: "Continue shopping",
       proceedCheckout: "Continue to test checkout",
       savedOnDevice: "This cart is saved automatically on this device.",
@@ -1082,6 +1142,11 @@
 
   function saveCart({ resetCheckout = true } = {}) {
     state.cart = normalizeCart(state.cart);
+    state.shippingEstimateController?.abort();
+    state.shippingEstimateController = null;
+    state.shippingEstimate = null;
+    state.shippingEstimateStatus = "idle";
+    state.shippingEstimateError = "";
     storage.set(CART_STORAGE_KEY, JSON.stringify(state.cart));
     if (resetCheckout) {
       storage.remove(CHECKOUT_TOKEN_STORAGE_KEY);
@@ -2257,11 +2322,20 @@
   function syncTegiwaFilterUi() {
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root) return;
+    const referenceCatalogue = state.tegiwaCatalog.referenceCatalogue && state.tegiwaCatalog.supplier === "ecs";
     root.querySelectorAll("[data-tegiwa-filter]").forEach(control => {
       const key = control.dataset.tegiwaFilter;
       if (Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) control.value = state.tegiwaCatalog[key];
-      control.disabled = Boolean(state.tegiwaCatalog.referenceCatalogue && key !== "supplier");
+      control.disabled = Boolean(referenceCatalogue && key !== "supplier");
     });
+    const fitment = root.querySelector('[data-tegiwa-filter="fitment"]');
+    if (fitment) {
+      fitment.disabled = referenceCatalogue || !partsVehicleLabel();
+      if (fitment.disabled && state.tegiwaCatalog.fitment !== "all") {
+        state.tegiwaCatalog.fitment = "all";
+        fitment.value = "all";
+      }
+    }
     const count = tegiwaFilterCount();
     const badge = root.querySelector("[data-tegiwa-filter-count]");
     if (badge) {
@@ -2270,14 +2344,6 @@
     }
     const clear = root.querySelector('[data-action="tegiwa-clear-filters"]');
     if (clear) clear.disabled = count === 0;
-    const fitment = root.querySelector('[data-tegiwa-filter="fitment"]');
-    if (fitment) {
-      fitment.disabled = state.tegiwaCatalog.referenceCatalogue || !partsVehicleLabel();
-      if (fitment.disabled && state.tegiwaCatalog.fitment !== "all") {
-        state.tegiwaCatalog.fitment = "all";
-        fitment.value = "all";
-      }
-    }
   }
 
   function syncCatalogueFacetOptions(meta = {}) {
@@ -2301,7 +2367,13 @@
   }
 
   function resetTegiwaFilters({ reload = true } = {}) {
-    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS);
+    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, {
+      backend: "unified",
+      partialCatalogue: false,
+      catalogueSource: "",
+      fallbackReason: "",
+      referenceCatalogue: false
+    });
     syncTegiwaFilterUi();
     if (reload) loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
   }
@@ -2635,6 +2707,7 @@
     const items = Array.isArray(payload.items) ? payload.items : [];
     const meta = payload.meta || {};
     const count = Number(meta.catalogProductCount);
+    const listingCount = Number(meta.catalogueListingCount);
     const available = Number(meta.availableProductCount);
     const isSearch = payload.mode === "search";
     const pageSize = Math.max(1, Number.parseInt(meta.pageSize, 10) || state.tegiwaCatalog.pageSize || 100);
@@ -2659,18 +2732,21 @@
           query: cleanText(meta.canonicalQuery || meta.query || state.tegiwaCatalog.query, 120)
         });
       } else if (isSearch) status.textContent = `${tegiwaNumber(totalResults)} ${labels.tegiwaSearchResults}`;
-      else if (Number.isFinite(count) && count > 0 && items.length) {
+      else if (totalResults > 0 && items.length) {
         const start = ((currentPage - 1) * pageSize) + 1;
-        const end = Math.min(count, start + items.length - 1);
-        const range = tegiwaTemplate(labels.tegiwaShowingRange, { start: tegiwaNumber(start), end: tegiwaNumber(end), total: tegiwaNumber(count) });
+        const end = Math.min(totalResults, start + items.length - 1);
+        const range = tegiwaTemplate(labels.tegiwaShowingRange, { start: tegiwaNumber(start), end: tegiwaNumber(end), total: tegiwaNumber(totalResults) });
         const page = tegiwaTemplate(labels.tegiwaPageOf, { page: tegiwaNumber(currentPage), total: tegiwaNumber(totalPages) });
         status.textContent = `${range} • ${page}`;
       } else status.textContent = `${tegiwaNumber(items.length)} ${labels.tegiwaResults}`;
     }
     const catalogueStat = root.querySelector("[data-tegiwa-catalog-count]");
     const availableStat = root.querySelector("[data-tegiwa-available-count]");
-    if (catalogueStat && Number.isFinite(count) && count >= 0) catalogueStat.textContent = tegiwaNumber(count);
-    if (availableStat && Number.isFinite(available) && available >= 0) availableStat.textContent = tegiwaNumber(available);
+    if (Number.isFinite(listingCount) && listingCount >= 0) state.tegiwaCatalog.catalogueListingCount = listingCount;
+    else if (Number.isFinite(count) && count >= 0 && state.tegiwaCatalog.catalogueListingCount === null) state.tegiwaCatalog.catalogueListingCount = count;
+    if (Number.isFinite(available) && available >= 0) state.tegiwaCatalog.availableProductCount = available;
+    if (catalogueStat && state.tegiwaCatalog.catalogueListingCount !== null) catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogueListingCount);
+    if (availableStat && state.tegiwaCatalog.availableProductCount !== null) availableStat.textContent = tegiwaNumber(state.tegiwaCatalog.availableProductCount);
     state.tegiwaCatalog.currentPage = currentPage;
     state.tegiwaCatalog.totalPages = totalPages;
     state.tegiwaCatalog.pageSize = pageSize;
@@ -2789,7 +2865,15 @@
     state.tegiwaCatalog.query = "";
     state.tegiwaCatalog.canonicalQuery = "";
     state.tegiwaCatalog.match = "any";
-    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS);
+    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, {
+      backend: "unified",
+      partialCatalogue: false,
+      catalogueSource: "",
+      fallbackReason: "",
+      referenceCatalogue: false,
+      catalogueListingCount: null,
+      availableProductCount: null
+    });
     const input = root.querySelector("[data-tegiwa-search-input]");
     input?.addEventListener("input", () => {
       clearTegiwaDirectorySelection();
@@ -2870,7 +2954,7 @@
     if (!sourceUrl) return "";
     const evidence = ecsReferencePathEvidence(sourceUrl);
     const context = `${labels.ecsDiscoveryReference} | ${sourceUrl}`;
-    return `<article class="tegiwa-product-card ecs-reference-product-card" data-supplier="ecs"><div class="tegiwa-product-media ecs-reference-media"><div class="tegiwa-image-empty">${icons.search}<span>${esc(labels.ecsDiscoveryReference)}</span></div><span class="tegiwa-stock-badge is-check">${esc(labels.tegiwaCheckAvailability)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(labels.ecsDiscoveryReference)}</span><h3>${esc(evidence.label)}</h3><p class="ecs-reference-disclaimer">${esc(labels.ecsDiscoveryNotice)}</p><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>ECS Tuning</bdi></dd></div>${evidence.brandToken ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.brandToken)}</bdi></dd></div>` : ""}${evidence.reference ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.reference)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd>${esc(labels.requestPrice)}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(labels.tegiwaCheckAvailability)}</dd></div></dl><p class="ecs-reference-url"><bdi dir="ltr">${esc(sourceUrl)}</bdi></p><div class="card-footer ecs-reference-actions"><a class="btn btn-outline btn-sm" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.ecsDiscoveryOriginal)}${icons.arrow}</a><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="ECS Parts Reference Enquiry" data-context="${esc(context)}">${esc(labels.ecsDiscoveryEnquire)}${icons.quote}</button></div></div></article>`;
+    return `<article class="tegiwa-product-card ecs-reference-product-card" data-supplier="ecs"><div class="tegiwa-product-media ecs-reference-media"><div class="ecs-reference-image-placeholder"><img class="ecs-reference-logo" src="${esc(versionedAsset("assets/brand/partners/ecs-tuning.png"))}" width="180" height="180" alt="ECS Tuning" loading="lazy" decoding="async"><span>${esc(labels.ecsReferenceImagePending)}</span></div><span class="tegiwa-stock-badge is-check">${esc(labels.tegiwaCheckAvailability)}</span></div><div class="tegiwa-product-body"><span class="mini-label">${esc(labels.ecsDiscoveryReference)}</span><h3>${esc(evidence.label)}</h3><p class="ecs-reference-disclaimer">${esc(labels.ecsDiscoveryNotice)}</p><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>ECS Tuning</bdi></dd></div>${evidence.brandToken ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.brandToken)}</bdi></dd></div>` : ""}${evidence.reference ? `<div><dt>${esc(labels.ecsUrlDerived)}</dt><dd><bdi dir="ltr">${esc(evidence.reference)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd>${esc(labels.requestPrice)}</dd></div><div><dt>${esc(labels.availability)}</dt><dd>${esc(labels.tegiwaCheckAvailability)}</dd></div></dl><p class="ecs-reference-url"><bdi dir="ltr">${esc(sourceUrl)}</bdi></p><div class="card-footer ecs-reference-actions"><a class="btn btn-outline btn-sm" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.ecsDiscoveryOriginal)}${icons.arrow}</a><button class="btn btn-sm" type="button" data-action="open-form" data-form-type="ECS Parts Reference Enquiry" data-context="${esc(context)}">${esc(labels.ecsDiscoveryEnquire)}${icons.quote}</button></div></div></article>`;
   }
 
   function partsCatalogueCard(item) {
@@ -3189,6 +3273,96 @@
     return cartTotals().map(total => `<strong><bdi>${esc(commerceMoney(total.amount, total.currency))}</bdi></strong>`).join("");
   }
 
+  function cartShipmentGroups() {
+    const grouped = new Map();
+    for (const item of state.cart) {
+      const supplier = item.supplier || commercePolicy(commerceProduct(item.productId))?.supplier;
+      if (!supplier?.slug || !supplier?.originCountryCode) continue;
+      const current = grouped.get(supplier.slug) || {
+        supplier: supplier.slug,
+        supplierName: supplier.name,
+        originCountryCode: supplier.originCountryCode,
+        originCountryName: supplier.originCountryName,
+        itemCount: 0,
+        quantity: 0,
+        status: "confirmation_required",
+        rate: null
+      };
+      current.itemCount += 1;
+      current.quantity += Number(item.quantity) || 0;
+      grouped.set(supplier.slug, current);
+    }
+    return [...grouped.values()];
+  }
+
+  function safeShippingPlan(plan) {
+    if (!plan || typeof plan !== "object" || Array.isArray(plan)) return null;
+    const groups = Array.isArray(plan.groups) ? plan.groups.slice(0, 8).map(group => ({
+      supplier: cleanText(group?.supplier || "", 80),
+      supplierName: cleanText(group?.supplierName || "", 120),
+      originCountryCode: cleanText(group?.originCountryCode || "", 2).toUpperCase(),
+      originCountryName: cleanText(group?.originCountryName || "", 120),
+      itemCount: Math.max(0, Math.min(99, Number(group?.itemCount) || 0)),
+      quantity: Math.max(0, Math.min(999, Number(group?.quantity) || 0)),
+      status: group?.status === "confirmed" ? "confirmed" : "confirmation_required",
+      rate: group?.rate !== null && group?.rate !== undefined && Number.isFinite(Number(group.rate)) ? Number(group.rate) : null,
+      currency: /^[A-Z]{3}$/.test(String(group?.currency || "").toUpperCase()) ? String(group.currency).toUpperCase() : ""
+    })).filter(group => group.supplier && ["GB", "US"].includes(group.originCountryCode)) : [];
+    if (!groups.length) return null;
+    return {
+      status: plan.status === "confirmed" ? "confirmed" : "confirmation_required",
+      splitShipment: groups.length > 1,
+      groupCount: groups.length,
+      destination: {
+        country: cleanText(plan.destination?.country || "", 100),
+        city: cleanText(plan.destination?.city || "", 100),
+        postcode: cleanText(plan.destination?.postcode || "", 30)
+      },
+      groups
+    };
+  }
+
+  function shippingOriginLabel(group, text) {
+    if (group.originCountryCode === "GB") return text.originGB;
+    if (group.originCountryCode === "US") return text.originUS;
+    return group.originCountryName || group.originCountryCode;
+  }
+
+  function shipmentPlannerMarkup(plan = state.shippingEstimate, { live = true } = {}) {
+    const text = commerceText();
+    const safePlan = safeShippingPlan(plan);
+    const groups = safePlan?.groups || cartShipmentGroups();
+    const split = groups.length > 1;
+    const statusText = state.shippingEstimateStatus === "loading" && live ? text.shippingEstimating
+      : state.shippingEstimateStatus === "error" && live ? text.shippingEstimateError
+        : safePlan ? text.shippingAuthorisedAccessRequired : text.shippingEnterDestination;
+    const destination = safePlan?.destination?.country && safePlan?.destination?.city
+      ? `<p class="shipping-planner-destination"><strong>${esc(text.shippingDestination)}:</strong> ${esc(`${safePlan.destination.city}, ${safePlan.destination.country}`)}</p>` : "";
+    const cards = groups.map(group => {
+      const rate = group.status === "confirmed" && group.rate !== null && group.currency
+        ? commerceMoney(group.rate, group.currency) : text.shippingConfirmationRequired;
+      const countLabel = group.itemCount === 1 ? text.item : text.items;
+      return `<article class="shipping-group" data-shipping-supplier="${esc(group.supplier)}">
+        <span class="shipping-origin-code" aria-hidden="true"><bdi dir="ltr">${esc(group.originCountryCode)}</bdi></span>
+        <div class="shipping-group-copy"><span>${esc(text.shippingSupplier)}</span><strong>${esc(group.supplierName || group.supplier)}</strong><p>${esc(text.shippingFrom)} ${esc(shippingOriginLabel(group, text))}</p></div>
+        <dl><div><dt>${esc(text.quantity)}</dt><dd>${esc(`${group.itemCount} ${countLabel} / ${group.quantity} ${group.quantity === 1 ? text.shippingUnit : text.shippingUnits}`)}</dd></div><div><dt>${esc(text.shippingRate)}</dt><dd>${esc(rate)}</dd></div></dl>
+      </article>`;
+    }).join("");
+    const splitNotice = split ? `<div class="shipping-split-notice">${icons.filter}<span>${esc(text.splitSupplierNotice)}</span></div>` : "";
+    const rootAttribute = live ? " data-shipping-planner" : "";
+    return `<section class="shipping-planner${state.shippingEstimateStatus === "loading" && live ? " is-loading" : ""}"${rootAttribute} aria-live="polite" aria-busy="${state.shippingEstimateStatus === "loading" && live ? "true" : "false"}">
+      <header><div><span class="eyebrow">${esc(text.shippingPlannerTitle)}</span><h3>${esc(split ? text.splitSupplierShipment.replace("{count}", String(groups.length)) : text.singleSupplierShipment)}</h3></div><span class="shipping-plan-status">${esc(text.shippingConfirmationRequired)}</span></header>
+      <p>${esc(text.shippingPlannerIntro)}</p>${destination}${splitNotice}<div class="shipping-groups">${cards}</div>
+      <div class="shipping-plan-message"><strong>${esc(statusText)}</strong><span>${esc(text.shippingDutiesExcluded)} ${esc(text.shippingNotCharged)}</span></div>
+    </section>`;
+  }
+
+  function refreshShipmentPlanner() {
+    document.querySelectorAll("[data-shipping-planner]").forEach(element => {
+      element.outerHTML = shipmentPlannerMarkup();
+    });
+  }
+
   function cartItemMarkup(item, { editable = true } = {}) {
     const product = commerceProduct(item.productId);
     if (!product) return "";
@@ -3212,14 +3386,14 @@
 
   function commerceSummary({ editable = false } = {}) {
     const text = commerceText();
-    return `<section class="commerce-summary" aria-labelledby="commerce-summary-title"><header><div><span class="eyebrow">${esc(text.stagingBadge)}</span><h2 id="commerce-summary-title">${esc(text.orderSummary)}</h2></div>${editable ? `<a class="text-link" href="${routeUrl("/cart")}">${esc(text.editCart)}${icons.arrow}</a>` : ""}</header><div class="commerce-lines">${state.cart.map(item => cartItemMarkup(item, { editable: false })).join("")}</div><dl class="commerce-totals"><div><dt>${esc(text.subtotal)}</dt><dd>${cartTotalsMarkup()}</dd></div><div><dt>${esc(text.shippingPending)}</dt><dd>${esc(text.availabilityRequired)}</dd></div><div><dt>${esc(text.dutiesPending)}</dt><dd>—</dd></div></dl><div class="notice notice-info">${icons.check}<span>${esc(text.finalPriceNotice)}</span></div></section>`;
+    return `<section class="commerce-summary" aria-labelledby="commerce-summary-title"><header><div><span class="eyebrow">${esc(text.stagingBadge)}</span><h2 id="commerce-summary-title">${esc(text.orderSummary)}</h2></div>${editable ? `<a class="text-link" href="${routeUrl("/cart")}">${esc(text.editCart)}${icons.arrow}</a>` : ""}</header><div class="commerce-lines">${state.cart.map(item => cartItemMarkup(item, { editable: false })).join("")}</div><dl class="commerce-totals"><div><dt>${esc(text.subtotal)}</dt><dd>${cartTotalsMarkup()}</dd></div><div><dt>${esc(text.shippingPending)}</dt><dd>${esc(text.shippingConfirmationRequired)}</dd></div><div><dt>${esc(text.dutiesPending)}</dt><dd>—</dd></div></dl>${shipmentPlannerMarkup()}<div class="notice notice-info">${icons.check}<span>${esc(text.finalPriceNotice)}</span></div></section>`;
   }
 
   function cartPage() {
     const text = commerceText();
     const itemCount = cartCount();
     const content = state.cart.length
-      ? `<div class="commerce-layout"><section class="commerce-cart-panel" aria-label="${esc(text.cartTitle)}"><div class="commerce-lines">${state.cart.map(item => cartItemMarkup(item)).join("")}</div><p class="commerce-saved-note">${icons.check}${esc(text.savedOnDevice)}</p></section><aside class="commerce-cart-summary"><span class="eyebrow">${esc(text.stagingBadge)}</span><h2>${esc(text.subtotal)}</h2><div class="commerce-total-values">${cartTotalsMarkup()}</div><ul class="commerce-caveats"><li>${esc(text.shippingPending)}</li><li>${esc(text.dutiesPending)}</li><li>${esc(text.fitmentRequired)}</li><li>${esc(text.availabilityRequired)}</li></ul><p>${esc(text.finalPriceNotice)}</p><a class="btn btn-block" href="${routeUrl("/checkout")}">${esc(text.proceedCheckout)}${icons.arrow}</a><a class="btn btn-outline btn-block" href="${routeUrl("/parts")}">${esc(text.continueShopping)}</a></aside></div>`
+      ? `<div class="commerce-layout"><section class="commerce-cart-panel" aria-label="${esc(text.cartTitle)}"><div class="commerce-lines">${state.cart.map(item => cartItemMarkup(item)).join("")}</div><p class="commerce-saved-note">${icons.check}${esc(text.savedOnDevice)}</p></section><aside class="commerce-cart-summary"><span class="eyebrow">${esc(text.stagingBadge)}</span><h2>${esc(text.subtotal)}</h2><div class="commerce-total-values">${cartTotalsMarkup()}</div><ul class="commerce-caveats"><li>${esc(text.shippingPending)}</li><li>${esc(text.dutiesPending)}</li><li>${esc(text.fitmentRequired)}</li><li>${esc(text.availabilityRequired)}</li></ul>${shipmentPlannerMarkup()}<p>${esc(text.finalPriceNotice)}</p><a class="btn btn-block" href="${routeUrl("/checkout")}">${esc(text.proceedCheckout)}${icons.arrow}</a><a class="btn btn-outline btn-block" href="${routeUrl("/parts")}">${esc(text.continueShopping)}</a></aside></div>`
       : `<div class="empty-state commerce-empty"><span>${icons.cart}</span><strong>${esc(text.emptyCart)}</strong><p>${esc(text.emptyCartText)}</p><a class="btn" href="${routeUrl("/parts")}">${esc(text.browseParts)}${icons.arrow}</a></div>`;
     return `${pageHero({ eyebrow: text.stagingBadge, title: text.cartTitle, text: text.cartIntro, media: 68, crumbs: [[text.cart]], meta: itemCount ? statusBadge(`${itemCount} ${itemCount === 1 ? text.item : text.items}`) : "", actions: `<a class="btn btn-outline-light" href="${routeUrl("/parts")}">${esc(text.continueShopping)}${icons.arrow}</a>` })}<section class="section commerce-page"><div class="container">${stagingNotice()}${content}</div></section>`;
   }
@@ -3229,7 +3403,7 @@
     const simulated = receipt.simulated === true;
     const title = simulated ? text.simulationTitle : text.successTitle;
     const description = simulated ? text.simulationText : text.successText;
-    return `${pageHero({ eyebrow: text.stagingBadge, title, text: description, media: 53, crumbs: [[text.checkout]], meta: statusBadge(text.noPayment), actions: `<a class="btn" href="${routeUrl("/parts")}" data-action="start-new-test-order">${esc(text.startAnother)}${icons.arrow}</a>` })}<section class="section commerce-page"><div class="container narrow"><article class="commerce-receipt"><span>${icons.check}</span><div><p>${esc(text.reference)}</p><h2><bdi dir="ltr">${esc(receipt.ref || "")}</bdi></h2><p>${esc(description)}</p>${simulated ? `<div class="notice notice-info">${icons.check}<span>${esc(text.notificationNone)}</span></div>` : ""}${receipt.duplicate ? `<div class="notice notice-info">${esc(text.duplicate)}</div>` : ""}<dl><div><dt>${esc(text.noPayment)}</dt><dd>${esc(text.paymentNone)}</dd></div><div><dt>${esc(text.subtotal)}</dt><dd>${(receipt.totals || []).map(total => `<bdi>${esc(commerceMoney(total.amount, total.currency))}</bdi>`).join(" ") || "—"}</dd></div></dl></div></article></div></section>`;
+    return `${pageHero({ eyebrow: text.stagingBadge, title, text: description, media: 53, crumbs: [[text.checkout]], meta: statusBadge(text.noPayment), actions: `<a class="btn" href="${routeUrl("/parts")}" data-action="start-new-test-order">${esc(text.startAnother)}${icons.arrow}</a>` })}<section class="section commerce-page"><div class="container narrow"><article class="commerce-receipt"><span>${icons.check}</span><div><p>${esc(text.reference)}</p><h2><bdi dir="ltr">${esc(receipt.ref || "")}</bdi></h2><p>${esc(description)}</p>${simulated ? `<div class="notice notice-info">${icons.check}<span>${esc(text.notificationNone)}</span></div>` : ""}${receipt.duplicate ? `<div class="notice notice-info">${esc(text.duplicate)}</div>` : ""}<dl><div><dt>${esc(text.noPayment)}</dt><dd>${esc(text.paymentNone)}</dd></div><div><dt>${esc(text.subtotal)}</dt><dd>${(receipt.totals || []).map(total => `<bdi>${esc(commerceMoney(total.amount, total.currency))}</bdi>`).join(" ") || "—"}</dd></div></dl>${receipt.shipping ? `<h3 class="receipt-shipping-title">${esc(text.shippingPlannerReceipt)}</h3>${shipmentPlannerMarkup(receipt.shipping, { live: false })}` : ""}</div></article></div></section>`;
   }
 
   function checkoutPage() {
@@ -3308,6 +3482,115 @@
     } catch {
       // Guest checkout remains fully available when Clerk is not configured or cannot load.
     }
+  }
+
+  function checkoutShippingPayload(form) {
+    const fields = new FormData(form);
+    return {
+      destination: {
+        country: cleanText(fields.get("country"), 100),
+        city: cleanText(fields.get("city"), 100),
+        postcode: cleanText(fields.get("postcode"), 30),
+        fulfilment: fields.get("fulfilment") === "workshop" ? "workshop" : "courier"
+      },
+      items: state.cart.map(item => ({
+        productId: item.productId,
+        sku: item.sku,
+        quantity: item.quantity
+      }))
+    };
+  }
+
+  function resetShippingEstimate() {
+    state.shippingEstimateController?.abort();
+    state.shippingEstimateController = null;
+    window.clearTimeout(state.shippingEstimateTimer);
+    state.shippingEstimateTimer = null;
+    state.shippingEstimate = null;
+    state.shippingEstimateStatus = "idle";
+    state.shippingEstimateError = "";
+    state.shippingEstimateRequestId += 1;
+    refreshShipmentPlanner();
+  }
+
+  async function requestShippingEstimate(form) {
+    if (!form || !document.body.contains(form)) return false;
+    window.clearTimeout(state.shippingEstimateTimer);
+    state.shippingEstimateTimer = null;
+    const payload = checkoutShippingPayload(form);
+    if (!payload.destination.country || !payload.destination.city || !payload.items.length) {
+      resetShippingEstimate();
+      return false;
+    }
+    state.shippingEstimateController?.abort();
+    const controller = new AbortController();
+    const requestId = state.shippingEstimateRequestId + 1;
+    state.shippingEstimateRequestId = requestId;
+    state.shippingEstimateController = controller;
+    state.shippingEstimateStatus = "loading";
+    state.shippingEstimateError = "";
+    refreshShipmentPlanner();
+    try {
+      const endpoint = new URL(SHIPPING_ESTIMATE_ENDPOINT, location.origin).href;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.accepted || !safeShippingPlan(result.estimate)) {
+        const error = new Error(result.error || "shipping_estimate_failed");
+        error.code = result.error || "shipping_estimate_failed";
+        throw error;
+      }
+      if (requestId !== state.shippingEstimateRequestId || !document.body.contains(form)) return false;
+      state.shippingEstimate = safeShippingPlan(result.estimate);
+      state.shippingEstimateStatus = "ready";
+      state.shippingEstimateError = "";
+      return true;
+    } catch (error) {
+      if (error?.name === "AbortError" || requestId !== state.shippingEstimateRequestId) return false;
+      state.shippingEstimate = null;
+      state.shippingEstimateStatus = "error";
+      state.shippingEstimateError = cleanText(error?.code || "shipping_estimate_failed", 120);
+      return false;
+    } finally {
+      if (requestId === state.shippingEstimateRequestId) {
+        state.shippingEstimateController = null;
+        refreshShipmentPlanner();
+      }
+    }
+  }
+
+  function scheduleShippingEstimate(form, delay = 450) {
+    window.clearTimeout(state.shippingEstimateTimer);
+    state.shippingEstimateController?.abort();
+    state.shippingEstimateController = null;
+    state.shippingEstimateRequestId += 1;
+    const payload = checkoutShippingPayload(form);
+    if (!payload.destination.country || !payload.destination.city) {
+      state.shippingEstimate = null;
+      state.shippingEstimateStatus = "idle";
+      state.shippingEstimateError = "";
+      refreshShipmentPlanner();
+      return;
+    }
+    state.shippingEstimateStatus = "loading";
+    state.shippingEstimateError = "";
+    refreshShipmentPlanner();
+    state.shippingEstimateTimer = window.setTimeout(() => requestShippingEstimate(form), delay);
+  }
+
+  function setupCheckoutShippingEstimator() {
+    const form = document.querySelector("[data-staging-checkout]");
+    if (!form || form.dataset.shippingEstimator === "true") return;
+    form.dataset.shippingEstimator = "true";
+    ["country", "city", "postcode"].forEach(name => form.elements[name]?.addEventListener("input", () => scheduleShippingEstimate(form)));
+    form.elements.fulfilment?.addEventListener("change", () => scheduleShippingEstimate(form, 0));
+    const payload = checkoutShippingPayload(form);
+    if (payload.destination.country && payload.destination.city) scheduleShippingEstimate(form, 0);
+    else refreshShipmentPlanner();
   }
 
   let mountedAccountProfile = null;
@@ -3958,7 +4241,10 @@
     setupTuningFinder();
     syncTegiwaProductFromUrl();
     if (path === "/account") mountAccountPortal("sign-in");
-    if (path === "/checkout") prefillCheckoutAccount();
+    if (path === "/checkout") {
+      prefillCheckoutAccount();
+      setupCheckoutShippingEstimator();
+    }
     state.galleries["home-capability"] = [20, 19, 24, 23];
     state.galleries["about-facility"] = [20, 19, 24, 23, 17];
     if (PREVIEW_MODE) {
@@ -4265,6 +4551,7 @@
     status.className = "form-status";
     status.textContent = text.submitting;
     try {
+      await requestShippingEstimate(form);
       const endpoint = new URL(STAGING_ORDER_ENDPOINT, location.origin).href;
       const response = await fetch(endpoint, {
         method: "POST",
@@ -4283,10 +4570,14 @@
         simulated: result.simulated === true,
         notificationSent: result.notificationSent === true,
         totals: Array.isArray(result.totals) ? result.totals.slice(0, 8) : cartTotals(),
+        shipping: safeShippingPlan(result.shipping),
         submittedAt: new Date().toISOString()
       };
       storage.set(LAST_ORDER_STORAGE_KEY, JSON.stringify(receipt));
       state.cart = [];
+      state.shippingEstimate = null;
+      state.shippingEstimateStatus = "idle";
+      state.shippingEstimateError = "";
       storage.remove(CART_STORAGE_KEY);
       storage.remove(CHECKOUT_TOKEN_STORAGE_KEY);
       renderPage();

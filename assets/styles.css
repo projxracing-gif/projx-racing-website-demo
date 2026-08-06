@@ -969,7 +969,9 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-checked { color: var(--muted); font-size: .66rem; }
 .tegiwa-product-body .card-footer { align-self: end; }
 .ecs-reference-product-card { border-color: color-mix(in srgb, #d59a21 28%, var(--line)); }
-.ecs-reference-media { background: linear-gradient(145deg, color-mix(in srgb, #d59a21 9%, #f4f5f7), #eef0f3); }
+.ecs-reference-media { min-height: 178px; aspect-ratio: 16 / 9; background: linear-gradient(145deg, color-mix(in srgb, #d59a21 8%, var(--surface)), var(--surface-2)); }
+.ecs-reference-image-placeholder { display: grid; width: min(78%, 260px); padding: 18px 18px 44px; place-items: center; gap: 10px; border: 1px solid color-mix(in srgb, var(--line) 78%, transparent); border-radius: 14px; color: var(--muted); background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: 0 10px 26px rgba(10,14,20,.08); font-size: .72rem; font-weight: 750; line-height: 1.45; text-align: center; }
+.ecs-reference-logo { display: block; width: 60px; height: 60px; padding: 0; object-fit: contain; }
 .ecs-reference-disclaimer { margin: 0; color: var(--muted); font-size: .7rem; line-height: 1.55; }
 .ecs-reference-url { min-width: 0; margin: 0; padding: 10px; overflow-wrap: anywhere; word-break: break-word; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: var(--surface); font-size: .64rem; line-height: 1.5; }
 .ecs-reference-url bdi { display: block; overflow-wrap: anywhere; word-break: break-word; }
@@ -1846,6 +1848,39 @@ html[dir="rtl"] .hero-links svg { transform: scaleX(-1); }
 .commerce-totals > div:last-child { border-bottom: 0; }
 .commerce-totals dt { color: var(--muted); font-size: .73rem; }
 .commerce-totals dd { display: grid; margin: 0; justify-items: end; color: var(--text-strong); font-size: .76rem; text-align: end; }
+.shipping-planner {
+  display: grid;
+  margin: 18px 0;
+  padding: 16px;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--red-bright) 30%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--red) 4%, var(--surface-2));
+}
+.shipping-planner.is-loading { opacity: .78; }
+.shipping-planner > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.shipping-planner > header h3 { margin: 5px 0 0; color: var(--text-strong); font-size: .95rem; line-height: 1.35; }
+.shipping-planner > p, .shipping-planner-destination { margin: 0; color: var(--muted); font-size: .73rem; line-height: 1.5; }
+.shipping-planner-destination strong { color: var(--text-strong); }
+.shipping-plan-status { display: inline-flex; max-width: 142px; min-height: 27px; padding: 5px 9px; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--amber) 50%, var(--line)); border-radius: 999px; color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); font-size: .61rem; font-weight: 900; line-height: 1.25; text-align: center; }
+.shipping-groups { display: grid; gap: 9px; }
+.shipping-group { display: grid; padding: 12px; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: var(--radius-xs); background: var(--surface); }
+.shipping-origin-code { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; color: #fff; background: var(--red); font-size: .7rem; font-weight: 950; letter-spacing: .04em; }
+.shipping-group-copy { min-width: 0; }
+.shipping-group-copy > span { display: block; color: var(--muted); font-size: .61rem; text-transform: uppercase; letter-spacing: .08em; }
+.shipping-group-copy strong { display: block; margin-top: 2px; color: var(--text-strong); font-size: .86rem; }
+.shipping-group-copy p { margin: 4px 0 0; color: var(--muted); font-size: .69rem; }
+.shipping-group dl { display: grid; margin: 0; padding-top: 10px; grid-column: 1 / -1; gap: 6px; border-top: 1px solid var(--line); }
+.shipping-group dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, auto); gap: 10px; }
+.shipping-group dt { color: var(--muted); font-size: .65rem; }
+.shipping-group dd { margin: 0; color: var(--text-strong); font-size: .68rem; font-weight: 800; text-align: end; }
+.shipping-split-notice, .shipping-plan-message { display: flex; padding: 10px 11px; align-items: flex-start; gap: 8px; border-radius: var(--radius-xs); font-size: .69rem; line-height: 1.45; }
+.shipping-split-notice { color: var(--text); border: 1px solid color-mix(in srgb, var(--red-bright) 32%, var(--line)); background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+.shipping-split-notice svg { width: 16px; height: 16px; flex: 0 0 16px; color: var(--red-bright); }
+.shipping-plan-message { display: grid; color: var(--muted); border: 1px solid color-mix(in srgb, var(--amber) 30%, var(--line)); background: color-mix(in srgb, var(--amber) 6%, var(--surface)); }
+.shipping-plan-message strong { color: var(--text-strong); }
+.receipt-shipping-title { margin: 25px 0 0; color: var(--text-strong); font-size: 1rem; }
+.commerce-receipt .shipping-planner { margin-bottom: 0; }
 .commerce-receipt { display: grid; padding: clamp(24px, 5vw, 42px); grid-template-columns: auto minmax(0, 1fr); gap: 20px; }
 .commerce-receipt > span { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 50%; color: #061109; background: var(--green); }
 .commerce-receipt > span svg { width: 25px; height: 25px; }
@@ -1875,6 +1910,8 @@ html[dir="rtl"] .hero-links svg { transform: scaleX(-1); }
   .commerce-receipt { grid-template-columns: 1fr; }
   .commerce-receipt dl > div { grid-template-columns: 1fr; gap: 5px; }
   .checkout-form fieldset { padding-block: 19px; }
+  .shipping-planner > header { flex-direction: column; }
+  .shipping-plan-status { max-width: none; }
 }
 
 @media (max-width: 390px) {

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import enquiryHandler from './enquiry.js';
 import { STAGING_COMMERCE_MODE, directCartProduct, policyPriceIsFresh } from '../server/commerce-policy.js';
+import { canonicalShippingItems, shippingPlan } from '../server/shipping-policy.js';
 
 const MAX_BODY_BYTES = 24_000;
 const completedRequests = new Map();
@@ -96,10 +97,16 @@ async function deliverTestOrder(req, order) {
   const deliveryResponse = captureResponse();
   const itemLines = order.items.map(item => `${item.title} | ${item.sku} | ${item.quantity} × ${item.currency} ${item.unitAmount.toFixed(2)}`);
   const totalLines = order.totals.map(total => `${total.currency} ${total.amount.toFixed(2)}`);
+  const shippingLines = order.shipping.groups.map(group => [
+    `${group.supplierName}: ${group.originCountryName} -> ${order.destination.country}`,
+    `${group.itemCount} item reference(s) / ${group.quantity} unit(s)`,
+    'shipping rate: confirmation required'
+  ].join(' | '));
   const message = [
     'STAGING TEST ORDER REQUEST — NO PAYMENT COLLECTED — NO STOCK RESERVED.',
     ...itemLines,
     `Reference subtotal: ${totalLines.join(' | ')}`,
+    `Supplier shipments: ${shippingLines.join(' || ')}`,
     'Final selling price, supplier availability, vehicle fitment, shipping, tax and customs require Projx Racing confirmation.'
   ].join('\n');
   await enquiryHandler({
@@ -124,6 +131,7 @@ async function deliverTestOrder(req, order) {
         postcode: order.destination.postcode,
         fulfilment: order.destination.fulfilment,
         selectedItems: itemLines,
+        supplierShipments: shippingLines,
         notes: order.notes,
         paymentStatus: 'not_collected',
         message
@@ -191,6 +199,8 @@ export default async function handler(req, res) {
     return json(res, 400, { error: 'missing_or_invalid_required_fields' });
   }
   if (!items) return json(res, 409, { error: 'invalid_or_stale_cart' });
+  const shippingItems = canonicalShippingItems(items);
+  if (!shippingItems) return json(res, 409, { error: 'invalid_or_stale_cart' });
 
   const emailDeliveryEnabled = process.env.STAGING_ORDER_EMAIL_DELIVERY_ENABLED === 'true';
   const durableAntiAbuseReady = process.env.PUBLIC_FORM_ANTI_ABUSE_READY === 'true';
@@ -208,7 +218,8 @@ export default async function handler(req, res) {
     vehicle,
     notes: clean(body.notes, 2000),
     items,
-    totals: totalsFor(items)
+    totals: totalsFor(items),
+    shipping: shippingPlan(shippingItems, destination)
   };
   const processing = (async () => {
     if (emailDeliveryEnabled) await deliverTestOrder(req, order);
@@ -225,6 +236,7 @@ export default async function handler(req, res) {
       idempotencyProtection: 'best_effort_process_local',
       ref: order.ref,
       totals: order.totals,
+      shipping: order.shipping,
       duplicate: false
     };
     remember(idempotencyKey, result);

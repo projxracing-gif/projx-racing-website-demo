@@ -19,6 +19,8 @@ assert.match(app, /\[404, 501, 503\]\.includes\(Number\(error\?\.status\)\)/);
 assert.match(app, /"catalogue_unpublished"/);
 assert.match(app, /error\?\.name === "AbortError"/);
 assert.match(app, /error instanceof TypeError/);
+assert.match(app, /TEGIWA_SEARCH_DEFAULTS\s*=\s*Object\.freeze\(\{[^}]*supplier:\s*""/s,
+  'All suppliers must be the default catalogue scope.');
 
 assert.equal((partsPage.match(/class="tegiwa-product-grid"/g) || []).length, 1, 'Parts page must render one live result grid.');
 assert.doesNotMatch(partsPage, /store-catalogue-review|data-filter-grid="parts"/);
@@ -38,6 +40,8 @@ assert.doesNotMatch(partsPage, /data-ecs-discovery-section|data-ecs-discovery-pa
 assert.match(partsPage, /data-action="browse-ecs-catalogue"/);
 assert.match(app, /function browseFullEcsCatalogue\(\)/);
 assert.match(app, /supplier:\s*"ecs"/);
+assert.match(app, /referenceCatalogue\s*=\s*state\.tegiwaCatalog\.referenceCatalogue\s*&&\s*state\.tegiwaCatalog\.supplier\s*===\s*"ecs"/,
+  'Reference-only filter locking must be limited to the explicit ECS scope.');
 assert.match(app, /items\.map\(partsCatalogueCard\)/);
 assert.match(app, /item\?\.dataStatus === "url_discovered"/);
 assert.match(referenceCard, /target="_blank" rel="noopener noreferrer"/);
@@ -45,11 +49,18 @@ assert.match(referenceCard, /data-form-type="ECS Parts Reference Enquiry"/);
 assert.match(referenceCard, /ecsUrlDerived/);
 assert.match(referenceCard, /ecsDiscoveryNotice/);
 assert.doesNotMatch(referenceCard, /Add to Cart|add-cart|data-action="add-cart"|tegiwaPriceLabel|view-tegiwa-product/);
+assert.match(referenceCard, /class="ecs-reference-image-placeholder"/);
+assert.match(referenceCard, /class="ecs-reference-logo"/);
+assert.match(referenceCard, /assets\/brand\/partners\/ecs-tuning\.png/);
+assert.match(referenceCard, /ecsReferenceImagePending/);
+assert.doesNotMatch(referenceCard, /src="\s*"|src='\s*'/);
 for (const field of ['title', 'sku', 'mpn', 'brand', 'category', 'subcategory', 'price', 'stock', 'image', 'images', 'fitment', 'fitments']) {
   assert.match(discoveryUi, new RegExp(`"${field}"`), `Discovery UI must fail closed when ${field} is unexpectedly populated.`);
 }
 assert.match(app, /ecsDiscoveryHeading: "Browse every ECS catalogue reference\."/);
 assert.match(app, /ecsDiscoveryHeading: "تصفح جميع مراجع كتالوج ECS\."/);
+assert.match(app, /ecsReferenceImagePending: "Product image awaiting verified supplier media"/);
+assert.match(app, /ecsReferenceImagePending: "صورة المنتج بانتظار وسائط موثّقة من المورّد"/);
 
 for (const field of ['year', 'make', 'model', 'generation', 'engine']) {
   assert.match(app, new RegExp(`result\\.${field}|\\[key, value\\].*params\\.set`, 's'), `Structured vehicle field ${field} is not wired.`);
@@ -64,6 +75,21 @@ for (const filter of ['sort', 'availability', 'pricing', 'supplier', 'currency',
 }
 assert.match(app, /loadTegiwaCatalog\(\{ query: state\.tegiwaCatalog\.query, match: partsVehicleLabel\(\) \? "vehicle" : "any"/);
 assert.match(app, /syncCatalogueFacetOptions\(meta\)/);
+assert.match(app, /Number\(meta\.catalogueListingCount\)/,
+  'The global catalogue statistic must use the combined products-and-references total.');
+assert.match(app, /tegiwaShowingRange[^;]+total:\s*tegiwaNumber\(totalResults\)/s,
+  'Result ranges must use scoped totalResults instead of the global catalogue total.');
+const syncFilterStart = app.indexOf('  function syncTegiwaFilterUi()');
+const syncFilterEnd = app.indexOf('\n  function syncCatalogueFacetOptions(', syncFilterStart);
+const syncFilterUi = app.slice(syncFilterStart, syncFilterEnd);
+assert.ok(syncFilterUi.indexOf('state.tegiwaCatalog.fitment = "all"') < syncFilterUi.indexOf('const count = tegiwaFilterCount()'),
+  'Disabled fitment must be normalized before the active-filter badge is counted.');
+const setupStart = app.indexOf('  function setupTegiwaCatalog()');
+const setupEnd = app.indexOf('\n  function browseFullEcsCatalogue()', setupStart);
+const setupCatalogue = app.slice(setupStart, setupEnd);
+assert.match(setupCatalogue, /supplier:\s*""|TEGIWA_SEARCH_DEFAULTS/);
+assert.match(setupCatalogue, /referenceCatalogue:\s*false/,
+  'Re-entering the parts page must clear a stale ECS reference scope.');
 
 assert.match(app, /currencyDisplay:\s*"code"/);
 assert.match(app, /item\.supplier\?\.name/);
@@ -80,6 +106,8 @@ assert.match(styles, /\.tegiwa-fitment-badge\.is-possible/);
 assert.match(styles, /\.catalogue-fallback-notice/);
 assert.match(styles, /\.tegiwa-fitment-list/);
 assert.match(styles, /\.ecs-reference-product-card/);
+assert.match(styles, /\.ecs-reference-image-placeholder/);
+assert.match(styles, /\.ecs-reference-logo/);
 assert.match(styles, /\.ecs-reference-url/);
 assert.match(styles, /\.ecs-reference-actions/);
 

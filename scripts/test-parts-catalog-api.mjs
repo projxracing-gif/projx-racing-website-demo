@@ -653,6 +653,9 @@ assert.equal(firstDiscovery.status, 200);
 assert.equal(firstDiscovery.body.mode, 'discovery');
 assert.equal(firstDiscovery.body.items.length, 100);
 assert.equal(firstDiscovery.body.meta.discoveredUrlCount, 1_361_533);
+assert.equal(firstDiscovery.body.meta.ecsCatalogueListingCount, 1_361_536);
+assert.equal(firstDiscovery.body.meta.ecsReferenceOnlyCount, 1_361_522);
+assert.equal(firstDiscovery.body.meta.imageIndexedProductCount, 14);
 assert.equal(firstDiscovery.body.meta.pageSize, 100);
 assert.equal(firstDiscovery.body.meta.searchable, false);
 assert.equal(firstDiscovery.body.meta.filterable, false);
@@ -703,21 +706,37 @@ assert.equal(discoveryUnavailableResponse.status, 503);
 assert.equal(discoveryUnavailableResponse.body.error.code, 'discovery_unavailable');
 assert.doesNotMatch(JSON.stringify(discoveryUnavailableResponse.body), /secret|upstream|storage/i);
 
+const referenceTotalsUnavailable = createPartsCatalogHandler({
+  databaseUrl: '', legacyHandler: false, ecsDiscoveryEnabled: true, now: () => FIXED_NOW,
+  logger: { warn() {} }, ecsDiscoveryProvider: { async list() { return { items: [], count: 0, nextCursor: null }; } }
+});
+const safeVerifiedCatalogue = await invoke(referenceTotalsUnavailable);
+assert.equal(safeVerifiedCatalogue.status, 200);
+assert.equal(safeVerifiedCatalogue.body.meta.catalogProductCount, 14);
+assert.equal(Object.hasOwn(safeVerifiedCatalogue.body.meta, 'catalogueListingCount'), false);
+
 const fullEcsCatalogue = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '1' } });
 assert.equal(fullEcsCatalogue.status, 200);
 assert.equal(fullEcsCatalogue.body.mode, 'browse');
 assert.equal(fullEcsCatalogue.body.items.length, 100);
-assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, 1_361_536);
+assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, 193_270);
+assert.equal(fullEcsCatalogue.body.meta.verifiedSearchableProductCount, 193_270);
+assert.equal(fullEcsCatalogue.body.meta.catalogueListingCount, 1_554_792);
+assert.equal(fullEcsCatalogue.body.meta.availableProductCount, 26_360);
+assert.equal(fullEcsCatalogue.body.meta.imageIndexedProductCount, 14);
 assert.equal(fullEcsCatalogue.body.meta.totalResults, 1_361_536);
 assert.equal(fullEcsCatalogue.body.meta.totalPages, 13_616);
 assert.equal(fullEcsCatalogue.body.meta.ecsUrlReferenceCount, 1_361_533);
 assert.equal(fullEcsCatalogue.body.meta.ecsCatalogueListingCount, 1_361_536);
 assert.equal(fullEcsCatalogue.body.meta.ecsReferenceOnlyCount, 1_361_522);
+assert.equal(fullEcsCatalogue.body.meta.catalogueListingCount,
+  fullEcsCatalogue.body.meta.verifiedSearchableProductCount + fullEcsCatalogue.body.meta.ecsReferenceOnlyCount);
 assert.equal(fullEcsCatalogue.body.meta.reviewedOutsideDiscoveryCount, 3);
 assert.equal(fullEcsCatalogue.body.meta.numberedPagination, true);
 assert.equal(fullEcsCatalogue.body.meta.searchable, false);
 assert.equal(fullEcsCatalogue.body.meta.filterable, false);
 assert.ok(fullEcsCatalogue.body.items.slice(3).every(item => item.dataStatus === 'url_discovered'));
+assert.ok(fullEcsCatalogue.body.items.slice(3).every(item => item.image === null && item.images === null));
 assert.deepEqual(discoveryOffsetCalls[0], { offset: 0, limit: 97 });
 
 const secondEcsPage = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '2' } });
@@ -731,6 +750,13 @@ assert.equal(beyondEcsCatalogue.body.error.code, 'invalid_page');
 const normalWithDiscoveryConfigured = await invoke(discoveryEnabled);
 assert.equal(normalWithDiscoveryConfigured.status, 200);
 assert.equal(normalWithDiscoveryConfigured.body.meta.catalogProductCount, 193_270);
+assert.equal(normalWithDiscoveryConfigured.body.meta.verifiedSearchableProductCount, 193_270);
+assert.equal(normalWithDiscoveryConfigured.body.meta.catalogueListingCount, 1_554_792);
+assert.equal(normalWithDiscoveryConfigured.body.meta.availableProductCount, 26_360);
+assert.equal(normalWithDiscoveryConfigured.body.meta.imageIndexedProductCount, 14);
+assert.equal(normalWithDiscoveryConfigured.body.meta.ecsReferenceOnlyCount, 1_361_522);
+assert.equal(normalWithDiscoveryConfigured.body.meta.filters.supplier, null);
+assert.equal(normalWithDiscoveryConfigured.body.meta.totalResults, 250);
 assert.equal(discoveryCalls.length, 2);
 
 console.log('Unified parts catalog API tests passed.');

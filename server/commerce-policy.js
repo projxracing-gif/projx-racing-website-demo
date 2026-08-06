@@ -9,7 +9,13 @@ export const DIRECT_CART_PRODUCTS = Object.freeze({
     unitAmount: 31.19,
     priceVerifiedAt: '2026-08-03',
     maxPriceAgeDays: 7,
-    fitmentConfirmationRequired: true
+    fitmentConfirmationRequired: true,
+    supplier: Object.freeze({
+      slug: 'tegiwa',
+      name: 'Tegiwa',
+      originCountryCode: 'GB',
+      originCountryName: 'Great Britain'
+    })
   })
 });
 

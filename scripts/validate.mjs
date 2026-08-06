@@ -465,9 +465,10 @@ assert(appSource.includes('data-tegiwa-catalog')
   && appSource.includes('data-action="tegiwa-page"')
   && appSource.includes('aria-current="page"'), 'Numbered Tegiwa storefront pagination is missing.');
 assert(appSource.includes('data-tegiwa-catalog-count aria-label="${esc(labels.tegiwaLoading)}">—<')
-  && appSource.includes('catalogueStat.textContent = tegiwaNumber(count)'), 'Unified catalogue totals must load from the API instead of a stale hard-coded count.');
+  && appSource.includes('const listingCount = Number(meta.catalogueListingCount)')
+  && appSource.includes('catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogueListingCount)'), 'Unified catalogue totals must load from the API instead of a stale hard-coded count.');
 assert(appSource.includes('data-tegiwa-available-count aria-label="${esc(labels.tegiwaLoading)}">—<')
-  && appSource.includes('availableStat.textContent = tegiwaNumber(available)'), 'Unified availability totals must load from the API instead of a stale hard-coded count.');
+  && appSource.includes('availableStat.textContent = tegiwaNumber(state.tegiwaCatalog.availableProductCount)'), 'Unified availability totals must load from the API instead of a stale hard-coded count.');
 assert(appSource.includes('(?:[-_][a-z0-9]+)*$/.test(String(handle || ""))'), 'Tegiwa storefront product-detail guard does not support all validated official handles.');
 assert(appSource.includes('type="radio"')
   && appSource.includes('data-tegiwa-variant')
