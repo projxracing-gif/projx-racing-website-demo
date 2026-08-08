@@ -69,6 +69,10 @@ assert.match(app, /params\.set\("brand", state\.tegiwaCatalog\.brand\)/,
   'Brand filters must be sent to the unified catalogue API.');
 assert.match(app, /params\.set\("partType", state\.tegiwaCatalog\.partType\)/,
   'Part-type filters must be sent to the unified catalogue API.');
+assert.match(app, /Math\.max\(state\.tegiwaCatalog\.catalogProductCount, count\)/,
+  'The headline catalogue total must not collapse to one supplier when a scoped filter is applied.');
+assert.match(app, /Math\.max\(state\.tegiwaCatalog\.availableProductCount, available\)/,
+  'The headline availability total must remain the combined catalogue figure while browsing filters.');
 assert.match(app, /state\.locale === "ar" \? item\.nameAr \|\| item\.name : item\.name/,
   'Arabic facet controls must prefer localized category names.');
 assert.match(app, /data-tegiwa-directory-part-type=/,

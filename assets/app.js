@@ -2828,8 +2828,16 @@
     }
     const catalogueStat = root.querySelector("[data-tegiwa-catalog-count]");
     const availableStat = root.querySelector("[data-tegiwa-available-count]");
-    if (Number.isFinite(count) && count >= 0) state.tegiwaCatalog.catalogProductCount = count;
-    if (Number.isFinite(available) && available >= 0) state.tegiwaCatalog.availableProductCount = available;
+    if (Number.isFinite(count) && count >= 0) {
+      state.tegiwaCatalog.catalogProductCount = state.tegiwaCatalog.catalogProductCount === null
+        ? count
+        : Math.max(state.tegiwaCatalog.catalogProductCount, count);
+    }
+    if (Number.isFinite(available) && available >= 0) {
+      state.tegiwaCatalog.availableProductCount = state.tegiwaCatalog.availableProductCount === null
+        ? available
+        : Math.max(state.tegiwaCatalog.availableProductCount, available);
+    }
     if (catalogueStat && state.tegiwaCatalog.catalogProductCount !== null) catalogueStat.textContent = tegiwaNumber(state.tegiwaCatalog.catalogProductCount);
     if (availableStat && state.tegiwaCatalog.availableProductCount !== null) availableStat.textContent = tegiwaNumber(state.tegiwaCatalog.availableProductCount);
     state.tegiwaCatalog.currentPage = currentPage;
