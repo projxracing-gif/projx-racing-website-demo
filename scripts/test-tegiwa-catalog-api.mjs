@@ -508,6 +508,13 @@ const browseHandler = createTegiwaCatalogHandler({
     return catalogShards[shardIndex];
   }
 });
+assert.deepEqual(browseHandler.catalogueMeta, {
+  catalogProductCount: 206,
+  stockIndexedProductCount: 4_218,
+  skuIndexedProductCount: 3,
+  availableProductCount: 2_601,
+  checkedAt: '2026-08-03'
+});
 
 const browsePageOne = await invoke(browseHandler, { query: { page: '1' } });
 assert.equal(browsePageOne.status, 200);

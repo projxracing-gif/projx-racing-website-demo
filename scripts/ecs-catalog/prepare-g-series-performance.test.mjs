@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   prepareGSeriesExterior as prepareGSeriesExteriorSource,
+  prepareGSeriesInterior as prepareGSeriesInteriorSource,
   prepareGSeriesPerformance as prepareGSeriesPerformanceSource
 } from './prepare-g-series-performance.mjs';
 
@@ -86,6 +87,26 @@ test('prepares the separate Exterior scope without mislabelling it as Performanc
   assert.match(product.selectionNote, /vehicle Exterior categories/);
   assert.deepEqual(product.filters.categories, ['exterior', 'exterior-body-parts']);
   assert.equal(product.images[0].src, 'assets/products/ecs/g-series-exterior/es4699999.webp');
+});
+
+test('prepares the exact Interior scope with parent and child filters', () => {
+  const interior = structuredClone(source);
+  interior.records = [interior.records[0]];
+  interior.records[0].category = 'Interior Seat Parts';
+  interior.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Interior/Seats/';
+  const interiorMedia = structuredClone(media);
+  interiorMedia.images[0].localPath = 'assets/products/ecs/g-series-interior/es4699999.webp';
+  interiorMedia.images[1].localPath = 'assets/products/ecs/g-series-interior/ecs-box-no-image.jpg';
+  const [product] = prepareGSeriesInteriorSource(interior, interiorMedia, {
+    minimumProducts: 1, requireCompleteScope: false
+  });
+  assert.equal(product.category, 'Interior Seat Parts');
+  assert.equal(product.categoryAr, 'أجزاء المقاعد الداخلية');
+  assert.equal(product.categorySlug, 'seats');
+  assert.equal(product.fitments[0].evidence, 'ecs-vehicle-interior-category');
+  assert.match(product.selectionNote, /vehicle Interior categories/);
+  assert.deepEqual(product.filters.categories, ['interior', 'seats']);
+  assert.equal(product.images[0].src, 'assets/products/ecs/g-series-interior/es4699999.webp');
 });
 
 test('rejects unverified or incomplete product sources', () => {

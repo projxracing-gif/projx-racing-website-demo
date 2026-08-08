@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "supplier": "ECS Tuning",
+  "generatedAt": "2026-08-08T21:55:39.869Z",
+  "rawRecordCount": 1958,
+  "uniqueProductCount": 678,
+  "duplicateObservationCount": 1280,
+  "imageCount": 678,
+  "verifiedProductImageCount": 559,
+  "placeholderImageCount": 119,
+  "priceCount": 677,
+  "startingPriceCount": 27,
+  "requestPriceCount": 1,
+  "conflictingPriceCount": 0,
+  "missingDescriptionCount": 42,
+  "missingBrandCount": 670,
+  "scope": "interior",
+  "vehicleCounts": {
+    "BMW G87 M2 S58 3.0L": 557,
+    "BMW G80 M3 Competition S58 3.0L": 623,
+    "BMW G82 M4 Competition S58 3.0L": 611
+  }
+}

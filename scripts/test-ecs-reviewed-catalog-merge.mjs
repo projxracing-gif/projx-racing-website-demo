@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeReviewedEcsProducts, reviewedFallbackResponse } from '../server/ecs-reviewed-catalog.js';
+import {
+  REVIEWED_ECS_PRODUCTS,
+  mergeReviewedEcsProducts,
+  reviewedFallbackResponse
+} from '../server/ecs-reviewed-catalog.js';
 
 function reviewedProduct(overrides = {}) {
   return {
@@ -170,6 +174,43 @@ test('preserves established verified media when another verified scope is merged
   assert.deepEqual(merged.images, established.images);
 });
 
+test('preserves primary selection wording while unioning duplicate catalogue evidence', () => {
+  const primary = reviewedProduct({
+    category: 'Exterior',
+    selectionEvidence: 'primary-exterior-evidence',
+    selectionNote: 'Primary Exterior selection wording.',
+    selectionNoteAr: 'صياغة اختيار الفئة الخارجية الأساسية.',
+    imageStatus: 'supplier-media-verified',
+    images: [{ src: 'assets/products/ecs/primary.webp', alt: 'Primary verified image' }],
+    selectionSources: [{
+      vehicle: 'BMW G80 M3', category: 'Exterior',
+      sourceUrl: 'https://www.ecstuning.com/BMW-G80-M3/Exterior/',
+      relevancePosition: 2, observedAt: '2026-08-07T12:00:00Z'
+    }]
+  });
+  const secondary = generatedProduct({
+    category: 'Performance',
+    selectionEvidence: 'secondary-performance-evidence',
+    selectionNote: 'Secondary Performance selection wording.',
+    selectionNoteAr: 'صياغة اختيار فئة الأداء الثانوية.',
+    imageStatus: 'supplier-media-verified',
+    images: [{ src: 'assets/products/ecs/secondary.webp', alt: 'Secondary verified image' }]
+  });
+
+  const [merged] = mergeReviewedEcsProducts([primary], [secondary]);
+  assert.equal(merged.category, 'Exterior');
+  assert.equal(merged.selectionEvidence, 'primary-exterior-evidence');
+  assert.equal(merged.selectionNote, 'Primary Exterior selection wording.');
+  assert.equal(merged.selectionNoteAr, primary.selectionNoteAr);
+  assert.deepEqual(merged.images, primary.images);
+  assert.deepEqual(merged.filters.categories, ['engine', 'performance-engine-drivetrain']);
+  assert.deepEqual(merged.fitments.map(fitment => fitment.generation), ['G80', 'G82']);
+  assert.equal(merged.selectionSources.length, 2);
+  assert.deepEqual(merged.selectionSources.map(source => source.category), [
+    'Exterior', 'Performance Engine & Drivetrain Parts'
+  ]);
+});
+
 test('fails closed when the same ES number has a conflicting MPN or canonical product URL', () => {
   assert.throws(
     () => mergeReviewedEcsProducts([reviewedProduct()], [generatedProduct({ mpn: 'OTHER-MPN' })]),
@@ -193,6 +234,43 @@ test('suppresses conflicting same-day public prices across catalogue scopes', ()
   assert.equal(merged.priceConflict, true);
   assert.equal(merged.purchaseMode, 'request-price');
   assert.match(merged.priceNote, /Conflicting public ECS prices/);
+});
+
+test('keeps an inherited price conflict closed when a later catalogue scope has a price', () => {
+  const first = reviewedProduct({
+    priceAmount: 100, priceVerifiedAt: '2026-08-08', checkedAt: '2026-08-08'
+  });
+  const conflicting = generatedProduct({
+    priceAmount: 125.5, priceVerifiedAt: '2026-08-08', checkedAt: '2026-08-08'
+  });
+  const laterScope = generatedProduct({
+    priceAmount: 381.58, priceStartingAt: true,
+    priceVerifiedAt: '2026-08-09', checkedAt: '2026-08-09'
+  });
+  const [merged] = mergeReviewedEcsProducts(
+    mergeReviewedEcsProducts([first], [conflicting]),
+    [laterScope]
+  );
+  assert.equal(merged.priceConflict, true);
+  assert.equal(merged.priceAmount, null);
+  assert.equal(merged.originalPriceAmount, null);
+  assert.equal(merged.priceStartingAt, false);
+  assert.equal(merged.quoteOnly, true);
+  assert.equal(merged.purchaseMode, 'request-price');
+  assert.equal(merged.priceType, 'confirmation-required');
+  assert.match(merged.priceNote, /Conflicting public ECS prices/);
+});
+
+test('keeps every merged catalogue price conflict in request-price mode', () => {
+  const conflicts = REVIEWED_ECS_PRODUCTS.filter(product => product.priceConflict);
+  assert.ok(conflicts.length > 0);
+  for (const product of conflicts) {
+    assert.equal(product.priceAmount, null, `${product.ecsPartNumber} exposed a conflicted price`);
+    assert.equal(product.originalPriceAmount, null, `${product.ecsPartNumber} exposed an original price`);
+    assert.equal(product.priceStartingAt, false, `${product.ecsPartNumber} exposed a starting price`);
+    assert.equal(product.quoteOnly, true, `${product.ecsPartNumber} was not quote-only`);
+    assert.equal(product.purchaseMode, 'request-price', `${product.ecsPartNumber} was not request-price`);
+  }
 });
 
 test('fails closed when different ES numbers claim the same public handle', () => {

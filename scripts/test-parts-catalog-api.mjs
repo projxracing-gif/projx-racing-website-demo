@@ -5,6 +5,15 @@ import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 const FIXED_NOW = Date.parse('2026-08-09T09:30:00Z');
 const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length;
 const TEGIWA_FIXTURE_COUNT = 193_256;
+const INTERIOR_PRODUCT_COUNT = 678;
+const REPRESENTATIVE_INTERIOR_ECS = 'ES#3010016';
+const INTERIOR_PART_TYPE_SLUGS = Object.freeze([
+  'gauges', 'seats', 'steering', 'vinyl-wrap', 'center-console', 'safety', 'trim', 'floor-mats',
+  'dashboard', 'pedal', 'cellular-phone', 'key-fob', 'trunk', 'shifter', 'tools', 'window',
+  'sound-system', 'sun-shade', 'electronic', 'door', 'hood-release', 'lighting', 'storage',
+  'convertible', 'headliner', 'mirror', 'sunroof', 'airbag', 'carpet', 'navigation', 'armrest', 'hatch'
+]);
+const TOP_LEVEL_INTERIOR_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Interior\/[^/?#]+(?:\/\d+)?\/?$/i;
 const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
 const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => [
   product.categorySlug, product.subcategorySlug,
@@ -159,6 +168,14 @@ assert.ok(reviewedBrowse.body.meta.partTypes.filter(item => item.slug === 'exter
   || item.slug.startsWith('exterior-')
   || ['emblems-badges', 'skid-plate-parts', 'antenna-parts-accessories'].includes(item.slug))
   .every(item => item.nameAr));
+const reviewedPartTypesBySlug = new Map(reviewedBrowse.body.meta.partTypes.map(item => [item.slug, item]));
+assert.equal(INTERIOR_PART_TYPE_SLUGS.length, 32);
+assert.equal(new Set(INTERIOR_PART_TYPE_SLUGS).size, 32);
+for (const slug of ['interior', ...INTERIOR_PART_TYPE_SLUGS]) {
+  const facet = reviewedPartTypesBySlug.get(slug);
+  assert.ok(facet, `Expected the reviewed catalogue to expose the ${slug} Interior facet.`);
+  assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u, `Expected the ${slug} Interior facet to have an Arabic name.`);
+}
 assert.equal(reviewedBrowse.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
 const reviewedAll = await collectAllItems(reviewedOnly);
 assert.equal(reviewedAll.items.length, REVIEWED_ECS_COUNT);
@@ -169,6 +186,44 @@ assert.ok(reviewedBrowse.body.items.every(item => item.supplier.slug === 'ecs'))
 assert.ok(reviewedBrowse.body.items.every(item => item.price.currency === 'USD'));
 assert.ok(reviewedBrowse.body.items.every(item => item.availability.code === 'check_availability'));
 assert.ok(reviewedBrowse.body.items.every(item => item.fitmentConfidence === null));
+
+const reviewedInteriorSourceProducts = REVIEWED_ECS_PRODUCTS.filter(product =>
+  (product.selectionSources || []).some(source => TOP_LEVEL_INTERIOR_SOURCE.test(String(source?.sourceUrl || '')))
+);
+assert.equal(reviewedInteriorSourceProducts.length, INTERIOR_PRODUCT_COUNT);
+assert.equal(new Set(reviewedInteriorSourceProducts.map(product => product.ecsPartNumber)).size, INTERIOR_PRODUCT_COUNT);
+assert.ok(reviewedInteriorSourceProducts.every(product => /^ES#\d{4,12}$/.test(product.ecsPartNumber)));
+assert.ok(reviewedInteriorSourceProducts.every(product => product.filters?.categories?.includes('interior')),
+  'Every identity generated from the reviewed Interior capture must retain the parent Interior filter.');
+assert.ok(reviewedInteriorSourceProducts.every(product => INTERIOR_PART_TYPE_SLUGS.some(slug => [
+  product.categorySlug, product.subcategorySlug,
+  ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+].includes(slug))), 'Every reviewed Interior identity must retain an exact child part-type slug.');
+
+const representativeInteriorProduct = reviewedInteriorSourceProducts.find(
+  product => product.ecsPartNumber === REPRESENTATIVE_INTERIOR_ECS
+);
+assert.ok(representativeInteriorProduct, `${REPRESENTATIVE_INTERIOR_ECS} must remain an Interior-only reviewed identity.`);
+assert.equal(representativeInteriorProduct.category, 'Interior Gauges');
+assert.equal(representativeInteriorProduct.categorySlug, 'gauges');
+assert.match(representativeInteriorProduct.categoryAr || '', /[\u0600-\u06ff]/u);
+assert.ok(representativeInteriorProduct.filters.categories.includes('interior'));
+assert.ok(representativeInteriorProduct.filters.categories.includes('gauges'));
+const representativeInteriorSources = representativeInteriorProduct.selectionSources.filter(source =>
+  TOP_LEVEL_INTERIOR_SOURCE.test(String(source?.sourceUrl || ''))
+);
+assert.equal(representativeInteriorSources.length, 3);
+assert.equal(representativeInteriorProduct.selectionSources.length, representativeInteriorSources.length,
+  `${REPRESENTATIVE_INTERIOR_ECS} must not acquire evidence from a non-Interior catalogue scope.`);
+assert.deepEqual(new Set(representativeInteriorSources.map(source => source.category)), new Set(['Interior Gauges']));
+assert.deepEqual(new Set(representativeInteriorSources.map(source => source.vehicle)), new Set([
+  'BMW G87 M2 S58 3.0L', 'BMW G80 M3 Competition S58 3.0L', 'BMW G82 M4 Competition S58 3.0L'
+]));
+assert.equal(representativeInteriorProduct.imageStatus, 'supplier-media-verified');
+assert.equal(representativeInteriorProduct.imageSourceUrl,
+  'https://assets.ecstuning.com/product_library/783594_x300.webp');
+assert.match(representativeInteriorProduct.images[0].src,
+  /^assets\/products\/ecs\/g-series-interior\/[a-f0-9]{24}\.webp$/);
 
 const staleReviewedOnly = createPartsCatalogHandler({
   databaseUrl: '', legacyHandler: false, now: () => Date.parse('2026-08-18T00:00:00Z')
@@ -263,6 +318,67 @@ const reviewedExteriorBodyFilter = await invoke(reviewedOnly, { query: { partTyp
 assert.equal(reviewedExteriorBodyFilter.status, 200);
 assert.equal(reviewedExteriorBodyFilter.body.meta.totalResults, 580);
 assert.equal(reviewedExteriorBodyFilter.body.meta.totalResults, reviewedCategoryCount('exterior-body-parts'));
+
+const reviewedInteriorFilter = await invoke(reviewedOnly, { query: { partType: 'interior' } });
+assert.equal(reviewedInteriorFilter.status, 200);
+assert.equal(reviewedInteriorFilter.body.meta.totalResults, INTERIOR_PRODUCT_COUNT);
+assert.equal(reviewedInteriorFilter.body.meta.totalResults, reviewedCategoryCount('interior'));
+const reviewedInteriorItems = await collectAllItems(reviewedOnly, { partType: 'interior' });
+assert.equal(reviewedInteriorItems.items.length, INTERIOR_PRODUCT_COUNT);
+assert.equal(new Set(reviewedInteriorItems.items.map(item => item.handle)).size, INTERIOR_PRODUCT_COUNT);
+assert.equal(new Set(reviewedInteriorItems.items.map(item => item.sku)).size, INTERIOR_PRODUCT_COUNT);
+
+const reviewedInteriorIdentifierSearch = await invoke(reviewedOnly, {
+  query: { q: REPRESENTATIVE_INTERIOR_ECS, supplier: 'ecs' }
+});
+assert.equal(reviewedInteriorIdentifierSearch.status, 200);
+assert.equal(reviewedInteriorIdentifierSearch.body.items.length, 1);
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].handle, 'ecs-es-3010016');
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].sku, REPRESENTATIVE_INTERIOR_ECS);
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].mpn, '216EVOWGBO.PSI');
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].category, 'Interior Gauges');
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].fitmentConfidence, null);
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].availability.code, 'check_availability');
+assert.equal(reviewedInteriorIdentifierSearch.body.items[0].image.status, 'supplier-media-verified');
+assert.match(reviewedInteriorIdentifierSearch.body.items[0].image.src,
+  /^\/assets\/products\/ecs\/g-series-interior\/[a-f0-9]{24}\.webp$/);
+
+const reviewedInteriorDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-es-3010016', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedInteriorDetail.status, 200);
+assert.equal(reviewedInteriorDetail.body.product.sku, REPRESENTATIVE_INTERIOR_ECS);
+assert.equal(reviewedInteriorDetail.body.product.mpn, '216EVOWGBO.PSI');
+assert.equal(reviewedInteriorDetail.body.product.category, 'Interior Gauges');
+assert.deepEqual(new Set(reviewedInteriorDetail.body.product.fitments.flatMap(fitment => fitment.chassis)),
+  new Set(['G87', 'G80', 'G82']));
+assert.deepEqual(new Set(reviewedInteriorDetail.body.product.fitments.map(fitment => fitment.model)),
+  new Set(['M2', 'M3', 'M4']));
+assert.ok(reviewedInteriorDetail.body.product.fitments.every(fitment => fitment.confidence === 'possible'));
+assert.ok(reviewedInteriorDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
+assert.ok(reviewedInteriorDetail.body.product.fitments.every(fitment => /confirm/i.test(fitment.note)));
+assert.equal(reviewedInteriorDetail.body.product.image.status, 'supplier-media-verified');
+assert.ok(reviewedInteriorDetail.body.product.images.every(image => image.status === 'supplier-media-verified'));
+assert.equal(reviewedInteriorDetail.body.product.availability.code, 'check_availability');
+assert.match(reviewedInteriorDetail.body.product.availability.leadTime, /supplier listing observed/i);
+assert.match(reviewedInteriorDetail.body.product.availability.leadTime, /require confirmation/i);
+assert.doesNotMatch(reviewedInteriorDetail.body.product.availability.leadTime, /available now|live stock/i);
+assert.equal(reviewedInteriorDetail.body.product.dataQuality.exactFitmentAvailable, false);
+assert.equal(reviewedInteriorDetail.body.product.dataQuality.stockFeedAvailable, false);
+
+const reviewedInteriorPossibleFitment = await invoke(reviewedOnly, {
+  query: {
+    q: REPRESENTATIVE_INTERIOR_ECS, fitment: 'possible', make: 'BMW', model: 'M2', generation: 'G87', engine: 'S58'
+  }
+});
+assert.equal(reviewedInteriorPossibleFitment.body.meta.totalResults, 1);
+assert.equal(reviewedInteriorPossibleFitment.body.items[0].fitmentConfidence, 'possible');
+assert.equal((await invoke(reviewedOnly, {
+  query: { q: REPRESENTATIVE_INTERIOR_ECS, fitment: 'exact', make: 'BMW', model: 'M2', generation: 'G87' }
+})).body.meta.totalResults, 0);
+assert.equal((await invoke(reviewedOnly, {
+  query: { q: REPRESENTATIVE_INTERIOR_ECS, availability: 'in_stock' }
+})).body.meta.totalResults, 0);
 
 const reviewedPossibleFitment = await invoke(reviewedOnly, {
   query: { fitment: 'possible', make: 'BMW', model: 'M3' }
@@ -399,6 +515,15 @@ async function legacyFallbackHandler(req, res) {
   res.statusCode = 200;
   return res.end(JSON.stringify(body));
 }
+Object.defineProperty(legacyFallbackHandler, 'catalogueMeta', {
+  value: Object.freeze({
+    catalogProductCount: 250,
+    stockIndexedProductCount: 250,
+    skuIndexedProductCount: 250,
+    availableProductCount: 250,
+    checkedAt: '2026-08-05'
+  })
+});
 
 const mergedFallback = createPartsCatalogHandler({
   databaseUrl: '', legacyHandler: legacyFallbackHandler, now: () => FIXED_NOW
@@ -425,6 +550,16 @@ assert.equal(mergedAll.items.length, 250 + REVIEWED_ECS_COUNT);
 assert.equal(new Set(mergedAll.items.map(item => item.handle)).size, 250 + REVIEWED_ECS_COUNT);
 assert.equal(mergedAll.items.filter(item => item.supplier.slug === 'ecs').length, REVIEWED_ECS_COUNT);
 assert.equal(mergedAll.items.filter(item => item.supplier.slug === 'tegiwa').length, 250);
+
+legacyFallbackRequests.length = 0;
+const mergedInterior = await invoke(mergedFallback, { query: { partType: 'interior' } });
+assert.equal(mergedInterior.status, 200);
+assert.equal(mergedInterior.body.meta.totalResults, INTERIOR_PRODUCT_COUNT);
+assert.equal(mergedInterior.body.meta.catalogProductCount, 250 + REVIEWED_ECS_COUNT,
+  'A direct scoped URL must keep the verified combined-catalogue headline total.');
+assert.equal(mergedInterior.body.meta.availableProductCount, 250);
+assert.equal(legacyFallbackRequests.length, 0,
+  'The supplier catalogue must not be queried with an unsupported ECS-only part-type filter.');
 
 legacyFallbackRequests.length = 0;
 const blankInStockSort = await invoke(mergedFallback, {

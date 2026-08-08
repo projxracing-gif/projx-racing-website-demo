@@ -1,6 +1,7 @@
 import '../assets/ecs-products.js';
 import { ECS_G_SERIES_PERFORMANCE_PRODUCTS } from './data/ecs-g-series-performance-products.js';
 import { ECS_G_SERIES_EXTERIOR_PRODUCTS } from './data/ecs-g-series-exterior-products.js';
+import { ECS_G_SERIES_INTERIOR_PRODUCTS } from './data/ecs-g-series-interior-products.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -204,10 +205,28 @@ function hasConflictingCurrentPrice(existing, addition) {
       addition?.priceVerifiedAt || addition?.checkedAt);
 }
 
+function enforcePriceConflict(target) {
+  target.quoteOnly = true;
+  target.purchaseMode = 'request-price';
+  target.priceAmount = null;
+  target.originalPriceAmount = null;
+  target.priceStartingAt = false;
+  target.priceConflict = true;
+  target.priceType = 'confirmation-required';
+  target.priceNote = 'Conflicting public ECS prices were observed on the same date; confirm the applicable option and current price before order.';
+  target.priceNoteAr = '\u0638\u0647\u0631\u062a \u0623\u0633\u0639\u0627\u0631 \u0639\u0627\u0645\u0629 \u0645\u062e\u062a\u0644\u0641\u0629 \u0645\u0646 ECS \u0641\u064a \u0627\u0644\u062a\u0627\u0631\u064a\u062e \u0646\u0641\u0633\u0647\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062e\u064a\u0627\u0631 \u0648\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u062d\u0627\u0644\u064a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.';
+  return target;
+}
+
 function mergeReviewedPair(existing, addition) {
   assertCompatibleSupplierIdentity(existing, addition);
   const merged = mergeMeaningfulObjects(existing, addition);
-  const priceConflict = hasConflictingCurrentPrice(existing, addition);
+  // A price conflict is a fail-closed state. Once any reviewed scope has found
+  // incompatible current prices, a later scope must not restore one of those
+  // amounts simply because its observation is newer.
+  const priceConflict = Boolean(
+    existing.priceConflict || addition.priceConflict || hasConflictingCurrentPrice(existing, addition)
+  );
   if (incomingIsCurrent(existing, addition, ['priceVerifiedAt', 'checkedAt'])) {
     copyRefreshFields(merged, addition, PRICE_REFRESH_FIELDS);
   }
@@ -239,9 +258,6 @@ function mergeReviewedPair(existing, addition) {
     existing.detailedDescriptionAvailable || addition.detailedDescriptionAvailable
   );
 
-  if (meaningful(addition.selectionEvidence)) merged.selectionEvidence = addition.selectionEvidence;
-  if (meaningful(addition.selectionNote)) merged.selectionNote = addition.selectionNote;
-  if (meaningful(addition.selectionNoteAr)) merged.selectionNoteAr = addition.selectionNoteAr;
   if (meaningful(addition.fitmentStatus)) merged.fitmentStatus = addition.fitmentStatus;
   if (meaningful(addition.fitmentConfidence)) merged.fitmentConfidence = addition.fitmentConfidence;
   const ranks = [existing.selectionRank, addition.selectionRank].map(Number).filter(Number.isFinite);
@@ -257,15 +273,7 @@ function mergeReviewedPair(existing, addition) {
   }
   if (Object.keys(shipping).length) merged.shipping = shipping;
   if (priceConflict) {
-    merged.quoteOnly = true;
-    merged.purchaseMode = 'request-price';
-    merged.priceAmount = null;
-    merged.originalPriceAmount = null;
-    merged.priceStartingAt = false;
-    merged.priceConflict = true;
-    merged.priceType = 'confirmation-required';
-    merged.priceNote = 'Conflicting public ECS prices were observed on the same date; confirm the applicable option and current price before order.';
-    merged.priceNoteAr = '\u0638\u0647\u0631\u062a \u0623\u0633\u0639\u0627\u0631 \u0639\u0627\u0645\u0629 \u0645\u062e\u062a\u0644\u0641\u0629 \u0645\u0646 ECS \u0641\u064a \u0627\u0644\u062a\u0627\u0631\u064a\u062e \u0646\u0641\u0633\u0647\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062e\u064a\u0627\u0631 \u0648\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u062d\u0627\u0644\u064a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.';
+    enforcePriceConflict(merged);
   }
   return merged;
 }
@@ -314,19 +322,23 @@ export function mergeReviewedEcsProducts(existingProducts, generatedProducts) {
     const finalProduct = position === undefined ? product : products[position];
     if (product?.slug && finalProduct?.slug) slugAliases.set(product.slug, finalProduct.slug);
   }
-  const remapped = products.map(product => ({
-    ...product,
-    relatedProductSlugs: unionValues(product.relatedProductSlugs)
-      .map(slug => slugAliases.get(slug) || slug)
-      .filter((slug, index, values) => slug && slug !== product.slug && values.indexOf(slug) === index)
-  }));
+  const remapped = products.map(product => {
+    const remappedProduct = {
+      ...product,
+      relatedProductSlugs: unionValues(product.relatedProductSlugs)
+        .map(slug => slugAliases.get(slug) || slug)
+        .filter((slug, index, values) => slug && slug !== product.slug && values.indexOf(slug) === index)
+    };
+    return remappedProduct.priceConflict ? enforcePriceConflict(remappedProduct) : remappedProduct;
+  });
   assertUniquePublicIdentities(remapped);
   return remapped;
 }
 
 export const REVIEWED_ECS_PRODUCTS = Object.freeze(mergeReviewedEcsProducts(
   globalThis.PROJX_ECS_PRODUCTS || [],
-  [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS]
+  [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS,
+    ...ECS_G_SERIES_INTERIOR_PRODUCTS]
 ));
 
 export class ReviewedFallbackError extends Error {
@@ -430,6 +442,45 @@ function localCatalogueFacets(products) {
     ['exterior-electronic-accessories', 'ملحقات إلكترونية خارجية']
   ]);
   for (const [slug, nameAr] of exteriorArabicNames) {
+    const current = partTypes.get(slug);
+    if (current) partTypes.set(slug, { ...current, nameAr });
+  }
+  const interiorArabicNames = new Map([
+    ['interior', 'المقصورة'],
+    ['gauges', 'عدادات المقصورة'],
+    ['seats', 'المقاعد'],
+    ['steering', 'عجلة القيادة'],
+    ['vinyl-wrap', 'تغليف الفينيل'],
+    ['center-console', 'الكونسول الوسطي'],
+    ['safety', 'السلامة'],
+    ['trim', 'التطعيمات الداخلية'],
+    ['floor-mats', 'دواسات الأرضية'],
+    ['dashboard', 'لوحة العدادات'],
+    ['pedal', 'الدواسات'],
+    ['cellular-phone', 'الهاتف المحمول'],
+    ['trunk', 'صندوق الأمتعة'],
+    ['key-fob', 'ريموت المفتاح'],
+    ['shifter', 'ناقل الحركة'],
+    ['tools', 'الأدوات'],
+    ['window', 'النوافذ'],
+    ['sound-system', 'النظام الصوتي'],
+    ['sun-shade', 'حاجب الشمس'],
+    ['electronic', 'الإلكترونيات'],
+    ['door', 'الأبواب'],
+    ['hood-release', 'ذراع فتح غطاء المحرك'],
+    ['lighting', 'الإضاءة'],
+    ['storage', 'التخزين'],
+    ['convertible', 'السقف القابل للطي'],
+    ['headliner', 'بطانة السقف'],
+    ['mirror', 'المرايا'],
+    ['sunroof', 'فتحة السقف'],
+    ['airbag', 'الوسائد الهوائية'],
+    ['carpet', 'السجاد'],
+    ['navigation', 'الملاحة'],
+    ['armrest', 'مسند الذراع'],
+    ['hatch', 'الباب الخلفي']
+  ]);
+  for (const [slug, nameAr] of interiorArabicNames) {
     const current = partTypes.get(slug);
     if (current) partTypes.set(slug, { ...current, nameAr });
   }
@@ -801,12 +852,12 @@ function legacyListParameters(request, page) {
 
 function overallMeta({
   request, localProducts, legacyMeta, count, totalResults, reason, nowValue,
-  legacyError = null, mixedSupplierResults = false
+  legacyError = null, mixedSupplierResults = false, legacyCatalogueMeta = null
 }) {
-  const legacyCatalogCount = Number(legacyMeta?.catalogProductCount) || 0;
-  const legacyAvailableCount = Number(legacyMeta?.availableProductCount) || 0;
-  const legacyStockCount = Number(legacyMeta?.stockIndexedProductCount) || 0;
-  const legacySkuCount = Number(legacyMeta?.skuIndexedProductCount) || 0;
+  const legacyCatalogCount = Number(legacyMeta?.catalogProductCount ?? legacyCatalogueMeta?.catalogProductCount) || 0;
+  const legacyAvailableCount = Number(legacyMeta?.availableProductCount ?? legacyCatalogueMeta?.availableProductCount) || 0;
+  const legacyStockCount = Number(legacyMeta?.stockIndexedProductCount ?? legacyCatalogueMeta?.stockIndexedProductCount) || 0;
+  const legacySkuCount = Number(legacyMeta?.skuIndexedProductCount ?? legacyCatalogueMeta?.skuIndexedProductCount) || 0;
   const localSkuCount = localProducts.filter(product => product.ecsPartNumber).length;
   const localStockCount = localProducts.filter(product => product.stockPolicy !== 'manual-confirm'
     && !availability(product, nowValue).snapshotStale
@@ -828,7 +879,7 @@ function overallMeta({
     stockIndexedProductCount: legacyStockCount + localStockCount,
     skuIndexedProductCount: legacySkuCount + localSkuCount,
     availableProductCount: legacyAvailableCount,
-    checkedAt: [legacyMeta?.checkedAt, ...localProducts.map(product => product.checkedAt)]
+    checkedAt: [legacyMeta?.checkedAt ?? legacyCatalogueMeta?.checkedAt, ...localProducts.map(product => product.checkedAt)]
       .filter(Boolean).sort().at(-1) || null,
     stockSnapshotStale: Boolean(legacyMeta?.stockSnapshotStale || localSnapshotStale),
     suppliers,
@@ -923,7 +974,8 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
     meta: overallMeta({
       request, localProducts: products, legacyMeta, count: items.length,
       totalResults, reason, nowValue, legacyError,
-      mixedSupplierResults: !request.supplier && !request.currency && localAll.length > 0 && legacyTotal > 0
+      mixedSupplierResults: !request.supplier && !request.currency && localAll.length > 0 && legacyTotal > 0,
+      legacyCatalogueMeta: legacyHandler?.catalogueMeta
     }),
     nextOffset: items.length === PAGE_SIZE && nextOffset < totalResults ? nextOffset : null
   };
@@ -972,7 +1024,8 @@ async function suggestionResponse({ request, req, nowValue, reason, legacyHandle
       ...overallMeta({
         request: { ...request, page: 1, sort: 'relevance', availability: 'all', pricing: 'all', match: 'any' },
         localProducts: products, legacyMeta, count: suggestions.length,
-        totalResults: suggestions.length, reason, nowValue, legacyError
+        totalResults: suggestions.length, reason, nowValue, legacyError,
+        legacyCatalogueMeta: legacyHandler?.catalogueMeta
       })
     },
     nextCursor: null
@@ -989,7 +1042,8 @@ async function detailResponse({ request, req, nowValue, reason, legacyHandler, p
       meta: {
         ...overallMeta({
           request: { ...request, page: 1, sort: 'relevance', availability: 'all', pricing: 'all', match: 'any' },
-          localProducts: products, legacyMeta: null, count: 1, totalResults: 1, reason, nowValue
+          localProducts: products, legacyMeta: null, count: 1, totalResults: 1, reason, nowValue,
+          legacyCatalogueMeta: legacyHandler?.catalogueMeta
         }),
         count: 1
       }

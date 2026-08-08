@@ -7,7 +7,7 @@ const REPO = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const ECS_PRODUCT_HOST = 'www.ecstuning.com';
 const ECS_IMAGE_HOST = 'assets.ecstuning.com';
 const PRODUCT_PATH = /^\/b-[^/?#]+-parts\/[^/?#]+\/[^/?#]+\/$/i;
-const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
+const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior|interior)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
 const VEHICLES = Object.freeze({
   'BMW G87 M2 S58 3.0L': Object.freeze({ model: 'M2', trim: null, generation: 'G87' }),
   'BMW G80 M3 Competition S58 3.0L': Object.freeze({ model: 'M3', trim: 'Competition', generation: 'G80' }),
@@ -92,6 +92,118 @@ const EXTERIOR_EXPECTED_CATEGORY_COUNTS = Object.freeze({
   'BMW G82 M4 Competition S58 3.0L': Object.freeze([364, 57, 45, 23, 17, 14, 13, 9, 8, 6, 4, 2, 0, 1]),
   'BMW G87 M2 S58 3.0L': Object.freeze([369, 57, 45, 23, 19, 15, 16, 9, 5, 5, 5, 1, 1, 1])
 });
+const INTERIOR_VEHICLE_SOURCE_PATHS = Object.freeze({
+  'BMW G87 M2 S58 3.0L': '/BMW-G87-M2-S58_3.0L/Interior/',
+  'BMW G80 M3 Competition S58 3.0L': '/BMW-G80-M3_Competition-S58_3.0L/Interior/',
+  'BMW G82 M4 Competition S58 3.0L': '/BMW-G82-M4_Competition-S58_3.0L/Interior/'
+});
+const INTERIOR_CATEGORY_AR = Object.freeze({
+  'Interior Gauges': 'عدادات المقصورة',
+  'Interior Seat Parts': 'أجزاء المقاعد الداخلية',
+  'Interior Steering Parts': 'أجزاء عجلة القيادة الداخلية',
+  'Interior Vinyl Wrap': 'تغليف الفينيل الداخلي',
+  'Center Console Parts': 'أجزاء الكونسول الوسطي',
+  'Interior Safety Parts': 'أجزاء السلامة الداخلية',
+  'Interior Trim Parts': 'أجزاء التطعيمات الداخلية',
+  'Floor Mats': 'دواسات الأرضية',
+  'Interior Dashboard Parts': 'أجزاء لوحة العدادات الداخلية',
+  'Interior Pedal Parts': 'أجزاء الدواسات الداخلية',
+  'Interior Cell Phone Accessories': 'ملحقات الهاتف داخل السيارة',
+  'Interior Trunk Parts': 'أجزاء صندوق الأمتعة الداخلية',
+  'Interior Key Fob Parts': 'أجزاء ريموت المفتاح',
+  'Interior Shifter Parts': 'أجزاء ناقل الحركة الداخلية',
+  'Interior Tools': 'أدوات المقصورة',
+  'Interior Window Parts': 'أجزاء النوافذ الداخلية',
+  'Interior Sound System Parts': 'أجزاء النظام الصوتي الداخلي',
+  'Interior Sun Shades': 'حواجب الشمس الداخلية',
+  'Interior Electronic Parts': 'الأجزاء الإلكترونية الداخلية',
+  'Interior Door Parts': 'أجزاء الأبواب الداخلية',
+  'Interior Hood Release Parts': 'أجزاء فتح غطاء المحرك الداخلية',
+  'Interior Lighting Parts': 'أجزاء الإضاءة الداخلية',
+  'Interior Storage Parts': 'أجزاء التخزين الداخلية',
+  'Interior Convertible Parts': 'أجزاء السقف القابل للطي الداخلية',
+  'Interior Headliner Parts': 'أجزاء بطانة السقف',
+  'Interior Mirror Parts': 'أجزاء المرايا الداخلية',
+  'Interior Sunroof Parts': 'أجزاء فتحة السقف',
+  'Airbag Parts': 'أجزاء الوسائد الهوائية',
+  'Interior Carpeting Covers': 'أغطية سجاد المقصورة',
+  'Interior Navigation Parts': 'أجزاء الملاحة الداخلية',
+  'Interior Armrest Parts': 'أجزاء مسند الذراع',
+  'Interior Hatch Parts': 'أجزاء الباب الخلفي الداخلية'
+});
+const INTERIOR_CATEGORY_SOURCE_PATHS = Object.freeze({
+  'Interior Gauges': 'Gauges/',
+  'Interior Seat Parts': 'Seats/',
+  'Interior Steering Parts': 'Steering/',
+  'Interior Vinyl Wrap': 'Vinyl_Wrap/',
+  'Center Console Parts': 'Center_Console/',
+  'Interior Safety Parts': 'Safety/',
+  'Interior Trim Parts': 'Trim/',
+  'Floor Mats': 'Floor_Mats/',
+  'Interior Dashboard Parts': 'Dashboard/',
+  'Interior Pedal Parts': 'Pedal/',
+  'Interior Cell Phone Accessories': 'Cellular_Phone/',
+  'Interior Trunk Parts': 'Trunk/',
+  'Interior Key Fob Parts': 'Key_Fob/',
+  'Interior Shifter Parts': 'Shifter/',
+  'Interior Tools': 'Tools/',
+  'Interior Window Parts': 'Window/',
+  'Interior Sound System Parts': 'Sound_System/',
+  'Interior Sun Shades': 'Sun_Shade/',
+  'Interior Electronic Parts': 'Electronic/',
+  'Interior Door Parts': 'Door/',
+  'Interior Hood Release Parts': 'Hood_Release/',
+  'Interior Lighting Parts': 'Lighting/',
+  'Interior Storage Parts': 'Storage/',
+  'Interior Convertible Parts': 'Convertible/',
+  'Interior Headliner Parts': 'Headliner/',
+  'Interior Mirror Parts': 'Mirror/',
+  'Interior Sunroof Parts': 'Sunroof/',
+  'Airbag Parts': 'Airbag/',
+  'Interior Carpeting Covers': 'Carpet/',
+  'Interior Navigation Parts': 'Navigation/',
+  'Interior Armrest Parts': 'Armrest/',
+  'Interior Hatch Parts': 'Hatch/'
+});
+const INTERIOR_CATEGORY_SLUGS = Object.freeze({
+  'Interior Gauges': 'gauges',
+  'Interior Seat Parts': 'seats',
+  'Interior Steering Parts': 'steering',
+  'Interior Vinyl Wrap': 'vinyl-wrap',
+  'Center Console Parts': 'center-console',
+  'Interior Safety Parts': 'safety',
+  'Interior Trim Parts': 'trim',
+  'Floor Mats': 'floor-mats',
+  'Interior Dashboard Parts': 'dashboard',
+  'Interior Pedal Parts': 'pedal',
+  'Interior Cell Phone Accessories': 'cellular-phone',
+  'Interior Trunk Parts': 'trunk',
+  'Interior Key Fob Parts': 'key-fob',
+  'Interior Shifter Parts': 'shifter',
+  'Interior Tools': 'tools',
+  'Interior Window Parts': 'window',
+  'Interior Sound System Parts': 'sound-system',
+  'Interior Sun Shades': 'sun-shade',
+  'Interior Electronic Parts': 'electronic',
+  'Interior Door Parts': 'door',
+  'Interior Hood Release Parts': 'hood-release',
+  'Interior Lighting Parts': 'lighting',
+  'Interior Storage Parts': 'storage',
+  'Interior Convertible Parts': 'convertible',
+  'Interior Headliner Parts': 'headliner',
+  'Interior Mirror Parts': 'mirror',
+  'Interior Sunroof Parts': 'sunroof',
+  'Airbag Parts': 'airbag',
+  'Interior Carpeting Covers': 'carpet',
+  'Interior Navigation Parts': 'navigation',
+  'Interior Armrest Parts': 'armrest',
+  'Interior Hatch Parts': 'hatch'
+});
+const INTERIOR_EXPECTED_CATEGORY_COUNTS = Object.freeze({
+  'BMW G80 M3 Competition S58 3.0L': Object.freeze([108, 107, 80, 56, 37, 35, 32, 25, 21, 19, 18, 18, 17, 17, 17, 15, 12, 12, 10, 6, 5, 4, 3, 2, 2, 2, 2, 1, 1, 1, 0, 0]),
+  'BMW G82 M4 Competition S58 3.0L': Object.freeze([108, 108, 82, 56, 37, 36, 38, 20, 21, 19, 16, 20, 17, 17, 17, 6, 12, 3, 11, 6, 5, 5, 1, 2, 0, 1, 2, 1, 1, 1, 0, 1]),
+  'BMW G87 M2 S58 3.0L': Object.freeze([106, 102, 75, 56, 36, 34, 27, 13, 20, 21, 16, 15, 14, 10, 17, 5, 9, 1, 6, 3, 3, 5, 1, 1, 0, 0, 2, 1, 1, 0, 3, 0])
+});
 const CATALOGUE_SCOPES = Object.freeze({
   performance: Object.freeze({
     key: 'performance', label: 'Performance', exportName: 'ECS_G_SERIES_PERFORMANCE_PRODUCTS',
@@ -107,6 +219,15 @@ const CATALOGUE_SCOPES = Object.freeze({
     categoryAr: EXTERIOR_CATEGORY_AR, categorySourcePaths: EXTERIOR_CATEGORY_SOURCE_PATHS,
     fitmentNoteAr: 'أدرجت ECS القطعة ضمن فئة هذه السيارة؛ يجب تأكيد رقم الهيكل وسنة الصنع والمحرك ونظام الدفع والخيارات قبل الطلب.',
     selectionNoteAr: 'مدرج ضمن فئات السيارة لدى ECS وفق ترتيب الصلة الظاهر؛ لا تنشر ECS ترتيباً بحسب عدد الوحدات المباعة.'
+  }),
+  interior: Object.freeze({
+    key: 'interior', label: 'Interior', exportName: 'ECS_G_SERIES_INTERIOR_PRODUCTS',
+    vehicleSourcePaths: INTERIOR_VEHICLE_SOURCE_PATHS,
+    expectedCategoryCounts: INTERIOR_EXPECTED_CATEGORY_COUNTS,
+    categoryAr: INTERIOR_CATEGORY_AR, categorySourcePaths: INTERIOR_CATEGORY_SOURCE_PATHS,
+    categorySlugs: INTERIOR_CATEGORY_SLUGS,
+    fitmentNoteAr: 'أدرجت ECS القطعة ضمن فئة المقصورة لهذه السيارة؛ يجب تأكيد رقم الهيكل وسنة الصنع والمحرك ونظام الدفع والخيارات قبل الطلب.',
+    selectionNoteAr: 'مدرج ضمن فئات المقصورة لدى ECS وفق ترتيب الصلة الظاهر؛ لا تنشر ECS ترتيباً بحسب عدد الوحدات المباعة.'
   })
 });
 
@@ -392,8 +513,8 @@ export function prepareGSeriesCatalogue(rawDocument, mediaDocument, {
     const filters = {
       supplier: ['ecs'], makes: ['BMW'], models: [...new Set(fitments.flatMap(item => item.models))],
       chassis: [...new Set(fitments.flatMap(item => item.chassis))], years: [], engines: ['S58'], drivetrains: [],
-      brands: [slugify(brand)], categories: scope.key === 'exterior'
-        ? ['exterior', ...categories.map(slugify)]
+      brands: [slugify(brand)], categories: ['exterior', 'interior'].includes(scope.key)
+        ? [scope.key, ...categories.map(item => scope.categorySlugs?.[item] || slugify(item))]
         : categories.map(slugify),
       subcategories: [], availability: ['confirmation-required'], fitment: ['possible']
     };
@@ -407,7 +528,7 @@ export function prepareGSeriesCatalogue(rawDocument, mediaDocument, {
       description, descriptionAr,
       detailedDescriptionAvailable: Boolean(supplierDescription),
       brand, brandSlug: slugify(brand),
-      category, categoryAr: scope.categoryAr[category], categorySlug: slugify(category),
+      category, categoryAr: scope.categoryAr[category], categorySlug: scope.categorySlugs?.[category] || slugify(category),
       subcategory: null, subcategoryAr: null, subcategorySlug: null,
       sku: `ES#${ecsDigits}`, ecsPartNumber: `ES#${ecsDigits}`, mpn: current.manufacturerPartNumber,
       identifiers: { ecs: `ES#${ecsDigits}`, sku: `ES#${ecsDigits}`, mpn: current.manufacturerPartNumber },
@@ -469,6 +590,10 @@ export function prepareGSeriesExterior(rawDocument, mediaDocument, options = {})
   return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'exterior' });
 }
 
+export function prepareGSeriesInterior(rawDocument, mediaDocument, options = {}) {
+  return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'interior' });
+}
+
 function option(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : null;
@@ -509,7 +634,7 @@ async function main() {
   const minimumProducts = Number(option('--minimum-products') || 1);
   const scopeName = option('--scope') || 'performance';
   if (!input || !mediaIndex || !output) {
-    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior] [--report <report.json>] [--minimum-products <count>]');
+    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior|interior] [--report <report.json>] [--minimum-products <count>]');
   }
   const scope = CATALOGUE_SCOPES[scopeName];
   if (!scope) throw new Error(`Unknown ECS G-Series catalogue scope: ${scopeName}.`);

@@ -825,10 +825,39 @@
       ]
     },
     {
-      query: "interior", en: "Interior", ar: "المقصورة", items: [
-        ["gauge mounts", "Gauges & Mounts", "عدادات وقواعد"], ["seats rails", "Seats & Rails", "كراسي وقواعد"], ["short shifter", "Short Shifters", "شيفتر قصير"],
-        ["steering wheels", "Steering Wheels", "دركسون رياضي"], ["steering boss kit", "Boss Kits", "قواعد دركسون"], ["gear knobs", "Gear Knobs", "مقابض قير"],
-        ["racing harness", "Harnesses", "أحزمة سباق"], ["digital display", "Digital Displays", "شاشات رقمية"], ["interior trim", "Interior Trim", "تطعيمات داخلية"]
+      query: "interior", partType: "interior", en: "Interior", ar: "المقصورة", items: [
+        ["", "Gauges", "عدادات", "gauges"],
+        ["", "Seats", "المقاعد", "seats"],
+        ["", "Steering", "عجلة القيادة", "steering"],
+        ["", "Vinyl Wrap", "تغليف الفينيل", "vinyl-wrap"],
+        ["", "Center Console", "الكونسول الوسطي", "center-console"],
+        ["", "Safety", "السلامة", "safety"],
+        ["", "Trim", "تطعيمات داخلية", "trim"],
+        ["", "Floor Mats", "دواسات أرضية", "floor-mats"],
+        ["", "Dashboard", "لوحة العدادات", "dashboard"],
+        ["", "Pedal", "الدواسات", "pedal"],
+        ["", "Cellular Phone", "الهاتف المحمول", "cellular-phone"],
+        ["", "Key Fob", "ريموت المفتاح", "key-fob"],
+        ["", "Trunk", "صندوق الأمتعة", "trunk"],
+        ["", "Shifter", "ناقل الحركة", "shifter"],
+        ["", "Tools", "الأدوات", "tools"],
+        ["", "Window", "النوافذ", "window"],
+        ["", "Sound System", "النظام الصوتي", "sound-system"],
+        ["", "Sun Shade", "حاجب الشمس", "sun-shade"],
+        ["", "Electronic", "الإلكترونيات", "electronic"],
+        ["", "Door", "الأبواب", "door"],
+        ["", "Hood Release", "ذراع فتح غطاء المحرك", "hood-release"],
+        ["", "Lighting", "الإضاءة", "lighting"],
+        ["", "Storage", "التخزين", "storage"],
+        ["", "Convertible", "السقف القابل للطي", "convertible"],
+        ["", "Headliner", "بطانة السقف", "headliner"],
+        ["", "Mirror", "المرايا", "mirror"],
+        ["", "Sunroof", "فتحة السقف", "sunroof"],
+        ["", "Airbag", "الوسائد الهوائية", "airbag"],
+        ["", "Carpet", "السجاد", "carpet"],
+        ["", "Navigation", "الملاحة", "navigation"],
+        ["", "Armrest", "مسند الذراع", "armrest"],
+        ["", "Hatch", "الباب الخلفي", "hatch"]
       ]
     },
     {
@@ -2953,13 +2982,20 @@
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root || root.dataset.ready === "true") return;
     root.dataset.ready = "true";
-    state.tegiwaCatalog.currentPage = 1;
+    const routeParams = currentRouteQueryParams();
+    const routeQuery = cleanText(routeParams.get("q") || "", 120);
+    const routePage = Math.max(1, Number.parseInt(routeParams.get("page"), 10) || 1);
+    const routeFilters = Object.fromEntries(Object.keys(TEGIWA_SEARCH_DEFAULTS).map(key => [
+      key,
+      catalogueFilterValue(key, routeParams.get(key))
+    ]));
+    state.tegiwaCatalog.currentPage = routePage;
     state.tegiwaCatalog.totalPages = 1;
     state.tegiwaCatalog.pageSize = 100;
-    state.tegiwaCatalog.query = "";
+    state.tegiwaCatalog.query = routeQuery;
     state.tegiwaCatalog.canonicalQuery = "";
     state.tegiwaCatalog.match = "any";
-    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, {
+    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, routeFilters, {
       backend: "unified",
       partialCatalogue: false,
       catalogueSource: "",
@@ -2969,6 +3005,7 @@
       availableProductCount: null
     });
     const input = root.querySelector("[data-tegiwa-search-input]");
+    if (input) input.value = routeQuery;
     input?.addEventListener("input", () => {
       clearTegiwaDirectorySelection();
       scheduleTegiwaSuggestions(input);
@@ -2977,8 +3014,8 @@
       if (cleanText(input.value, 120).length >= 2) scheduleTegiwaSuggestions(input);
     });
     syncTegiwaFilterUi();
-    if (partsVehicleLabel()) loadTegiwaCatalog({ query: "", match: "vehicle", page: 1 });
-    else loadTegiwaCatalog({ query: "", match: "any", page: 1 });
+    if (partsVehicleLabel()) loadTegiwaCatalog({ query: routeQuery, match: "vehicle", page: routePage });
+    else loadTegiwaCatalog({ query: routeQuery, match: "any", page: routePage });
   }
 
   function partsCatalogueCard(item) {

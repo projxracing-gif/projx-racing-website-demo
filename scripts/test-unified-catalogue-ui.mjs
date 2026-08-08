@@ -79,6 +79,24 @@ assert.match(app, /data-tegiwa-directory-part-type=/,
   'Exact supplier part-type keys must be attached to directory controls.');
 assert.match(app, /partType:\s*"exterior"/,
   'The Exterior directory must include an exact all-Exterior scope.');
+const interiorDirectoryMatch = app.match(/\{\s*query:\s*"interior",\s*partType:\s*"interior",\s*en:\s*"Interior",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"exterior"/);
+assert.ok(interiorDirectoryMatch, 'The Interior directory must include an exact all-Interior scope.');
+const interiorDirectoryEntries = [...interiorDirectoryMatch[1].matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
+  .map(([, name, nameAr, slug]) => ({ slug, name, nameAr }));
+const expectedInteriorDirectoryEntries = [
+  ['gauges', 'Gauges'], ['seats', 'Seats'], ['steering', 'Steering'], ['vinyl-wrap', 'Vinyl Wrap'],
+  ['center-console', 'Center Console'], ['safety', 'Safety'], ['trim', 'Trim'], ['floor-mats', 'Floor Mats'],
+  ['dashboard', 'Dashboard'], ['pedal', 'Pedal'], ['cellular-phone', 'Cellular Phone'], ['key-fob', 'Key Fob'],
+  ['trunk', 'Trunk'], ['shifter', 'Shifter'], ['tools', 'Tools'], ['window', 'Window'],
+  ['sound-system', 'Sound System'], ['sun-shade', 'Sun Shade'], ['electronic', 'Electronic'], ['door', 'Door'],
+  ['hood-release', 'Hood Release'], ['lighting', 'Lighting'], ['storage', 'Storage'], ['convertible', 'Convertible'],
+  ['headliner', 'Headliner'], ['mirror', 'Mirror'], ['sunroof', 'Sunroof'], ['airbag', 'Airbag'],
+  ['carpet', 'Carpet'], ['navigation', 'Navigation'], ['armrest', 'Armrest'], ['hatch', 'Hatch']
+];
+assert.deepEqual(interiorDirectoryEntries.map(({ slug, name }) => [slug, name]), expectedInteriorDirectoryEntries,
+  'Interior directory controls must use only the 32 verified ECS top-level part types.');
+assert.ok(interiorDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/.test(nameAr)),
+  'Every Interior part-type control must preserve an Arabic label.');
 assert.match(app, /Object\.assign\(state\.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, \{\s*supplier: requestedSupplier,\s*partType: requestedPartType/s,
   'Directory choices must clear stale catalogue filters before applying an exact part type.');
 assert.match(partsPage, /data-tegiwa-sort-note/,
@@ -108,6 +126,14 @@ const setupEnd = app.indexOf('\n  function partsCatalogueCard(', setupStart);
 const setupCatalogue = app.slice(setupStart, setupEnd);
 assert.match(setupCatalogue, /supplier:\s*""|TEGIWA_SEARCH_DEFAULTS/);
 assert.doesNotMatch(setupCatalogue, /referenceCatalogue/);
+assert.match(setupCatalogue, /const routeParams = currentRouteQueryParams\(\)/,
+  'A copied catalogue URL must restore its search and filter state.');
+assert.match(setupCatalogue, /cleanText\(routeParams\.get\("q"\) \|\| "", 120\)/,
+  'A direct filter URL without a search term must not turn a missing query into the word null.');
+assert.match(setupCatalogue, /catalogueFilterValue\(key, routeParams\.get\(key\)\)/,
+  'Direct catalogue filter values must pass through the same allowlist as interactive filters.');
+assert.match(setupCatalogue, /loadTegiwaCatalog\(\{ query: routeQuery, match: "any", page: routePage \}\)/,
+  'Direct catalogue URLs must load their requested query, part type and page.');
 
 assert.match(app, /currencyDisplay:\s*"code"/);
 assert.match(app, /price\.startingAt \? `\$\{storeText\(\)\.startingAt\}/,

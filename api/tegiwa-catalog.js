@@ -1942,7 +1942,7 @@ export function createTegiwaCatalogHandler({
     return provider;
   };
 
-  return async function tegiwaCatalogHandler(req, res) {
+  const tegiwaCatalogHandler = async function tegiwaCatalogHandler(req, res) {
     if (req.method !== 'GET') {
       res.setHeader('Allow', 'GET');
       return sendError(res, 405, 'method_not_allowed', 'Only GET requests are allowed.');
@@ -2000,6 +2000,18 @@ export function createTegiwaCatalogHandler({
       return sendError(res, 500, 'internal_error', 'The catalog request could not be completed.');
     }
   };
+  Object.defineProperty(tegiwaCatalogHandler, 'catalogueMeta', {
+    value: Object.freeze({
+      catalogProductCount: summary.productCount,
+      stockIndexedProductCount: index.productCount,
+      skuIndexedProductCount: index.skuProductCount,
+      availableProductCount: index.availableProductCount,
+      checkedAt: index.checkedAt
+    }),
+    enumerable: false,
+    writable: false
+  });
+  return tegiwaCatalogHandler;
 }
 
 function loadConfiguredRemoteStockReader() {
