@@ -963,6 +963,7 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-filter-panel[hidden] { display: none; }
 .tegiwa-filter-panel label { display: grid; min-width: 0; gap: 6px; color: var(--text); font-size: .68rem; font-weight: 800; }
 .tegiwa-filter-panel .select { width: 100%; min-height: 46px; }
+.catalogue-sort-note { color: var(--muted); font-size: .64rem; font-weight: 500; line-height: 1.45; }
 .tegiwa-filter-panel .btn { min-height: 46px; white-space: nowrap; }
 .tegiwa-correction { display: flex; padding: 10px 13px; align-items: flex-start; gap: 8px; border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line)); border-radius: var(--radius-sm); color: var(--text); background: color-mix(in srgb, var(--green) 5%, var(--surface-2)); font-size: .72rem; line-height: 1.5; }
 .tegiwa-correction[hidden] { display: none; }
@@ -981,7 +982,10 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; scroll-margin-top: calc(var(--header-h) + 18px); }
 .tegiwa-product-card { display: grid; min-width: 0; overflow: hidden; grid-template-rows: auto 1fr; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); box-shadow: var(--shadow-sm); }
 .tegiwa-product-media { position: relative; display: grid; width: 100%; aspect-ratio: 1 / 1; place-items: center; overflow: hidden; border-bottom: 1px solid var(--line); background: radial-gradient(circle at 50% 42%, #fff, #eef0f3); }
-.tegiwa-product-media > img, .tegiwa-detail-grid figure > img { display: block; width: 100%; height: 100%; padding: clamp(14px, 2vw, 24px); object-fit: contain; object-position: center; }
+.tegiwa-product-media > img, .tegiwa-detail-grid figure > img, .tegiwa-image-placeholder > img { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; padding: clamp(14px, 2vw, 24px); object-fit: contain; object-position: center; }
+.tegiwa-image-placeholder { position: relative; display: grid; width: 100%; height: 100%; place-items: center; }
+.tegiwa-image-placeholder > small { position: absolute; inset-inline: 12px; inset-block-end: 54px; z-index: 1; padding: 7px 9px; border: 1px solid color-mix(in srgb, #d59a21 42%, #d9dde5); border-radius: 999px; color: #232832; background: rgba(255,255,255,.94); font-size: .62rem; font-weight: 800; line-height: 1.25; text-align: center; box-shadow: 0 6px 18px rgba(10,14,20,.12); }
+.tegiwa-detail-grid figure .tegiwa-image-placeholder > small { inset-block-end: 12px; }
 .tegiwa-image-empty { display: grid; max-width: 180px; place-items: center; gap: 9px; color: #5d6470; font-size: .72rem; text-align: center; }
 .tegiwa-image-empty svg { width: 30px; }
 .tegiwa-stock-badge { display: inline-flex; width: max-content; max-width: 100%; padding: 7px 9px; align-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface); font-size: .66rem; font-weight: 850; line-height: 1.2; }

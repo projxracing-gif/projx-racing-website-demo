@@ -1,10 +1,268 @@
 import '../assets/ecs-products.js';
+import { ECS_G_SERIES_PERFORMANCE_PRODUCTS } from './data/ecs-g-series-performance-products.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
 const PRICE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 
-export const REVIEWED_ECS_PRODUCTS = Object.freeze([...(globalThis.PROJX_ECS_PRODUCTS || [])]);
+function meaningful(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
+
+function ecsIdentity(product) {
+  const dedicated = [product?.ecsPartNumber, product?.identifiers?.ecs];
+  for (const value of dedicated) {
+    const source = String(value ?? '').trim();
+    const match = source.match(/^(?:ES\s*#?\s*)?(\d{4,12})$/i);
+    if (match) return match[1];
+  }
+  const sku = String(product?.sku ?? '').trim().match(/^ES\s*#?\s*(\d{4,12})$/i);
+  return sku?.[1] || null;
+}
+
+function valueKey(value) {
+  if (value && typeof value === 'object') return JSON.stringify(value);
+  return `${typeof value}:${String(value)}`;
+}
+
+function unionValues(...groups) {
+  const result = [];
+  const seen = new Set();
+  for (const value of groups.flatMap(group => Array.isArray(group) ? group : [])) {
+    if (value === null || value === undefined || value === '') continue;
+    const key = valueKey(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+  }
+  return result;
+}
+
+function mergeMeaningfulObjects(preferred, fallback) {
+  const result = { ...(fallback && typeof fallback === 'object' ? fallback : {}) };
+  for (const [key, value] of Object.entries(preferred && typeof preferred === 'object' ? preferred : {})) {
+    if (meaningful(value) || !Object.hasOwn(result, key)) result[key] = value;
+  }
+  return result;
+}
+
+function normalizedKey(value) {
+  return String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function fitmentKey(fitment) {
+  return [fitment?.make, fitment?.model, fitment?.generation, fitment?.yearFrom, fitment?.yearTo]
+    .map(normalizedKey).join('|');
+}
+
+function mergeFitments(existing, additions) {
+  const result = [];
+  const positions = new Map();
+  for (const fitment of [...(existing || []), ...(additions || [])]) {
+    if (!fitment || typeof fitment !== 'object') continue;
+    const key = fitmentKey(fitment);
+    const position = positions.get(key);
+    if (position === undefined) {
+      positions.set(key, result.length);
+      result.push({
+        ...fitment,
+        models: unionValues(fitment.models),
+        chassis: unionValues(fitment.chassis),
+        engines: unionValues(fitment.engines),
+        drivetrains: unionValues(fitment.drivetrains)
+      });
+      continue;
+    }
+    const preferred = result[position];
+    const merged = mergeMeaningfulObjects(preferred, fitment);
+    merged.models = unionValues(preferred.models, fitment.models);
+    merged.chassis = unionValues(preferred.chassis, fitment.chassis);
+    merged.engines = unionValues(preferred.engines, fitment.engines);
+    merged.drivetrains = unionValues(preferred.drivetrains, fitment.drivetrains);
+    result[position] = merged;
+  }
+  return result;
+}
+
+function mergeFilters(existing, additions) {
+  const result = {};
+  const keys = new Set([
+    ...Object.keys(existing && typeof existing === 'object' ? existing : {}),
+    ...Object.keys(additions && typeof additions === 'object' ? additions : {})
+  ]);
+  for (const key of keys) {
+    const left = existing?.[key];
+    const right = additions?.[key];
+    result[key] = Array.isArray(left) || Array.isArray(right)
+      ? unionValues(left, right)
+      : meaningful(left) ? left : right;
+  }
+  return result;
+}
+
+function observationTime(product, fields) {
+  const times = fields.map(field => Date.parse(String(product?.[field] ?? ''))).filter(Number.isFinite);
+  return times.length ? Math.max(...times) : Number.NEGATIVE_INFINITY;
+}
+
+function incomingIsCurrent(existing, addition, fields) {
+  const existingTime = observationTime(existing, fields);
+  const incomingTime = observationTime(addition, fields);
+  return incomingTime > Number.NEGATIVE_INFINITY && incomingTime >= existingTime;
+}
+
+function mergeSelectionSources(existing, additions) {
+  const result = [];
+  const positions = new Map();
+  for (const source of [...(existing || []), ...(additions || [])]) {
+    if (!source || typeof source !== 'object') continue;
+    const key = normalizedKey(source.sourceUrl)
+      || [source.vehicle, source.category, source.relevancePosition].map(normalizedKey).join('|');
+    const position = positions.get(key);
+    if (position === undefined) {
+      positions.set(key, result.length);
+      result.push({ ...source });
+      continue;
+    }
+    const current = result[position];
+    const currentTime = Date.parse(String(current.observedAt ?? ''));
+    const incomingTime = Date.parse(String(source.observedAt ?? ''));
+    const newer = Number.isFinite(incomingTime) && (!Number.isFinite(currentTime) || incomingTime >= currentTime);
+    const ranks = [current.relevancePosition, source.relevancePosition]
+      .map(Number).filter(Number.isFinite);
+    result[position] = {
+      ...current,
+      ...(newer ? source : {}),
+      ...(ranks.length ? { relevancePosition: Math.min(...ranks) } : {})
+    };
+  }
+  return result;
+}
+
+const PRICE_REFRESH_FIELDS = Object.freeze([
+  'quoteOnly', 'purchaseMode', 'priceAmount', 'originalPriceAmount', 'priceStartingAt',
+  'priceCurrency', 'priceType', 'priceIncludesShipping', 'priceVerifiedAt', 'priceNote', 'priceNoteAr'
+]);
+const AVAILABILITY_REFRESH_FIELDS = Object.freeze([
+  'status', 'statusAr', 'checkedAt', 'stockObservedAt', 'staleAfterDays', 'stockPolicy',
+  'availabilityCode', 'observedAvailability', 'observedAvailabilityAr', 'availabilityNote',
+  'availabilityNoteAr', 'stockNote', 'stockNoteAr'
+]);
+
+function copyRefreshFields(target, source, fields) {
+  for (const field of fields) {
+    if (Object.hasOwn(source, field)) target[field] = source[field];
+  }
+}
+
+function mergeReviewedPair(existing, addition) {
+  const merged = mergeMeaningfulObjects(existing, addition);
+  if (incomingIsCurrent(existing, addition, ['priceVerifiedAt', 'checkedAt'])) {
+    copyRefreshFields(merged, addition, PRICE_REFRESH_FIELDS);
+  }
+  if (incomingIsCurrent(existing, addition, ['stockObservedAt', 'checkedAt'])) {
+    copyRefreshFields(merged, addition, AVAILABILITY_REFRESH_FIELDS);
+  }
+
+  merged.publicKey = existing.publicKey || addition.publicKey;
+  merged.slug = existing.slug || addition.slug;
+  merged.identifiers = mergeMeaningfulObjects(existing.identifiers, addition.identifiers);
+  merged.fitments = mergeFitments(existing.fitments, addition.fitments);
+  merged.filters = mergeFilters(existing.filters, addition.filters);
+  merged.images = meaningful(existing.images) ? [...existing.images] : unionValues(addition.images);
+  merged.specifications = unionValues(existing.specifications, addition.specifications);
+  merged.options = unionValues(existing.options, addition.options);
+  merged.variants = unionValues(existing.variants, addition.variants);
+  merged.relatedProductSlugs = unionValues(existing.relatedProductSlugs, addition.relatedProductSlugs);
+  merged.selectionSources = mergeSelectionSources(existing.selectionSources, addition.selectionSources);
+  merged.dataOrigins = unionValues(existing.dataOrigins, [existing.dataOrigin], addition.dataOrigins, [addition.dataOrigin]);
+  merged.detailedDescriptionAvailable = Boolean(
+    existing.detailedDescriptionAvailable || addition.detailedDescriptionAvailable
+  );
+
+  if (meaningful(addition.selectionEvidence)) merged.selectionEvidence = addition.selectionEvidence;
+  if (meaningful(addition.selectionNote)) merged.selectionNote = addition.selectionNote;
+  if (meaningful(addition.selectionNoteAr)) merged.selectionNoteAr = addition.selectionNoteAr;
+  if (meaningful(addition.fitmentStatus)) merged.fitmentStatus = addition.fitmentStatus;
+  if (meaningful(addition.fitmentConfidence)) merged.fitmentConfidence = addition.fitmentConfidence;
+  const ranks = [existing.selectionRank, addition.selectionRank].map(Number).filter(Number.isFinite);
+  if (ranks.length) merged.selectionRank = Math.min(...ranks);
+
+  const shipping = mergeMeaningfulObjects(existing.shipping, addition.shipping);
+  if (meaningful(addition.shipping?.origin)) shipping.origin = addition.shipping.origin;
+  if (meaningful(addition.shipping?.observedSupplierMessage)) {
+    shipping.observedSupplierMessage = addition.shipping.observedSupplierMessage;
+  }
+  if ([existing.shipping?.status, addition.shipping?.status].includes('quote-required')) {
+    shipping.status = 'quote-required';
+  }
+  if (Object.keys(shipping).length) merged.shipping = shipping;
+  return merged;
+}
+
+function assertUniquePublicIdentities(products) {
+  for (const field of ['publicKey', 'slug']) {
+    const seen = new Set();
+    for (const product of products) {
+      const value = String(product?.[field] ?? '').trim();
+      if (!value) continue;
+      if (seen.has(value)) {
+        throw new Error(`Conflicting ECS ${field} "${value}" is assigned to multiple products.`);
+      }
+      seen.add(value);
+    }
+  }
+}
+
+export function mergeReviewedEcsProducts(existingProducts, generatedProducts) {
+  if (!Array.isArray(existingProducts) || !Array.isArray(generatedProducts)) {
+    throw new TypeError('Reviewed ECS catalogue sources must be arrays.');
+  }
+  const products = [];
+  const positions = new Map();
+  const sources = [...existingProducts, ...generatedProducts];
+  for (const product of sources) {
+    if (!product || typeof product !== 'object') continue;
+    const key = ecsIdentity(product);
+    if (!key) {
+      products.push(product);
+      continue;
+    }
+    const position = positions.get(key);
+    if (position === undefined) {
+      positions.set(key, products.length);
+      products.push(product);
+    } else {
+      products[position] = mergeReviewedPair(products[position], product);
+    }
+  }
+
+  const slugAliases = new Map();
+  for (const product of sources) {
+    const key = ecsIdentity(product);
+    const position = key ? positions.get(key) : undefined;
+    const finalProduct = position === undefined ? product : products[position];
+    if (product?.slug && finalProduct?.slug) slugAliases.set(product.slug, finalProduct.slug);
+  }
+  const remapped = products.map(product => ({
+    ...product,
+    relatedProductSlugs: unionValues(product.relatedProductSlugs)
+      .map(slug => slugAliases.get(slug) || slug)
+      .filter((slug, index, values) => slug && slug !== product.slug && values.indexOf(slug) === index)
+  }));
+  assertUniquePublicIdentities(remapped);
+  return remapped;
+}
+
+export const REVIEWED_ECS_PRODUCTS = Object.freeze(mergeReviewedEcsProducts(
+  globalThis.PROJX_ECS_PRODUCTS || [],
+  ECS_G_SERIES_PERFORMANCE_PRODUCTS
+));
 
 export class ReviewedFallbackError extends Error {
   constructor(status, code, message) {
@@ -61,6 +319,13 @@ function priceIsFresh(product, nowValue) {
   return Number.isFinite(checkedAt) && Number(nowValue) - checkedAt <= maximumAge;
 }
 
+function finitePriceAmount(product) {
+  const value = product?.priceAmount;
+  if (value === null || value === undefined || value === '') return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function productSearchText(product) {
   return identity([
     product.title, product.brand, product.category, product.subcategory,
@@ -112,7 +377,7 @@ function productMatches(product, request, nowValue) {
   if (request.brand && request.brand !== product.brandSlug) return false;
   if (request.partType && ![product.categorySlug, product.subcategorySlug].includes(request.partType)) return false;
   if (!availabilityMatches(request.availability || 'all')) return false;
-  const priced = priceIsFresh(product, nowValue) && Number.isFinite(Number(product.priceAmount));
+  const priced = priceIsFresh(product, nowValue) && finitePriceAmount(product) !== null;
   if (request.pricing === 'priced' && !priced) return false;
   if (request.pricing === 'request_price' && priced) return false;
   if (request.fitment === 'exact') return false;
@@ -139,8 +404,8 @@ function sortProducts(products, request, nowValue) {
     if (request.sort === 'name_asc') return left.title.localeCompare(right.title);
     if (request.sort === 'name_desc') return right.title.localeCompare(left.title);
     if (request.sort === 'price_asc' || request.sort === 'price_desc') {
-      const leftPrice = priceIsFresh(left, nowValue) ? Number(left.priceAmount) : null;
-      const rightPrice = priceIsFresh(right, nowValue) ? Number(right.priceAmount) : null;
+      const leftPrice = priceIsFresh(left, nowValue) ? finitePriceAmount(left) : null;
+      const rightPrice = priceIsFresh(right, nowValue) ? finitePriceAmount(right) : null;
       if (leftPrice === null && rightPrice !== null) return 1;
       if (rightPrice === null && leftPrice !== null) return -1;
       if (leftPrice !== null && rightPrice !== null && leftPrice !== rightPrice) {
@@ -157,12 +422,18 @@ function sortProducts(products, request, nowValue) {
 
 function price(product, nowValue) {
   if (!priceIsFresh(product, nowValue)) return { currency: 'USD', min: null, max: null, note: 'Contact us for current price' };
-  const amount = Number(product.priceAmount);
+  const amount = finitePriceAmount(product);
+  const requestNote = product.priceConflict
+    ? 'Conflicting public supplier prices were observed; confirm the applicable option and current price.'
+    : 'The supplier listing requires configuration or current-price confirmation.';
   return {
     currency: 'USD',
-    min: Number.isFinite(amount) ? amount : null,
-    max: Number.isFinite(amount) ? amount : null,
-    note: `Public supplier retail price observed on ${text(product.priceVerifiedAt, 40)}; Projx selling price, shipping, customs and delivery are confirmed before order.`
+    min: amount,
+    max: amount,
+    startingAt: amount !== null && Boolean(product.priceStartingAt),
+    note: amount === null
+      ? requestNote
+      : `Public supplier retail price observed on ${text(product.priceVerifiedAt, 40)}; Projx selling price, shipping, customs and delivery are confirmed before order.`
   };
 }
 
@@ -199,7 +470,8 @@ function image(product) {
     width: Number(source.width) || null,
     height: Number(source.height) || null,
     alt: text(source.alt || product.title, 220),
-    altAr: text(source.altAr || product.titleAr, 220) || null
+    altAr: text(source.altAr || product.titleAr, 220) || null,
+    status: text(product.imageStatus, 80) || null
   };
 }
 
@@ -211,8 +483,8 @@ function card(product, request, nowValue) {
     title: text(product.title, 300),
     titleAr: text(product.titleAr, 300) || null,
     vendor: text(product.brand, 160) || null,
-    category: text([product.category, product.subcategory].filter(Boolean).join(' / '), 160) || null,
-    categoryAr: text([product.categoryAr, product.subcategoryAr].filter(Boolean).join(' / '), 160) || null,
+    category: text([...new Set([product.category, product.subcategory].filter(Boolean))].join(' / '), 160) || null,
+    categoryAr: text([...new Set([product.categoryAr, product.subcategoryAr].filter(Boolean))].join(' / '), 160) || null,
     image: image(product),
     sku: text(product.ecsPartNumber, 120) || null,
     skuCount: product.ecsPartNumber ? 1 : 0,
@@ -258,7 +530,8 @@ function detail(product, products, request, nowValue) {
     descriptionAr: text(product.descriptionAr || product.summaryAr, 5_000),
     images: (product.images || []).map(source => ({
       src: rootAsset(source.src), width: Number(source.width) || null, height: Number(source.height) || null,
-      alt: text(source.alt || product.title, 220), altAr: text(source.altAr, 220) || null
+      alt: text(source.alt || product.title, 220), altAr: text(source.altAr, 220) || null,
+      status: text(product.imageStatus, 80) || null
     })).filter(item => item.src),
     variants: [],
     options: [],
@@ -355,8 +628,6 @@ function legacyEligible(request) {
   if (request.currency && request.currency !== 'GBP') return false;
   if (request.brand || request.partType || request.fitment === 'exact') return false;
   if (request.fitment === 'possible' && !request.structuredVehicle) return false;
-  const hasQuery = Boolean(request.query || request.structuredVehicle);
-  if (!hasQuery && (request.availability !== 'all' || request.pricing !== 'all' || request.sort !== 'relevance')) return false;
   return true;
 }
 
@@ -376,25 +647,27 @@ function legacyListParameters(request, page) {
   const query = legacySearchQuery(request);
   if (query) {
     parameters.set('q', query);
-    parameters.set('page', String(page));
-    parameters.set('sort', request.sort || 'relevance');
-    parameters.set('availability', request.availability || 'all');
-    parameters.set('pricing', request.pricing || 'all');
-    parameters.set('match', request.structuredVehicle ? 'vehicle' : (request.match || 'any'));
-  } else {
-    parameters.set('page', String(page));
   }
+  parameters.set('page', String(page));
+  if (query || request.sort !== 'relevance') parameters.set('sort', request.sort || 'relevance');
+  if (query || request.availability !== 'all') parameters.set('availability', request.availability || 'all');
+  if (query || request.pricing !== 'all') parameters.set('pricing', request.pricing || 'all');
+  if (query) parameters.set('match', request.structuredVehicle ? 'vehicle' : (request.match || 'any'));
   return parameters;
 }
 
-function overallMeta({ request, localProducts, legacyMeta, count, totalResults, reason, nowValue, legacyError = null }) {
+function overallMeta({
+  request, localProducts, legacyMeta, count, totalResults, reason, nowValue,
+  legacyError = null, mixedSupplierResults = false
+}) {
   const legacyCatalogCount = Number(legacyMeta?.catalogProductCount) || 0;
   const legacyAvailableCount = Number(legacyMeta?.availableProductCount) || 0;
   const legacyStockCount = Number(legacyMeta?.stockIndexedProductCount) || 0;
   const legacySkuCount = Number(legacyMeta?.skuIndexedProductCount) || 0;
   const localSkuCount = localProducts.filter(product => product.ecsPartNumber).length;
-  const localPriceCount = localProducts.filter(product => priceIsFresh(product, nowValue)
-    && Number.isFinite(Number(product.priceAmount))).length;
+  const localStockCount = localProducts.filter(product => product.stockPolicy !== 'manual-confirm'
+    && !availability(product, nowValue).snapshotStale
+    && ['in_stock', 'supplier_stock', 'available_to_order'].includes(product.availabilityCode)).length;
   const localSnapshotStale = localProducts.some(product => availability(product, nowValue).snapshotStale);
   const suppliers = unique([
     ...(legacyCatalogCount ? [{ slug: 'tegiwa', name: 'Tegiwa' }] : []),
@@ -403,7 +676,7 @@ function overallMeta({ request, localProducts, legacyMeta, count, totalResults, 
   return {
     count,
     catalogProductCount: legacyCatalogCount + localProducts.length,
-    stockIndexedProductCount: legacyStockCount + localPriceCount,
+    stockIndexedProductCount: legacyStockCount + localStockCount,
     skuIndexedProductCount: legacySkuCount + localSkuCount,
     availableProductCount: legacyAvailableCount,
     checkedAt: [legacyMeta?.checkedAt, ...localProducts.map(product => product.checkedAt)]
@@ -421,6 +694,10 @@ function overallMeta({ request, localProducts, legacyMeta, count, totalResults, 
     totalResults,
     totalPages: Math.ceil(totalResults / PAGE_SIZE),
     sort: request.sort,
+    sortScope: mixedSupplierResults ? 'supplier-groups' : 'single-supplier-or-currency',
+    ...(mixedSupplierResults ? {
+      sortNote: 'Mixed-currency results are grouped by supplier. Sorting is applied within each supplier; USD and GBP prices are not converted or compared.'
+    } : {}),
     availability: request.availability,
     pricing: request.pricing,
     match: request.match,
@@ -450,11 +727,11 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
   let legacyTotal = 0;
   let legacyError = null;
 
-  if (legacyHandler && legacyEligible(request) && items.length < PAGE_SIZE) {
+  if (legacyHandler && legacyEligible(request)) {
     let legacyOffset = Math.max(0, request.offset - localAll.length);
     let page = Math.floor(legacyOffset / PAGE_SIZE) + 1;
     let skip = legacyOffset % PAGE_SIZE;
-    while (items.length < PAGE_SIZE) {
+    while (items.length < PAGE_SIZE || legacyMeta === null) {
       let payload;
       try {
         payload = normalizedLegacyPayload(
@@ -471,6 +748,7 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
       legacyMeta ||= payload?.meta || {};
       if (exactIdentifierOnly) break;
       legacyTotal = Number(payload?.meta?.totalResults ?? payload?.meta?.catalogProductCount) || 0;
+      if (items.length >= PAGE_SIZE) break;
       const pageItems = (payload?.items || []).slice(skip);
       items.push(...pageItems.slice(0, PAGE_SIZE - items.length));
       if (!pageItems.length || items.length >= PAGE_SIZE || page * PAGE_SIZE >= legacyTotal) break;
@@ -493,7 +771,8 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
     items,
     meta: overallMeta({
       request, localProducts: products, legacyMeta, count: items.length,
-      totalResults, reason, nowValue, legacyError
+      totalResults, reason, nowValue, legacyError,
+      mixedSupplierResults: !request.supplier && !request.currency && localAll.length > 0 && legacyTotal > 0
     }),
     nextOffset: items.length === PAGE_SIZE && nextOffset < totalResults ? nextOffset : null
   };

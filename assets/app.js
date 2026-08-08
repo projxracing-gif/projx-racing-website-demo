@@ -213,6 +213,7 @@
       partialCatalogue: false,
       catalogueSource: "",
       fallbackReason: "",
+      sortScope: "",
       catalogProductCount: null,
       availableProductCount: null,
       controller: null,
@@ -247,6 +248,8 @@
       cataloguePending: "كتالوج المنتجات قيد المراجعة",
       cataloguePendingText: "حالياً تعرض الصفحة باقات Projx Racing المؤكدة. ما راح ننشر منتج أو سعر أو صورة من مورد قبل التحقق من حقوق الاستخدام وبيانات القطعة.",
       requestPrice: "اطلب السعر",
+      startingAt: "ابتداءً من",
+      supplierImageUnavailable: "لم يوفّر المورد صورة خاصة بهذا المنتج",
       viewDetails: "شوف التفاصيل",
       contextImage: "صورة من أعمال الورشة للتوضيح — القطع النهائية تعتمد على عرض السعر",
       fitment: "التوافق",
@@ -356,6 +359,12 @@
       tegiwaSortNameDesc: "الاسم: ي–أ",
       tegiwaSortPriceAsc: "السعر: من الأقل إلى الأعلى",
       tegiwaSortPriceDesc: "السعر: من الأعلى إلى الأقل",
+      tegiwaSortSupplierOrder: "ترتيب كتالوج كل مورد",
+      tegiwaSortNameAscSupplier: "الاسم أ–ي داخل كل مورد",
+      tegiwaSortNameDescSupplier: "الاسم ي–أ داخل كل مورد",
+      tegiwaSortPriceAscSupplier: "السعر تصاعدياً داخل عملة كل مورد",
+      tegiwaSortPriceDescSupplier: "السعر تنازلياً داخل عملة كل مورد",
+      tegiwaMixedSortNote: "تُجمع نتائج الموردين حسب المورد، ويُطبق الترتيب داخل كل مجموعة. لا تتم مقارنة أو تحويل أسعار USD وGBP.",
       tegiwaFilterAvailability: "التوفر",
       tegiwaAvailabilityAll: "كل حالات المخزون",
       tegiwaAvailabilityAvailable: "أي منتج متوفر",
@@ -405,6 +414,8 @@
       cataloguePending: "Verified product catalogue under review",
       cataloguePendingText: "The current store shows confirmed Projx Racing quote packages. Supplier products, prices and images will not be published until use rights and item records are verified.",
       requestPrice: "Request price",
+      startingAt: "From",
+      supplierImageUnavailable: "Supplier-specific product image unavailable",
       viewDetails: "View details",
       contextImage: "Workshop context image — final components are confirmed in the quotation",
       fitment: "Fitment",
@@ -514,6 +525,12 @@
       tegiwaSortNameDesc: "Name: Z–A",
       tegiwaSortPriceAsc: "Price: low to high",
       tegiwaSortPriceDesc: "Price: high to low",
+      tegiwaSortSupplierOrder: "Supplier catalogue order",
+      tegiwaSortNameAscSupplier: "Name: A–Z within supplier",
+      tegiwaSortNameDescSupplier: "Name: Z–A within supplier",
+      tegiwaSortPriceAscSupplier: "Price: low to high within currency",
+      tegiwaSortPriceDescSupplier: "Price: high to low within currency",
+      tegiwaMixedSortNote: "Supplier results are grouped by supplier and sorted within each group. USD and GBP prices are not converted or compared.",
       tegiwaFilterAvailability: "Availability",
       tegiwaAvailabilityAll: "All stock statuses",
       tegiwaAvailabilityAvailable: "Any available",
@@ -2024,6 +2041,7 @@
     const make = cleanText(vehicle.make || "", 80);
     const directoryModel = cleanText(vehicle.model || "", 100);
     const bmwMDirectory = new Map([
+      ["M2 (22-26)", { model: "M2", generation: "G87" }],
       ["M3 (14-20)", { model: "M3", generation: "F80" }],
       ["M3 (20-24)", { model: "M3", generation: "G80" }],
       ["M4 (14-20)", { model: "M4", generation: "F82" }],
@@ -2215,7 +2233,8 @@
     const locale = state.locale === "ar" ? "ar-KW" : (currency === "GBP" ? "en-GB" : currency === "USD" ? "en-US" : "en");
     const formatter = new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "code" });
     if (Number.isFinite(maximum) && maximum > minimum) return `${formatter.format(minimum)} – ${formatter.format(maximum)}`;
-    return formatter.format(minimum);
+    const formatted = formatter.format(minimum);
+    return price.startingAt ? `${storeText().startingAt} ${formatted}` : formatted;
   }
 
   function tegiwaCheckedLabel(value) {
@@ -2229,7 +2248,10 @@
   function tegiwaImageMarkup(image, title, { eager = false } = {}) {
     if (!image?.src) return `<div class="tegiwa-image-empty">${icons.quote}<span>${esc(storeText().tegiwaNoImage)}</span></div>`;
     const source = /^\/?assets\/products\//.test(String(image.src || "")) ? versionedAsset(String(image.src).replace(/^\//, "")) : image.src;
-    return `<img src="${esc(source)}" width="${Math.max(1, Number(image.width) || 900)}" height="${Math.max(1, Number(image.height) || 900)}" alt="${esc(image.alt || title)}" loading="${eager ? "eager" : "lazy"}" decoding="async" referrerpolicy="no-referrer">`;
+    const markup = `<img src="${esc(source)}" width="${Math.max(1, Number(image.width) || 900)}" height="${Math.max(1, Number(image.height) || 900)}" alt="${esc(image.alt || title)}" loading="${eager ? "eager" : "lazy"}" decoding="async" referrerpolicy="no-referrer">`;
+    return image.status === "supplier-media-unavailable"
+      ? `<span class="tegiwa-image-placeholder">${markup}<small>${esc(storeText().supplierImageUnavailable)}</small></span>`
+      : markup;
   }
 
   function localizedCatalogueProduct(source) {
@@ -2325,6 +2347,7 @@
   function syncTegiwaFilterUi() {
     const root = document.querySelector("[data-tegiwa-catalog]");
     if (!root) return;
+    const labels = storeText();
     root.querySelectorAll("[data-tegiwa-filter]").forEach(control => {
       const key = control.dataset.tegiwaFilter;
       if (Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) control.value = state.tegiwaCatalog[key];
@@ -2337,6 +2360,30 @@
         state.tegiwaCatalog.fitment = "all";
         fitment.value = "all";
       }
+    }
+    const sort = root.querySelector('[data-tegiwa-filter="sort"]');
+    const mixedSupplierSort = state.tegiwaCatalog.sortScope === "supplier-groups"
+      || (!state.tegiwaCatalog.sortScope && !state.tegiwaCatalog.supplier && !state.tegiwaCatalog.currency);
+    if (sort) {
+      const optionLabels = mixedSupplierSort ? {
+        relevance: labels.tegiwaSortSupplierOrder,
+        name_asc: labels.tegiwaSortNameAscSupplier,
+        name_desc: labels.tegiwaSortNameDescSupplier,
+        price_asc: labels.tegiwaSortPriceAscSupplier,
+        price_desc: labels.tegiwaSortPriceDescSupplier
+      } : {
+        relevance: labels.tegiwaSortRelevance,
+        name_asc: labels.tegiwaSortNameAsc,
+        name_desc: labels.tegiwaSortNameDesc,
+        price_asc: labels.tegiwaSortPriceAsc,
+        price_desc: labels.tegiwaSortPriceDesc
+      };
+      [...sort.options].forEach(option => { option.textContent = optionLabels[option.value] || option.textContent; });
+    }
+    const sortNote = root.querySelector("[data-tegiwa-sort-note]");
+    if (sortNote) {
+      sortNote.hidden = !mixedSupplierSort;
+      sortNote.textContent = mixedSupplierSort ? labels.tegiwaMixedSortNote : "";
     }
     const count = tegiwaFilterCount();
     const badge = root.querySelector("[data-tegiwa-filter-count]");
@@ -2373,7 +2420,8 @@
       backend: "unified",
       partialCatalogue: false,
       catalogueSource: "",
-      fallbackReason: ""
+      fallbackReason: "",
+      sortScope: ""
     });
     syncTegiwaFilterUi();
     if (reload) loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
@@ -2390,15 +2438,11 @@
     const key = control?.dataset.tegiwaFilter;
     if (!Object.hasOwn(TEGIWA_SEARCH_DEFAULTS, key)) return;
     state.tegiwaCatalog[key] = catalogueFilterValue(key, control.value);
-    if (key === "supplier" && state.tegiwaCatalog.supplier === "ecs") {
-      const search = document.querySelector('[data-tegiwa-search] input[name="q"]');
-      if (search) search.value = "";
-      Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, { supplier: "ecs", query: "", match: "any" });
-    }
+    if (key === "supplier" || key === "currency") state.tegiwaCatalog.sortScope = "";
     clearTegiwaDirectorySelection();
     hideTegiwaSuggestions();
     syncTegiwaFilterUi();
-    const match = state.tegiwaCatalog.supplier === "ecs" ? "any" : (partsVehicleLabel() ? "vehicle" : "any");
+    const match = partsVehicleLabel() ? "vehicle" : "any";
     loadTegiwaCatalog({ query: state.tegiwaCatalog.query, match, page: 1, scrollResults: true });
   }
 
@@ -2760,6 +2804,9 @@
       const source = Object.hasOwn(meta, key) ? meta[key] : meta.filters?.[key];
       if (source !== undefined && source !== null) state.tegiwaCatalog[key] = catalogueFilterValue(key, source);
     }
+    state.tegiwaCatalog.sortScope = ["supplier-groups", "single-supplier-or-currency"].includes(meta.sortScope)
+      ? meta.sortScope
+      : "";
     const correction = root.querySelector("[data-tegiwa-correction]");
     if (correction) {
       const from = cleanText(meta.query || state.tegiwaCatalog.query, 120);
@@ -2872,6 +2919,7 @@
       partialCatalogue: false,
       catalogueSource: "",
       fallbackReason: "",
+      sortScope: "",
       catalogProductCount: null,
       availableProductCount: null
     });
@@ -3092,23 +3140,24 @@
     const popularM = state.locale === "ar"
       ? {
           eyebrow: "اختيارات BMW M المراجعة",
-          heading: "ترقيات M3 وM4 المراجعة.",
+          heading: "ترقيات M2 وM3 وM4 المراجعة.",
           text: "اختيارات من صفحات ECS المخصصة للسيارة وترتيب الملاءمة الافتراضي. لا تمثل أرقام مبيعات منشورة، ويجب تأكيد السعر والمخزون والتوافق قبل الطلب.",
           action: "ابحث في قطع ECS"
         }
       : {
           eyebrow: "Featured reviewed BMW M selections",
-          heading: "Reviewed M3 and M4 upgrades.",
+          heading: "Reviewed M2, M3 and M4 upgrades.",
           text: "Curated from ECS vehicle pages and their default relevance ordering. These are not published sales figures; price, stock and exact fitment still require confirmation.",
           action: "Search ECS parts"
         };
     const popularMModels = [
+      ["BMW M2 G87", "M2", "G87", "S58"],
       ["BMW M3 F80", "M3", "F80", "S55"],
       ["BMW M4 F82", "M4", "F82", "S55"],
       ["BMW M3 G80", "M3", "G80", "S58"],
       ["BMW M4 G82", "M4", "G82", "S58"]
     ];
-    const popularMMarkup = popularMModels.map(([query, model, chassis, engine]) => `<button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" data-tegiwa-directory-supplier="ecs" aria-pressed="false"><span><strong>${esc(model)} <bdi dir="ltr">${esc(chassis)}</bdi></strong><small><bdi dir="ltr">${esc(engine)}</bdi> · ECS Tuning</small></span><span>${esc(popularM.action)}${icons.arrow}</span></button>`).join("");
+    const popularMMarkup = popularMModels.map(([query, model, chassis, engine]) => `<button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" data-tegiwa-directory-supplier="ecs" data-tegiwa-directory-match="any" aria-pressed="false"><span><strong>${esc(model)} <bdi dir="ltr">${esc(chassis)}</bdi></strong><small><bdi dir="ltr">${esc(engine)}</bdi> · ECS Tuning</small></span><span>${esc(popularM.action)}${icons.arrow}</span></button>`).join("");
     const brandTiles = brandCounts.map(({ brand }) => `<button class="parts-brand-card" type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(brand.name)}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${esc(finder.byBrand)}</small></span>${icons.arrow}</button>`).join("");
     return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<a class="btn" href="#parts-vehicle">${esc(finder.byVehicle)}${icons.arrow}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.quote}</button>` })}
       <div data-parts-shop>
@@ -3149,7 +3198,7 @@
             </div>
             <div class="tegiwa-search-toolbar"><button class="tegiwa-filter-toggle" type="button" data-action="toggle-tegiwa-filters" aria-expanded="false" aria-controls="tegiwa-filter-panel">${icons.filter}<span>${esc(labels.tegiwaSortFilter)}</span><small data-tegiwa-filter-count hidden></small></button></div>
             <div class="tegiwa-filter-panel" id="tegiwa-filter-panel" role="group" aria-label="${esc(labels.tegiwaFilterPanelLabel)}" data-tegiwa-filter-panel hidden>
-              <label><span>${esc(labels.tegiwaSort)}</span><select class="select" data-tegiwa-filter="sort"><option value="relevance">${esc(labels.tegiwaSortRelevance)}</option><option value="name_asc">${esc(labels.tegiwaSortNameAsc)}</option><option value="name_desc">${esc(labels.tegiwaSortNameDesc)}</option><option value="price_asc">${esc(labels.tegiwaSortPriceAsc)}</option><option value="price_desc">${esc(labels.tegiwaSortPriceDesc)}</option></select></label>
+              <label><span>${esc(labels.tegiwaSort)}</span><select class="select" data-tegiwa-filter="sort"><option value="relevance">${esc(labels.tegiwaSortSupplierOrder)}</option><option value="name_asc">${esc(labels.tegiwaSortNameAscSupplier)}</option><option value="name_desc">${esc(labels.tegiwaSortNameDescSupplier)}</option><option value="price_asc">${esc(labels.tegiwaSortPriceAscSupplier)}</option><option value="price_desc">${esc(labels.tegiwaSortPriceDescSupplier)}</option></select><small class="catalogue-sort-note" data-tegiwa-sort-note>${esc(labels.tegiwaMixedSortNote)}</small></label>
               <label><span>${esc(labels.tegiwaFilterAvailability)}</span><select class="select" data-tegiwa-filter="availability"><option value="all">${esc(labels.tegiwaAvailabilityAll)}</option><option value="available">${esc(labels.tegiwaAvailabilityAvailable)}</option><option value="in_stock">${esc(labels.tegiwaAvailabilityInStock)}</option><option value="supplier_stock">${esc(labels.tegiwaAvailabilitySupplierStock)}</option><option value="check">${esc(labels.tegiwaAvailabilityCheck)}</option><option value="unavailable">${esc(labels.tegiwaAvailabilityUnavailable)}</option></select></label>
               <label><span>${esc(labels.tegiwaFilterPricing)}</span><select class="select" data-tegiwa-filter="pricing"><option value="all">${esc(labels.tegiwaPricingAll)}</option><option value="priced">${esc(labels.tegiwaPricingPriced)}</option><option value="request_price">${esc(labels.tegiwaPricingRequest)}</option></select></label>
               <label><span>${esc(labels.supplier)}</span><select class="select" data-tegiwa-filter="supplier"><option value="">${esc(labels.allSuppliers)}</option></select></label>
@@ -4285,6 +4334,9 @@
     const normalizedQuery = cleanText(query, 120);
     if (normalizedQuery.length < 2) return;
     const requestedSupplier = catalogueFilterValue("supplier", trigger?.dataset.tegiwaDirectorySupplier || "");
+    const requestedMatch = trigger?.dataset.tegiwaDirectoryMatch === "any"
+      ? "any"
+      : (partsVehicleLabel() ? "vehicle" : "any");
     state.tegiwaCatalog.supplier = requestedSupplier;
     syncTegiwaFilterUi();
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
@@ -4300,7 +4352,7 @@
     catalogue?.scrollIntoView({ behavior, block: "start" });
     loadTegiwaCatalog({
       query: normalizedQuery,
-      match: state.tegiwaCatalog.supplier === "ecs" ? "any" : (partsVehicleLabel() ? "vehicle" : "any"),
+      match: requestedMatch,
       page: 1
     });
     window.setTimeout(() => searchInput?.focus({ preventScroll: true }), behavior === "smooth" ? 450 : 0);

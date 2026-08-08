@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateCatalog } from './lib.mjs';
-import '../../assets/ecs-products.js';
+import { REVIEWED_ECS_PRODUCTS } from '../../server/ecs-reviewed-catalog.js';
 
 const repo = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 
@@ -68,7 +68,7 @@ const REQUIRED_REVIEW = Object.freeze([
   'human_sign_off_before_storefront_or_database_publication'
 ]);
 
-export function buildReviewQueue(catalog, baseline = globalThis.PROJX_ECS_PRODUCTS || []) {
+export function buildReviewQueue(catalog, baseline = REVIEWED_ECS_PRODUCTS) {
   const products = Array.isArray(catalog?.products) ? catalog.products : [];
   const validation = validateCatalog(products);
   if (!validation.valid) {

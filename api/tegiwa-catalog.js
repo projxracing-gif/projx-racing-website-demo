@@ -1276,7 +1276,21 @@ function determineMode(req) {
     };
   }
 
-  if (hasSearchOption) throw new PublicApiError(400, 'invalid_parameters', 'Search options require a search query.');
+  if (hasSearchOption) {
+    if (rawSuggest !== undefined || rawHandle !== undefined || rawCursor !== undefined) {
+      throw new PublicApiError(400, 'invalid_parameters', 'Filtered catalogue browsing cannot use suggestions, a product handle or a cursor.');
+    }
+    const match = enumParameter(rawMatch, SEARCH_MATCHES, 'any', 'invalid_match', 'The requested search matching mode is not supported.');
+    if (match !== 'any') throw new PublicApiError(400, 'invalid_match', 'Vehicle matching requires a vehicle search query.');
+    return {
+      mode: 'filter',
+      page: positivePage(rawPage, 1),
+      sort: enumParameter(rawSort, SEARCH_SORTS, 'relevance', 'invalid_sort', 'The requested search sort is not supported.'),
+      availability: enumParameter(rawAvailability, SEARCH_AVAILABILITY_FILTERS, 'all', 'invalid_availability', 'The requested availability filter is not supported.'),
+      pricing: enumParameter(rawPricing, SEARCH_PRICING_FILTERS, 'all', 'invalid_pricing', 'The requested pricing filter is not supported.'),
+      match
+    };
+  }
 
   const supplied = [rawHandle !== undefined, rawCursor !== undefined, rawPage !== undefined].filter(Boolean).length;
   if (supplied > 1) throw new PublicApiError(400, 'invalid_parameters', 'Use only one catalog mode per request.');
@@ -1662,6 +1676,60 @@ async function searchCatalog(provider, index, summary, request, catalogLoader) {
   };
 }
 
+async function filterCatalog(provider, index, summary, request, catalogLoader) {
+  const records = [];
+  for (let documentId = 0; documentId < provider.productCount; documentId += 1) {
+    const metadata = provider.metadata(documentId);
+    const stock = stockForKey(index, metadata.stockKey);
+    const currentStock = index.stockSnapshotFresh ? stock : null;
+    const availabilityCode = availabilityCodeForSearch(index, stock);
+    if (!availabilityMatches(request.availability, availabilityCode)) continue;
+    const priced = Boolean(currentStock);
+    if ((request.pricing === 'priced' && !priced) || (request.pricing === 'request_price' && priced)) continue;
+    records.push({ documentId, nameRank: metadata.nameRank, price: currentStock?.minPence ?? null });
+  }
+  records.sort((left, right) => {
+    if (request.sort === 'name_asc') return left.nameRank - right.nameRank || left.documentId - right.documentId;
+    if (request.sort === 'name_desc') return right.nameRank - left.nameRank || left.documentId - right.documentId;
+    if (request.sort === 'price_asc' || request.sort === 'price_desc') {
+      if (left.price === null && right.price !== null) return 1;
+      if (right.price === null && left.price !== null) return -1;
+      if (left.price !== null && right.price !== null && left.price !== right.price) {
+        return request.sort === 'price_asc' ? left.price - right.price : right.price - left.price;
+      }
+      return left.nameRank - right.nameRank || left.documentId - right.documentId;
+    }
+    return left.documentId - right.documentId;
+  });
+  const totalResults = records.length;
+  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+  if (request.page > Math.max(1, totalPages)) {
+    throw new PublicApiError(400, 'invalid_page', 'The requested filtered catalogue page does not exist.');
+  }
+  const start = (request.page - 1) * PAGE_SIZE;
+  const items = await cardsForDocumentIds(
+    records.slice(start, start + PAGE_SIZE).map(record => record.documentId),
+    index,
+    summary,
+    catalogLoader
+  );
+  return {
+    mode: 'browse',
+    items,
+    meta: metaFor(index, items.length, {
+      page: request.page,
+      pageSize: PAGE_SIZE,
+      totalResults,
+      totalPages,
+      sort: request.sort,
+      availability: request.availability,
+      pricing: request.pricing,
+      match: request.match
+    }),
+    nextCursor: null
+  };
+}
+
 async function suggestCatalog(provider, index, summary, query, catalogLoader) {
   const plan = searchPlan(provider, query);
   const ranked = rankedSearchDocuments(provider, index, plan, {
@@ -1897,7 +1965,7 @@ export function createTegiwaCatalogHandler({
         stockSnapshotFresh: stockSnapshotIsFresh(currentIndex, Number(now()))
       };
       let body;
-      if (request.mode === 'search' || request.mode === 'suggest') {
+      if (request.mode === 'search' || request.mode === 'suggest' || request.mode === 'filter') {
         const rate = rateLimit(req);
         res.setHeader('RateLimit-Policy', `${rate.limit};w=${Math.ceil(rate.windowMs / 1_000)}`);
         if (!rate.allowed) {
@@ -1907,6 +1975,8 @@ export function createTegiwaCatalogHandler({
         const localProvider = searchProvider();
         body = request.mode === 'search'
           ? await searchCatalog(localProvider, requestIndex, summary, request, catalogLoader)
+          : request.mode === 'filter'
+          ? await filterCatalog(localProvider, requestIndex, summary, request, catalogLoader)
           : await suggestCatalog(localProvider, requestIndex, summary, request.query, catalogLoader);
       }
       else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);

@@ -50,11 +50,29 @@ for (const field of ['year', 'make', 'model', 'generation', 'engine']) {
 assert.match(app, /params\.set\("fitment", state\.tegiwaCatalog\.fitment/);
 assert.match(app, /params\.set\("match", vehicleMatch \? "vehicle" : "any"\)/);
 assert.match(app, /state\.tegiwaCatalog\.match === "vehicle"/);
+assert.match(app, /\["M2 \(22-26\)", \{ model: "M2", generation: "G87" \}\]/,
+  'BMW G87 M2 directory selections must map to the structured ECS vehicle filter.');
+assert.doesNotMatch(app, /state\.tegiwaCatalog\.supplier === "ecs" \? "any"/,
+  'Selecting ECS must not bypass the saved vehicle filter.');
+assert.match(partsPage, /\["BMW M2 G87", "M2", "G87", "S58"\]/,
+  'The reviewed BMW M shortcuts must include G87 M2.');
+assert.match(partsPage, /data-tegiwa-directory-match="any"/,
+  'Featured BMW M shortcuts must not inherit a different saved vehicle filter.');
+assert.match(app, /const requestedMatch = trigger\?\.dataset\.tegiwaDirectoryMatch === "any"/,
+  'Directory searches must distinguish featured-vehicle shortcuts from saved-vehicle part searches.');
 assert.doesNotMatch(app.slice(app.indexOf('function savePartsVehicle'), app.indexOf('function updatePartsVehicleCascades')), /partsVehicleCatalogueQuery\(\)/);
 
 for (const filter of ['sort', 'availability', 'pricing', 'supplier', 'currency', 'fitment']) {
   assert.match(partsPage, new RegExp(`data-tegiwa-filter="${filter}"`), `Unified ${filter} filter is missing.`);
 }
+assert.match(partsPage, /data-tegiwa-sort-note/,
+  'Mixed-supplier sort qualification must be visible beside the sort control.');
+assert.match(app, /tegiwaSortSupplierOrder:\s*"Supplier catalogue order"/);
+assert.match(app, /tegiwaSortPriceAscSupplier:\s*"Price: low to high within currency"/);
+assert.match(app, /USD and GBP prices are not converted or compared/,
+  'Mixed USD and GBP results must not imply a converted global price order.');
+assert.match(app, /state\.tegiwaCatalog\.sortScope === "supplier-groups"/);
+assert.match(styles, /\.catalogue-sort-note/);
 assert.match(app, /loadTegiwaCatalog\(\{ query: state\.tegiwaCatalog\.query, match: partsVehicleLabel\(\) \? "vehicle" : "any"/);
 assert.match(app, /syncCatalogueFacetOptions\(meta\)/);
 assert.match(app, /Number\(meta\.catalogProductCount\)/,
@@ -76,6 +94,11 @@ assert.match(setupCatalogue, /supplier:\s*""|TEGIWA_SEARCH_DEFAULTS/);
 assert.doesNotMatch(setupCatalogue, /referenceCatalogue/);
 
 assert.match(app, /currencyDisplay:\s*"code"/);
+assert.match(app, /price\.startingAt \? `\$\{storeText\(\)\.startingAt\}/,
+  'Positive supplier starting prices must be clearly labelled as From prices.');
+assert.match(app, /image\.status === "supplier-media-unavailable"/,
+  'Official supplier placeholders must be visibly labelled.');
+assert.match(styles, /\.tegiwa-image-placeholder/);
 assert.match(app, /item\.supplier\?\.name/);
 assert.match(app, /item\.fitmentConfidence === "exact"/);
 assert.match(app, /selectedVehicleFitmentConfidence\(product\)/);

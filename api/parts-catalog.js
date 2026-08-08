@@ -434,6 +434,9 @@ function buildListQuery(request, limit = PAGE_SIZE) {
     price_asc: 'offer.currency ASC NULLS LAST, offer.price_min ASC NULLS LAST, ps.title_sort, p.id',
     price_desc: 'offer.currency ASC NULLS LAST, offer.price_max DESC NULLS LAST, ps.title_sort, p.id'
   }[request.sort] || 'ps.title_sort ASC, p.id';
+  const scopedOrderBy = !request.supplier && !request.currency
+    ? `s.slug ASC, ${orderBy}`
+    : orderBy;
 
   return {
     text: `/* parts-catalog:list */
@@ -471,7 +474,7 @@ function buildListQuery(request, limit = PAGE_SIZE) {
       ${fitmentJoin}
       LEFT JOIN exact_identifier ON exact_identifier.product_id = p.id
       WHERE ${filters.conditions.join(' AND ')}
-      ORDER BY ${orderBy}
+      ORDER BY ${scopedOrderBy}
       LIMIT ${rowLimit} OFFSET ${offset}`,
     values: binder.values
   };
@@ -790,6 +793,14 @@ function filtersMeta(request) {
   };
 }
 
+function sortMeta(mixedSupplierResults = false) {
+  if (!mixedSupplierResults) return { sortScope: 'single-supplier-or-currency' };
+  return {
+    sortScope: 'supplier-groups',
+    sortNote: 'Mixed-currency results are grouped by supplier. Sorting is applied within each supplier; USD and GBP prices are not converted or compared.'
+  };
+}
+
 let defaultLegacyHandlerPromise = null;
 async function loadDefaultLegacyHandler() {
   defaultLegacyHandlerPromise ||= import('./tegiwa-catalog.js').then(module => module.default);
@@ -1020,6 +1031,7 @@ export function createPartsCatalogHandler({
           translated: false, corrected: false, corrections: [],
           page: request.page, pageSize: PAGE_SIZE, totalResults,
           totalPages: Math.ceil(totalResults / PAGE_SIZE), sort: request.sort,
+          ...sortMeta(!request.supplier && !request.currency && stats.suppliers.length > 1),
           availability: request.availability, pricing: request.pricing, match: request.match,
           filters: filtersMeta(request)
         },

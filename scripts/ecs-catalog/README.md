@@ -1,6 +1,6 @@
 # ECS catalogue ingestion workspace
 
-This isolated workflow prepares public ECS product records for later storefront review. It does not edit or publish the website catalogue.
+The original isolated ingestion workflow prepares public ECS product records for later storefront review and never publishes them directly. The separate, explicit G-Series preparation and media-materialization commands generate reviewable storefront assets only after their bounded source and integrity checks pass.
 
 ## Important access rule
 
@@ -35,16 +35,18 @@ No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT
 
 ## Current reviewed storefront collection
 
-The storefront currently contains 41 manually reviewed ECS products in `assets/ecs-products.js`. They are unique by public handle, ECS part number, manufacturer MPN, source URL and local image content. The latest 26 are featured BMW M3/M4 F80, F82, G80 and G82 selections curated from ECS vehicle-category relevance; they are not represented as a supplier-published sales ranking.
+The storefront contains 1,134 unique ECS products after merging 41 legacy manually reviewed products from `assets/ecs-products.js` with 1,109 generated G-Series Performance products from `server/data/ecs-g-series-performance-products.js`. Sixteen ECS identities overlap and are merged without changing their established public handles. The generated set covers every captured Performance branch for G87 M2, G80 M3 Competition and G82 M4 Competition; ECS category placement is not represented as a supplier-published sales ranking.
 
-All 41 deliberately retain these limitations:
+The generated catalogue report is `docs/ecs-g-series-performance-catalogue-report.json`. It records 2,656 listing observations, 1,109 unique generated products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 products retaining a publishable public price and 8 request-price records.
+
+The 1,109 generated vehicle-category records deliberately retain these limitations:
 
 - supplier-title/application fitment is `possible`, never `exact`;
 - supplier availability is an observation and the API returns `check_availability`;
 - prices are public supplier USD retail observations, not a Projx selling price;
 - no live ECS stock feed exists;
 - no verified detailed specifications, options, variations or drivetrain fitment are available; and
-- each product has one approved local primary image, not a complete gallery.
+- product-specific media is used only when captured and verified; otherwise the storefront shows a labelled ECS placeholder.
 
 Run the deterministic audit without contacting ECS:
 
@@ -107,7 +109,7 @@ node scripts/ecs-catalog/prepare-review.mjs \
   --output private-imports/ecs-catalog-review/review-queue.json
 ```
 
-The queue reconciles candidates against the 41 current products by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
+The queue reconciles candidates against the complete merged ECS collection by ECS part number, canonical source URL and manufacturer MPN. Existing items become `review_existing`; only unmatched items become `review_new`. It records field changes and the missing bilingual content, local images, structured fitment, selling price, shipping, installation and human approvals.
 
 This step never edits the storefront, database or public assets. `publishApproved` remains false for every candidate. A person must review the evidence, approve local media, add bilingual copy and sign off before any separate publication/import change is made.
 
@@ -200,7 +202,7 @@ Every accepted product has exactly these fields:
 
 Unexpected fields are rejected. Sensitive or non-public field names—including dealer, wholesale, trade, tax, VAT, cost, credentials, cookies and tokens—are rejected.
 
-The public fallback API adds storefront-safe normalized fields to the 41 reviewed products: globally unique `ecs-...` handles, supplier/brand/category slugs, possible-only fitment records, available year/chassis/engine filters, USD retail-price metadata, confirmation-only availability, local images, SEO metadata and related products. Missing specifications, variants, drivetrain data and exact fitment remain empty rather than inferred.
+The public fallback API adds storefront-safe normalized fields to the merged reviewed collection: globally unique `ecs-...` handles, supplier/brand/category slugs, possible-only fitment records, available year/chassis/engine filters, USD retail-price metadata, confirmation-only availability, local images, SEO metadata and related products. Missing specifications, variants, drivetrain data and exact fitment remain empty rather than inferred.
 
 ## Tests
 

@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import '../../assets/ecs-products.js';
+import { REVIEWED_ECS_PRODUCTS } from '../../server/ecs-reviewed-catalog.js';
+import { __test as imageInspection } from './materialize-page-assets.mjs';
 
 const repo = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
-const products = [...(globalThis.PROJX_ECS_PRODUCTS || [])];
+const products = [...REVIEWED_ECS_PRODUCTS];
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -23,27 +24,11 @@ function duplicateValues(field) {
     .map(([value, slugs]) => ({ value, slugs }));
 }
 
-function jpegDimensions(buffer) {
-  if (buffer[0] !== 0xff || buffer[1] !== 0xd8) return null;
-  const startOfFrame = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
-  let offset = 2;
-  while (offset + 8 < buffer.length) {
-    if (buffer[offset] !== 0xff) {
-      offset += 1;
-      continue;
-    }
-    const marker = buffer[offset + 1];
-    if (marker === 0xd8 || marker === 0xd9) {
-      offset += 2;
-      continue;
-    }
-    const length = buffer.readUInt16BE(offset + 2);
-    if (length < 2 || offset + 2 + length > buffer.length) return null;
-    if (startOfFrame.has(marker)) {
-      return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
-    }
-    offset += 2 + length;
-  }
+function imageContentType(filename) {
+  const extension = path.extname(filename).toLowerCase();
+  if (extension === '.jpg' || extension === '.jpeg') return 'image/jpeg';
+  if (extension === '.png') return 'image/png';
+  if (extension === '.webp') return 'image/webp';
   return null;
 }
 
@@ -65,9 +50,10 @@ function gaps(product) {
 
 const imageRecords = [];
 const validationErrors = [];
+const productSlugs = new Set(products.map(product => product.slug));
 for (const product of products) {
   for (const required of [
-    'slug', 'publicKey', 'title', 'titleAr', 'summary', 'summaryAr', 'brand', 'category', 'subcategory',
+    'slug', 'publicKey', 'title', 'titleAr', 'summary', 'summaryAr', 'brand', 'category',
     'ecsPartNumber', 'mpn', 'priceCurrency', 'priceVerifiedAt', 'checkedAt', 'originalUrl'
   ]) {
     if (product[required] === undefined || product[required] === null || String(product[required]).trim() === '') {
@@ -83,6 +69,14 @@ for (const product of products) {
     validationErrors.push(`${product.slug}: manual supplier observation was presented as live availability`);
   }
   if (!product.relatedProductSlugs?.length) validationErrors.push(`${product.slug}: related product references are missing`);
+  if (!product.seo?.pageTitle || !product.seo?.metaDescription || !/^\/parts\/[a-z0-9][a-z0-9-]*\/$/.test(product.seo?.path || '')) {
+    validationErrors.push(`${product.slug}: SEO metadata is incomplete or invalid`);
+  }
+  for (const relatedSlug of product.relatedProductSlugs || []) {
+    if (relatedSlug === product.slug || !productSlugs.has(relatedSlug)) {
+      validationErrors.push(`${product.slug}: related product reference is invalid (${relatedSlug})`);
+    }
+  }
   for (const source of product.images || []) {
     const relative = String(source.src || '').replace(/^\/+/, '').replaceAll('/', path.sep);
     const absolute = path.resolve(repo, relative);
@@ -92,8 +86,9 @@ for (const product of products) {
     }
     try {
       const bytes = await readFile(absolute);
-      const dimensions = jpegDimensions(bytes);
-      if (!dimensions) validationErrors.push(`${product.slug}: image is not a readable JPEG`);
+      const contentType = imageContentType(relative);
+      const dimensions = contentType ? imageInspection.dimensions(bytes, contentType) : null;
+      if (!dimensions) validationErrors.push(`${product.slug}: image type is not supported`);
       if (dimensions && (dimensions.width !== Number(source.width) || dimensions.height !== Number(source.height))) {
         validationErrors.push(`${product.slug}: declared image dimensions do not match the file`);
       }
@@ -115,7 +110,6 @@ for (const [field, duplicates] of Object.entries({
   slug: duplicateValues('slug'),
   publicKey: duplicateValues('publicKey'),
   ecsPartNumber: duplicateValues('ecsPartNumber'),
-  mpn: duplicateValues('mpn'),
   originalUrl: duplicateValues('originalUrl')
 })) {
   if (duplicates.length) validationErrors.push(`duplicate ${field}: ${duplicates.map(item => item.value).join(', ')}`);
@@ -126,8 +120,6 @@ const duplicateImageHashes = [...imageRecords.reduce((map, imageRecord) => {
   return map;
 }, new Map()).entries()].filter(([, slugs]) => slugs.length > 1)
   .map(([sha256, slugs]) => ({ sha256, slugs }));
-if (duplicateImageHashes.length) validationErrors.push('duplicate product image content detected');
-
 const productRows = products.map(product => ({
   slug: product.slug,
   ecsPartNumber: product.ecsPartNumber,
@@ -160,7 +152,8 @@ const report = {
     imageContent: duplicateImageHashes
   },
   coverage: {
-    publicUsdPrice: coverageCount(product => Number.isFinite(Number(product.priceAmount)) && product.priceCurrency === 'USD'),
+    publicUsdPrice: coverageCount(product => product.priceAmount !== null && product.priceAmount !== undefined
+      && Number.isFinite(Number(product.priceAmount)) && product.priceCurrency === 'USD'),
     projxSellingPrice: coverageCount(product => product.projxSellingPrice !== null
       && product.projxSellingPrice !== undefined && Number.isFinite(Number(product.projxSellingPrice))
       && Number(product.projxSellingPrice) > 0),

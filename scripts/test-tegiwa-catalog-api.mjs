@@ -135,7 +135,7 @@ assert.equal((await invoke(validationHandler, { query: { page: '0' } })).body.er
 assert.equal((await invoke(validationHandler, { query: { page: '1.5' } })).body.error.code, 'invalid_page');
 assert.equal((await invoke(validationHandler, { query: { page: ['1', '2'] } })).body.error.code, 'invalid_page');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', suggest: '1', page: '1' } })).body.error.code, 'invalid_parameters');
-assert.equal((await invoke(validationHandler, { query: { sort: 'relevance' } })).body.error.code, 'invalid_parameters');
+assert.equal((await invoke(validationHandler, { query: { match: 'vehicle' } })).body.error.code, 'invalid_match');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', sort: 'newest' } })).body.error.code, 'invalid_sort');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', availability: 'maybe' } })).body.error.code, 'invalid_availability');
 assert.equal((await invoke(validationHandler, { query: { q: 'brake', pricing: 'trade' } })).body.error.code, 'invalid_pricing');
@@ -250,6 +250,23 @@ const searchHandler = createTegiwaCatalogHandler({
   now: () => FIXED_NOW,
   fetchImpl: noFetch
 });
+
+const filteredBrowse = await invoke(searchHandler, { query: { availability: 'in_stock', sort: 'name_asc' } });
+assert.equal(filteredBrowse.status, 200);
+assert.equal(filteredBrowse.body.mode, 'browse');
+assert.equal(filteredBrowse.body.meta.availability, 'in_stock');
+assert.equal(filteredBrowse.body.meta.sort, 'name_asc');
+assert.ok(filteredBrowse.body.items.length > 0);
+assert.ok(filteredBrowse.body.items.every(item => item.availability.code === 'in_stock'));
+assert.deepEqual(
+  filteredBrowse.body.items.map(item => item.title),
+  [...filteredBrowse.body.items.map(item => item.title)].sort((left, right) => left.localeCompare(right))
+);
+
+const filteredPrices = await invoke(searchHandler, { query: { pricing: 'priced', sort: 'price_desc' } });
+assert.equal(filteredPrices.status, 200);
+assert.ok(filteredPrices.body.items.every(item => item.price.min !== null));
+assert.ok(filteredPrices.body.items[0].price.min >= filteredPrices.body.items[1].price.min);
 
 const searchPageOne = await invoke(searchHandler, { query: { q: 'engine management ecu' } });
 assert.equal(searchPageOne.status, 200);

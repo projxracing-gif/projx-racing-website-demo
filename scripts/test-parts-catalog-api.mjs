@@ -35,6 +35,21 @@ async function invoke(handler, {
   return { status: res.statusCode, headers: res.headers, body: JSON.parse(res.body || '{}') };
 }
 
+async function collectAllItems(handler, query = {}) {
+  const items = [];
+  let cursor = null;
+  for (let page = 0; page < 100; page += 1) {
+    const pageQuery = cursor ? { ...query, cursor } : { ...query };
+    delete pageQuery.page;
+    const response = await invoke(handler, { query: pageQuery });
+    assert.equal(response.status, 200);
+    items.push(...(response.body.items || []));
+    cursor = response.body.nextCursor || null;
+    if (!cursor) return { items, lastResponse: response };
+  }
+  throw new Error('Catalogue pagination did not terminate within 100 pages.');
+}
+
 function row(index, overrides = {}) {
   return {
     id: index + 1,
@@ -127,15 +142,18 @@ const reviewedOnly = createPartsCatalogHandler({
 const reviewedBrowse = await invoke(reviewedOnly);
 assert.equal(reviewedBrowse.status, 200);
 assert.equal(reviewedBrowse.body.mode, 'browse');
-assert.equal(reviewedBrowse.body.items.length, REVIEWED_ECS_COUNT);
+assert.equal(reviewedBrowse.body.items.length, Math.min(100, REVIEWED_ECS_COUNT));
 assert.equal(reviewedBrowse.body.meta.totalResults, REVIEWED_ECS_COUNT);
 assert.equal(reviewedBrowse.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 assert.equal(reviewedBrowse.body.meta.partialCatalogue, true);
 assert.equal(reviewedBrowse.body.meta.catalogueSource, 'reviewed-local-fallback');
 assert.deepEqual(reviewedBrowse.body.meta.suppliers, [{ slug: 'ecs', name: 'ECS Tuning' }]);
 assert.deepEqual(reviewedBrowse.body.meta.currencies, ['USD']);
-assert.equal(new Set(reviewedBrowse.body.items.map(item => item.handle)).size, REVIEWED_ECS_COUNT);
-assert.equal(new Set(reviewedBrowse.body.items.map(item => item.sku)).size, REVIEWED_ECS_COUNT);
+assert.equal(reviewedBrowse.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
+const reviewedAll = await collectAllItems(reviewedOnly);
+assert.equal(reviewedAll.items.length, REVIEWED_ECS_COUNT);
+assert.equal(new Set(reviewedAll.items.map(item => item.handle)).size, REVIEWED_ECS_COUNT);
+assert.equal(new Set(reviewedAll.items.map(item => item.sku)).size, REVIEWED_ECS_COUNT);
 assert.ok(reviewedBrowse.body.items.every(item => item.handle.startsWith('ecs-')));
 assert.ok(reviewedBrowse.body.items.every(item => item.supplier.slug === 'ecs'));
 assert.ok(reviewedBrowse.body.items.every(item => item.price.currency === 'USD'));
@@ -143,7 +161,7 @@ assert.ok(reviewedBrowse.body.items.every(item => item.availability.code === 'ch
 assert.ok(reviewedBrowse.body.items.every(item => item.fitmentConfidence === null));
 
 const staleReviewedOnly = createPartsCatalogHandler({
-  databaseUrl: '', legacyHandler: false, now: () => Date.parse('2026-08-15T00:00:00Z')
+  databaseUrl: '', legacyHandler: false, now: () => Date.parse('2026-08-18T00:00:00Z')
 });
 const staleReviewedBrowse = await invoke(staleReviewedOnly);
 assert.ok(staleReviewedBrowse.body.items.every(item => item.price.min === null));
@@ -212,9 +230,9 @@ const reviewedG8xDetail = await invoke(reviewedOnly, {
   query: { handle: 'ecs-eventuri-g8x-carbon-intake-v2-gloss', supplier: 'ecs', currency: 'USD' }
 });
 assert.equal(reviewedG8xDetail.status, 200);
-assert.deepEqual(new Set(reviewedG8xDetail.body.product.fitments.flatMap(fitment => fitment.chassis)), new Set(['G80', 'G82']));
+assert.deepEqual(new Set(reviewedG8xDetail.body.product.fitments.flatMap(fitment => fitment.chassis)), new Set(['G80', 'G82', 'G87']));
 assert.ok(reviewedG8xDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
-assert.equal(reviewedG8xDetail.body.product.availability.checkedAt, '2026-08-06');
+assert.equal(reviewedG8xDetail.body.product.availability.checkedAt, '2026-08-08');
 assert.ok(reviewedG8xDetail.body.product.descriptionAr);
 
 const reviewedBrandFilter = await invoke(reviewedOnly, { query: { brand: 'csf-cooling' } });
@@ -255,6 +273,35 @@ const reviewedG82Vehicle = await invoke(reviewedOnly, {
   query: { fitment: 'possible', make: 'BMW', model: 'M4', generation: 'G82', year: '2023' }
 });
 assert.ok(reviewedG82Vehicle.body.meta.totalResults >= 10);
+const containsVehicleToken = (values, token) => values.flatMap(value => String(value || '').split(/[^a-z0-9]+/iu))
+  .some(value => value.toLocaleLowerCase('en-US') === token.toLocaleLowerCase('en-US'));
+const expectedG87Count = REVIEWED_ECS_PRODUCTS.filter(product => (product.fitments || []).some(fitment =>
+  containsVehicleToken([fitment.model, ...(fitment.models || [])], 'M2')
+  && containsVehicleToken([fitment.generation, ...(fitment.chassis || [])], 'G87')
+  && containsVehicleToken(fitment.engines || [], 'S58')
+)).length;
+const reviewedG87Vehicle = await invoke(reviewedOnly, {
+  query: { fitment: 'possible', make: 'BMW', model: 'M2', generation: 'G87', engine: 'S58', year: '2024' }
+});
+assert.equal(reviewedG87Vehicle.body.meta.totalResults, expectedG87Count);
+assert.ok(expectedG87Count >= 790);
+assert.ok(reviewedG87Vehicle.body.items.every(item => item.fitmentConfidence === 'possible'));
+
+const placeholderProduct = REVIEWED_ECS_PRODUCTS.find(product => product.imageStatus === 'supplier-media-unavailable');
+assert.ok(placeholderProduct);
+const placeholderDetail = await invoke(reviewedOnly, {
+  query: { handle: placeholderProduct.publicKey, supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(placeholderDetail.body.product.image.status, 'supplier-media-unavailable');
+assert.equal(placeholderDetail.body.product.images[0].status, 'supplier-media-unavailable');
+
+const startingPriceProduct = REVIEWED_ECS_PRODUCTS.find(product => product.priceStartingAt && product.priceAmount > 0);
+assert.ok(startingPriceProduct);
+const startingPriceDetail = await invoke(reviewedOnly, {
+  query: { handle: startingPriceProduct.publicKey, supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(startingPriceDetail.body.product.price.startingAt, true);
+assert.equal(startingPriceDetail.body.product.price.min, startingPriceProduct.priceAmount);
 assert.equal((await invoke(reviewedOnly, {
   query: { fitment: 'exact', make: 'BMW', model: 'M3' }
 })).body.meta.totalResults, 0);
@@ -280,7 +327,9 @@ assert.equal(reviewedSuggestions.status, 200);
 assert.ok(reviewedSuggestions.body.suggestions.length >= 2);
 assert.ok(reviewedSuggestions.body.suggestions.every(item => item.supplier.slug === 'ecs'));
 
+const legacyFallbackRequests = [];
 async function legacyFallbackHandler(req, res) {
+  legacyFallbackRequests.push({ ...(req.query || {}) });
   const page = Number(req.query?.page || 1);
   const start = (page - 1) * 100;
   const all = Array.from({ length: 250 }, (_, index) => ({
@@ -340,17 +389,46 @@ assert.equal(mergedPageOne.status, 200);
 assert.equal(mergedPageOne.body.items.length, 100);
 assert.equal(mergedPageOne.body.meta.totalResults, 250 + REVIEWED_ECS_COUNT);
 assert.equal(mergedPageOne.body.meta.catalogProductCount, 250 + REVIEWED_ECS_COUNT);
-assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'ecs').length, REVIEWED_ECS_COUNT);
-assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'tegiwa').length, 100 - REVIEWED_ECS_COUNT);
-assert.equal(mergedPageOne.body.items[REVIEWED_ECS_COUNT].handle, 'tegiwa-legacy-1');
+assert.equal(mergedPageOne.body.meta.sortScope, 'supplier-groups');
+assert.match(mergedPageOne.body.meta.sortNote, /USD and GBP prices are not converted or compared/);
+assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'ecs').length, Math.min(100, REVIEWED_ECS_COUNT));
+assert.equal(mergedPageOne.body.items.filter(item => item.supplier.slug === 'tegiwa').length,
+  Math.max(0, 100 - REVIEWED_ECS_COUNT));
 const mergedPageTwo = await invoke(mergedFallback, { query: { cursor: mergedPageOne.body.nextCursor } });
 assert.equal(mergedPageTwo.status, 200);
 assert.equal(mergedPageTwo.body.items.length, 100);
-assert.equal(mergedPageTwo.body.items[0].handle, `tegiwa-legacy-${101 - REVIEWED_ECS_COUNT}`);
 assert.equal(new Set([
   ...mergedPageOne.body.items.map(item => item.handle),
   ...mergedPageTwo.body.items.map(item => item.handle)
 ]).size, 200);
+const mergedAll = await collectAllItems(mergedFallback);
+assert.equal(mergedAll.items.length, 250 + REVIEWED_ECS_COUNT);
+assert.equal(new Set(mergedAll.items.map(item => item.handle)).size, 250 + REVIEWED_ECS_COUNT);
+assert.equal(mergedAll.items.filter(item => item.supplier.slug === 'ecs').length, REVIEWED_ECS_COUNT);
+assert.equal(mergedAll.items.filter(item => item.supplier.slug === 'tegiwa').length, 250);
+
+legacyFallbackRequests.length = 0;
+const blankInStockSort = await invoke(mergedFallback, {
+  query: { availability: 'in_stock', sort: 'name_asc' }
+});
+assert.equal(blankInStockSort.status, 200);
+assert.equal(blankInStockSort.body.meta.totalResults, 250);
+assert.equal(blankInStockSort.body.meta.sortScope, 'single-supplier-or-currency');
+assert.ok(blankInStockSort.body.items.every(item => item.supplier.slug === 'tegiwa'));
+assert.ok(legacyFallbackRequests.some(request => request.availability === 'in_stock' && request.sort === 'name_asc'),
+  'Blank-search availability and name sorting must fall through to the Tegiwa supplier catalogue.');
+
+legacyFallbackRequests.length = 0;
+const blankMixedPriceSort = await invoke(mergedFallback, {
+  query: { pricing: 'priced', sort: 'price_desc' }
+});
+assert.equal(blankMixedPriceSort.status, 200);
+assert.equal(blankMixedPriceSort.body.meta.sortScope, 'supplier-groups');
+assert.match(blankMixedPriceSort.body.meta.sortNote, /Sorting is applied within each supplier/);
+assert.ok(blankMixedPriceSort.body.items.every(item => item.price.currency === 'USD'),
+  'The first mixed-catalogue block must retain ECS USD prices without comparing them to GBP.');
+assert.ok(legacyFallbackRequests.some(request => request.pricing === 'priced' && request.sort === 'price_desc'),
+  'Blank-search pricing and price sorting must be passed to the supplier catalogue.');
 
 for (const exactIdentifier of ['034-105-D300', 'ES#4877039']) {
   const exactMergedSearch = await invoke(mergedFallback, { query: { q: exactIdentifier } });
@@ -419,7 +497,7 @@ const incompleteDatabaseEcs = createPartsCatalogHandler({
 });
 const incompleteDatabaseFallback = await invoke(incompleteDatabaseEcs);
 assert.equal(incompleteDatabaseFallback.status, 200);
-assert.equal(incompleteDatabaseFallback.body.items.length, REVIEWED_ECS_COUNT);
+assert.equal(incompleteDatabaseFallback.body.items.length, Math.min(100, REVIEWED_ECS_COUNT));
 assert.equal(incompleteDatabaseFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
 assert.equal(incompleteDatabaseFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 
@@ -581,6 +659,18 @@ const bridgeRequest = __test.parseRequest({
   query: { year: '2024', make: 'BMW', model: 'M3' },
   url: '/api/parts-catalog', headers: {}
 });
+const mixedCurrencySortRequest = __test.parseRequest({
+  query: { sort: 'price_asc' }, url: '/api/parts-catalog', headers: {}
+});
+assert.match(__test.buildListQuery(mixedCurrencySortRequest).text,
+  /ORDER BY s\.slug ASC, offer\.currency ASC NULLS LAST, offer\.price_min ASC NULLS LAST/,
+  'All-supplier price sorting must group suppliers before ordering prices within their original currency.');
+const scopedSupplierSortRequest = __test.parseRequest({
+  query: { supplier: 'ecs', currency: 'USD', sort: 'price_asc' },
+  url: '/api/parts-catalog', headers: {}
+});
+assert.doesNotMatch(__test.buildListQuery(scopedSupplierSortRequest).text, /ORDER BY s\.slug ASC/,
+  'Selecting a supplier or currency must preserve normal supplier-specific sorting.');
 const bridgeListSql = __test.buildListQuery(bridgeRequest);
 const bridgeCountSql = __test.buildCountQuery(bridgeRequest);
 for (const statement of [bridgeListSql, bridgeCountSql]) {
@@ -734,12 +824,16 @@ assert.equal(Object.hasOwn(safeVerifiedCatalogue.body.meta, 'catalogueListingCou
 const fullEcsCatalogue = await invoke(discoveryEnabled, { query: { supplier: 'ecs', page: '1' } });
 assert.equal(fullEcsCatalogue.status, 200);
 assert.equal(fullEcsCatalogue.body.mode, 'browse');
-assert.equal(fullEcsCatalogue.body.items.length, REVIEWED_ECS_COUNT);
+assert.equal(fullEcsCatalogue.body.items.length, Math.min(100, REVIEWED_ECS_COUNT));
 assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, REVIEWED_ECS_COUNT);
 assert.equal(fullEcsCatalogue.body.meta.totalResults, REVIEWED_ECS_COUNT);
-assert.equal(fullEcsCatalogue.body.meta.totalPages, 1);
+assert.equal(fullEcsCatalogue.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
 assert.ok(fullEcsCatalogue.body.items.every(item => item.title && item.sku && item.image?.src));
 assert.ok(fullEcsCatalogue.body.items.every(item => item.dataStatus !== 'url_discovered'));
+const fullEcsItems = await collectAllItems(discoveryEnabled, { supplier: 'ecs' });
+assert.equal(fullEcsItems.items.length, REVIEWED_ECS_COUNT);
+assert.equal(new Set(fullEcsItems.items.map(item => item.handle)).size, REVIEWED_ECS_COUNT);
+assert.equal(new Set(fullEcsItems.items.map(item => item.sku)).size, REVIEWED_ECS_COUNT);
 for (const field of ['catalogueListingCount', 'verifiedSearchableProductCount', 'ecsUrlReferenceCount',
   'ecsCatalogueListingCount', 'ecsReferenceOnlyCount', 'reviewedOutsideDiscoveryCount']) {
   assert.equal(Object.hasOwn(fullEcsCatalogue.body.meta, field), false);

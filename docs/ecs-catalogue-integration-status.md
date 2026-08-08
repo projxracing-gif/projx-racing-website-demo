@@ -1,22 +1,22 @@
 # ECS catalogue integration status
 
-Status date: 6 August 2026
+Status date: 8 August 2026
 
 ## Verified outcome
 
-The reviewed collection contains exactly **41 ECS Tuning products**. The catalogue audit passes with:
+The customer-facing ECS collection now contains **1,134 unique products**. This is the duplicate-safe merge of the 41 earlier manually reviewed records with 1,109 products captured from every listed Performance branch for BMW G87 M2, G80 M3 Competition and G82 M4 Competition; 16 products overlap the earlier set. The current audit passes with:
 
-- 41 unique storefront slugs and global `ecs-...` public handles;
-- 41 unique ECS part numbers;
-- 41 unique manufacturer MPNs;
-- 41 unique canonical ECS product URLs;
-- 43 unique local image hashes across the 41 products;
-- 41 reviewed public USD supplier prices dated 4 or 6 August 2026;
-- 41 bilingual titles, summaries and primary-image alternative texts;
-- possible-only supplier-title fitment evidence for all 41 products; and
-- 0 structured independently verified exact-fitment records, 0 live-stock claims and 0 duplicate products.
+- 1,134 unique ECS identities and storefront handles;
+- 1,109 newly generated G-Series records from 2,656 official listing observations;
+- 1,547 duplicate vehicle/category observations merged without duplicate products;
+- 824 generated products with verified product-specific media;
+- 285 generated products using a visibly labelled official ECS media-unavailable placeholder;
+- 1,101 generated products with a public USD price observation, including 71 `From` prices;
+- 8 generated products held at `Request price`, including 6 conflicting price observations and 2 zero-price configurators;
+- 767 unique, checksum-verified local media files used by 779 source-image mappings; and
+- possible-only ECS vehicle-category fitment evidence, confirmation-only availability and no claimed live stock.
 
-The unified API now exposes the records when the database is unconfigured, unpublished or has not yet seeded ECS. The server merges the 41 reviewed ECS cards ahead of the existing Tegiwa fallback, uses stable global pagination, and returns a `partialCatalogue` marker. Filtering is supported for ECS supplier, brand, category/subcategory, USD pricing, confirmation-required availability, make, model, available chassis/year/engine evidence and possible fitment. Exact-fitment filtering returns no ECS records because none is independently verified.
+The generated scope contains 799 G87 M2, 909 G80 M3 and 899 G82 M4 unique matches. The unified API also returns one compatible earlier reviewed product for each saved vehicle, producing current ECS-filter result totals of 800, 910 and 900 respectively. Filtering supports supplier, brand, category/subcategory, USD pricing, confirmation-required availability, saved vehicle, model, chassis, engine and possible fitment. Exact-fitment filtering returns no ECS records because the supplier-category placement has not been independently verified against a VIN.
 
 ## Private ECS discovery queue
 
@@ -30,11 +30,11 @@ The ECS sitemap inventory is retained as private ingestion data only. It is not 
 
 The earlier preview incorrectly exposed URL-derived cards and added URL counts to the public product total. That path has been removed. The public discovery API now fails closed, normal ECS browsing returns reviewed structured products only, and the UI rejects a stale response containing `url_discovered` records.
 
-Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **193,294 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
+Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **194,387 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
 
 ## ECS image coverage
 
-All **41 reviewed ECS products** have a unique, readable local primary product image. Forty use 800 by 600 media; the 034Motorsport clamp includes three 1200 by 1200 product views. All 43 local image files have unique hashes. The signed discovery manifests contain **1,361,533 canonical URL strings and zero image fields**, so those private intake records do not have an accurate supplier image mapping and are never rendered as product cards.
+All 41 legacy reviewed ECS products retain their approved local media. In the generated G-Series Performance scope, **824 products have verified product-specific media** and **285 use a visibly labelled official ECS placeholder** because no product-specific image was present in the captured supplier listing. The 779 source-image mappings resolve to 767 unique local files with verified hashes and readable JPEG, PNG or WebP signatures. Supplier watermarks are preserved.
 
 Completing ECS image coverage requires an authorised ECS number, manufacturer part number or canonical URL to image mapping. Imported media must be validated, checksummed, deduplicated, kept with its supplier attribution or watermark intact, mirrored to approved object storage and reviewed before publication. Search thumbnails, guessed images and watermark removal are not acceptable substitutes.
 
@@ -98,20 +98,17 @@ This 26-product batch was manually reviewed on 6 August 2026 from ECS vehicle-ca
 
 ## Data still missing
 
-These gaps apply to all 41 products unless stated otherwise:
+The generated G-Series scope still has these controlled supplier-data gaps:
 
-- verified detailed supplier description: missing for 40;
-- verified technical specifications: missing for 40;
-- verified product options: missing for 41;
-- verified variations: missing for 41;
-- independently verified exact vehicle fitment: missing for 41;
-- drivetrain fitment: missing for 41;
-- Projx Racing selling price: missing for 41;
-- live supplier stock feed: missing for 41;
-- additional approved product gallery images: missing for 40; and
-- model-year ranges: present for 5, missing for 36.
+- detailed description missing for 13 products;
+- manufacturer brand missing for 53 products;
+- product-specific media missing for 285 products, which use a labelled supplier placeholder;
+- a publishable public price missing for 8 products;
+- independently verified exact vehicle/VIN fitment missing for all generated products;
+- Projx Racing selling price missing for all generated products; and
+- live ECS stock feed unavailable for all products.
 
-The source observations include a manually checked availability phrase for each product, but the API deliberately returns `check_availability`. Supplier dispatch estimates are retained as dated observations only and are not published as guaranteed delivery times.
+Supplier availability phrases and public prices are dated observations from 8 August 2026. The API deliberately requires confirmation and does not publish them as guaranteed live stock, delivery times or final Projx selling prices.
 
 ## Permission and completion blocker
 
