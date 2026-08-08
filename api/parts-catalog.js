@@ -24,6 +24,11 @@ const PRICING_FILTERS = new Set(['all', 'priced', 'request_price']);
 const MATCHES = new Set(['any', 'vehicle']);
 const FITMENT_FILTERS = new Set(['all', 'exact', 'possible']);
 const IDENTIFIER_KINDS = "'sku', 'mpn', 'ecs'";
+const REVIEWED_ECS_SENTINEL_KEYS = Object.freeze([
+  'ecs-es-4508291', // G87 Exterior-only capture sentinel
+  'ecs-es-3469066', // G80 Exterior-only capture sentinel
+  'ecs-es-4563907' // G82 Exterior-only capture sentinel
+]);
 
 class PublicApiError extends Error {
   constructor(status, code, message) {
@@ -514,9 +519,11 @@ function buildStatsQuery() {
   return {
     text: `/* parts-catalog:stats */
       WITH current_products AS (
-        SELECT p.id, p.supplier_id
+        SELECT p.id, p.supplier_id, p.public_key, p.brand_id, p.primary_part_type_id,
+          s.slug AS supplier_slug
         FROM products p
         JOIN catalog_state cs ON cs.supplier_id = p.supplier_id AND cs.current_import_id = p.import_id
+        JOIN suppliers s ON s.id = p.supplier_id
         WHERE p.active
       ), current_offers AS (
         SELECT cp.id AS product_id, o.currency, o.price_minor, o.availability_code,
@@ -527,6 +534,9 @@ function buildStatsQuery() {
       )
       SELECT
         (SELECT COUNT(*) FROM current_products) AS catalog_product_count,
+        (SELECT COUNT(*) FROM current_products
+          WHERE supplier_slug = 'ecs'
+            AND public_key IN (${REVIEWED_ECS_SENTINEL_KEYS.map(key => `'${key}'`).join(', ')})) AS reviewed_ecs_sentinel_count,
         (SELECT COUNT(DISTINCT product_id) FROM current_offers
           WHERE availability_code IN ('in_stock', 'supplier_stock', 'available_to_order')
             AND (stock_expires_at IS NULL OR stock_expires_at >= now())) AS available_product_count,
@@ -543,6 +553,22 @@ function buildStatsQuery() {
             FROM suppliers s JOIN current_products cp ON cp.supplier_id = s.id
             GROUP BY s.id, s.slug, s.display_name
           ) x) AS suppliers,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'slug', x.slug, 'name', x.name, 'productCount', x.product_count
+        ) ORDER BY x.name), '[]'::jsonb)
+          FROM (
+            SELECT b.slug, b.name, COUNT(*) AS product_count
+            FROM current_products cp JOIN brands b ON b.id = cp.brand_id
+            GROUP BY b.id, b.slug, b.name
+          ) x) AS brands,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'slug', x.slug, 'name', x.name_en, 'nameAr', x.name_ar, 'productCount', x.product_count
+        ) ORDER BY x.name_en), '[]'::jsonb)
+          FROM (
+            SELECT pt.slug, pt.name_en, pt.name_ar, COUNT(*) AS product_count
+            FROM current_products cp JOIN part_types pt ON pt.id = cp.primary_part_type_id
+            GROUP BY pt.id, pt.slug, pt.name_en, pt.name_ar
+          ) x) AS part_types,
         (SELECT COALESCE(jsonb_agg(x.currency ORDER BY x.currency), '[]'::jsonb)
           FROM (SELECT DISTINCT currency FROM current_offers) x) AS currencies`,
     values: []
@@ -751,13 +777,21 @@ function cardFromRow(row, nowValue) {
 }
 
 function statsFromRow(row = {}) {
-  const suppliers = parseArray(row.suppliers, 100).map(value => {
-    const supplier = {
+  const parseFacets = (values, maximum = 10_000) => parseArray(values, maximum).map(value => {
+    const facet = {
       slug: safeOutputText(value?.slug, 100), name: safeOutputText(value?.name, 160)
     };
+    const nameAr = safeOutputText(value?.nameAr, 160);
     const productCount = boundedInteger(value?.productCount, null, 100_000_000);
-    return productCount === null ? supplier : { ...supplier, productCount };
+    return {
+      ...facet,
+      ...(nameAr ? { nameAr } : {}),
+      ...(productCount === null ? {} : { productCount })
+    };
   }).filter(value => value.slug && value.name);
+  const suppliers = parseFacets(row.suppliers, 100);
+  const brands = parseFacets(row.brands);
+  const partTypes = parseFacets(row.part_types);
   const currencies = parseArray(row.currencies, 30).map(value => safeOutputText(value, 3))
     .filter(value => /^[A-Z]{3}$/.test(value));
   return {
@@ -767,7 +801,10 @@ function statsFromRow(row = {}) {
     availableProductCount: boundedInteger(row.available_product_count, 0, 100_000_000),
     checkedAt: row.checked_at || null,
     stockSnapshotStale: boundedInteger(row.stale_offer_count, 0, 100_000_000) > 0,
+    reviewedEcsSentinelCount: boundedInteger(row.reviewed_ecs_sentinel_count, null, REVIEWED_ECS_SENTINEL_KEYS.length),
     suppliers,
+    brands,
+    partTypes,
     currencies
   };
 }
@@ -782,7 +819,10 @@ function requirePublishedCatalogue(row) {
 
 function catalogueIncludesReviewedEcs(stats, expectedCount = REVIEWED_ECS_PRODUCTS.length) {
   const ecs = stats.suppliers.find(supplier => supplier.slug === 'ecs');
-  return Boolean(ecs) && (ecs.productCount === undefined || ecs.productCount >= expectedCount);
+  const countReady = Boolean(ecs) && (ecs.productCount === undefined || ecs.productCount >= expectedCount);
+  const sentinelReady = stats.reviewedEcsSentinelCount === null
+    || stats.reviewedEcsSentinelCount === REVIEWED_ECS_SENTINEL_KEYS.length;
+  return countReady && sentinelReady;
 }
 
 function filtersMeta(request) {

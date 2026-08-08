@@ -62,9 +62,21 @@ assert.match(app, /const requestedMatch = trigger\?\.dataset\.tegiwaDirectoryMat
   'Directory searches must distinguish featured-vehicle shortcuts from saved-vehicle part searches.');
 assert.doesNotMatch(app.slice(app.indexOf('function savePartsVehicle'), app.indexOf('function updatePartsVehicleCascades')), /partsVehicleCatalogueQuery\(\)/);
 
-for (const filter of ['sort', 'availability', 'pricing', 'supplier', 'currency', 'fitment']) {
+for (const filter of ['sort', 'availability', 'pricing', 'supplier', 'brand', 'partType', 'currency', 'fitment']) {
   assert.match(partsPage, new RegExp(`data-tegiwa-filter="${filter}"`), `Unified ${filter} filter is missing.`);
 }
+assert.match(app, /params\.set\("brand", state\.tegiwaCatalog\.brand\)/,
+  'Brand filters must be sent to the unified catalogue API.');
+assert.match(app, /params\.set\("partType", state\.tegiwaCatalog\.partType\)/,
+  'Part-type filters must be sent to the unified catalogue API.');
+assert.match(app, /state\.locale === "ar" \? item\.nameAr \|\| item\.name : item\.name/,
+  'Arabic facet controls must prefer localized category names.');
+assert.match(app, /data-tegiwa-directory-part-type=/,
+  'Exact supplier part-type keys must be attached to directory controls.');
+assert.match(app, /partType:\s*"exterior"/,
+  'The Exterior directory must include an exact all-Exterior scope.');
+assert.match(app, /Object\.assign\(state\.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, \{\s*supplier: requestedSupplier,\s*partType: requestedPartType/s,
+  'Directory choices must clear stale catalogue filters before applying an exact part type.');
 assert.match(partsPage, /data-tegiwa-sort-note/,
   'Mixed-supplier sort qualification must be visible beside the sort control.');
 assert.match(app, /tegiwaSortSupplierOrder:\s*"Supplier catalogue order"/);
@@ -99,6 +111,8 @@ assert.match(app, /price\.startingAt \? `\$\{storeText\(\)\.startingAt\}/,
 assert.match(app, /image\.status === "supplier-media-unavailable"/,
   'Official supplier placeholders must be visibly labelled.');
 assert.match(styles, /\.tegiwa-image-placeholder/);
+assert.match(styles, /\.tegiwa-stock-badge[^}]*max-width:\s*calc\(100% - 24px\)[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s,
+  'Mobile stock badges must wrap inside their 12px card insets.');
 assert.match(app, /item\.supplier\?\.name/);
 assert.match(app, /item\.fitmentConfidence === "exact"/);
 assert.match(app, /selectedVehicleFitmentConfidence\(product\)/);

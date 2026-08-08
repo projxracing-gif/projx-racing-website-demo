@@ -7484,10 +7484,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4883843",
     "title": "Remote Vacuum Exhaust Valve Control Kit",
     "titleAr": "Remote Vacuum Exhaust Valve Control Kit",
-    "summary": "Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers. 10X Entries For Our Spin To Win Sweepstakes!",
-    "summaryAr": "وصف المورد الأصلي: Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers. 10X Entries For Our Spin To Win Sweepstakes!",
-    "description": "Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers. 10X Entries For Our Spin To Win Sweepstakes!",
-    "descriptionAr": "وصف المورد الأصلي: Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers. 10X Entries For Our Spin To Win Sweepstakes!",
+    "summary": "Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers.",
+    "summaryAr": "وصف المورد الأصلي: Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers.",
+    "description": "Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers.",
+    "descriptionAr": "وصف المورد الأصلي: Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers.",
     "detailedDescriptionAvailable": true,
     "brand": "ECS",
     "brandSlug": "ecs",
@@ -7686,7 +7686,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Remote Vacuum Exhaust Valve Control Kit | Projx Racing",
-      "metaDescription": "Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers. 10X Entries For Our Spin To Win Sweepstakes!",
+      "metaDescription": "Control your exhaust valves with the click of a button! Includes a standalone vacuum pump, wiring, vacuum hose, and controllers.",
       "path": "/parts/es-4883843/"
     },
     "relatedProductSlugs": [
@@ -9429,10 +9429,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4375699",
     "title": "Sport Spring Set",
     "titleAr": "Sport Spring Set",
-    "summary": "H&R Lowering Springs! We Price Match - Give Us A Call or Chat! For 2026+ M2 CS models only with Adaptive Suspension",
-    "summaryAr": "وصف المورد الأصلي: H&R Lowering Springs! We Price Match - Give Us A Call or Chat! For 2026+ M2 CS models only with Adaptive Suspension",
-    "description": "H&R Lowering Springs! We Price Match - Give Us A Call or Chat! For 2026+ M2 CS models only with Adaptive Suspension",
-    "descriptionAr": "وصف المورد الأصلي: H&R Lowering Springs! We Price Match - Give Us A Call or Chat! For 2026+ M2 CS models only with Adaptive Suspension",
+    "summary": "H&R Lowering Springs! For 2026+ M2 CS models only with Adaptive Suspension",
+    "summaryAr": "وصف المورد الأصلي: H&R Lowering Springs! For 2026+ M2 CS models only with Adaptive Suspension",
+    "description": "H&R Lowering Springs! For 2026+ M2 CS models only with Adaptive Suspension",
+    "descriptionAr": "وصف المورد الأصلي: H&R Lowering Springs! For 2026+ M2 CS models only with Adaptive Suspension",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -9600,7 +9600,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Sport Spring Set | Projx Racing",
-      "metaDescription": "H&R Lowering Springs! We Price Match - Give Us A Call or Chat! For 2026+ M2 CS models only with Adaptive Suspension",
+      "metaDescription": "H&R Lowering Springs! For 2026+ M2 CS models only with Adaptive Suspension",
       "path": "/parts/es-4375699/"
     },
     "relatedProductSlugs": [
@@ -13807,10 +13807,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4430972",
     "title": "G80 H&R Super Sport Springs",
     "titleAr": "G80 H&R Super Sport Springs",
-    "summary": "A tasteful upgrade from a high quality brand! We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: A tasteful upgrade from a high quality brand! We Price Match - Give Us A Call or Chat!",
-    "description": "A tasteful upgrade from a high quality brand! We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: A tasteful upgrade from a high quality brand! We Price Match - Give Us A Call or Chat!",
+    "summary": "A tasteful upgrade from a high quality brand!",
+    "summaryAr": "وصف المورد الأصلي: A tasteful upgrade from a high quality brand!",
+    "description": "A tasteful upgrade from a high quality brand!",
+    "descriptionAr": "وصف المورد الأصلي: A tasteful upgrade from a high quality brand!",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -13947,7 +13947,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "G80 H&R Super Sport Springs | Projx Racing",
-      "metaDescription": "A tasteful upgrade from a high quality brand! We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "A tasteful upgrade from a high quality brand!",
       "path": "/parts/es-4430972/"
     },
     "relatedProductSlugs": [
@@ -20756,10 +20756,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4811073",
     "title": "Ethanol Content Sensor",
     "titleAr": "Ethanol Content Sensor",
-    "summary": "Add in A Genuine VDO Ethanol Sensor! We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Add in A Genuine VDO Ethanol Sensor! We Price Match - Give Us A Call or Chat!",
-    "description": "Add in A Genuine VDO Ethanol Sensor! We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Add in A Genuine VDO Ethanol Sensor! We Price Match - Give Us A Call or Chat!",
+    "summary": "Add in A Genuine VDO Ethanol Sensor!",
+    "summaryAr": "وصف المورد الأصلي: Add in A Genuine VDO Ethanol Sensor!",
+    "description": "Add in A Genuine VDO Ethanol Sensor!",
+    "descriptionAr": "وصف المورد الأصلي: Add in A Genuine VDO Ethanol Sensor!",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -20958,7 +20958,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Ethanol Content Sensor | Projx Racing",
-      "metaDescription": "Add in A Genuine VDO Ethanol Sensor! We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Add in A Genuine VDO Ethanol Sensor!",
       "path": "/parts/es-4811073/"
     },
     "relatedProductSlugs": [
@@ -22670,10 +22670,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4372226",
     "title": "Sport Spring Set",
     "titleAr": "Sport Spring Set",
-    "summary": "Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear We Price Match - Give Us A Call or Chat! For vehicles with Sport Or Adaptive M Suspension",
-    "summaryAr": "وصف المورد الأصلي: Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear We Price Match - Give Us A Call or Chat! For vehicles with Sport Or Adaptive M Suspension",
-    "description": "Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear We Price Match - Give Us A Call or Chat! For vehicles with Sport Or Adaptive M Suspension",
-    "descriptionAr": "وصف المورد الأصلي: Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear We Price Match - Give Us A Call or Chat! For vehicles with Sport Or Adaptive M Suspension",
+    "summary": "Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear For vehicles with Sport Or Adaptive M Suspension",
+    "summaryAr": "وصف المورد الأصلي: Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear For vehicles with Sport Or Adaptive M Suspension",
+    "description": "Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear For vehicles with Sport Or Adaptive M Suspension",
+    "descriptionAr": "وصف المورد الأصلي: Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear For vehicles with Sport Or Adaptive M Suspension",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -22810,7 +22810,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Sport Spring Set | Projx Racing",
-      "metaDescription": "Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear We Price Match - Give Us A Call or Chat! For vehicles with Sport Or Adaptive M Suspension",
+      "metaDescription": "Unrivaled comfort and performance - Average lowering of 1.2\" Front and 0.4\" Rear For vehicles with Sport Or Adaptive M Suspension",
       "path": "/parts/es-4372226/"
     },
     "relatedProductSlugs": [
@@ -26616,10 +26616,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4727704",
     "title": "Sport Spring Set",
     "titleAr": "Sport Spring Set",
-    "summary": "Average lowering of 1.2\"F and .75\"R We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Average lowering of 1.2\"F and .75\"R We Price Match - Give Us A Call or Chat!",
-    "description": "Average lowering of 1.2\"F and .75\"R We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Average lowering of 1.2\"F and .75\"R We Price Match - Give Us A Call or Chat!",
+    "summary": "Average lowering of 1.2\"F and .75\"R",
+    "summaryAr": "وصف المورد الأصلي: Average lowering of 1.2\"F and .75\"R",
+    "description": "Average lowering of 1.2\"F and .75\"R",
+    "descriptionAr": "وصف المورد الأصلي: Average lowering of 1.2\"F and .75\"R",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -26756,7 +26756,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Sport Spring Set | Projx Racing",
-      "metaDescription": "Average lowering of 1.2\"F and .75\"R We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Average lowering of 1.2\"F and .75\"R",
       "path": "/parts/es-4727704/"
     },
     "relatedProductSlugs": [
@@ -31875,10 +31875,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-3691685",
     "title": "15mm DR Series Trak Wheel Spacers (Black) - Pair",
     "titleAr": "15mm DR Series Trak Wheel Spacers (Black) - Pair",
-    "summary": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
+    "description": "Fine tune your stance and improve handling",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -32015,7 +32015,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "15mm DR Series Trak Wheel Spacers (Black) - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling",
       "path": "/parts/es-3691685/"
     },
     "relatedProductSlugs": [
@@ -41934,10 +41934,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-2986700",
     "title": "15mm DR Series Trak Wheel Spacers - Pair",
     "titleAr": "15mm DR Series Trak Wheel Spacers - Pair",
-    "summary": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
+    "description": "Fine tune your stance and improve handling",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -42074,7 +42074,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "15mm DR Series Trak Wheel Spacers - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling",
       "path": "/parts/es-2986700/"
     },
     "relatedProductSlugs": [
@@ -45694,10 +45694,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4872123",
     "title": "220MM Coilover Damping Extensions",
     "titleAr": "220MM Coilover Damping Extensions",
-    "summary": "Adjust your damping without removing your interior! 10X Entries For Our Spin To Win Sweepstakes!",
-    "summaryAr": "وصف المورد الأصلي: Adjust your damping without removing your interior! 10X Entries For Our Spin To Win Sweepstakes!",
-    "description": "Adjust your damping without removing your interior! 10X Entries For Our Spin To Win Sweepstakes!",
-    "descriptionAr": "وصف المورد الأصلي: Adjust your damping without removing your interior! 10X Entries For Our Spin To Win Sweepstakes!",
+    "summary": "Adjust your damping without removing your interior!",
+    "summaryAr": "وصف المورد الأصلي: Adjust your damping without removing your interior!",
+    "description": "Adjust your damping without removing your interior!",
+    "descriptionAr": "وصف المورد الأصلي: Adjust your damping without removing your interior!",
     "detailedDescriptionAvailable": true,
     "brand": "ECS",
     "brandSlug": "ecs",
@@ -45896,7 +45896,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "220MM Coilover Damping Extensions | Projx Racing",
-      "metaDescription": "Adjust your damping without removing your interior! 10X Entries For Our Spin To Win Sweepstakes!",
+      "metaDescription": "Adjust your damping without removing your interior!",
       "path": "/parts/es-4872123/"
     },
     "relatedProductSlugs": [
@@ -51330,10 +51330,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4148390",
     "title": "13mm DR Series Trak Wheel Spacers (Black) - Pair",
     "titleAr": "13mm DR Series Trak Wheel Spacers (Black) - Pair",
-    "summary": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
+    "description": "Fine tune your stance and improve handling",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -51470,7 +51470,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "13mm DR Series Trak Wheel Spacers (Black) - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling",
       "path": "/parts/es-4148390/"
     },
     "relatedProductSlugs": [
@@ -52951,10 +52951,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-3677798",
     "title": "11mm DR Series Trak Wheel Spacers (Black) - Pair",
     "titleAr": "11mm DR Series Trak Wheel Spacers (Black) - Pair",
-    "summary": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
+    "description": "Fine tune your stance and improve handling",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -53091,7 +53091,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "11mm DR Series Trak Wheel Spacers (Black) - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling",
       "path": "/parts/es-3677798/"
     },
     "relatedProductSlugs": [
@@ -53359,10 +53359,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4159862",
     "title": "25mm DRA Series Trak Wheel Spacers (Black) - Pair",
     "titleAr": "25mm DRA Series Trak Wheel Spacers (Black) - Pair",
-    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -53530,7 +53530,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "25mm DRA Series Trak Wheel Spacers (Black) - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
       "path": "/parts/es-4159862/"
     },
     "relatedProductSlugs": [
@@ -55158,10 +55158,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4920938",
     "title": "Turner Motorsport Skid Plate - Wrinkle Black Powder Coat Finish & Carbon Fiber Front Lip - G80 G82 M3/M4",
     "titleAr": "Turner Motorsport Skid Plate - Wrinkle Black Powder Coat Finish & Carbon Fiber Front Lip - G80 G82 M3/M4",
-    "summary": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "summaryAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "description": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "descriptionAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+    "summary": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
+    "summaryAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
+    "description": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
+    "descriptionAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
     "detailedDescriptionAvailable": true,
     "brand": "Enthusiast Bundles",
     "brandSlug": "enthusiast-bundles",
@@ -55329,7 +55329,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Turner Motorsport Skid Plate - Wrinkle Black Powder Coat Finish & Carbon Fiber Front Lip - G80 G82 M3/M4 | Projx Racing",
-      "metaDescription": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+      "metaDescription": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
       "path": "/parts/es-4920938/"
     },
     "relatedProductSlugs": [
@@ -55351,10 +55351,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-3032140",
     "title": "11mm DR Series Trak Wheel Spacers - Pair",
     "titleAr": "11mm DR Series Trak Wheel Spacers - Pair",
-    "summary": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
+    "description": "Fine tune your stance and improve handling",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -55491,7 +55491,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "11mm DR Series Trak Wheel Spacers - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling",
       "path": "/parts/es-3032140/"
     },
     "relatedProductSlugs": [
@@ -55961,10 +55961,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4415833",
     "title": "VTF Adjustable Lowering Springs (RWD) - H&R",
     "titleAr": "VTF Adjustable Lowering Springs (RWD) - H&R",
-    "summary": "H&R G80, and G82 lowering springs with height adjustment! We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: H&R G80, and G82 lowering springs with height adjustment! We Price Match - Give Us A Call or Chat!",
-    "description": "H&R G80, and G82 lowering springs with height adjustment! We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: H&R G80, and G82 lowering springs with height adjustment! We Price Match - Give Us A Call or Chat!",
+    "summary": "H&R G80, and G82 lowering springs with height adjustment!",
+    "summaryAr": "وصف المورد الأصلي: H&R G80, and G82 lowering springs with height adjustment!",
+    "description": "H&R G80, and G82 lowering springs with height adjustment!",
+    "descriptionAr": "وصف المورد الأصلي: H&R G80, and G82 lowering springs with height adjustment!",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -56163,7 +56163,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "VTF Adjustable Lowering Springs (RWD) - H&R | Projx Racing",
-      "metaDescription": "H&R G80, and G82 lowering springs with height adjustment! We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "H&R G80, and G82 lowering springs with height adjustment!",
       "path": "/parts/es-4415833/"
     },
     "relatedProductSlugs": [
@@ -56795,10 +56795,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4765790",
     "title": "Turner Motorsport Skid Plate - Milled Finish & Carbon Fiber Front Lip - G80 G82 M3/M4",
     "titleAr": "Turner Motorsport Skid Plate - Milled Finish & Carbon Fiber Front Lip - G80 G82 M3/M4",
-    "summary": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "summaryAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "description": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "descriptionAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+    "summary": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
+    "summaryAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
+    "description": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
+    "descriptionAr": "وصف المورد الأصلي: Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
     "detailedDescriptionAvailable": true,
     "brand": "Enthusiast Bundles",
     "brandSlug": "enthusiast-bundles",
@@ -56966,7 +56966,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Turner Motorsport Skid Plate - Milled Finish & Carbon Fiber Front Lip - G80 G82 M3/M4 | Projx Racing",
-      "metaDescription": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+      "metaDescription": "Protect your vehicle's fragile oil pan and under carriage with this 1/8” (3.175mm) thick aluminum skid plate & enhance your look with the Turner Motorsport carbon fiber front lip",
       "path": "/parts/es-4765790/"
     },
     "relatedProductSlugs": [
@@ -67866,10 +67866,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4751482",
     "title": "G80 M3 Carbon Front Lip & Carbon High Kick Trunk Spoiler",
     "titleAr": "G80 M3 Carbon Front Lip & Carbon High Kick Trunk Spoiler",
-    "summary": "The carbon fiber masterpiece that your G80 has been waiting for. Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "summaryAr": "وصف المورد الأصلي: The carbon fiber masterpiece that your G80 has been waiting for. Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "description": "The carbon fiber masterpiece that your G80 has been waiting for. Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "descriptionAr": "وصف المورد الأصلي: The carbon fiber masterpiece that your G80 has been waiting for. Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+    "summary": "The carbon fiber masterpiece that your G80 has been waiting for.",
+    "summaryAr": "وصف المورد الأصلي: The carbon fiber masterpiece that your G80 has been waiting for.",
+    "description": "The carbon fiber masterpiece that your G80 has been waiting for.",
+    "descriptionAr": "وصف المورد الأصلي: The carbon fiber masterpiece that your G80 has been waiting for.",
     "detailedDescriptionAvailable": true,
     "brand": "Enthusiast Bundles",
     "brandSlug": "enthusiast-bundles",
@@ -68006,7 +68006,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "G80 M3 Carbon Front Lip & Carbon High Kick Trunk Spoiler | Projx Racing",
-      "metaDescription": "The carbon fiber masterpiece that your G80 has been waiting for. Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+      "metaDescription": "The carbon fiber masterpiece that your G80 has been waiting for.",
       "path": "/parts/es-4751482/"
     },
     "relatedProductSlugs": [
@@ -75687,10 +75687,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4759147",
     "title": "Front & Rear Sway Bar Kit",
     "titleAr": "Front & Rear Sway Bar Kit",
-    "summary": "Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation We Price Match - Give Us A Call or Chat!",
-    "description": "Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation We Price Match - Give Us A Call or Chat!",
+    "summary": "Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation",
+    "summaryAr": "وصف المورد الأصلي: Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation",
+    "description": "Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation",
+    "descriptionAr": "وصف المورد الأصلي: Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -75889,7 +75889,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Front & Rear Sway Bar Kit | Projx Racing",
-      "metaDescription": "Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Includes upgraded front (32mm) and rear (27mm) sway bars with the required bushings for a seemless and easy installation",
       "path": "/parts/es-4759147/"
     },
     "relatedProductSlugs": [
@@ -78637,10 +78637,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4028182",
     "title": "25mm DRA Series Trak Wheel Spacers - Pair",
     "titleAr": "25mm DRA Series Trak Wheel Spacers - Pair",
-    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -78808,7 +78808,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "25mm DRA Series Trak Wheel Spacers - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
       "path": "/parts/es-4028182/"
     },
     "relatedProductSlugs": [
@@ -80274,10 +80274,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4028176",
     "title": "30mm DRA Series Trak Wheel Spacers - Pair",
     "titleAr": "30mm DRA Series Trak Wheel Spacers - Pair",
-    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
+    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -80445,7 +80445,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "30mm DRA Series Trak Wheel Spacers - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
       "path": "/parts/es-4028176/"
     },
     "relatedProductSlugs": [
@@ -84220,10 +84220,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4159883",
     "title": "22.5mm DRA Series Trak Wheel Spacers (Black) - Pair",
     "titleAr": "22.5mm DRA Series Trak Wheel Spacers (Black) - Pair",
-    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -84391,7 +84391,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "22.5mm DRA Series Trak Wheel Spacers (Black) - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
       "path": "/parts/es-4159883/"
     },
     "relatedProductSlugs": [
@@ -85826,10 +85826,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-3690526",
     "title": "30mm DRA Series Trak Wheel Spacers (Black) - Pair",
     "titleAr": "30mm DRA Series Trak Wheel Spacers (Black) - Pair",
-    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
+    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -85997,7 +85997,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "30mm DRA Series Trak Wheel Spacers (Black) - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs. We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's & MINI's wheel hubs.",
       "path": "/parts/es-3690526/"
     },
     "relatedProductSlugs": [
@@ -89741,10 +89741,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4159882",
     "title": "22.5mm DRA Series Trak Wheel Spacers - Pair",
     "titleAr": "22.5mm DRA Series Trak Wheel Spacers - Pair",
-    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+    "summary": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "summaryAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "description": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
+    "descriptionAr": "وصف المورد الأصلي: Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -89912,7 +89912,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "22.5mm DRA Series Trak Wheel Spacers - Pair | Projx Racing",
-      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs. We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Fine tune your stance and improve handling - Includes special bolts to mount these spacers to your BMW's wheel hubs.",
       "path": "/parts/es-4159882/"
     },
     "relatedProductSlugs": [
@@ -93277,10 +93277,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4876019",
     "title": "G87 M2 Carbon Fiber Trunk Spoiler & Gloss Black Rear Diffuser",
     "titleAr": "G87 M2 Carbon Fiber Trunk Spoiler & Gloss Black Rear Diffuser",
-    "summary": "Transform the rear end of your 2 Series! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "summaryAr": "وصف المورد الأصلي: Transform the rear end of your 2 Series! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "description": "Transform the rear end of your 2 Series! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "descriptionAr": "وصف المورد الأصلي: Transform the rear end of your 2 Series! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+    "summary": "Transform the rear end of your 2 Series!",
+    "summaryAr": "وصف المورد الأصلي: Transform the rear end of your 2 Series!",
+    "description": "Transform the rear end of your 2 Series!",
+    "descriptionAr": "وصف المورد الأصلي: Transform the rear end of your 2 Series!",
     "detailedDescriptionAvailable": true,
     "brand": "Enthusiast Bundles",
     "brandSlug": "enthusiast-bundles",
@@ -93417,7 +93417,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "G87 M2 Carbon Fiber Trunk Spoiler & Gloss Black Rear Diffuser | Projx Racing",
-      "metaDescription": "Transform the rear end of your 2 Series! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+      "metaDescription": "Transform the rear end of your 2 Series!",
       "path": "/parts/es-4876019/"
     },
     "relatedProductSlugs": [
@@ -100666,10 +100666,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4759117",
     "title": "Front Sway Bar - 32mm",
     "titleAr": "Front Sway Bar - 32mm",
-    "summary": "Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat!",
-    "description": "Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat!",
+    "summary": "Reduce body roll and increase handling with this performance sway bar",
+    "summaryAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar",
+    "description": "Reduce body roll and increase handling with this performance sway bar",
+    "descriptionAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -100868,7 +100868,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Front Sway Bar - 32mm | Projx Racing",
-      "metaDescription": "Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Reduce body roll and increase handling with this performance sway bar",
       "path": "/parts/es-4759117/"
     },
     "relatedProductSlugs": [
@@ -101562,10 +101562,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4759112",
     "title": "Rear Sway Bar - 27mm",
     "titleAr": "Rear Sway Bar - 27mm",
-    "summary": "Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat! Also Fits CS Models",
-    "summaryAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat! Also Fits CS Models",
-    "description": "Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat! Also Fits CS Models",
-    "descriptionAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat! Also Fits CS Models",
+    "summary": "Reduce body roll and increase handling with this performance sway bar Also Fits CS Models",
+    "summaryAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar Also Fits CS Models",
+    "description": "Reduce body roll and increase handling with this performance sway bar Also Fits CS Models",
+    "descriptionAr": "وصف المورد الأصلي: Reduce body roll and increase handling with this performance sway bar Also Fits CS Models",
     "detailedDescriptionAvailable": true,
     "brand": "H&R",
     "brandSlug": "h-r",
@@ -101764,7 +101764,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Rear Sway Bar - 27mm | Projx Racing",
-      "metaDescription": "Reduce body roll and increase handling with this performance sway bar We Price Match - Give Us A Call or Chat! Also Fits CS Models",
+      "metaDescription": "Reduce body roll and increase handling with this performance sway bar Also Fits CS Models",
       "path": "/parts/es-4759112/"
     },
     "relatedProductSlugs": [
@@ -102010,10 +102010,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4876693",
     "title": "G80 M3 Gloss Black High Kick Trunk Spoiler & Rear Diffuser",
     "titleAr": "G80 M3 Gloss Black High Kick Trunk Spoiler & Rear Diffuser",
-    "summary": "Transform the rear end of your G80 M3! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "summaryAr": "وصف المورد الأصلي: Transform the rear end of your G80 M3! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "description": "Transform the rear end of your G80 M3! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "descriptionAr": "وصف المورد الأصلي: Transform the rear end of your G80 M3! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+    "summary": "Transform the rear end of your G80 M3!",
+    "summaryAr": "وصف المورد الأصلي: Transform the rear end of your G80 M3!",
+    "description": "Transform the rear end of your G80 M3!",
+    "descriptionAr": "وصف المورد الأصلي: Transform the rear end of your G80 M3!",
     "detailedDescriptionAvailable": true,
     "brand": "Enthusiast Bundles",
     "brandSlug": "enthusiast-bundles",
@@ -102181,7 +102181,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "G80 M3 Gloss Black High Kick Trunk Spoiler & Rear Diffuser | Projx Racing",
-      "metaDescription": "Transform the rear end of your G80 M3! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+      "metaDescription": "Transform the rear end of your G80 M3!",
       "path": "/parts/es-4876693/"
     },
     "relatedProductSlugs": [
@@ -102203,10 +102203,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4876694",
     "title": "G87 M2 Gloss Black High Kick Spoiler & Rear Diffuser",
     "titleAr": "G87 M2 Gloss Black High Kick Spoiler & Rear Diffuser",
-    "summary": "Transform the entire rear end of your G87 M2! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "summaryAr": "وصف المورد الأصلي: Transform the entire rear end of your G87 M2! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "description": "Transform the entire rear end of your G87 M2! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
-    "descriptionAr": "وصف المورد الأصلي: Transform the entire rear end of your G87 M2! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+    "summary": "Transform the entire rear end of your G87 M2!",
+    "summaryAr": "وصف المورد الأصلي: Transform the entire rear end of your G87 M2!",
+    "description": "Transform the entire rear end of your G87 M2!",
+    "descriptionAr": "وصف المورد الأصلي: Transform the entire rear end of your G87 M2!",
     "detailedDescriptionAvailable": true,
     "brand": "Enthusiast Bundles",
     "brandSlug": "enthusiast-bundles",
@@ -102343,7 +102343,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "G87 M2 Gloss Black High Kick Spoiler & Rear Diffuser | Projx Racing",
-      "metaDescription": "Transform the entire rear end of your G87 M2! Don't See A Bundle You Want - Give Us A Call Or Chat - We Will Make One!",
+      "metaDescription": "Transform the entire rear end of your G87 M2!",
       "path": "/parts/es-4876694/"
     },
     "relatedProductSlugs": [
@@ -126202,10 +126202,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338723",
     "title": "SingleViu 52mm 150psi Brake Pressure \"1\" Gauge. 0-180 ohm Input",
     "titleAr": "SingleViu 52mm 150psi Brake Pressure \"1\" Gauge. 0-180 ohm Input",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -126404,7 +126404,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 150psi Brake Pressure \"1\" Gauge. 0-180 ohm Input | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338723/"
     },
     "relatedProductSlugs": [
@@ -160359,10 +160359,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338666",
     "title": "SingleViu 52mm 500psi Gear Pressure Gauge. 0-4.5V sender required. - Priced Each",
     "titleAr": "SingleViu 52mm 500psi Gear Pressure Gauge. 0-4.5V sender required. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -160561,7 +160561,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 500psi Gear Pressure Gauge. 0-4.5V sender required. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338666/"
     },
     "relatedProductSlugs": [
@@ -161386,10 +161386,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338665",
     "title": "SingleViu 52mm 250psi Brake Pressure Gauge. 0-4.5V sender required. - Priced Each",
     "titleAr": "SingleViu 52mm 250psi Brake Pressure Gauge. 0-4.5V sender required. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -161588,7 +161588,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 250psi Brake Pressure Gauge. 0-4.5V sender required. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338665/"
     },
     "relatedProductSlugs": [
@@ -162575,10 +162575,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338661",
     "title": "SingleViu 52mm 10bar oil pressure gauge. 0-4.5V sender required. - Priced Each",
     "titleAr": "SingleViu 52mm 10bar oil pressure gauge. 0-4.5V sender required. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -162777,7 +162777,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 10bar oil pressure gauge. 0-4.5V sender required. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338661/"
     },
     "relatedProductSlugs": [
@@ -164243,10 +164243,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338667",
     "title": "SingleViu 52mm DEF Level Gauge. 240-33 ohm sender required. - Priced Each",
     "titleAr": "SingleViu 52mm DEF Level Gauge. 240-33 ohm sender required. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -164445,7 +164445,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm DEF Level Gauge. 240-33 ohm sender required. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338667/"
     },
     "relatedProductSlugs": [
@@ -164822,10 +164822,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338660",
     "title": "SingleViu 52mm 10bar Brake Pressure Gauge. 0-5V Input. - Priced Each",
     "titleAr": "SingleViu 52mm 10bar Brake Pressure Gauge. 0-5V Input. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -165024,7 +165024,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 10bar Brake Pressure Gauge. 0-5V Input. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338660/"
     },
     "relatedProductSlugs": [
@@ -166266,10 +166266,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338664",
     "title": "SingleViu 52mm 30bar Brake Pressure Gauge. 0-4.5V sender required. - Priced Each",
     "titleAr": "SingleViu 52mm 30bar Brake Pressure Gauge. 0-4.5V sender required. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -166468,7 +166468,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 30bar Brake Pressure Gauge. 0-4.5V sender required. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338664/"
     },
     "relatedProductSlugs": [
@@ -167069,10 +167069,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338663",
     "title": "SingleViu 52mm 16bar Brake Pressure Gauge. 0-4.5V sender required. - Priced Each",
     "titleAr": "SingleViu 52mm 16bar Brake Pressure Gauge. 0-4.5V sender required. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -167271,7 +167271,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 16bar Brake Pressure Gauge. 0-4.5V sender required. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338663/"
     },
     "relatedProductSlugs": [
@@ -168930,10 +168930,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338658",
     "title": "SingleViu 52mm 10bar Brake Pressure \"1\" Gauge. 0-5V Input - Priced Each",
     "titleAr": "SingleViu 52mm 10bar Brake Pressure \"1\" Gauge. 0-5V Input - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -169132,7 +169132,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 10bar Brake Pressure \"1\" Gauge. 0-5V Input - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338658/"
     },
     "relatedProductSlugs": [
@@ -169509,10 +169509,10 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4338659",
     "title": "SingleViu 52mm 10bar Brake Pressure \"2\" Gauge. 0-5V Input. - Priced Each",
     "titleAr": "SingleViu 52mm 10bar Brake Pressure \"2\" Gauge. 0-5V Input. - Priced Each",
-    "summary": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "description": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
-    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+    "summary": "Analog dial to display critical information in a classic design",
+    "summaryAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
+    "description": "Analog dial to display critical information in a classic design",
+    "descriptionAr": "وصف المورد الأصلي: Analog dial to display critical information in a classic design",
     "detailedDescriptionAvailable": true,
     "brand": "VDO",
     "brandSlug": "vdo",
@@ -169711,7 +169711,7 @@ export const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "SingleViu 52mm 10bar Brake Pressure \"2\" Gauge. 0-5V Input. - Priced Each | Projx Racing",
-      "metaDescription": "Analog dial to display critical information in a classic design We Price Match - Give Us A Call or Chat!",
+      "metaDescription": "Analog dial to display critical information in a classic design",
       "path": "/parts/es-4338659/"
     },
     "relatedProductSlugs": [

@@ -2,7 +2,7 @@
 
 ## Status
 
-`migrations/003_catalogue_scale_foundation.sql` is an **additive, local migration design**. It has not been applied to Neon and does not change the current website API. Existing catalogue imports, offers, pages, and the merged 1,134-product ECS collection remain authoritative.
+`migrations/003_catalogue_scale_foundation.sql` is an **additive, local migration design**. It has not been applied to Neon and does not change the current website API. Existing catalogue imports, offers, pages, and the merged 1,679-product ECS collection remain authoritative.
 
 The migration prepares the data layer for multi-million-product supplier feeds without claiming that an ECS feed has been received or imported.
 

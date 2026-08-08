@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
 import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 
-const FIXED_NOW = Date.parse('2026-08-06T09:30:00Z');
+const FIXED_NOW = Date.parse('2026-08-09T09:30:00Z');
 const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length;
 const TEGIWA_FIXTURE_COUNT = 193_256;
 const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
-const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => product.categorySlug === categorySlug).length;
+const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => [
+  product.categorySlug, product.subcategorySlug,
+  ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+].includes(categorySlug)).length;
 const reviewedModelCount = model => REVIEWED_ECS_PRODUCTS.filter(product => (product.fitments || []).some(fitment =>
   [fitment.model, ...(fitment.models || [])].some(value => String(value || '').split('/').some(item =>
     item.trim().toLocaleLowerCase('en-US').split(/[^a-z0-9]+/u).includes(model.toLocaleLowerCase('en-US'))
@@ -149,6 +152,13 @@ assert.equal(reviewedBrowse.body.meta.partialCatalogue, true);
 assert.equal(reviewedBrowse.body.meta.catalogueSource, 'reviewed-local-fallback');
 assert.deepEqual(reviewedBrowse.body.meta.suppliers, [{ slug: 'ecs', name: 'ECS Tuning' }]);
 assert.deepEqual(reviewedBrowse.body.meta.currencies, ['USD']);
+assert.ok(reviewedBrowse.body.meta.brands.some(item => item.slug === 'genuine-bmw'));
+assert.ok(reviewedBrowse.body.meta.partTypes.some(item => item.slug === 'exterior'));
+assert.ok(reviewedBrowse.body.meta.partTypes.some(item => item.slug === 'exterior-body-parts'));
+assert.ok(reviewedBrowse.body.meta.partTypes.filter(item => item.slug === 'exterior'
+  || item.slug.startsWith('exterior-')
+  || ['emblems-badges', 'skid-plate-parts', 'antenna-parts-accessories'].includes(item.slug))
+  .every(item => item.nameAr));
 assert.equal(reviewedBrowse.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
 const reviewedAll = await collectAllItems(reviewedOnly);
 assert.equal(reviewedAll.items.length, REVIEWED_ECS_COUNT);
@@ -244,6 +254,15 @@ const reviewedCategoryFilter = await invoke(reviewedOnly, { query: { partType: '
 assert.equal(reviewedCategoryFilter.status, 200);
 assert.equal(reviewedCategoryFilter.body.meta.totalResults, reviewedCategoryCount('cooling'));
 assert.ok(reviewedCategoryFilter.body.items.every(item => item.category.startsWith('Cooling')));
+
+const reviewedExteriorFilter = await invoke(reviewedOnly, { query: { partType: 'exterior' } });
+assert.equal(reviewedExteriorFilter.status, 200);
+assert.equal(reviewedExteriorFilter.body.meta.totalResults, 782);
+assert.equal(reviewedExteriorFilter.body.meta.totalResults, reviewedCategoryCount('exterior'));
+const reviewedExteriorBodyFilter = await invoke(reviewedOnly, { query: { partType: 'exterior-body-parts' } });
+assert.equal(reviewedExteriorBodyFilter.status, 200);
+assert.equal(reviewedExteriorBodyFilter.body.meta.totalResults, 580);
+assert.equal(reviewedExteriorBodyFilter.body.meta.totalResults, reviewedCategoryCount('exterior-body-parts'));
 
 const reviewedPossibleFitment = await invoke(reviewedOnly, {
   query: { fitment: 'possible', make: 'BMW', model: 'M3' }
@@ -500,6 +519,27 @@ assert.equal(incompleteDatabaseFallback.status, 200);
 assert.equal(incompleteDatabaseFallback.body.items.length, Math.min(100, REVIEWED_ECS_COUNT));
 assert.equal(incompleteDatabaseFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
 assert.equal(incompleteDatabaseFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
+
+const highCountWithoutExteriorSentinels = createPartsCatalogHandler({
+  query: async text => {
+    if (text.includes('parts-catalog:stats')) {
+      return [{
+        ...stats,
+        reviewed_ecs_sentinel_count: 0,
+        suppliers: [{ slug: 'ecs', name: 'ECS Tuning', productCount: REVIEWED_ECS_COUNT + 50_000 }]
+      }];
+    }
+    if (text.includes('parts-catalog:count')) return [{ total_results: 50_000 }];
+    if (text.includes('parts-catalog:list')) return [row(0)];
+    return [];
+  },
+  legacyHandler: false,
+  now: () => FIXED_NOW
+});
+const highCountExteriorFallback = await invoke(highCountWithoutExteriorSentinels);
+assert.equal(highCountExteriorFallback.status, 200);
+assert.equal(highCountExteriorFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
+assert.equal(highCountExteriorFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 
 const unconfigured = createPartsCatalogHandler({ databaseUrl: '', reviewedFallback: false, now: () => FIXED_NOW });
 const unconfiguredResponse = await invoke(unconfigured);

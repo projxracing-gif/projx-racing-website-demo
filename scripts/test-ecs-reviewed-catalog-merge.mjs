@@ -140,6 +140,61 @@ test('does not replace newer reviewed price and availability with an older obser
   assert.equal(merged.selectionSources.length, 1);
 });
 
+test('upgrades an official supplier placeholder when a later capture has verified product media', () => {
+  const placeholder = reviewedProduct({
+    imageStatus: 'supplier-media-unavailable',
+    imageSourceUrl: 'https://assets.ecstuning.com/static/img/category/ecs_box_no_image.jpg',
+    images: [{ src: 'assets/products/ecs/g-series-performance/ecs-box-no-image.jpg', alt: 'No supplier image' }]
+  });
+  const verified = generatedProduct({
+    imageStatus: 'supplier-media-verified',
+    imageSourceUrl: 'https://assets.ecstuning.com/product_library/1000000/300x225/example.jpg',
+    images: [{ src: 'assets/products/ecs/g-series-exterior/example.webp', alt: 'Verified supplier product' }]
+  });
+  const [merged] = mergeReviewedEcsProducts([placeholder], [verified]);
+  assert.equal(merged.imageStatus, 'supplier-media-verified');
+  assert.deepEqual(merged.images, verified.images);
+  assert.equal(merged.imageSourceUrl, verified.imageSourceUrl);
+});
+
+test('preserves established verified media when another verified scope is merged', () => {
+  const established = reviewedProduct({
+    imageStatus: 'supplier-media-verified',
+    images: [{ src: 'assets/products/ecs/curated-intake.jpg', alt: 'Established product image' }]
+  });
+  const additional = generatedProduct({
+    imageStatus: 'supplier-media-verified',
+    images: [{ src: 'assets/products/ecs/g-series-exterior/example.webp', alt: 'Other capture image' }]
+  });
+  const [merged] = mergeReviewedEcsProducts([established], [additional]);
+  assert.deepEqual(merged.images, established.images);
+});
+
+test('fails closed when the same ES number has a conflicting MPN or canonical product URL', () => {
+  assert.throws(
+    () => mergeReviewedEcsProducts([reviewedProduct()], [generatedProduct({ mpn: 'OTHER-MPN' })]),
+    /manufacturer part number.*ES#10001/
+  );
+  assert.throws(
+    () => mergeReviewedEcsProducts(
+      [reviewedProduct({ originalUrl: 'https://www.ecstuning.com/b-brand-parts/item/one/' })],
+      [generatedProduct({ originalUrl: 'https://www.ecstuning.com/b-brand-parts/item/two/' })]
+    ),
+    /canonical product URL.*ES#10001/
+  );
+});
+
+test('suppresses conflicting same-day public prices across catalogue scopes', () => {
+  const [merged] = mergeReviewedEcsProducts(
+    [reviewedProduct({ priceAmount: 100, priceVerifiedAt: '2026-08-08', checkedAt: '2026-08-08' })],
+    [generatedProduct({ priceAmount: 125.5, priceVerifiedAt: '2026-08-08', checkedAt: '2026-08-08' })]
+  );
+  assert.equal(merged.priceAmount, null);
+  assert.equal(merged.priceConflict, true);
+  assert.equal(merged.purchaseMode, 'request-price');
+  assert.match(merged.priceNote, /Conflicting public ECS prices/);
+});
+
 test('fails closed when different ES numbers claim the same public handle', () => {
   const first = reviewedProduct();
   const second = generatedProduct({

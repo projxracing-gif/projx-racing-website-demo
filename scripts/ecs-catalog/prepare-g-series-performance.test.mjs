@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { prepareGSeriesPerformance as prepareGSeriesPerformanceSource } from './prepare-g-series-performance.mjs';
+import {
+  prepareGSeriesExterior as prepareGSeriesExteriorSource,
+  prepareGSeriesPerformance as prepareGSeriesPerformanceSource
+} from './prepare-g-series-performance.mjs';
 
 function prepareGSeriesPerformance(source, media, options = {}) {
   return prepareGSeriesPerformanceSource(source, media, { ...options, requireCompleteScope: false });
@@ -62,6 +65,27 @@ test('deduplicates ECS products and retains vehicle evidence', () => {
   assert.equal(products[0].selectionSources.length, 2);
   assert.equal(products[0].images[0].src, 'assets/products/ecs/g-series-performance/es4699999.webp');
   assert.equal(products[0].publicKey, 'ecs-es-4699999');
+  assert.match(products[0].fitments[0].noteAr, /فئة الأداء/);
+  assert.match(products[0].selectionNoteAr, /فئات أداء السيارة/);
+});
+
+test('prepares the separate Exterior scope without mislabelling it as Performance', () => {
+  const exterior = structuredClone(source);
+  exterior.records = [exterior.records[0]];
+  exterior.records[0].category = 'Exterior Body Parts';
+  exterior.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Exterior/Body/';
+  const exteriorMedia = structuredClone(media);
+  exteriorMedia.images[0].localPath = 'assets/products/ecs/g-series-exterior/es4699999.webp';
+  exteriorMedia.images[1].localPath = 'assets/products/ecs/g-series-exterior/ecs-box-no-image.jpg';
+  const [product] = prepareGSeriesExteriorSource(exterior, exteriorMedia, {
+    minimumProducts: 1, requireCompleteScope: false
+  });
+  assert.equal(product.category, 'Exterior Body Parts');
+  assert.equal(product.categoryAr, 'أجزاء الهيكل الخارجي');
+  assert.equal(product.fitments[0].evidence, 'ecs-vehicle-exterior-category');
+  assert.match(product.selectionNote, /vehicle Exterior categories/);
+  assert.deepEqual(product.filters.categories, ['exterior', 'exterior-body-parts']);
+  assert.equal(product.images[0].src, 'assets/products/ecs/g-series-exterior/es4699999.webp');
 });
 
 test('rejects unverified or incomplete product sources', () => {
@@ -115,6 +139,18 @@ test('uses the official ECS placeholder and controlled copy when supplier fields
   assert.match(product.images[0].src, /ecs-box-no-image\.jpg$/);
 });
 
+test('normalizes an explicit supplier no-image listing to the official local placeholder', () => {
+  const noImage = structuredClone(source);
+  noImage.records = [noImage.records[0]];
+  noImage.records[0].imageUrl = null;
+  noImage.records[0].imageFallbackUrl = null;
+  noImage.records[0].imageAlt = '';
+  const [product] = prepareGSeriesPerformance(noImage, media);
+  assert.equal(product.imageStatus, 'supplier-media-unavailable');
+  assert.match(product.images[0].src, /ecs-box-no-image\.jpg$/);
+  assert.match(product.images[0].alt, /Product image not supplied by ECS/);
+});
+
 test('converts supplier HTML to plain text and removes expired promotional calls to action', () => {
   const promoted = structuredClone(source);
   promoted.records = [promoted.records[0]];
@@ -124,6 +160,16 @@ test('converts supplier HTML to plain text and removes expired promotional calls
   assert.equal(product.summary, 'S58 & G8X intake. ALL SALES FINAL. Confirm fitment.');
   assert.equal(product.subcategory, null);
   assert.deepEqual(product.filters.subcategories, []);
+});
+
+test('removes supplier phone/chat and urgency promotions without removing product facts', () => {
+  const promoted = structuredClone(source);
+  promoted.records = [promoted.records[0]];
+  promoted.records[0].description = 'Includes both blades. We Price Match - Give Us A Call or Chat! 1/8 inch aluminum plate. Don\'t See A Bundle You Want - Give Us A Call Or Chat - We Will Make One! Trunk fitment only. Don\'t wait, they may not be around forever!';
+  promoted.records[0].imageAlt = 'S58 intake. 10X Entries For Our Spin To Win Sweepstakes! Don\'t wait, they may not be around forever!';
+  const [product] = prepareGSeriesPerformance(promoted, media);
+  assert.equal(product.description, 'Includes both blades. 1/8 inch aluminum plate. Trunk fitment only.');
+  assert.equal(product.images[0].alt, 'S58 intake.');
 });
 
 test('keeps zero-value or starting-price configurators quote-only', () => {

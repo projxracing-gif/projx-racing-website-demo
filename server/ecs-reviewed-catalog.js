@@ -1,5 +1,6 @@
 import '../assets/ecs-products.js';
 import { ECS_G_SERIES_PERFORMANCE_PRODUCTS } from './data/ecs-g-series-performance-products.js';
+import { ECS_G_SERIES_EXTERIOR_PRODUCTS } from './data/ecs-g-series-exterior-products.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -160,8 +161,53 @@ function copyRefreshFields(target, source, fields) {
   }
 }
 
+function normalizedIdentifier(value) {
+  return normalizedKey(value).replace(/\s+/g, '');
+}
+
+function canonicalProductUrl(value) {
+  try {
+    const url = new URL(String(value ?? '').trim());
+    url.hash = '';
+    url.search = '';
+    return `${url.origin.toLocaleLowerCase('en-US')}${url.pathname.replace(/\/+$/, '/')}`;
+  } catch {
+    return normalizedKey(value);
+  }
+}
+
+function assertCompatibleSupplierIdentity(existing, addition) {
+  const identifiers = [
+    ['manufacturer part number', existing?.mpn || existing?.identifiers?.mpn,
+      addition?.mpn || addition?.identifiers?.mpn, normalizedIdentifier],
+    ['canonical product URL', existing?.originalUrl, addition?.originalUrl, canonicalProductUrl]
+  ];
+  for (const [label, leftValue, rightValue, normalize] of identifiers) {
+    if (!meaningful(leftValue) || !meaningful(rightValue)) continue;
+    if (normalize(leftValue) !== normalize(rightValue)) {
+      throw new Error(`Conflicting ECS ${label} for ES#${ecsIdentity(existing)}.`);
+    }
+  }
+}
+
+function sameObservationDay(left, right) {
+  const leftDate = String(left ?? '').slice(0, 10);
+  const rightDate = String(right ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(leftDate) && leftDate === rightDate;
+}
+
+function hasConflictingCurrentPrice(existing, addition) {
+  const leftAmount = finitePriceAmount(existing);
+  const rightAmount = finitePriceAmount(addition);
+  return leftAmount !== null && rightAmount !== null && leftAmount !== rightAmount
+    && sameObservationDay(existing?.priceVerifiedAt || existing?.checkedAt,
+      addition?.priceVerifiedAt || addition?.checkedAt);
+}
+
 function mergeReviewedPair(existing, addition) {
+  assertCompatibleSupplierIdentity(existing, addition);
   const merged = mergeMeaningfulObjects(existing, addition);
+  const priceConflict = hasConflictingCurrentPrice(existing, addition);
   if (incomingIsCurrent(existing, addition, ['priceVerifiedAt', 'checkedAt'])) {
     copyRefreshFields(merged, addition, PRICE_REFRESH_FIELDS);
   }
@@ -174,7 +220,15 @@ function mergeReviewedPair(existing, addition) {
   merged.identifiers = mergeMeaningfulObjects(existing.identifiers, addition.identifiers);
   merged.fitments = mergeFitments(existing.fitments, addition.fitments);
   merged.filters = mergeFilters(existing.filters, addition.filters);
-  merged.images = meaningful(existing.images) ? [...existing.images] : unionValues(addition.images);
+  const replaceUnavailableMedia = existing.imageStatus === 'supplier-media-unavailable'
+    && addition.imageStatus === 'supplier-media-verified' && meaningful(addition.images);
+  merged.images = replaceUnavailableMedia || !meaningful(existing.images)
+    ? unionValues(addition.images)
+    : [...existing.images];
+  if (replaceUnavailableMedia) {
+    merged.imageStatus = addition.imageStatus;
+    if (meaningful(addition.imageSourceUrl)) merged.imageSourceUrl = addition.imageSourceUrl;
+  }
   merged.specifications = unionValues(existing.specifications, addition.specifications);
   merged.options = unionValues(existing.options, addition.options);
   merged.variants = unionValues(existing.variants, addition.variants);
@@ -202,6 +256,17 @@ function mergeReviewedPair(existing, addition) {
     shipping.status = 'quote-required';
   }
   if (Object.keys(shipping).length) merged.shipping = shipping;
+  if (priceConflict) {
+    merged.quoteOnly = true;
+    merged.purchaseMode = 'request-price';
+    merged.priceAmount = null;
+    merged.originalPriceAmount = null;
+    merged.priceStartingAt = false;
+    merged.priceConflict = true;
+    merged.priceType = 'confirmation-required';
+    merged.priceNote = 'Conflicting public ECS prices were observed on the same date; confirm the applicable option and current price before order.';
+    merged.priceNoteAr = '\u0638\u0647\u0631\u062a \u0623\u0633\u0639\u0627\u0631 \u0639\u0627\u0645\u0629 \u0645\u062e\u062a\u0644\u0641\u0629 \u0645\u0646 ECS \u0641\u064a \u0627\u0644\u062a\u0627\u0631\u064a\u062e \u0646\u0641\u0633\u0647\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062e\u064a\u0627\u0631 \u0648\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u062d\u0627\u0644\u064a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.';
+  }
   return merged;
 }
 
@@ -261,7 +326,7 @@ export function mergeReviewedEcsProducts(existingProducts, generatedProducts) {
 
 export const REVIEWED_ECS_PRODUCTS = Object.freeze(mergeReviewedEcsProducts(
   globalThis.PROJX_ECS_PRODUCTS || [],
-  ECS_G_SERIES_PERFORMANCE_PRODUCTS
+  [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS]
 ));
 
 export class ReviewedFallbackError extends Error {
@@ -301,6 +366,80 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function facetSlug(value) {
+  return identity(value).replace(/\s+/g, '-').slice(0, 100);
+}
+
+function normalizedFacetList(values) {
+  const facets = new Map();
+  for (const value of Array.isArray(values) ? values : []) {
+    const slug = text(value?.slug, 100);
+    const name = text(value?.name, 160);
+    const nameAr = text(value?.nameAr, 160);
+    if (slug && name && /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(slug)) {
+      facets.set(slug, { slug, name, ...(nameAr ? { nameAr } : {}) });
+    }
+  }
+  return facets;
+}
+
+function localCatalogueFacets(products) {
+  const brands = new Map();
+  const partTypes = new Map();
+  const add = (target, slug, name, nameAr = '') => {
+    const safeSlug = text(slug, 100);
+    const safeName = text(name, 160);
+    const safeNameAr = text(nameAr, 160);
+    if (safeSlug && safeName && /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(safeSlug)) {
+      const current = target.get(safeSlug);
+      target.set(safeSlug, {
+        slug: safeSlug,
+        name: current?.name || safeName,
+        ...((current?.nameAr || safeNameAr) ? { nameAr: current?.nameAr || safeNameAr } : {})
+      });
+    }
+  };
+  for (const product of products) {
+    add(brands, product.brandSlug || facetSlug(product.brand), product.brand);
+    add(partTypes, product.categorySlug || facetSlug(product.category), product.category, product.categoryAr);
+    add(partTypes, product.subcategorySlug || facetSlug(product.subcategory), product.subcategory, product.subcategoryAr);
+    for (const source of product.selectionSources || []) add(partTypes, facetSlug(source?.category), source?.category);
+    for (const slug of product.filters?.categories || []) {
+      if (!partTypes.has(slug)) add(partTypes, slug, slug === 'exterior' ? 'Exterior' : slug.replace(/-/g, ' '),
+        slug === 'exterior' ? 'الهيكل الخارجي' : '');
+    }
+    for (const slug of product.filters?.subcategories || []) {
+      if (!partTypes.has(slug)) add(partTypes, slug, slug.replace(/-/g, ' '));
+    }
+  }
+  const exteriorArabicNames = new Map([
+    ['exterior', 'الهيكل الخارجي'],
+    ['exterior-body-parts', 'أجزاء الهيكل الخارجي'],
+    ['exterior-vinyl-wrap', 'تغليف الفينيل الخارجي'],
+    ['exterior-tools', 'أدوات الهيكل الخارجي'],
+    ['exterior-wiper-parts', 'أجزاء مساحات الزجاج'],
+    ['emblems-badges', 'الشعارات والشارات'],
+    ['exterior-roof-rack-parts', 'أجزاء حوامل السقف'],
+    ['exterior-mirror-parts', 'أجزاء المرايا الخارجية'],
+    ['exterior-electrical-parts', 'الأجزاء الكهربائية الخارجية'],
+    ['skid-plate-parts', 'ألواح حماية أسفل السيارة'],
+    ['antenna-parts-accessories', 'أجزاء الهوائي وملحقاته'],
+    ['exterior-window-parts', 'أجزاء النوافذ الخارجية'],
+    ['exterior-alarm-systems-parts', 'أنظمة الإنذار الخارجية وأجزاؤها'],
+    ['exterior-csl-parts', 'أجزاء CSL الخارجية'],
+    ['exterior-electronic-accessories', 'ملحقات إلكترونية خارجية']
+  ]);
+  for (const [slug, nameAr] of exteriorArabicNames) {
+    const current = partTypes.get(slug);
+    if (current) partTypes.set(slug, { ...current, nameAr });
+  }
+  const byName = (left, right) => left.name.localeCompare(right.name) || left.slug.localeCompare(right.slug);
+  return {
+    brands: [...brands.values()].sort(byName),
+    partTypes: [...partTypes.values()].sort(byName)
+  };
+}
+
 function rootAsset(value) {
   const source = text(value, 1_000).replace(/^\/+/, '');
   return source ? `/${source}` : null;
@@ -330,6 +469,7 @@ function productSearchText(product) {
   return identity([
     product.title, product.brand, product.category, product.subcategory,
     product.ecsPartNumber, product.sku, product.mpn,
+    ...(product.selectionSources || []).map(source => source?.category),
     ...(product.fitments || []).flatMap(fitment => [
       fitment.make, fitment.model, fitment.generation,
       ...(fitment.models || []), ...(fitment.chassis || []), ...(fitment.engines || [])
@@ -375,7 +515,10 @@ function productMatches(product, request, nowValue) {
   if (request.supplier && request.supplier !== 'ecs') return false;
   if (request.currency && request.currency !== 'USD') return false;
   if (request.brand && request.brand !== product.brandSlug) return false;
-  if (request.partType && ![product.categorySlug, product.subcategorySlug].includes(request.partType)) return false;
+  if (request.partType && ![
+    product.categorySlug, product.subcategorySlug,
+    ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+  ].includes(request.partType)) return false;
   if (!availabilityMatches(request.availability || 'all')) return false;
   const priced = priceIsFresh(product, nowValue) && finitePriceAmount(product) !== null;
   if (request.pricing === 'priced' && !priced) return false;
@@ -669,6 +812,12 @@ function overallMeta({
     && !availability(product, nowValue).snapshotStale
     && ['in_stock', 'supplier_stock', 'available_to_order'].includes(product.availabilityCode)).length;
   const localSnapshotStale = localProducts.some(product => availability(product, nowValue).snapshotStale);
+  const localFacets = localCatalogueFacets(localProducts);
+  const brands = normalizedFacetList(legacyMeta?.brands);
+  const partTypes = normalizedFacetList(legacyMeta?.partTypes);
+  localFacets.brands.forEach(value => brands.set(value.slug, value));
+  localFacets.partTypes.forEach(value => partTypes.set(value.slug, value));
+  const sortFacets = values => [...values.values()].sort((left, right) => left.name.localeCompare(right.name) || left.slug.localeCompare(right.slug));
   const suppliers = unique([
     ...(legacyCatalogCount ? [{ slug: 'tegiwa', name: 'Tegiwa' }] : []),
     ...(localProducts.length ? [{ slug: 'ecs', name: 'ECS Tuning' }] : [])
@@ -683,6 +832,8 @@ function overallMeta({
       .filter(Boolean).sort().at(-1) || null,
     stockSnapshotStale: Boolean(legacyMeta?.stockSnapshotStale || localSnapshotStale),
     suppliers,
+    brands: sortFacets(brands),
+    partTypes: sortFacets(partTypes),
     currencies: unique([...(legacyCatalogCount ? ['GBP'] : []), ...(localProducts.length ? ['USD'] : [])]),
     query: request.query || null,
     canonicalQuery: request.query || null,

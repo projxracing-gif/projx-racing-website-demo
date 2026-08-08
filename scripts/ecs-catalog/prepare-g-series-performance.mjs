@@ -7,7 +7,7 @@ const REPO = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const ECS_PRODUCT_HOST = 'www.ecstuning.com';
 const ECS_IMAGE_HOST = 'assets.ecstuning.com';
 const PRODUCT_PATH = /^\/b-[^/?#]+-parts\/[^/?#]+\/[^/?#]+\/$/i;
-const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-performance\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
+const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
 const VEHICLES = Object.freeze({
   'BMW G87 M2 S58 3.0L': Object.freeze({ model: 'M2', trim: null, generation: 'G87' }),
   'BMW G80 M3 Competition S58 3.0L': Object.freeze({ model: 'M3', trim: 'Competition', generation: 'G80' }),
@@ -50,6 +50,65 @@ const CATEGORY_SOURCE_PATHS = Object.freeze({
   'Essential Performance Parts & Upgrades': 'Essentials/',
   'Performance Lighting Parts & Upgrades': 'Lighting/'
 });
+const EXTERIOR_VEHICLE_SOURCE_PATHS = Object.freeze({
+  'BMW G87 M2 S58 3.0L': '/BMW-G87-M2-S58_3.0L/Exterior/',
+  'BMW G80 M3 Competition S58 3.0L': '/BMW-G80-M3_Competition-S58_3.0L/Exterior/',
+  'BMW G82 M4 Competition S58 3.0L': '/BMW-G82-M4_Competition-S58_3.0L/Exterior/'
+});
+const EXTERIOR_CATEGORY_AR = Object.freeze({
+  'Exterior Body Parts': '\u0623\u062c\u0632\u0627\u0621 \u0627\u0644\u0647\u064a\u0643\u0644 \u0627\u0644\u062e\u0627\u0631\u062c\u064a',
+  'Exterior Vinyl Wrap': '\u062a\u063a\u0644\u064a\u0641 \u0627\u0644\u0641\u064a\u0646\u064a\u0644 \u0627\u0644\u062e\u0627\u0631\u062c\u064a',
+  'Exterior Tools': '\u0623\u062f\u0648\u0627\u062a \u0627\u0644\u0647\u064a\u0643\u0644 \u0627\u0644\u062e\u0627\u0631\u062c\u064a',
+  'Exterior Wiper Parts': '\u0623\u062c\u0632\u0627\u0621 \u0645\u0633\u0627\u062d\u0627\u062a \u0627\u0644\u0632\u062c\u0627\u062c',
+  'Emblems & Badges': '\u0627\u0644\u0634\u0639\u0627\u0631\u0627\u062a \u0648\u0627\u0644\u0634\u0627\u0631\u0627\u062a',
+  'Exterior Roof Rack Parts': '\u0623\u062c\u0632\u0627\u0621 \u062d\u0648\u0627\u0645\u0644 \u0627\u0644\u0633\u0642\u0641',
+  'Exterior Mirror Parts': '\u0623\u062c\u0632\u0627\u0621 \u0627\u0644\u0645\u0631\u0627\u064a\u0627 \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629',
+  'Exterior Electrical Parts': '\u0627\u0644\u0623\u062c\u0632\u0627\u0621 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064a\u0629 \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629',
+  'Skid Plate Parts': '\u0623\u0644\u0648\u0627\u062d \u062d\u0645\u0627\u064a\u0629 \u0623\u0633\u0641\u0644 \u0627\u0644\u0633\u064a\u0627\u0631\u0629',
+  'Antenna Parts & Accessories': '\u0623\u062c\u0632\u0627\u0621 \u0627\u0644\u0647\u0648\u0627\u0626\u064a \u0648\u0645\u0644\u062d\u0642\u0627\u062a\u0647',
+  'Exterior Window Parts': '\u0623\u062c\u0632\u0627\u0621 \u0627\u0644\u0646\u0648\u0627\u0641\u0630 \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629',
+  'Exterior Alarm Systems & Parts': '\u0623\u0646\u0638\u0645\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629 \u0648\u0623\u062c\u0632\u0627\u0624\u0647\u0627',
+  'Exterior CSL Parts': '\u0623\u062c\u0632\u0627\u0621 CSL \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629',
+  'Exterior Electronic Accessories': '\u0645\u0644\u062d\u0642\u0627\u062a \u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629 \u062e\u0627\u0631\u062c\u064a\u0629'
+});
+const EXTERIOR_CATEGORY_SOURCE_PATHS = Object.freeze({
+  'Exterior Body Parts': 'Body/',
+  'Exterior Vinyl Wrap': 'Vinyl_Wrap/',
+  'Exterior Tools': 'Tools/',
+  'Exterior Wiper Parts': 'Wiper/',
+  'Emblems & Badges': 'Emblem/',
+  'Exterior Roof Rack Parts': 'Roof_Rack/',
+  'Exterior Mirror Parts': 'Mirrors/',
+  'Exterior Electrical Parts': 'Electrical/',
+  'Skid Plate Parts': 'Skid_Plate/',
+  'Antenna Parts & Accessories': 'Antennas/',
+  'Exterior Window Parts': 'Window/',
+  'Exterior Alarm Systems & Parts': 'Alarm/',
+  'Exterior CSL Parts': 'CSL/',
+  'Exterior Electronic Accessories': 'Electronic_Accessories/'
+});
+const EXTERIOR_EXPECTED_CATEGORY_COUNTS = Object.freeze({
+  'BMW G80 M3 Competition S58 3.0L': Object.freeze([379, 57, 45, 28, 19, 15, 14, 10, 9, 7, 4, 2, 1, 1]),
+  'BMW G82 M4 Competition S58 3.0L': Object.freeze([364, 57, 45, 23, 17, 14, 13, 9, 8, 6, 4, 2, 0, 1]),
+  'BMW G87 M2 S58 3.0L': Object.freeze([369, 57, 45, 23, 19, 15, 16, 9, 5, 5, 5, 1, 1, 1])
+});
+const CATALOGUE_SCOPES = Object.freeze({
+  performance: Object.freeze({
+    key: 'performance', label: 'Performance', exportName: 'ECS_G_SERIES_PERFORMANCE_PRODUCTS',
+    vehicleSourcePaths: VEHICLE_SOURCE_PATHS, expectedCategoryCounts: EXPECTED_CATEGORY_COUNTS,
+    categoryAr: CATEGORY_AR, categorySourcePaths: CATEGORY_SOURCE_PATHS,
+    fitmentNoteAr: 'أدرجت ECS القطعة ضمن فئة الأداء لهذه السيارة؛ يجب تأكيد رقم الهيكل وسنة الصنع والمحرك ونظام الدفع والخيارات قبل الطلب.',
+    selectionNoteAr: 'مدرج ضمن فئات أداء السيارة لدى ECS وفق ترتيب الصلة الظاهر؛ لا تنشر ECS ترتيباً بحسب عدد الوحدات المباعة.'
+  }),
+  exterior: Object.freeze({
+    key: 'exterior', label: 'Exterior', exportName: 'ECS_G_SERIES_EXTERIOR_PRODUCTS',
+    vehicleSourcePaths: EXTERIOR_VEHICLE_SOURCE_PATHS,
+    expectedCategoryCounts: EXTERIOR_EXPECTED_CATEGORY_COUNTS,
+    categoryAr: EXTERIOR_CATEGORY_AR, categorySourcePaths: EXTERIOR_CATEGORY_SOURCE_PATHS,
+    fitmentNoteAr: 'أدرجت ECS القطعة ضمن فئة هذه السيارة؛ يجب تأكيد رقم الهيكل وسنة الصنع والمحرك ونظام الدفع والخيارات قبل الطلب.',
+    selectionNoteAr: 'مدرج ضمن فئات السيارة لدى ECS وفق ترتيب الصلة الظاهر؛ لا تنشر ECS ترتيباً بحسب عدد الوحدات المباعة.'
+  })
+});
 
 function clean(value, maximum = 2_048) {
   return String(value ?? '').normalize('NFKC')
@@ -74,9 +133,12 @@ function supplierCopy(value, maximum = 5_000) {
   return clean(decoded
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]*>/g, ' ')
-    .replace(/(?:\d+\s*[x×]\s*)?Entries For Our 25th Anniversary Sweepstakes!\s*/gi, ' ')
+    .replace(/(?:\d+\s*[x×]\s*)?Entries For Our (?:25th Anniversary|Spin To Win) Sweepstakes!\s*/gi, ' ')
     .replace(/Call In Or Chat For Best Price!\s*/gi, ' ')
-    .replace(/Want To Haggle\?\s*Give Us A Call Or Chat To Make An Offer On This Product!\s*/gi, ' '), maximum);
+    .replace(/Want To Haggle\?\s*Give Us A Call Or Chat To Make An Offer On This Product!\s*/gi, ' ')
+    .replace(/We Price Match\s*[-\u2013\u2014]\s*Give Us A Call Or Chat!\s*/gi, ' ')
+    .replace(/Don['\u2019]t See A Bundle You Want\s*[-\u2013\u2014]\s*Give Us A Call Or Chat\s*[-\u2013\u2014]\s*We Will Make One!\s*/gi, ' ')
+    .replace(/Don['\u2019]t Wait,?\s*They May Not Be Around Forever!\s*/gi, ' '), maximum);
 }
 
 function slugify(value) {
@@ -135,29 +197,29 @@ function mediaMap(document) {
   return result;
 }
 
-function validateRecord(record, index) {
+function validateRecord(record, index, scope) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) {
     throw new Error(`Record ${index + 1} is not an object.`);
   }
   const ecsDigits = clean(record.ecsPartNumber, 40).replace(/^ES#/i, '');
   const productUrl = canonicalUrl(record.productUrl, ECS_PRODUCT_HOST, PRODUCT_PATH);
-  const imageUrl = canonicalUrl(record.imageUrl, ECS_IMAGE_HOST);
-  const imageFallbackUrl = canonicalUrl(record.imageFallbackUrl, ECS_IMAGE_HOST);
+  const imageUrl = canonicalUrl(record.imageUrl, ECS_IMAGE_HOST) || ECS_PLACEHOLDER_IMAGE;
+  const imageFallbackUrl = canonicalUrl(record.imageFallbackUrl, ECS_IMAGE_HOST) || ECS_PLACEHOLDER_IMAGE;
   const vehicle = clean(record.vehicle, 160);
   const category = clean(record.category, 160);
   const sourceUrl = canonicalUrl(record.sourceUrl, ECS_PRODUCT_HOST);
   const timestamp = observedAt(record.observedAt);
   const price = priceAmount(record.priceText);
   let sourceMatchesScope = false;
-  if (sourceUrl && VEHICLE_SOURCE_PATHS[vehicle] && CATEGORY_SOURCE_PATHS[category]) {
+  if (sourceUrl && scope.vehicleSourcePaths[vehicle] && scope.categorySourcePaths[category]) {
     const sourcePath = new URL(sourceUrl).pathname;
-    const expectedPath = `${VEHICLE_SOURCE_PATHS[vehicle]}${CATEGORY_SOURCE_PATHS[category]}`;
+    const expectedPath = `${scope.vehicleSourcePaths[vehicle]}${scope.categorySourcePaths[category]}`;
     const pageSuffix = sourcePath.slice(expectedPath.length);
     sourceMatchesScope = sourcePath.startsWith(expectedPath)
       && (pageSuffix === '' || /^[1-9]\d*$/.test(pageSuffix));
   }
-  if (!/^\d{4,12}$/.test(ecsDigits) || !productUrl || !imageUrl || !imageFallbackUrl
-    || !VEHICLES[vehicle] || !CATEGORY_AR[category] || !sourceMatchesScope || !timestamp || price === null) {
+  if (!/^\d{4,12}$/.test(ecsDigits) || !productUrl
+    || !VEHICLES[vehicle] || !scope.categoryAr[category] || !sourceMatchesScope || !timestamp || price === null) {
     throw new Error(`Record ${index + 1} failed ECS source validation.`);
   }
   const required = ['title', 'manufacturerPartNumber', 'availabilityText'];
@@ -183,7 +245,7 @@ function validateRecord(record, index) {
     productUrl,
     imageUrl,
     imageFallbackUrl,
-    imageAlt: clean(record.imageAlt || record.title, 500),
+    imageAlt: supplierCopy(record.imageAlt || record.title, 500),
     category,
     vehicle,
     sourceUrl,
@@ -192,9 +254,9 @@ function validateRecord(record, index) {
   };
 }
 
-function validateCaptureCompleteness(document, records) {
+function validateCaptureCompleteness(document, records, scope) {
   const expectedVehicles = Object.keys(VEHICLES);
-  const expectedCategories = Object.keys(CATEGORY_AR);
+  const expectedCategories = Object.keys(scope.categoryAr);
   if (!Array.isArray(document.vehicleCategories)) {
     throw new Error('The ECS capture is missing its vehicle/category reconciliation manifest.');
   }
@@ -206,7 +268,7 @@ function validateCaptureCompleteness(document, records) {
   }
   for (const vehicle of expectedVehicles) {
     for (const [categoryIndex, category] of expectedCategories.entries()) {
-      const expectedCount = EXPECTED_CATEGORY_COUNTS[vehicle][categoryIndex];
+      const expectedCount = scope.expectedCategoryCounts[vehicle][categoryIndex];
       const matching = records.filter(record => record.vehicle === vehicle && record.category === category);
       const positions = new Set(matching.map(record => record.relevancePosition));
       if (matching.length !== expectedCount || positions.size !== expectedCount
@@ -220,10 +282,12 @@ function validateCaptureCompleteness(document, records) {
     if (!VEHICLES[vehicle] || !Array.isArray(vehicleEntry.categories)) {
       throw new Error(`The ECS category manifest is invalid for ${vehicle || 'an unknown vehicle'}.`);
     }
+    const expectedPresentCategories = expectedCategories.filter((category, index) =>
+      scope.expectedCategoryCounts[vehicle][index] > 0);
     const manifestCategories = vehicleEntry.categories.map(entry => clean(entry?.name, 160));
-    if (manifestCategories.length !== expectedCategories.length
-      || new Set(manifestCategories).size !== expectedCategories.length
-      || expectedCategories.some(category => !manifestCategories.includes(category))) {
+    if (manifestCategories.length !== expectedPresentCategories.length
+      || new Set(manifestCategories).size !== expectedPresentCategories.length
+      || expectedPresentCategories.some(category => !manifestCategories.includes(category))) {
       throw new Error(`The ECS category manifest is incomplete for ${vehicle}.`);
     }
     for (const categoryEntry of vehicleEntry.categories) {
@@ -231,21 +295,21 @@ function validateCaptureCompleteness(document, records) {
       const expectedIndex = expectedCategories.indexOf(category);
       const categoryUrl = canonicalUrl(categoryEntry?.url, ECS_PRODUCT_HOST);
       if (expectedIndex < 0 || !categoryUrl
-        || Number(categoryEntry?.count) !== EXPECTED_CATEGORY_COUNTS[vehicle][expectedIndex]) {
+        || Number(categoryEntry?.count) !== scope.expectedCategoryCounts[vehicle][expectedIndex]) {
         throw new Error(`The ECS category manifest conflicts with the captured scope for ${vehicle}.`);
       }
     }
   }
 }
 
-function fitmentFor(vehicle) {
+function fitmentFor(vehicle, scope) {
   const details = VEHICLES[vehicle];
   return {
     make: 'BMW', model: details.model, models: [details.model], trim: details.trim, generation: details.generation,
     chassis: [details.generation], yearFrom: null, yearTo: null, engines: ['S58'], drivetrains: [],
-    confidence: 'possible', evidence: 'ecs-vehicle-performance-category',
-    note: 'Listed by ECS under this vehicle Performance category; confirm VIN, model year, engine, drivetrain and options before order.',
-    noteAr: 'أدرجت ECS القطعة ضمن فئة الأداء لهذه السيارة؛ يجب تأكيد رقم الهيكل وسنة الصنع والمحرك ونظام الدفع والخيارات قبل الطلب.'
+    confidence: 'possible', evidence: `ecs-vehicle-${scope.key}-category`,
+    note: `Listed by ECS under this vehicle ${scope.label} category; confirm VIN, model year, engine, drivetrain and options before order.`,
+    noteAr: scope.fitmentNoteAr
   };
 }
 
@@ -276,18 +340,21 @@ function related(products, product) {
     .slice(0, 4).map(candidate => candidate.slug);
 }
 
-export function prepareGSeriesPerformance(rawDocument, mediaDocument, {
+export function prepareGSeriesCatalogue(rawDocument, mediaDocument, {
   minimumProducts = 1,
-  requireCompleteScope = true
+  requireCompleteScope = true,
+  scopeName = 'performance'
 } = {}) {
+  const scope = CATALOGUE_SCOPES[scopeName];
+  if (!scope) throw new Error(`Unknown ECS G-Series catalogue scope: ${scopeName}.`);
   if (!rawDocument || rawDocument.supplier !== 'ECS Tuning' || !Array.isArray(rawDocument.records)) {
     throw new Error('The ECS G-Series listing capture is invalid.');
   }
   if (!Number.isInteger(minimumProducts) || minimumProducts < 1) throw new Error('minimumProducts must be a positive integer.');
   const media = mediaMap(mediaDocument);
   const groups = new Map();
-  const validatedRecords = rawDocument.records.map(validateRecord);
-  if (requireCompleteScope) validateCaptureCompleteness(rawDocument, validatedRecords);
+  const validatedRecords = rawDocument.records.map((record, index) => validateRecord(record, index, scope));
+  if (requireCompleteScope) validateCaptureCompleteness(rawDocument, validatedRecords, scope);
   validatedRecords.forEach(record => {
     groups.set(record.ecsDigits, [...(groups.get(record.ecsDigits) || []), record]);
   });
@@ -309,7 +376,7 @@ export function prepareGSeriesPerformance(rawDocument, mediaDocument, {
     const category = categories[0];
     const checkedDate = current.observedAt.slice(0, 10);
     const slug = `es-${ecsDigits}`;
-    const fitments = vehicles.map(fitmentFor);
+    const fitments = vehicles.map(vehicle => fitmentFor(vehicle, scope));
     const brand = bestText(observations, 'brand', 160) || 'Supplier brand not provided';
     const supplierDescription = bestText(observations, 'description', 5_000);
     const description = supplierDescription || 'ECS did not provide a catalogue description for this listing. Confirm product details before order.';
@@ -325,7 +392,9 @@ export function prepareGSeriesPerformance(rawDocument, mediaDocument, {
     const filters = {
       supplier: ['ecs'], makes: ['BMW'], models: [...new Set(fitments.flatMap(item => item.models))],
       chassis: [...new Set(fitments.flatMap(item => item.chassis))], years: [], engines: ['S58'], drivetrains: [],
-      brands: [slugify(brand)], categories: categories.map(slugify),
+      brands: [slugify(brand)], categories: scope.key === 'exterior'
+        ? ['exterior', ...categories.map(slugify)]
+        : categories.map(slugify),
       subcategories: [], availability: ['confirmation-required'], fitment: ['possible']
     };
     products.push({
@@ -338,7 +407,7 @@ export function prepareGSeriesPerformance(rawDocument, mediaDocument, {
       description, descriptionAr,
       detailedDescriptionAvailable: Boolean(supplierDescription),
       brand, brandSlug: slugify(brand),
-      category, categoryAr: CATEGORY_AR[category], categorySlug: slugify(category),
+      category, categoryAr: scope.categoryAr[category], categorySlug: slugify(category),
       subcategory: null, subcategoryAr: null, subcategorySlug: null,
       sku: `ES#${ecsDigits}`, ecsPartNumber: `ES#${ecsDigits}`, mpn: current.manufacturerPartNumber,
       identifiers: { ecs: `ES#${ecsDigits}`, sku: `ES#${ecsDigits}`, mpn: current.manufacturerPartNumber },
@@ -371,8 +440,8 @@ export function prepareGSeriesPerformance(rawDocument, mediaDocument, {
       specifications: [], options: [], variants: [],
       selectionEvidence: 'ecs-vehicle-category-relevance',
       selectionRank: Math.min(...observations.map(record => record.relevancePosition)),
-      selectionNote: 'Listed in ECS vehicle Performance categories using the displayed Relevance order; ECS does not publish unit-sales ranking.',
-      selectionNoteAr: 'مدرج ضمن فئات أداء السيارة لدى ECS وفق ترتيب الصلة الظاهر؛ لا تنشر ECS ترتيباً بحسب عدد الوحدات المباعة.',
+      selectionNote: `Listed in ECS vehicle ${scope.label} categories using the displayed Relevance order; ECS does not publish unit-sales ranking.`,
+      selectionNoteAr: scope.selectionNoteAr,
       selectionSources: observations.map(record => ({
         vehicle: record.vehicle, category: record.category, sourceUrl: record.sourceUrl,
         relevancePosition: record.relevancePosition, observedAt: record.observedAt
@@ -390,6 +459,14 @@ export function prepareGSeriesPerformance(rawDocument, mediaDocument, {
   if (products.length < minimumProducts) throw new Error(`Only ${products.length} unique products were prepared; ${minimumProducts} are required.`);
   for (const product of products) product.relatedProductSlugs = related(products, product);
   return products;
+}
+
+export function prepareGSeriesPerformance(rawDocument, mediaDocument, options = {}) {
+  return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'performance' });
+}
+
+export function prepareGSeriesExterior(rawDocument, mediaDocument, options = {}) {
+  return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'exterior' });
 }
 
 function option(name) {
@@ -430,20 +507,23 @@ async function main() {
   const output = option('--output');
   const reportPath = option('--report');
   const minimumProducts = Number(option('--minimum-products') || 1);
+  const scopeName = option('--scope') || 'performance';
   if (!input || !mediaIndex || !output) {
-    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--report <report.json>] [--minimum-products <count>]');
+    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior] [--report <report.json>] [--minimum-products <count>]');
   }
+  const scope = CATALOGUE_SCOPES[scopeName];
+  if (!scope) throw new Error(`Unknown ECS G-Series catalogue scope: ${scopeName}.`);
   const [rawDocument, mediaDocument] = await Promise.all([
     readFile(path.resolve(input), 'utf8').then(JSON.parse),
     readFile(path.resolve(mediaIndex), 'utf8').then(JSON.parse)
   ]);
   await verifyMediaIntegrity(mediaDocument);
-  const products = prepareGSeriesPerformance(rawDocument, mediaDocument, { minimumProducts });
+  const products = prepareGSeriesCatalogue(rawDocument, mediaDocument, { minimumProducts, scopeName });
   const absoluteOutput = path.resolve(output);
   const relativeOutput = path.relative(REPO, absoluteOutput);
   if (relativeOutput.startsWith('..') || path.isAbsolute(relativeOutput)) throw new Error('The generated module must stay inside the repository.');
   await mkdir(path.dirname(absoluteOutput), { recursive: true });
-  const moduleBody = `// Generated from a validated, dated ECS vehicle-category capture.\nexport const ECS_G_SERIES_PERFORMANCE_PRODUCTS = Object.freeze(${JSON.stringify(products, null, 2)});\n`;
+  const moduleBody = `// Generated from a validated, dated ECS vehicle-category capture.\nexport const ${scope.exportName} = Object.freeze(${JSON.stringify(products, null, 2)});\n`;
   await writeAtomic(absoluteOutput, moduleBody);
   const report = {
     schemaVersion: 1, supplier: 'ECS Tuning', generatedAt: observedAt(rawDocument.generatedAt),
@@ -458,6 +538,7 @@ async function main() {
     conflictingPriceCount: products.filter(product => product.priceConflict).length,
     missingDescriptionCount: products.filter(product => !product.detailedDescriptionAvailable).length,
     missingBrandCount: products.filter(product => product.brand === 'Supplier brand not provided').length,
+    scope: scopeName,
     vehicleCounts: Object.fromEntries(Object.keys(VEHICLES).map(vehicle => [vehicle,
       products.filter(product => product.selectionSources.some(source => source.vehicle === vehicle)).length]))
   };

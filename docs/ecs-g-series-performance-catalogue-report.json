@@ -14,6 +14,7 @@
   "conflictingPriceCount": 6,
   "missingDescriptionCount": 13,
   "missingBrandCount": 53,
+  "scope": "performance",
   "vehicleCounts": {
     "BMW G87 M2 S58 3.0L": 799,
     "BMW G80 M3 Competition S58 3.0L": 909,

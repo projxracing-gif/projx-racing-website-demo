@@ -988,7 +988,7 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-detail-grid figure .tegiwa-image-placeholder > small { inset-block-end: 12px; }
 .tegiwa-image-empty { display: grid; max-width: 180px; place-items: center; gap: 9px; color: #5d6470; font-size: .72rem; text-align: center; }
 .tegiwa-image-empty svg { width: 30px; }
-.tegiwa-stock-badge { display: inline-flex; width: max-content; max-width: 100%; padding: 7px 9px; align-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface); font-size: .66rem; font-weight: 850; line-height: 1.2; }
+.tegiwa-stock-badge { display: inline-flex; width: max-content; max-width: calc(100% - 24px); padding: 7px 9px; align-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface); font-size: .66rem; font-weight: 850; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; }
 .tegiwa-product-media > .tegiwa-stock-badge { position: absolute; inset-inline-start: 12px; inset-block-end: 12px; box-shadow: 0 7px 20px rgba(10,14,20,.12); }
 .tegiwa-stock-badge.is-in-stock, .tegiwa-stock-badge.is-supplier-stock, .tegiwa-stock-badge.is-orderable { border-color: color-mix(in srgb, var(--green) 38%, var(--line)); color: color-mix(in srgb, var(--green) 80%, var(--text-strong)); background: color-mix(in srgb, var(--green) 8%, var(--surface)); }
 .tegiwa-stock-badge.is-check { border-color: color-mix(in srgb, #d59a21 45%, var(--line)); color: var(--text-strong); background: color-mix(in srgb, #d59a21 9%, var(--surface)); }

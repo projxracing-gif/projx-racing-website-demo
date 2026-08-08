@@ -17,6 +17,7 @@
     "catalog:ecs:publish-discovery": "node scripts/ecs-catalog/publish-discovery-blob.mjs",
     "catalog:ecs:materialize-media": "node scripts/ecs-catalog/materialize-page-assets.mjs",
     "catalog:ecs:g-series-performance": "node scripts/ecs-catalog/prepare-g-series-performance.mjs",
+    "catalog:ecs:g-series-exterior": "node scripts/ecs-catalog/prepare-g-series-performance.mjs --scope exterior",
     "catalog:tegiwa-stock": "node scripts/build-tegiwa-stock-index.mjs",
     "catalog:tegiwa-sitemaps": "node scripts/build-tegiwa-sitemap-manifest.mjs",
     "catalog:tegiwa-snapshot": "node scripts/build-tegiwa-catalog-snapshot.mjs",

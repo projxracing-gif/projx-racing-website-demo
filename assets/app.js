@@ -207,6 +207,8 @@
       pricing: "all",
       match: "any",
       supplier: "",
+      brand: "",
+      partType: "",
       currency: "",
       fitment: "all",
       backend: "unified",
@@ -276,6 +278,10 @@
       startingAt: "ابتداءً من",
       supplier: "المورد",
       allSuppliers: "كل الموردين",
+      filterBrand: "العلامة",
+      allBrands: "كل العلامات",
+      filterPartType: "نوع القطعة",
+      allPartTypes: "كل أنواع القطع",
       currency: "العملة",
       allCurrencies: "كل العملات",
       skuMpn: "رقم القطعة / MPN",
@@ -442,6 +448,10 @@
       startingAt: "From",
       supplier: "Supplier",
       allSuppliers: "All suppliers",
+      filterBrand: "Brand",
+      allBrands: "All brands",
+      filterPartType: "Part type",
+      allPartTypes: "All part types",
       currency: "Currency",
       allCurrencies: "All currencies",
       skuMpn: "SKU / MPN",
@@ -822,10 +832,21 @@
       ]
     },
     {
-      query: "exterior", en: "Exterior", ar: "الهيكل الخارجي", items: [
-        ["body panels", "Body Panels", "ألواح الهيكل"], ["splitters", "Splitters", "سبليترات"], ["body kits bumpers", "Bumpers & Body Kits", "صدامات وبودي كت"],
-        ["spoilers", "Spoilers", "جناحات"], ["mirrors", "Mirrors", "مرايا"], ["canards", "Canards", "كنارد"],
-        ["tow hooks", "Tow Hooks", "خطافات سحب"], ["safety catches", "Safety Catches", "أقفال أمان"], ["decals stickers", "Decals & Stickers", "ملصقات"]
+      query: "exterior", partType: "exterior", en: "Exterior", ar: "الهيكل الخارجي", items: [
+        ["", "Body Parts", "أجزاء الهيكل الخارجي", "exterior-body-parts"],
+        ["", "Vinyl Wrap", "تغليف الفينيل الخارجي", "exterior-vinyl-wrap"],
+        ["", "Exterior Tools", "أدوات الهيكل الخارجي", "exterior-tools"],
+        ["", "Wiper Parts", "أجزاء مساحات الزجاج", "exterior-wiper-parts"],
+        ["", "Emblems & Badges", "الشعارات والشارات", "emblems-badges"],
+        ["", "Roof Rack Parts", "أجزاء حوامل السقف", "exterior-roof-rack-parts"],
+        ["", "Mirror Parts", "أجزاء المرايا الخارجية", "exterior-mirror-parts"],
+        ["", "Exterior Electrical", "الأجزاء الكهربائية الخارجية", "exterior-electrical-parts"],
+        ["", "Skid Plates", "ألواح حماية أسفل السيارة", "skid-plate-parts"],
+        ["", "Antennas", "أجزاء الهوائي وملحقاته", "antenna-parts-accessories"],
+        ["", "Window Parts", "أجزاء النوافذ الخارجية", "exterior-window-parts"],
+        ["", "Alarm Parts", "أنظمة الإنذار الخارجية وأجزاؤها", "exterior-alarm-systems-parts"],
+        ["", "CSL Parts", "أجزاء CSL الخارجية", "exterior-csl-parts"],
+        ["", "Electronic Accessories", "ملحقات إلكترونية خارجية", "exterior-electronic-accessories"]
       ]
     },
     {
@@ -2323,7 +2344,7 @@
     return String(template || "").replace(/\{([a-z]+)\}/gi, (match, key) => Object.hasOwn(values, key) ? values[key] : match);
   }
 
-  const TEGIWA_SEARCH_DEFAULTS = Object.freeze({ sort: "relevance", availability: "all", pricing: "all", supplier: "", currency: "", fitment: "all" });
+  const TEGIWA_SEARCH_DEFAULTS = Object.freeze({ sort: "relevance", availability: "all", pricing: "all", supplier: "", brand: "", partType: "", currency: "", fitment: "all" });
   const TEGIWA_SEARCH_VALUES = Object.freeze({
     sort: new Set(["relevance", "name_asc", "name_desc", "price_asc", "price_desc"]),
     availability: new Set(["all", "available", "in_stock", "supplier_stock", "check", "unavailable"]),
@@ -2335,7 +2356,7 @@
   function catalogueFilterValue(key, value) {
     const normalized = cleanText(value || "", 100);
     if (TEGIWA_SEARCH_VALUES[key]) return TEGIWA_SEARCH_VALUES[key].has(normalized) ? normalized : TEGIWA_SEARCH_DEFAULTS[key];
-    if (key === "supplier") return /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(normalized) ? normalized : "";
+    if (key === "supplier" || key === "brand" || key === "partType") return /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(normalized) ? normalized : "";
     if (key === "currency") return /^[A-Za-z]{3}$/.test(normalized) ? normalized.toUpperCase() : "";
     return TEGIWA_SEARCH_DEFAULTS[key] ?? "";
   }
@@ -2406,6 +2427,20 @@
       supplierSelect.value = suppliers.some(item => item.slug === state.tegiwaCatalog.supplier) ? state.tegiwaCatalog.supplier : "";
       state.tegiwaCatalog.supplier = supplierSelect.value;
     }
+    const brandSelect = root.querySelector('[data-tegiwa-filter="brand"]');
+    const brands = Array.isArray(meta.brands) ? meta.brands.filter(item => item?.slug && item?.name) : [];
+    if (brandSelect && brands.length) {
+      brandSelect.innerHTML = `<option value="">${esc(labels.allBrands)}</option>${brands.map(item => `<option value="${esc(item.slug)}">${esc(state.locale === "ar" ? item.nameAr || item.name : item.name)}</option>`).join("")}`;
+      brandSelect.value = brands.some(item => item.slug === state.tegiwaCatalog.brand) ? state.tegiwaCatalog.brand : "";
+      state.tegiwaCatalog.brand = brandSelect.value;
+    }
+    const partTypeSelect = root.querySelector('[data-tegiwa-filter="partType"]');
+    const partTypes = Array.isArray(meta.partTypes) ? meta.partTypes.filter(item => item?.slug && item?.name) : [];
+    if (partTypeSelect && partTypes.length) {
+      partTypeSelect.innerHTML = `<option value="">${esc(labels.allPartTypes)}</option>${partTypes.map(item => `<option value="${esc(item.slug)}">${esc(state.locale === "ar" ? item.nameAr || item.name : item.name)}</option>`).join("")}`;
+      partTypeSelect.value = partTypes.some(item => item.slug === state.tegiwaCatalog.partType) ? state.tegiwaCatalog.partType : "";
+      state.tegiwaCatalog.partType = partTypeSelect.value;
+    }
     const currencySelect = root.querySelector('[data-tegiwa-filter="currency"]');
     const currencies = Array.isArray(meta.currencies) ? meta.currencies.filter(value => /^[A-Z]{3}$/.test(String(value))) : [];
     if (currencySelect && currencies.length) {
@@ -2457,6 +2492,8 @@
     const normalizedQuery = cleanText(query || "", 120);
     if (normalizedQuery) params.set("q", normalizedQuery);
     if (state.tegiwaCatalog.supplier) params.set("supplier", state.tegiwaCatalog.supplier);
+    if (state.tegiwaCatalog.brand) params.set("brand", state.tegiwaCatalog.brand);
+    if (state.tegiwaCatalog.partType) params.set("partType", state.tegiwaCatalog.partType);
     if (state.tegiwaCatalog.currency) params.set("currency", state.tegiwaCatalog.currency);
     const vehicleFields = partsVehicleApiFields();
     const vehicleMatch = state.tegiwaCatalog.match === "vehicle" && Object.keys(vehicleFields).length > 0;
@@ -3114,13 +3151,15 @@
       const groupAria = tegiwaTemplate(labels.partDirectorySearch, { term: groupLabel });
       const panelId = `parts-directory-panel-${groupIndex + 1}`;
       const toggleId = `parts-directory-toggle-${groupIndex + 1}`;
-      const links = group.items.map(([query, en, ar]) => {
+      const links = group.items.map(([query, en, ar, partType = ""]) => {
         const label = localeKey === "ar" ? ar : en;
         const ariaLabel = tegiwaTemplate(labels.partDirectorySearch, { term: label });
-        return `<li><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" aria-label="${esc(ariaLabel)}" aria-pressed="false"><span>${esc(label)}</span>${icons.arrow}</button></li>`;
+        return `<li><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}"${partType ? ` data-tegiwa-directory-part-type="${esc(partType)}"` : ""} aria-label="${esc(ariaLabel)}" aria-pressed="false"><span>${esc(label)}</span>${icons.arrow}</button></li>`;
       }).join("");
       const expandLabel = tegiwaTemplate(labels.partDirectoryExpand, { term: groupLabel });
-      return `<article class="parts-directory-group" data-parts-directory-group><h3><button class="parts-directory-toggle" id="${toggleId}" type="button" data-action="toggle-parts-directory-group" data-parts-directory-toggle aria-expanded="false" aria-controls="${panelId}" aria-label="${esc(expandLabel)}" data-expanded-label="${esc(tegiwaTemplate(labels.partDirectoryCollapse, { term: groupLabel }))}" data-collapsed-label="${esc(expandLabel)}"><span class="parts-directory-index">${compactNumber(groupIndex + 1)}</span><strong>${esc(groupLabel)}</strong><span class="parts-directory-chevron" aria-hidden="true"></span></button></h3><div class="parts-directory-panel" id="${panelId}" role="region" aria-labelledby="${toggleId}" hidden><ul><li class="parts-directory-view-all"><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(group.query)}" aria-label="${esc(groupAria)}" aria-pressed="false"><span><strong>${esc(labels.partDirectoryViewAll)}</strong><small>${esc(groupLabel)}</small></span>${icons.arrow}</button></li>${links}</ul></div></article>`;
+      const groupQuery = group.partType ? "" : group.query;
+      const groupPartType = group.partType ? ` data-tegiwa-directory-part-type="${esc(group.partType)}"` : "";
+      return `<article class="parts-directory-group" data-parts-directory-group><h3><button class="parts-directory-toggle" id="${toggleId}" type="button" data-action="toggle-parts-directory-group" data-parts-directory-toggle aria-expanded="false" aria-controls="${panelId}" aria-label="${esc(expandLabel)}" data-expanded-label="${esc(tegiwaTemplate(labels.partDirectoryCollapse, { term: groupLabel }))}" data-collapsed-label="${esc(expandLabel)}"><span class="parts-directory-index">${compactNumber(groupIndex + 1)}</span><strong>${esc(groupLabel)}</strong><span class="parts-directory-chevron" aria-hidden="true"></span></button></h3><div class="parts-directory-panel" id="${panelId}" role="region" aria-labelledby="${toggleId}" hidden><ul><li class="parts-directory-view-all"><button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(groupQuery)}"${groupPartType} aria-label="${esc(groupAria)}" aria-pressed="false"><span><strong>${esc(labels.partDirectoryViewAll)}</strong><small>${esc(groupLabel)}</small></span>${icons.arrow}</button></li>${links}</ul></div></article>`;
     }).join("");
     return `<section class="section parts-directory-section" id="parts-directory"><div class="container"><div class="parts-directory-shell" data-tegiwa-directory>${sectionHead(labels.partDirectoryEyebrow, labels.partDirectoryHeading, labels.partDirectoryText)}<p class="parts-directory-disclaimer" id="parts-directory-note">${icons.check}<span>${esc(labels.partDirectoryNote)}</span></p><div class="parts-directory-accordion" aria-label="${esc(labels.partDirectoryLabel)}" aria-describedby="parts-directory-note">${groups}</div></div></div></section>`;
   }
@@ -3202,6 +3241,8 @@
               <label><span>${esc(labels.tegiwaFilterAvailability)}</span><select class="select" data-tegiwa-filter="availability"><option value="all">${esc(labels.tegiwaAvailabilityAll)}</option><option value="available">${esc(labels.tegiwaAvailabilityAvailable)}</option><option value="in_stock">${esc(labels.tegiwaAvailabilityInStock)}</option><option value="supplier_stock">${esc(labels.tegiwaAvailabilitySupplierStock)}</option><option value="check">${esc(labels.tegiwaAvailabilityCheck)}</option><option value="unavailable">${esc(labels.tegiwaAvailabilityUnavailable)}</option></select></label>
               <label><span>${esc(labels.tegiwaFilterPricing)}</span><select class="select" data-tegiwa-filter="pricing"><option value="all">${esc(labels.tegiwaPricingAll)}</option><option value="priced">${esc(labels.tegiwaPricingPriced)}</option><option value="request_price">${esc(labels.tegiwaPricingRequest)}</option></select></label>
               <label><span>${esc(labels.supplier)}</span><select class="select" data-tegiwa-filter="supplier"><option value="">${esc(labels.allSuppliers)}</option></select></label>
+              <label><span>${esc(labels.filterBrand)}</span><select class="select" data-tegiwa-filter="brand"><option value="">${esc(labels.allBrands)}</option></select></label>
+              <label><span>${esc(labels.filterPartType)}</span><select class="select" data-tegiwa-filter="partType"><option value="">${esc(labels.allPartTypes)}</option></select></label>
               <label><span>${esc(labels.currency)}</span><select class="select ltr-input" data-tegiwa-filter="currency"><option value="">${esc(labels.allCurrencies)}</option></select></label>
               <label><span>${esc(labels.filterFitment)}</span><select class="select" data-tegiwa-filter="fitment" ${partsVehicleLabel() ? "" : "disabled"}><option value="all">${esc(labels.allFitment)}</option><option value="exact">${esc(labels.exactMatches)}</option><option value="possible">${esc(labels.possibleMatchesOnly)}</option></select></label>
               <button class="btn btn-outline btn-sm" type="button" data-action="tegiwa-clear-filters" disabled>${esc(labels.tegiwaClearFilters)}${icons.close}</button>
@@ -4332,12 +4373,17 @@
 
   function searchTegiwaDirectory(query, trigger) {
     const normalizedQuery = cleanText(query, 120);
-    if (normalizedQuery.length < 2) return;
+    const requestedPartType = catalogueFilterValue("partType", trigger?.dataset.tegiwaDirectoryPartType || "");
+    if (normalizedQuery.length < 2 && !requestedPartType) return;
     const requestedSupplier = catalogueFilterValue("supplier", trigger?.dataset.tegiwaDirectorySupplier || "");
     const requestedMatch = trigger?.dataset.tegiwaDirectoryMatch === "any"
       ? "any"
       : (partsVehicleLabel() ? "vehicle" : "any");
-    state.tegiwaCatalog.supplier = requestedSupplier;
+    Object.assign(state.tegiwaCatalog, TEGIWA_SEARCH_DEFAULTS, {
+      supplier: requestedSupplier,
+      partType: requestedPartType,
+      sortScope: ""
+    });
     syncTegiwaFilterUi();
     const searchInput = document.querySelector('[data-tegiwa-search] input[name="q"]');
     if (searchInput) searchInput.value = normalizedQuery;

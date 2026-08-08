@@ -1,5 +1,17 @@
 # Projx Racing staging changelog
 
+## 8 August 2026
+
+### Complete G-Series Exterior catalogue scope
+
+- Added every product placement shown in the public ECS Exterior roots for BMW G87 M2, G80 M3 Competition and G82 M4 Competition: 1,725 category placements across 41 non-empty category branches and 130 rendered catalogue pages, deduplicated to 782 unique ECS products.
+- Merged 237 overlapping ECS identities with the existing reviewed/Performance collection, bringing the customer-facing ECS total to 1,679 unique products without changing established handles.
+- Added 436 new checksum-verified local product images and reused matching verified Performance media. The 139 products for which ECS supplied no product image display a clearly labelled local placeholder instead of a guessed image.
+- Preserved ECS number, manufacturer part number, canonical source URL, public USD price observation, dated supplier availability phrase, description where supplied, and separate G87/G80/G82 category evidence.
+- Kept all generated fitment at possible/confirmation-required, kept dated availability from being represented as live stock, and held all 10 same-day merged-catalogue price conflicts at Request price (6 from the Performance capture and 4 additional cross-scope conflicts).
+- Wired the 14 Exterior supplier categories into exact part-type filters, added Brand and Part type controls to the unified catalogue, and added an exact all-Exterior scope covering all 782 Exterior products.
+- Added strict repeatable capture-combination, media-index merge, identity-conflict, price-conflict, placeholder-upgrade, and category-filter validation.
+
 ## 6 August 2026
 
 ### Featured BMW M catalogue batch

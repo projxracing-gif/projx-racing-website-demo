@@ -35,11 +35,11 @@ No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT
 
 ## Current reviewed storefront collection
 
-The storefront contains 1,134 unique ECS products after merging 41 legacy manually reviewed products from `assets/ecs-products.js` with 1,109 generated G-Series Performance products from `server/data/ecs-g-series-performance-products.js`. Sixteen ECS identities overlap and are merged without changing their established public handles. The generated set covers every captured Performance branch for G87 M2, G80 M3 Competition and G82 M4 Competition; ECS category placement is not represented as a supplier-published sales ranking.
+The storefront contains 1,679 unique ECS products after duplicate-safe merging of 41 legacy manually reviewed products, 1,109 generated G-Series Performance products, and 782 generated G-Series Exterior products. The Exterior set overlaps 237 identities already present in the legacy/Performance collection; those records merge by ECS number while retaining the established public handle and all vehicle/category evidence. The generated sets cover every captured Performance and Exterior branch for G87 M2, G80 M3 Competition and G82 M4 Competition. ECS category placement is not represented as a supplier-published sales ranking.
 
-The generated catalogue report is `docs/ecs-g-series-performance-catalogue-report.json`. It records 2,656 listing observations, 1,109 unique generated products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 products retaining a publishable public price and 8 request-price records.
+The Performance report is `docs/ecs-g-series-performance-catalogue-report.json`: 2,656 listing observations, 1,109 unique products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 public-price records and 8 request-price records. The Exterior report is `docs/ecs-g-series-exterior-catalogue-report.json`: 1,725 listing observations, 782 unique products, 643 verified product-specific images, 139 labelled supplier placeholders, 782 public-price observations, 71 missing supplier descriptions and 28 missing supplier brands. Ten same-day public-price differences found while merging Performance and Exterior records are held at `Request price` rather than publishing an ambiguous amount.
 
-The 1,109 generated vehicle-category records deliberately retain these limitations:
+The generated vehicle-category records deliberately retain these limitations:
 
 - supplier-title/application fitment is `possible`, never `exact`;
 - supplier availability is an observation and the API returns `check_availability`;

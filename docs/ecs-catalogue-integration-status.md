@@ -4,19 +4,19 @@ Status date: 8 August 2026
 
 ## Verified outcome
 
-The customer-facing ECS collection now contains **1,134 unique products**. This is the duplicate-safe merge of the 41 earlier manually reviewed records with 1,109 products captured from every listed Performance branch for BMW G87 M2, G80 M3 Competition and G82 M4 Competition; 16 products overlap the earlier set. The current audit passes with:
+The customer-facing ECS collection now contains **1,679 unique products**. This is the duplicate-safe merge of 41 earlier manually reviewed records, 1,109 products captured from every listed Performance branch, and 782 products captured from every listed Exterior branch for BMW G87 M2, G80 M3 Competition and G82 M4 Competition. The Exterior set overlaps 237 existing ECS identities, which are merged without changing their public handles. The current audit passes with:
 
-- 1,134 unique ECS identities and storefront handles;
-- 1,109 newly generated G-Series records from 2,656 official listing observations;
-- 1,547 duplicate vehicle/category observations merged without duplicate products;
-- 824 generated products with verified product-specific media;
-- 285 generated products using a visibly labelled official ECS media-unavailable placeholder;
-- 1,101 generated products with a public USD price observation, including 71 `From` prices;
-- 8 generated products held at `Request price`, including 6 conflicting price observations and 2 zero-price configurators;
-- 767 unique, checksum-verified local media files used by 779 source-image mappings; and
+- 1,679 unique ECS identities and storefront handles;
+- 4,381 official vehicle/category listing observations across the two generated scopes;
+- 1,891 generated scope records before cross-scope deduplication;
+- 643 of the 782 Exterior products with verified product-specific media;
+- 139 Exterior products using a visibly labelled official ECS media-unavailable placeholder;
+- all 782 Exterior products retaining a dated public USD price observation, including 5 `Starting at` prices;
+- 10 same-day price conflicts in the merged catalogue held at `Request price` instead of exposing an ambiguous amount (6 already existed within the Performance capture and 4 were introduced by cross-scope observations);
+- 436 new Exterior media files materialized locally, plus verified reuse of existing Performance media; and
 - possible-only ECS vehicle-category fitment evidence, confirmation-only availability and no claimed live stock.
 
-The generated scope contains 799 G87 M2, 909 G80 M3 and 899 G82 M4 unique matches. The unified API also returns one compatible earlier reviewed product for each saved vehicle, producing current ECS-filter result totals of 800, 910 and 900 respectively. Filtering supports supplier, brand, category/subcategory, USD pricing, confirmation-required availability, saved vehicle, model, chassis, engine and possible fitment. Exact-fitment filtering returns no ECS records because the supplier-category placement has not been independently verified against a VIN.
+The storefront vehicle matcher returns 1,231 G87 M2, 1,355 G80 M3 and 1,325 G82 M4 records with possible supplier evidence after the generated catalogue and earlier reviewed records are merged. Each total includes one earlier supplier-title-evidence record in addition to the generated vehicle-category records. Filtering supports supplier, brand, category/subcategory, USD pricing, confirmation-required availability, saved vehicle, model, chassis, engine and possible fitment. No generated ECS record is exposed as structured or independently verified exact fitment; VIN and option confirmation remain required.
 
 ## Private ECS discovery queue
 
@@ -30,11 +30,11 @@ The ECS sitemap inventory is retained as private ingestion data only. It is not 
 
 The earlier preview incorrectly exposed URL-derived cards and added URL counts to the public product total. That path has been removed. The public discovery API now fails closed, normal ECS browsing returns reviewed structured products only, and the UI rejects a stale response containing `url_discovered` records.
 
-Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **194,387 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
+Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **194,932 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
 
 ## ECS image coverage
 
-All 41 legacy reviewed ECS products retain their approved local media. In the generated G-Series Performance scope, **824 products have verified product-specific media** and **285 use a visibly labelled official ECS placeholder** because no product-specific image was present in the captured supplier listing. The 779 source-image mappings resolve to 767 unique local files with verified hashes and readable JPEG, PNG or WebP signatures. Supplier watermarks are preserved.
+All 41 legacy reviewed ECS products retain their approved local media. In the generated G-Series Performance scope, **824 products have verified product-specific media** and **285 use a visibly labelled official ECS placeholder**. In the generated G-Series Exterior scope, **643 products have verified product-specific media** and **139 use the same clearly labelled placeholder** because no product-specific image was present in the supplier listing. Exterior added 436 new checksum-verified local WebP files and safely reuses matching Performance files. Supplier watermarks and attribution are preserved.
 
 Completing ECS image coverage requires an authorised ECS number, manufacturer part number or canonical URL to image mapping. Imported media must be validated, checksummed, deduplicated, kept with its supplier attribution or watermark intact, mirrored to approved object storage and reviewed before publication. Search thumbnails, guessed images and watermark removal are not acceptable substitutes.
 
@@ -98,12 +98,12 @@ This 26-product batch was manually reviewed on 6 August 2026 from ECS vehicle-ca
 
 ## Data still missing
 
-The generated G-Series scope still has these controlled supplier-data gaps:
+The generated G-Series Exterior scope still has these controlled supplier-data gaps:
 
-- detailed description missing for 13 products;
-- manufacturer brand missing for 53 products;
-- product-specific media missing for 285 products, which use a labelled supplier placeholder;
-- a publishable public price missing for 8 products;
+- detailed supplier description missing for 71 products;
+- manufacturer brand missing for 28 products;
+- product-specific media missing for 139 products, which use a labelled supplier placeholder;
+- 10 merged products have ambiguous same-day public prices and are held at `Request price` (6 Performance-capture conflicts and 4 additional cross-scope conflicts);
 - independently verified exact vehicle/VIN fitment missing for all generated products;
 - Projx Racing selling price missing for all generated products; and
 - live ECS stock feed unavailable for all products.
