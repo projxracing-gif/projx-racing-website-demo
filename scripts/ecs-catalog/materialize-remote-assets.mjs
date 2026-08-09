@@ -75,7 +75,69 @@ async function exists(filename) {
   }
 }
 
-async function downloadImage(sourceUrl, outputDirectory, observedAt) {
+function createByteBudget(limit) {
+  let used = 0;
+  return Object.freeze({
+    reserve(bytes) {
+      if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('Invalid ECS media byte count.');
+      if (used + bytes > limit) {
+        throw new Error(`ECS media download budget exceeded (${limit} bytes).`);
+      }
+      used += bytes;
+    },
+    get used() { return used; }
+  });
+}
+
+function buildMediaPlan(records, existingImages = []) {
+  const existingByUrl = new Map();
+  for (const image of existingImages) {
+    const sourceUrl = officialImageUrl(image?.sourceUrl);
+    if (!sourceUrl) throw new Error('The existing ECS media index contains a non-official source URL.');
+    const current = existingByUrl.get(sourceUrl);
+    if (current && (current.localPath !== image.localPath || current.sha256 !== image.sha256)) {
+      throw new Error(`The existing ECS media index conflicts for ${sourceUrl}.`);
+    }
+    if (!current) existingByUrl.set(sourceUrl, { ...image, sourceUrl });
+  }
+  const requestedByPrimaryUrl = new Map();
+  const reusedByPrimaryUrl = new Map();
+  for (const record of records) {
+    const sourceUrl = officialImageUrl(record?.imageUrl) || officialImageUrl(record?.imageFallbackUrl);
+    const fallbackUrl = officialImageUrl(record?.imageFallbackUrl);
+    if (!sourceUrl) continue;
+    const existingPrimary = existingByUrl.get(sourceUrl);
+    const existingFallback = fallbackUrl ? existingByUrl.get(fallbackUrl) : null;
+    if (existingPrimary) {
+      reusedByPrimaryUrl.set(sourceUrl, existingPrimary);
+      continue;
+    }
+    if (existingFallback) {
+      reusedByPrimaryUrl.set(sourceUrl, {
+        ...existingFallback,
+        sourceUrl,
+        downloadedFromUrl: fallbackUrl
+      });
+      continue;
+    }
+    const current = requestedByPrimaryUrl.get(sourceUrl);
+    if (!current?.fallbackUrl || (fallbackUrl && fallbackUrl !== sourceUrl)) {
+      requestedByPrimaryUrl.set(sourceUrl, {
+        sourceUrl,
+        fallbackUrl: fallbackUrl && fallbackUrl !== sourceUrl ? fallbackUrl : null
+      });
+    }
+  }
+  return {
+    existingUrlCount: existingByUrl.size,
+    requestedImages: [...requestedByPrimaryUrl.values()]
+      .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl)),
+    reusedImages: [...reusedByPrimaryUrl.values()]
+      .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl))
+  };
+}
+
+async function downloadImage(sourceUrl, outputDirectory, observedAt, byteBudget) {
   const sourceExtension = path.extname(new URL(sourceUrl).pathname).toLocaleLowerCase('en-US');
   const contentType = sourceExtension === '.webp' ? 'image/webp'
     : sourceExtension === '.jpg' || sourceExtension === '.jpeg' ? 'image/jpeg'
@@ -105,6 +167,7 @@ async function downloadImage(sourceUrl, outputDirectory, observedAt) {
     throw new Error(`ECS media is too small for a product card: ${sourceUrl}`);
   }
   const sha256 = createHash('sha256').update(bytes).digest('hex');
+  byteBudget.reserve(bytes.length);
   const filename = `${sha256.slice(0, 24)}.${fileExtension}`;
   const destination = path.join(outputDirectory, filename);
   if (!(await exists(destination))) await writeFile(destination, bytes);
@@ -115,7 +178,8 @@ async function downloadImage(sourceUrl, outputDirectory, observedAt) {
     height: size.height,
     contentType,
     sha256,
-    observedAt
+    observedAt,
+    byteLength: bytes.length
   };
 }
 
@@ -139,9 +203,18 @@ async function main() {
   const outputDirectoryOption = option('--output-dir');
   const indexPathOption = option('--index');
   const allowMissing = hasOption('--allow-missing');
+  const dryRun = hasOption('--dry-run');
   const concurrency = Math.min(8, Math.max(1, Number.parseInt(option('--concurrency') || '2', 10) || 2));
+  const maxImages = Number.parseInt(option('--max-images') || '25000', 10);
+  const maxTotalBytes = Number.parseInt(option('--max-total-bytes') || String(2 * 1024 * 1024 * 1024), 10);
   if (!input || !outputDirectoryOption || !indexPathOption) {
-    throw new Error('Usage: materialize-remote-assets.mjs --input <capture.json> --output-dir <repo-directory> --index <media-index.json> [--existing-media-index <media-index.json>] [--allow-missing] [--concurrency <1-8>]');
+    throw new Error('Usage: materialize-remote-assets.mjs --input <capture.json> --output-dir <repo-directory> --index <media-index.json> [--existing-media-index <media-index.json>] [--allow-missing] [--dry-run] [--concurrency <1-8>] [--max-images <count>] [--max-total-bytes <bytes>]');
+  }
+  if (!Number.isSafeInteger(maxImages) || maxImages < 1 || maxImages > 100_000) {
+    throw new Error('--max-images must be an integer from 1 to 100000.');
+  }
+  if (!Number.isSafeInteger(maxTotalBytes) || maxTotalBytes < 1_000_000 || maxTotalBytes > 10_000_000_000) {
+    throw new Error('--max-total-bytes must be an integer from 1000000 to 10000000000.');
   }
   const outputDirectory = path.resolve(outputDirectoryOption);
   const indexPath = path.resolve(indexPathOption);
@@ -161,33 +234,44 @@ async function main() {
     || !Array.isArray(existing?.images)) {
     throw new Error('The existing ECS media index is invalid.');
   }
-  const existingUrls = new Set(existing.images.map(image => officialImageUrl(image?.sourceUrl)).filter(Boolean));
   const observedAt = [...customerFacing.records.map(record => String(record?.observedAt || ''))]
     .filter(value => Number.isFinite(Date.parse(value))).sort().at(-1) || null;
-  const requestedByPrimaryUrl = new Map();
-  for (const record of customerFacing.records) {
-    const sourceUrl = officialImageUrl(record?.imageUrl) || officialImageUrl(record?.imageFallbackUrl);
-    const fallbackUrl = officialImageUrl(record?.imageFallbackUrl);
-    if (!sourceUrl || existingUrls.has(sourceUrl) || (fallbackUrl && existingUrls.has(fallbackUrl))) continue;
-    const current = requestedByPrimaryUrl.get(sourceUrl);
-    if (!current?.fallbackUrl || (fallbackUrl && fallbackUrl !== sourceUrl)) {
-      requestedByPrimaryUrl.set(sourceUrl, {
-        sourceUrl,
-        fallbackUrl: fallbackUrl && fallbackUrl !== sourceUrl ? fallbackUrl : null
-      });
-    }
-  }
-  const requestedImages = [...requestedByPrimaryUrl.values()]
-    .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl));
+  const mediaPlan = buildMediaPlan(customerFacing.records, existing.images);
+  const { requestedImages, reusedImages } = mediaPlan;
   if (!observedAt) throw new Error('The ECS capture has no valid media observation timestamp.');
+  if (requestedImages.length + reusedImages.length > maxImages) {
+    throw new Error(`ECS media plan exceeds --max-images (${maxImages}).`);
+  }
+  if (dryRun) {
+    console.log(JSON.stringify({
+      dryRun: true,
+      requestedImageCount: requestedImages.length,
+      reusedImageMappings: reusedImages.length,
+      totalImageMappings: requestedImages.length + reusedImages.length,
+      existingMediaUrlCount: mediaPlan.existingUrlCount,
+      quarantinedIdentityCount: customerFacing.quarantinedIdentities.size,
+      maxImages,
+      maxTotalBytes,
+      generatedAt: observedAt
+    }));
+    return;
+  }
   await mkdir(outputDirectory, { recursive: true });
+  const byteBudget = createByteBudget(maxTotalBytes);
   const outcomes = await mapConcurrent(requestedImages, concurrency, async ({ sourceUrl, fallbackUrl }) => {
     try {
-      return { image: await downloadImage(sourceUrl, outputDirectory, observedAt) };
+      return { image: await downloadImage(sourceUrl, outputDirectory, observedAt, byteBudget) };
     } catch (error) {
       if (fallbackUrl) {
         try {
-          return { image: await downloadImage(fallbackUrl, outputDirectory, observedAt) };
+          const fallbackImage = await downloadImage(fallbackUrl, outputDirectory, observedAt, byteBudget);
+          return {
+            image: {
+              ...fallbackImage,
+              sourceUrl,
+              downloadedFromUrl: fallbackUrl
+            }
+          };
         } catch (fallbackError) {
           return { failure: {
             sourceUrl,
@@ -211,7 +295,7 @@ async function main() {
     schemaVersion: 1,
     supplier: 'ECS Tuning',
     generatedAt: observedAt,
-    images: images.map(({ observedAt: _ignored, ...image }) => image)
+    images: [...reusedImages, ...images.map(({ observedAt: _ignored, byteLength: _bytes, ...image }) => image)]
       .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl)),
     failures
   };
@@ -221,10 +305,15 @@ async function main() {
   await rename(temporary, indexPath);
   console.log(JSON.stringify({
     requestedImageCount: requestedImages.length,
+    downloadedImageMappings: images.length,
+    reusedImageMappings: reusedImages.length,
     imageMappings: document.images.length,
     uniqueFiles: new Set(document.images.map(image => image.sha256)).size,
     failedImageCount: failures.length,
-    existingMediaUrlCount: existingUrls.size,
+    existingMediaUrlCount: mediaPlan.existingUrlCount,
+    downloadedBytes: byteBudget.used,
+    maxImages,
+    maxTotalBytes,
     quarantinedIdentityCount: customerFacing.quarantinedIdentities.size,
     generatedAt: observedAt
   }));
@@ -237,4 +326,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   });
 }
 
-export const __test = Object.freeze({ officialImageUrl, inside, ecsIdentity, customerFacingRecords });
+export const __test = Object.freeze({
+  officialImageUrl,
+  inside,
+  ecsIdentity,
+  customerFacingRecords,
+  buildMediaPlan,
+  createByteBudget
+});

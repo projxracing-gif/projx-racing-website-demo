@@ -15,10 +15,18 @@ import {
   ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES
 } from './data/ecs-g-series-engine-products.js';
 import {
+  BMW_M3_AGGREGATE_PRODUCTS,
+  BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES
+} from './data/ecs-bmw-m3-aggregate-products.js';
+import {
   buildCatalogSearchPlan,
   catalogSearchMeta,
   catalogSearchVocabulary
 } from './catalog-search-intelligence.js';
+import {
+  catalogueParentPartTypeFacets,
+  cataloguePartTypeMatches
+} from './catalog-taxonomy.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -352,16 +360,30 @@ export function mergeReviewedEcsProducts(existingProducts, generatedProducts) {
   return remapped;
 }
 
+const manuallyReviewedEcsProducts = globalThis.PROJX_ECS_PRODUCTS || [];
+const boundedGSeriesProducts = [
+  ...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS,
+  ...ECS_G_SERIES_INTERIOR_PRODUCTS, ...ECS_G_SERIES_DRIVETRAIN_PRODUCTS,
+  ...ECS_G_SERIES_BRAKING_PRODUCTS, ...ECS_G_SERIES_ENGINE_PRODUCTS
+];
+const bmwM3AggregateQuarantinedIdentities = new Set(
+  BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES.map(String)
+);
+const bmwM3AggregateMergeCandidates = BMW_M3_AGGREGATE_PRODUCTS
+  .filter(product => !bmwM3AggregateQuarantinedIdentities.has(ecsIdentity(product)));
+const mergedWithoutBmwM3Aggregate = mergeReviewedEcsProducts(
+  manuallyReviewedEcsProducts,
+  boundedGSeriesProducts
+);
 const mergedReviewedEcsProducts = mergeReviewedEcsProducts(
-  globalThis.PROJX_ECS_PRODUCTS || [],
-  [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS,
-    ...ECS_G_SERIES_INTERIOR_PRODUCTS, ...ECS_G_SERIES_DRIVETRAIN_PRODUCTS,
-    ...ECS_G_SERIES_BRAKING_PRODUCTS, ...ECS_G_SERIES_ENGINE_PRODUCTS]
+  manuallyReviewedEcsProducts,
+  [...boundedGSeriesProducts, ...bmwM3AggregateMergeCandidates]
 );
 const quarantinedEcsIdentities = new Set([
   ...ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES,
   ...ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES,
-  ...ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES
+  ...ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES,
+  ...BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES
 ]);
 const quarantinedProductSlugs = new Set(mergedReviewedEcsProducts
   .filter(product => quarantinedEcsIdentities.has(ecsIdentity(product)))
@@ -373,6 +395,61 @@ export const REVIEWED_ECS_PRODUCTS = Object.freeze(mergedReviewedEcsProducts
     relatedProductSlugs: (product.relatedProductSlugs || [])
       .filter(slug => !quarantinedProductSlugs.has(slug))
   })));
+const reviewedEcsSourceRecordCounts = Object.freeze({
+  manuallyReviewed: manuallyReviewedEcsProducts.length,
+  gSeriesPerformance: ECS_G_SERIES_PERFORMANCE_PRODUCTS.length,
+  gSeriesExterior: ECS_G_SERIES_EXTERIOR_PRODUCTS.length,
+  gSeriesInterior: ECS_G_SERIES_INTERIOR_PRODUCTS.length,
+  gSeriesDrivetrain: ECS_G_SERIES_DRIVETRAIN_PRODUCTS.length,
+  gSeriesBraking: ECS_G_SERIES_BRAKING_PRODUCTS.length,
+  gSeriesEngine: ECS_G_SERIES_ENGINE_PRODUCTS.length,
+  bmwM3Aggregate: BMW_M3_AGGREGATE_PRODUCTS.length
+});
+const bmwM3RequestedSections = Object.freeze([
+  'Braking', 'Engine', 'Exterior', 'Interior', 'Performance', 'Suspension', 'Steering'
+]);
+const bmwM3AggregateIncludedSections = Object.freeze([...new Set(BMW_M3_AGGREGATE_PRODUCTS
+  .flatMap(product => (product.selectionSources || []).map(source => source?.section))
+  .filter(section => bmwM3RequestedSections.includes(section)))].sort());
+const bmwM3AggregateCaptureStatus = Object.freeze({
+  stage: bmwM3AggregateIncludedSections.length === bmwM3RequestedSections.length
+    ? 'complete'
+    : 'staging-progress',
+  complete: bmwM3AggregateIncludedSections.length === bmwM3RequestedSections.length,
+  importPolicy: 'reconciled-sections-only',
+  requestedSectionCount: bmwM3RequestedSections.length,
+  includedSectionCount: bmwM3AggregateIncludedSections.length,
+  includedSections: bmwM3AggregateIncludedSections,
+  excludedSections: bmwM3RequestedSections
+    .filter(section => !bmwM3AggregateIncludedSections.includes(section))
+});
+export const REVIEWED_ECS_CATALOGUE_STATUS = Object.freeze({
+  schemaVersion: 1,
+  sourceRecordCounts: reviewedEcsSourceRecordCounts,
+  sourceRecordCount: Object.values(reviewedEcsSourceRecordCounts).reduce((total, count) => total + count, 0),
+  preQuarantineUniqueProductCount: mergedReviewedEcsProducts.length,
+  quarantinedIdentityCount: quarantinedEcsIdentities.size,
+  publishedProductCount: REVIEWED_ECS_PRODUCTS.length,
+  bmwM3AggregateNewUniqueProductCount: Math.max(
+    0,
+    mergedReviewedEcsProducts.length - mergedWithoutBmwM3Aggregate.length
+  ),
+  bmwM3AggregateCaptureStatus
+});
+
+function reviewedEcsCatalogueStatus(products) {
+  if (products === REVIEWED_ECS_PRODUCTS) return REVIEWED_ECS_CATALOGUE_STATUS;
+  return {
+    schemaVersion: 1,
+    sourceRecordCounts: null,
+    sourceRecordCount: products.length,
+    preQuarantineUniqueProductCount: products.length,
+    quarantinedIdentityCount: null,
+    publishedProductCount: products.length,
+    bmwM3AggregateNewUniqueProductCount: null,
+    bmwM3AggregateCaptureStatus: null
+  };
+}
 
 export class ReviewedFallbackError extends Error {
   constructor(status, code, message) {
@@ -588,6 +665,9 @@ function localCatalogueFacets(products) {
     const current = partTypes.get(slug);
     if (current) partTypes.set(slug, { ...current, name, nameAr });
   }
+  for (const facet of catalogueParentPartTypeFacets([...partTypes.keys()])) {
+    partTypes.set(facet.slug, { ...(partTypes.get(facet.slug) || {}), ...facet });
+  }
   const byName = (left, right) => left.name.localeCompare(right.name) || left.slug.localeCompare(right.slug);
   return {
     brands: [...brands.values()].sort(byName),
@@ -695,10 +775,10 @@ function productMatches(product, request, nowValue, searchPlan = null) {
   if (request.supplier && request.supplier !== 'ecs') return false;
   if (request.currency && request.currency !== 'USD') return false;
   if (request.brand && request.brand !== product.brandSlug) return false;
-  if (request.partType && ![
+  if (request.partType && !cataloguePartTypeMatches([
     product.categorySlug, product.subcategorySlug,
     ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
-  ].includes(request.partType)) return false;
+  ], request.partType)) return false;
   if (!availabilityMatches(request.availability || 'all')) return false;
   const priced = priceIsFresh(product, nowValue) && finitePriceAmount(product) !== null;
   if (request.pricing === 'priced' && !priced) return false;
@@ -1076,6 +1156,7 @@ function overallMeta({
     fallbackReason: reason,
     fallbackOrdering: 'reviewed-ecs-first-then-tegiwa',
     reviewedEcsProductCount: localProducts.length,
+    reviewedEcsCatalogueStatus: reviewedEcsCatalogueStatus(localProducts),
     fitmentPolicy: 'supplier-title-possible',
     ...(legacyError ? { supplierFallbackError: legacyError.code } : {})
   };
@@ -1262,6 +1343,7 @@ async function detailResponse({ request, req, nowValue, reason, legacyHandler, p
       catalogueSource: 'reviewed-local-fallback',
       fallbackReason: reason,
       reviewedEcsProductCount: products.length,
+      reviewedEcsCatalogueStatus: reviewedEcsCatalogueStatus(products),
       fitmentPolicy: 'supplier-title-possible',
       suppliers: [{ slug: 'tegiwa', name: 'Tegiwa' }, { slug: 'ecs', name: 'ECS Tuning' }],
       currencies: ['GBP', 'USD']

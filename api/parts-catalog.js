@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  REVIEWED_ECS_CATALOGUE_STATUS,
   REVIEWED_ECS_PRODUCTS,
   ReviewedFallbackError,
   reviewedFallbackResponse
@@ -9,6 +10,10 @@ import {
   catalogSearchMeta,
   catalogSearchVocabulary
 } from '../server/catalog-search-intelligence.js';
+import {
+  catalogueParentPartTypeFacets,
+  cataloguePartTypeMembers
+} from '../server/catalog-taxonomy.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -396,10 +401,11 @@ function productFilters(request, binder, { includeQuery = true } = {}) {
   if (request.supplier) conditions.push(`s.slug = ${binder.add(request.supplier)}`);
   if (request.brand) conditions.push(`b.slug = ${binder.add(request.brand)}`);
   if (request.partType) {
-    const partType = binder.add(request.partType);
-    conditions.push(`(pt.slug = ${partType} OR EXISTS (
+    const partTypes = cataloguePartTypeMembers(request.partType).map(value => binder.add(value));
+    const partTypeList = partTypes.join(', ');
+    conditions.push(`(pt.slug IN (${partTypeList}) OR EXISTS (
       SELECT 1 FROM product_part_types ppt JOIN part_types fpt ON fpt.id = ppt.part_type_id
-      WHERE ppt.product_id = p.id AND fpt.slug = ${partType}
+      WHERE ppt.product_id = p.id AND fpt.slug IN (${partTypeList})
     ))`);
   }
   if (request.currency) conditions.push('offer.currency IS NOT NULL');
@@ -830,6 +836,10 @@ function statsFromRow(row = {}) {
   const suppliers = parseFacets(row.suppliers, 100);
   const brands = parseFacets(row.brands);
   const partTypes = parseFacets(row.part_types);
+  const partTypesBySlug = new Map(partTypes.map(facet => [facet.slug, facet]));
+  for (const facet of catalogueParentPartTypeFacets(partTypes.map(value => value.slug))) {
+    partTypesBySlug.set(facet.slug, { ...(partTypesBySlug.get(facet.slug) || {}), ...facet });
+  }
   const currencies = parseArray(row.currencies, 30).map(value => safeOutputText(value, 3))
     .filter(value => /^[A-Z]{3}$/.test(value));
   return {
@@ -842,7 +852,8 @@ function statsFromRow(row = {}) {
     reviewedEcsSentinelCount: boundedInteger(row.reviewed_ecs_sentinel_count, null, REVIEWED_ECS_SENTINEL_KEYS.length),
     suppliers,
     brands,
-    partTypes,
+    partTypes: [...partTypesBySlug.values()].sort((left, right) => left.name.localeCompare(right.name)
+      || left.slug.localeCompare(right.slug)),
     currencies
   };
 }
@@ -939,7 +950,21 @@ export function createPartsCatalogHandler({
     loadedLegacyHandler = await legacyHandlerPromise;
     return typeof loadedLegacyHandler === 'function' ? loadedLegacyHandler : null;
   };
-  const withEcsReferenceStats = async stats => stats;
+  const reviewedEcsCatalogueStatus = reviewedProducts === REVIEWED_ECS_PRODUCTS
+    ? REVIEWED_ECS_CATALOGUE_STATUS
+    : {
+        schemaVersion: 1,
+        sourceRecordCounts: null,
+        sourceRecordCount: reviewedProducts.length,
+        preQuarantineUniqueProductCount: reviewedProducts.length,
+        quarantinedIdentityCount: null,
+        publishedProductCount: reviewedProducts.length,
+        bmwM3AggregateNewUniqueProductCount: null
+      };
+  const withEcsReferenceStats = async stats => ({
+    ...stats,
+    reviewedEcsCatalogueStatus
+  });
   return async function partsCatalogHandler(req, res) {
     if (req.method !== 'GET') {
       res.setHeader('Allow', 'GET');

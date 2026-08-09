@@ -27,4 +27,39 @@ assert.deepEqual(customerFacing.records.map(record => __test.ecsIdentity(record)
 assert.throws(() => __test.customerFacingRecords([{ imageUrl: 'https://assets.ecstuning.com/image.webp' }]),
   /valid ECS identity/);
 
+const mediaPlan = __test.buildMediaPlan([
+  {
+    ecsPartNumber: '100',
+    imageUrl: 'https://assets.ecstuning.com/product_library/primary.webp',
+    imageFallbackUrl: 'https://assets.ecstuning.com/product_library/fallback.jpg'
+  },
+  {
+    ecsPartNumber: '101',
+    imageUrl: 'https://assets.ecstuning.com/product_library/new.webp',
+    imageFallbackUrl: 'https://assets.ecstuning.com/product_library/new.jpg'
+  }
+], [{
+  sourceUrl: 'https://assets.ecstuning.com/product_library/fallback.jpg',
+  localPath: 'assets/products/ecs/g-series/fallback.jpg',
+  width: 300,
+  height: 225,
+  contentType: 'image/jpeg',
+  sha256: 'a'.repeat(64)
+}]);
+assert.equal(mediaPlan.requestedImages.length, 1);
+assert.equal(mediaPlan.requestedImages[0].sourceUrl,
+  'https://assets.ecstuning.com/product_library/new.webp');
+assert.equal(mediaPlan.reusedImages.length, 1);
+assert.equal(mediaPlan.reusedImages[0].sourceUrl,
+  'https://assets.ecstuning.com/product_library/primary.webp');
+assert.equal(mediaPlan.reusedImages[0].downloadedFromUrl,
+  'https://assets.ecstuning.com/product_library/fallback.jpg');
+
+const byteBudget = __test.createByteBudget(100);
+byteBudget.reserve(60);
+assert.equal(byteBudget.used, 60);
+assert.throws(() => byteBudget.reserve(41), /budget exceeded/);
+assert.equal(byteBudget.used, 60);
+assert.throws(() => byteBudget.reserve(0), /Invalid ECS media byte count/);
+
 console.log('materialize-remote-assets tests passed');

@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "supplier": "ECS Tuning",
+  "kind": "bmw-m3-aggregate-import-audit",
+  "generatedAt": "2026-08-09T15:00:53.410Z",
+  "sourceKind": "bmw-m3-aggregate-listing-capture",
+  "sourceGeneratedAt": "2026-08-09T15:00:53.410Z",
+  "rawRecordCount": 2789,
+  "validatedRecordCount": 2765,
+  "invalidRecordCount": 24,
+  "uniqueValidatedEcsIdentityCount": 2071,
+  "productCount": 2071,
+  "quarantinedIdentityCount": 0,
+  "quarantinedRecordCount": 0,
+  "duplicateObservationCount": 694,
+  "publicUsdPriceProductCount": 2071,
+  "requestPriceProductCount": 0,
+  "supplierImageProductCount": 1925,
+  "localAssetImageProductCount": 0,
+  "remoteCdnImageProductCount": 1925,
+  "missingSupplierDescriptionProductCount": 218,
+  "sections": {
+    "braking": {
+      "label": "Braking",
+      "observationCount": 2217,
+      "productCount": 1556,
+      "categories": [
+        "BMW M3 ABS Brake Parts",
+        "BMW M3 Big Brake Upgrades",
+        "BMW M3 Brake Calipers",
+        "BMW M3 Brake Compounds & Lubricants",
+        "BMW M3 Brake Cooling Parts",
+        "BMW M3 Brake Fluids",
+        "BMW M3 Brake Lines",
+        "BMW M3 Brake Master Cylinder Parts",
+        "BMW M3 Brake Pads",
+        "BMW M3 Brake Rotors",
+        "BMW M3 Brake Sensors",
+        "BMW M3 Brake Service Kits",
+        "BMW M3 Brake Tools",
+        "BMW M3 Electrical Brake Parts & Components",
+        "BMW M3 Emergency Parking Brake Parts",
+        "BMW M3 Performance Brake Parts"
+      ]
+    },
+    "engine": {
+      "label": "Engine",
+      "observationCount": 0,
+      "productCount": 0,
+      "categories": []
+    },
+    "exterior": {
+      "label": "Exterior",
+      "observationCount": 0,
+      "productCount": 0,
+      "categories": []
+    },
+    "interior": {
+      "label": "Interior",
+      "observationCount": 0,
+      "productCount": 0,
+      "categories": []
+    },
+    "performance": {
+      "label": "Performance",
+      "observationCount": 0,
+      "productCount": 0,
+      "categories": []
+    },
+    "suspension": {
+      "label": "Suspension",
+      "observationCount": 0,
+      "productCount": 0,
+      "categories": []
+    },
+    "steering": {
+      "label": "Steering",
+      "observationCount": 548,
+      "productCount": 517,
+      "categories": [
+        "BMW M3 Power Steering Fluids",
+        "BMW M3 Power Steering Oil Cooler Parts",
+        "BMW M3 Steering Column Parts",
+        "BMW M3 Steering Control Unit Parts",
+        "BMW M3 Steering Gears",
+        "BMW M3 Steering Knuckle Parts",
+        "BMW M3 Steering Line Parts",
+        "BMW M3 Steering Linkage Parts",
+        "BMW M3 Steering Pump Parts",
+        "BMW M3 Steering Rack Parts",
+        "BMW M3 Steering Reservoir Parts",
+        "BMW M3 Steering Sensor Parts",
+        "BMW M3 Steering Wheel Parts & Accessories",
+        "BMW M3 Tie Rod Parts"
+      ]
+    }
+  },
+  "invalidRecords": [
+    {
+      "recordIndex": 427,
+      "ecsPartNumber": "ES#5425612",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 428,
+      "ecsPartNumber": "ES#5425614",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 694,
+      "ecsPartNumber": "ES#4920099",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 783,
+      "ecsPartNumber": "ES#3673305",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 977,
+      "ecsPartNumber": "ES#3706662",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 978,
+      "ecsPartNumber": "ES#3706661",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1172,
+      "ecsPartNumber": "ES#3706679",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1179,
+      "ecsPartNumber": "ES#3673305",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1190,
+      "ecsPartNumber": "ES#3673266",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1263,
+      "ecsPartNumber": "ES#3179051",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1494,
+      "ecsPartNumber": "ES#3673305",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1506,
+      "ecsPartNumber": "ES#3673266",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1710,
+      "ecsPartNumber": "ES#5425612",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1711,
+      "ecsPartNumber": "ES#5425614",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1841,
+      "ecsPartNumber": "ES#3673266",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1979,
+      "ecsPartNumber": "ES#3048236",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 1985,
+      "ecsPartNumber": "ES#3147453",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2222,
+      "ecsPartNumber": "ES#4505459",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2228,
+      "ecsPartNumber": "ES#3048236",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2229,
+      "ecsPartNumber": "ES#4920099",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2488,
+      "ecsPartNumber": "ES#4940042",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2738,
+      "ecsPartNumber": "ES#5470917",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2739,
+      "ecsPartNumber": "ES#5470916",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    },
+    {
+      "recordIndex": 2740,
+      "ecsPartNumber": "ES#5470915",
+      "reasons": [
+        "missing-or-invalid-brand"
+      ]
+    }
+  ],
+  "quarantine": [],
+  "publicationMergeAudit": {
+    "generatedProductCount": 2071,
+    "overlapWithPreviouslyReviewedEcsCount": 290,
+    "newUniqueProductCount": 1781,
+    "crossSourceQuarantinedIdentityCount": 0,
+    "crossSourceQuarantinedIdentities": [],
+    "publishedAggregateCandidateCount": 2071
+  },
+  "captureProgress": {
+    "stage": "staging-progress",
+    "complete": false,
+    "importPolicy": "reconciled-sections-only",
+    "requestedSectionCount": 7,
+    "includedSectionCount": 2,
+    "includedSections": [
+      "braking",
+      "steering"
+    ],
+    "excludedSections": [
+      "engine",
+      "exterior",
+      "interior",
+      "performance",
+      "suspension"
+    ],
+    "sections": {
+      "braking": {
+        "label": "Braking",
+        "status": "reconciled-and-included",
+        "complete": true,
+        "capturedPages": 147,
+        "expectedPages": 147,
+        "capturedPlacements": 2237,
+        "expectedPlacements": 2237,
+        "uniqueEcsProductsObserved": 1568,
+        "reconciliationGeneratedAt": "2026-08-09T14:29:33.144Z"
+      },
+      "engine": {
+        "label": "Engine",
+        "status": "capture-in-progress-excluded",
+        "complete": false,
+        "capturedPages": 287,
+        "expectedPages": 540,
+        "capturedPlacements": 4572,
+        "expectedPlacements": 8452,
+        "uniqueEcsProductsObserved": 4034,
+        "reconciliationGeneratedAt": "2026-08-09T15:53:01.020Z"
+      },
+      "exterior": {
+        "label": "Exterior",
+        "status": "capture-in-progress-excluded",
+        "complete": false,
+        "capturedPages": 16,
+        "expectedPages": 228,
+        "capturedPlacements": 256,
+        "expectedPlacements": 3511,
+        "uniqueEcsProductsObserved": 256,
+        "reconciliationGeneratedAt": "2026-08-09T16:04:02.412Z"
+      },
+      "interior": {
+        "label": "Interior",
+        "status": "capture-in-progress-excluded",
+        "complete": false,
+        "capturedPages": 18,
+        "expectedPages": 324,
+        "capturedPlacements": 288,
+        "expectedPlacements": 4870,
+        "uniqueEcsProductsObserved": 288,
+        "reconciliationGeneratedAt": "2026-08-09T16:03:58.243Z"
+      },
+      "performance": {
+        "label": "Performance",
+        "status": "not-started-excluded",
+        "complete": false,
+        "capturedPages": 0,
+        "expectedPages": 0,
+        "capturedPlacements": 0,
+        "expectedPlacements": 0,
+        "uniqueEcsProductsObserved": 0,
+        "reconciliationGeneratedAt": null
+      },
+      "suspension": {
+        "label": "Suspension",
+        "status": "capture-in-progress-excluded",
+        "complete": false,
+        "capturedPages": 24,
+        "expectedPages": 171,
+        "capturedPlacements": 384,
+        "expectedPlacements": 2550,
+        "uniqueEcsProductsObserved": 384,
+        "reconciliationGeneratedAt": "2026-08-09T15:38:06.849Z"
+      },
+      "steering": {
+        "label": "Steering",
+        "status": "reconciled-and-included",
+        "complete": true,
+        "capturedPages": 42,
+        "expectedPages": 42,
+        "capturedPlacements": 552,
+        "expectedPlacements": 552,
+        "uniqueEcsProductsObserved": 521,
+        "reconciliationGeneratedAt": "2026-08-09T15:00:53.410Z"
+      }
+    }
+  }
+}

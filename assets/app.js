@@ -776,7 +776,7 @@
 
   const PARTS_CATALOGUE_DIRECTORY = [
     {
-      query: "braking", partType: "g-series-braking", en: "Brakes", ar: "الفرامل", items: [
+      query: "braking", partType: "braking", en: "Brakes", ar: "الفرامل", items: [
         ["", "Brake Tools", "أدوات الفرامل", "braking-tools"],
         ["", "Brake Pads", "فحمات الفرامل", "braking-pads"],
         ["", "Performance Brake Parts", "قطع فرامل الأداء", "braking-performance"],
@@ -795,7 +795,7 @@
       ]
     },
     {
-      query: "suspension", en: "Suspension", ar: "نظام التعليق", items: [
+      query: "suspension", partType: "suspension", en: "Suspension", ar: "نظام التعليق", items: [
         ["coilovers", "Coilovers", "كويل أوفر"], ["control arms", "Control Arms", "أذرعة تحكم"], ["chassis braces", "Chassis Braces", "دعامات الشاصي"],
         ["suspension bushes", "Bushes", "جلب التعليق"], ["anti roll bars", "Anti-Roll Bars", "قضبان مانعة للانقلاب"], ["drop links", "Drop Links", "وصلات الميزان"],
         ["lowering springs", "Lowering Springs", "يايات تنزيل"], ["steering arms", "Steering Arms", "أذرعة التوجيه"], ["wheel bearings", "Wheel Bearings", "رمانات العجل"],
@@ -809,7 +809,7 @@
       ]
     },
     {
-      query: "engine", partType: "g-series-engine", en: "Engine", ar: "المحرك", items: [
+      query: "engine", partType: "engine", en: "Engine", ar: "المحرك", items: [
         ["", "Performance Engine Parts", "قطع أداء المحرك", "engine-performance"],
         ["", "Engine Intake Parts", "قطع سحب هواء المحرك", "engine-intake"],
         ["", "Engine Fuel Parts", "قطع وقود المحرك", "engine-fuel"],
@@ -834,6 +834,9 @@
         ["", "Engine Fastener Kit Parts", "أطقم مثبتات المحرك", "engine-fastener-kit"],
         ["", "Engine Supercharger Parts", "قطع الشاحن الفائق", "engine-supercharger"]
       ]
+    },
+    {
+      query: "performance", partType: "performance", en: "Performance", ar: "الأداء", items: []
     },
     {
       query: "drivetrain", partType: "g-series-drivetrain", en: "Drivetrain", ar: "نظام نقل الحركة", items: [
@@ -905,6 +908,9 @@
         ["", "Armrest", "مسند الذراع", "armrest"],
         ["", "Hatch", "الباب الخلفي", "hatch"]
       ]
+    },
+    {
+      query: "steering", partType: "steering", en: "Steering", ar: "نظام التوجيه", items: []
     },
     {
       query: "exterior", partType: "exterior", en: "Exterior", ar: "الهيكل الخارجي", items: [

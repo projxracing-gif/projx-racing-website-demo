@@ -33,6 +33,102 @@ Only the documented authorization keys are accepted. A human must review the wri
 
 No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT, credential or private customer data belongs in any manifest, snapshot or normalized product.
 
+## Resumable BMW M3 family section capture
+
+`capture-bmw-m3-section.mjs` is an injected-browser capture runner for exactly one public BMW M3 family section at a time: `Braking`, `Engine`, `Exterior`, `Interior`, `Performance`, `Suspension` or `Steering`. It does not provide a command-line network client. For the first run, open `https://www.ecstuning.com/BMW-M3/` or one of its actual visible section links in a persistent browser tab, then pass that tab through `createCodexTabEcsCaptureAdapter`.
+
+The runner:
+
+- discovers the requested section and every direct child category from visible existing ECS anchors;
+- requires the supplier-rendered count for every child and never constructs a child slug;
+- follows only visible paginator anchors and never constructs a page URL; when resuming, it may reopen only an exact validated checkpoint URL, or capture the exact next uncaptured category/page already open in the persistent tab after validating it against the stored category order and page count;
+- keeps one atomic raw-page checkpoint per leaf, so a later call resumes rather than replacing evidence;
+- waits 1.2 seconds after navigation by default and supports `pageBudget` for bounded resumable batches;
+- provides opt-in `reloadBeforePagination` recovery for stubborn ECS overlays: it reloads only the exact current checkpoint, proves the URL and rendered-card count are unchanged, then re-reads and clicks the visible paginator;
+- after all exact-locator retries fail, may use the browser's visible-DOM click capability only when exactly one parsed visible anchor has a raw href identical to an already-observed link; it then verifies the canonical destination and challenge state;
+- retries transient incomplete card rendering three times without refreshing or changing routes;
+- stops immediately if ECS presents an interactive access challenge;
+- writes an aggregate capture, exact manifest and reconciliation report after every new page; and
+- refuses to mark a scope complete when page counts, required public listing fields, supplier identities or placement uniqueness do not reconcile.
+
+Browser-runner usage:
+
+```js
+const captureModule = await import('file:///ABSOLUTE/REPOSITORY/scripts/ecs-catalog/capture-bmw-m3-section.mjs');
+const result = await captureModule.captureEcsBmwM3Section(
+  captureModule.createCodexTabEcsCaptureAdapter(tab),
+  {
+    section: 'Engine',
+    outputDir: 'private-imports/ecs-bmw-m3-20260809/engine',
+    pageBudget: 25,
+    navigationDelayMs: 5000,
+    paginationSettleDelayMs: 5000,
+    reloadBeforePagination: true,
+    reloadSettleDelayMs: 2500,
+  },
+);
+```
+
+Re-run the same call and output directory to continue. The runner accepts three exact persistent-tab positions: the section root, the highest contiguous validated checkpoint page, or the next uncaptured page in the first incomplete stored category. For the last case, page 1 must equal that category's stored child href; a later page must be the exact next numeric page under the same stored category path. The runner validates the page state and expected rendered-card count before writing its checkpoint. Any other child page fails closed. A completed child category is skipped. If the visible root category manifest changes, the runner stops and requires a new output directory instead of mixing observations. The output directory contains `section-root.json`, `raw-pages/*.json`, `bmw-m3-<section>-records.json`, `bmw-m3-<section>-manifest.json` and `bmw-m3-<section>-reconciliation-report.json`. These are private capture inputs only; this runner does not merge or publish product data.
+
+The deterministic offline tests do not contact ECS:
+
+```text
+node --test scripts/ecs-catalog/capture-bmw-m3-section.test.mjs
+```
+
+### BMW M3 product-media materialization
+
+Do not start media requests until all seven section reconciliation reports say `complete`. The BMW M3 media wrapper reads the seven standard capture files below the capture directory, proves every category has all expected pages and placements, rejects non-ECS media hosts, and then calls the existing checksum-based ECS materializer. It writes only below the approved `assets/products/ecs/` tree and produces the schema-version-1 media index consumed by the BMW M3 normalizer.
+
+Run the no-network preflight first. The optional existing index reuses already verified G-Series files and avoids downloading the same supplier image again:
+
+```text
+npm run catalog:ecs:bmw-m3-media -- \
+  --capture-dir private-imports/ecs-bmw-m3-20260809 \
+  --existing-media-index private-imports/ecs-g-series-engine-20260809/media-index.json \
+  --output-dir assets/products/ecs/bmw-m3 \
+  --index private-imports/ecs-bmw-m3-20260809/media-index.json \
+  --max-images 25000 \
+  --max-total-bytes 2147483648 \
+  --concurrency 2 \
+  --dry-run
+```
+
+After the preflight count is reviewed, remove only `--dry-run` from that command to materialize the images. A later rerun may omit `--existing-media-index`; when the output index already exists, the wrapper automatically uses it as its resume index and preserves every matching verified mapping.
+
+The safeguards are intentionally fail-closed: at most 25,000 required image mappings, at most 2 GiB downloaded in one run, at most 25 MB for one file, only HTTPS `assets.ecstuning.com` URLs without credentials/query strings, only JPEG/PNG/WebP bytes, a minimum 100-by-100 decoded image, content-addressed filenames, atomic index writes, and a maximum concurrency of eight (two in the documented command). If a supplier image fails, the strict command does not publish a complete index. Use `--allow-missing` only for a reviewed follow-up so every failure is recorded and the storefront can retain its labelled supplier-media-unavailable state.
+
+### Offline BMW M3 seven-section normalization
+
+After all seven reconciliation reports say `complete`, pass the seven direct `bmw-m3-<section>-records.json` files to the offline normalizer. These raw capture JSON files are the accepted inputs; no conversion or network request is needed. The command requires exactly one reconciled capture for each of `Braking`, `Engine`, `Exterior`, `Interior`, `Performance`, `Suspension` and `Steering`:
+
+```text
+npm run catalog:ecs:bmw-m3 -- \
+  --input private-imports/ecs-bmw-m3-20260809/braking/bmw-m3-braking-records.json \
+  --input private-imports/ecs-bmw-m3-20260809/engine/bmw-m3-engine-records.json \
+  --input private-imports/ecs-bmw-m3-20260809/exterior/bmw-m3-exterior-records.json \
+  --input private-imports/ecs-bmw-m3-20260809/interior/bmw-m3-interior-records.json \
+  --input private-imports/ecs-bmw-m3-20260809/performance/bmw-m3-performance-records.json \
+  --input private-imports/ecs-bmw-m3-20260809/suspension/bmw-m3-suspension-records.json \
+  --input private-imports/ecs-bmw-m3-20260809/steering/bmw-m3-steering-records.json \
+  --media-index private-imports/ecs-bmw-m3-20260809/media-index.json \
+  --output server/data/ecs-bmw-m3-aggregate-products.js \
+  --report docs/ecs-bmw-m3-aggregate-catalogue-report.json
+```
+
+`--media-index` is optional. Without it, captured product-specific `assets.ecstuning.com` URLs remain usable in the generated product records. With a verified index from the existing media materializer, each matching CDN URL is replaced by its local asset path and verified dimensions. The official ECS no-image asset is never presented as a verified product photo.
+
+The generator also accepts one precombined document whose kind is `bmw-m3-aggregate-listing-capture`. It deduplicates by ES number, retains every section/subcategory observation, and quarantines conflicting MPNs, canonical product URLs or same-day public prices. `server/ecs-reviewed-catalog.js` imports the tracked empty-safe module at `server/data/ecs-bmw-m3-aggregate-products.js`; keep its exports empty until the audit is approved, then replace that module with the generator output. Both generated product and quarantine exports are included in the reviewed merge, and the public API reports their source, unique-contribution, quarantine and published counts under `reviewedEcsCatalogueStatus`.
+
+Every generated fitment stays at model-level `BMW M3` with `possible` confidence. Year, generation, chassis, engine and drivetrain remain empty because the generic family pages do not establish them. Public USD prices and supplier availability retain their observation dates; availability remains confirmation-required and is never represented as live stock.
+
+Focused offline test:
+
+```text
+node --test scripts/ecs-catalog/prepare-bmw-m3-aggregate.test.mjs
+```
+
 ## Current reviewed storefront collection
 
 The local staging storefront contains 2,528 unique ECS products after duplicate-safe merging of 41 legacy manually reviewed products with the generated G-Series Performance, Exterior, Interior, Drivetrain and Braking scopes. The generated sets cover every captured branch in those bounded scopes for G87 M2, G80 M3 Competition and G82 M4 Competition. ECS category placement is not represented as a supplier-published sales ranking, and this staging collection is not a production deployment.

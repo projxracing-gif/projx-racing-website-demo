@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
-import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
+import {
+  REVIEWED_ECS_CATALOGUE_STATUS,
+  REVIEWED_ECS_PRODUCTS
+} from '../server/ecs-reviewed-catalog.js';
+import { cataloguePartTypeMatches } from '../server/catalog-taxonomy.js';
 
 const FIXED_NOW = Date.parse('2026-08-09T09:30:00Z');
 const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length;
@@ -94,6 +98,12 @@ const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(produ
   product.categorySlug, product.subcategorySlug,
   ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
 ].includes(categorySlug)).length;
+const reviewedParentCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product =>
+  cataloguePartTypeMatches([
+    product.categorySlug, product.subcategorySlug,
+    ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+  ], categorySlug)
+).length;
 const reviewedModelCount = model => REVIEWED_ECS_PRODUCTS.filter(product => (product.fitments || []).some(fitment =>
   [fitment.model, ...(fitment.models || [])].some(value => String(value || '').split('/').some(item =>
     item.trim().toLocaleLowerCase('en-US').split(/[^a-z0-9]+/u).includes(model.toLocaleLowerCase('en-US'))
@@ -232,6 +242,7 @@ assert.equal(reviewedBrowse.body.mode, 'browse');
 assert.equal(reviewedBrowse.body.items.length, Math.min(100, REVIEWED_ECS_COUNT));
 assert.equal(reviewedBrowse.body.meta.totalResults, REVIEWED_ECS_COUNT);
 assert.equal(reviewedBrowse.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
+assert.deepEqual(reviewedBrowse.body.meta.reviewedEcsCatalogueStatus, REVIEWED_ECS_CATALOGUE_STATUS);
 assert.equal(reviewedBrowse.body.meta.partialCatalogue, true);
 assert.equal(reviewedBrowse.body.meta.catalogueSource, 'reviewed-local-fallback');
 assert.deepEqual(reviewedBrowse.body.meta.suppliers, [{ slug: 'ecs', name: 'ECS Tuning' }]);
@@ -244,6 +255,15 @@ assert.ok(reviewedBrowse.body.meta.partTypes.filter(item => item.slug === 'exter
   || ['emblems-badges', 'skid-plate-parts', 'antenna-parts-accessories'].includes(item.slug))
   .every(item => item.nameAr));
 const reviewedPartTypesBySlug = new Map(reviewedBrowse.body.meta.partTypes.map(item => [item.slug, item]));
+for (const [slug, name] of [
+  ['braking', 'Brakes'], ['engine', 'Engine'], ['exterior', 'Exterior'], ['interior', 'Interior'],
+  ['performance', 'Performance'], ['suspension', 'Suspension'], ['steering', 'Steering']
+]) {
+  const facet = reviewedPartTypesBySlug.get(slug);
+  assert.equal(facet?.name, name, `Expected the ${slug} cross-catalogue parent facet.`);
+  assert.match(facet?.nameAr || '', /[\u0600-\u06ff]/u,
+    `Expected the ${slug} cross-catalogue parent facet to have an Arabic name.`);
+}
 assert.equal(INTERIOR_PART_TYPE_SLUGS.length, 32);
 assert.equal(new Set(INTERIOR_PART_TYPE_SLUGS).size, 32);
 for (const slug of ['interior', ...INTERIOR_PART_TYPE_SLUGS]) {
@@ -511,12 +531,12 @@ assert.equal(reviewedExteriorBodyFilter.body.meta.totalResults, reviewedCategory
 
 const reviewedInteriorFilter = await invoke(reviewedOnly, { query: { partType: 'interior' } });
 assert.equal(reviewedInteriorFilter.status, 200);
-assert.equal(reviewedInteriorFilter.body.meta.totalResults, INTERIOR_PRODUCT_COUNT);
-assert.equal(reviewedInteriorFilter.body.meta.totalResults, reviewedCategoryCount('interior'));
+assert.equal(reviewedInteriorFilter.body.meta.totalResults, reviewedParentCategoryCount('interior'));
+assert.ok(reviewedInteriorFilter.body.meta.totalResults >= reviewedCategoryCount('interior'));
 const reviewedInteriorItems = await collectAllItems(reviewedOnly, { partType: 'interior' });
-assert.equal(reviewedInteriorItems.items.length, INTERIOR_PRODUCT_COUNT);
-assert.equal(new Set(reviewedInteriorItems.items.map(item => item.handle)).size, INTERIOR_PRODUCT_COUNT);
-assert.equal(new Set(reviewedInteriorItems.items.map(item => item.sku)).size, INTERIOR_PRODUCT_COUNT);
+assert.equal(reviewedInteriorItems.items.length, reviewedParentCategoryCount('interior'));
+assert.equal(new Set(reviewedInteriorItems.items.map(item => item.handle)).size, reviewedInteriorItems.items.length);
+assert.equal(new Set(reviewedInteriorItems.items.map(item => item.sku)).size, reviewedInteriorItems.items.length);
 
 const reviewedDrivetrainFilter = await invoke(reviewedOnly, { query: { partType: 'g-series-drivetrain' } });
 assert.equal(reviewedDrivetrainFilter.status, 200);
@@ -545,6 +565,11 @@ const reviewedBrakingItems = await collectAllItems(reviewedOnly, { partType: 'g-
 assert.equal(reviewedBrakingItems.items.length, 253);
 assert.equal(new Set(reviewedBrakingItems.items.map(item => item.handle)).size, 253);
 assert.equal(new Set(reviewedBrakingItems.items.map(item => item.sku)).size, 253);
+const reviewedUniversalBrakingFilter = await invoke(reviewedOnly, { query: { partType: 'braking' } });
+assert.equal(reviewedUniversalBrakingFilter.status, 200);
+assert.equal(reviewedUniversalBrakingFilter.body.meta.totalResults, reviewedParentCategoryCount('braking'));
+assert.ok(reviewedUniversalBrakingFilter.body.meta.totalResults >= reviewedBrakingFilter.body.meta.totalResults,
+  'The universal Brakes parent must include, rather than replace, the G-Series Braking scope.');
 assert.ok(reviewedBrakingItems.items.every(item => item.availability.code === 'check_availability'));
 for (const [slug] of BRAKING_PART_TYPES) {
   const expectedCount = reviewedCategoryCount(slug);
@@ -918,7 +943,7 @@ assert.equal(mergedAll.items.filter(item => item.supplier.slug === 'tegiwa').len
 legacyFallbackRequests.length = 0;
 const mergedInterior = await invoke(mergedFallback, { query: { partType: 'interior' } });
 assert.equal(mergedInterior.status, 200);
-assert.equal(mergedInterior.body.meta.totalResults, INTERIOR_PRODUCT_COUNT);
+assert.equal(mergedInterior.body.meta.totalResults, reviewedParentCategoryCount('interior'));
 assert.equal(mergedInterior.body.meta.catalogProductCount, 250 + REVIEWED_ECS_COUNT,
   'A direct scoped URL must keep the verified combined-catalogue headline total.');
 assert.equal(mergedInterior.body.meta.availableProductCount, 250);
@@ -1184,6 +1209,24 @@ for (const expected of ['ecs', 'brakes', 'USD', 2024, 'bmw', 'm3', 'g80', 's58']
 assert.match(vehicleSql.text, /fit\.confidence IS NOT NULL/);
 assert.match(vehicleSql.text, /pf\.confidence = 'exact'/);
 assert.match(vehicleSql.text, /ps\.vehicle_vector/);
+
+const genericBrakingRequest = __test.parseRequest({
+  query: { partType: 'braking' }, url: '/api/parts-catalog', headers: {}
+});
+const genericBrakingSql = __test.buildListQuery(genericBrakingRequest);
+for (const slug of [
+  'braking', 'g-series-braking', 'bmw-m3-braking', 'performance-brake-parts-upgrades'
+]) {
+  assert.ok(genericBrakingSql.values.includes(slug), `Expected the universal Brakes SQL scope to include ${slug}.`);
+}
+assert.match(genericBrakingSql.text, /pt\.slug IN \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
+const scopedGSeriesBrakingRequest = __test.parseRequest({
+  query: { partType: 'g-series-braking' }, url: '/api/parts-catalog', headers: {}
+});
+const scopedGSeriesBrakingSql = __test.buildListQuery(scopedGSeriesBrakingRequest);
+assert.ok(scopedGSeriesBrakingSql.values.includes('g-series-braking'));
+assert.equal(scopedGSeriesBrakingSql.values.includes('bmw-m3-braking'), false,
+  'The G-Series-specific Braking facet must remain generation-scoped.');
 
 statements.length = 0;
 const possibleFitment = await invoke(handler, {

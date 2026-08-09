@@ -83,8 +83,12 @@ assert.match(app, /data-tegiwa-directory-part-type=/,
   'Exact supplier part-type keys must be attached to directory controls.');
 assert.match(app, /partType:\s*"exterior"/,
   'The Exterior directory must include an exact all-Exterior scope.');
-const brakingDirectoryMatch = app.match(/\{\s*query:\s*"braking",\s*partType:\s*"g-series-braking",\s*en:\s*"Brakes",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"suspension"/);
-assert.ok(brakingDirectoryMatch, 'The Brakes directory must include an exact G-Series braking scope.');
+for (const partType of ['braking', 'engine', 'exterior', 'interior', 'performance', 'suspension', 'steering']) {
+  assert.match(app, new RegExp(`query:\\s*"${partType}",\\s*partType:\\s*"${partType}"`),
+    `The ${partType} directory must use its cross-catalogue parent facet.`);
+}
+const brakingDirectoryMatch = app.match(/\{\s*query:\s*"braking",\s*partType:\s*"braking",\s*en:\s*"Brakes",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"suspension"/);
+assert.ok(brakingDirectoryMatch, 'The Brakes directory must use the universal braking parent scope.');
 const brakingDirectoryEntries = [...brakingDirectoryMatch[1]
   .matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
   .map(([, name, nameAr, slug]) => ({ slug, name, nameAr }));
@@ -110,8 +114,8 @@ assert.deepEqual(brakingDirectoryEntries.map(({ slug, name }) => [slug, name]),
   'Brakes directory controls must expose the 15 verified top-level Braking part types.');
 assert.ok(brakingDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/u.test(nameAr)),
   'Every Braking part-type control must preserve an Arabic label.');
-const engineDirectoryMatch = app.match(/\{\s*query:\s*"engine",\s*partType:\s*"g-series-engine",\s*en:\s*"Engine",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"drivetrain"/);
-assert.ok(engineDirectoryMatch, 'The Engine directory must include the exact G-Series Engine scope.');
+const engineDirectoryMatch = app.match(/\{\s*query:\s*"engine",\s*partType:\s*"engine",\s*en:\s*"Engine",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"performance"/);
+assert.ok(engineDirectoryMatch, 'The Engine directory must use the universal Engine parent scope.');
 const engineDirectoryEntries = [...engineDirectoryMatch[1]
   .matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
   .map(([, name, nameAr, slug]) => ({ slug, name, nameAr }));
@@ -145,6 +149,10 @@ assert.deepEqual(engineDirectoryEntries.map(({ slug, name }) => [slug, name]),
   'Engine directory controls must expose all 23 verified top-level Engine part types.');
 assert.ok(engineDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/u.test(nameAr)),
   'Every Engine part-type control must preserve an Arabic label.');
+assert.match(app, /query:\s*"performance",\s*partType:\s*"performance",\s*en:\s*"Performance",\s*ar:\s*"[^"]+",\s*items:\s*\[\]/,
+  'The model-wide ECS Performance section must have a dedicated directory parent.');
+assert.match(app, /query:\s*"steering",\s*partType:\s*"steering",\s*en:\s*"Steering",\s*ar:\s*"[^"]+",\s*items:\s*\[\]/,
+  'The model-wide ECS Steering section must have a dedicated directory parent.');
 const drivetrainDirectoryMatch = app.match(/\{\s*query:\s*"drivetrain",\s*partType:\s*"g-series-drivetrain",\s*en:\s*"Drivetrain",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"cooling"/);
 assert.ok(drivetrainDirectoryMatch, 'The Drivetrain directory must include an exact G-Series scope.');
 const drivetrainDirectoryEntries = [...drivetrainDirectoryMatch[1]

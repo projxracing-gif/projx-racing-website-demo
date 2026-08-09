@@ -3,13 +3,13 @@ const MAX_SEARCH_TOKENS = 12;
 const CORE_TERMS = [
   'airbox', 'alignment', 'analyzer', 'brake', 'brakes', 'caliper', 'camshaft', 'charger',
   'clutch', 'coil', 'coilpack', 'coilovers', 'coolant', 'cooling', 'crankshaft', 'differential',
-  'disc', 'discs', 'downpipe', 'drivetrain', 'ecu', 'engine', 'exhaust', 'filter', 'filters',
+  'disc', 'discs', 'downpipe', 'drivetrain', 'ecu', 'engine', 'exhaust', 'exterior', 'filter', 'filters',
   'flexfuel', 'fuel', 'gasket', 'gaskets', 'gauge', 'gearbox', 'harness', 'headers', 'ignition',
-  'injector', 'injectors', 'intake', 'intercooler', 'manifold', 'motorsport', 'oil', 'pad', 'pads',
+  'injector', 'injectors', 'intake', 'intercooler', 'interior', 'manifold', 'motorsport', 'oil', 'pad', 'pads',
   'piston', 'pistons', 'plug', 'plugs', 'pump', 'radiator', 'racing', 'rod', 'rods', 'rotor',
-  'rotors', 'sensor', 'service', 'shipping', 'shock', 'spark', 'spring', 'springs', 'strut',
+  'rotors', 'sensor', 'service', 'shipping', 'shock', 'spark', 'spring', 'springs', 'steering', 'strut',
   'supercharger', 'suspension', 'thermostat', 'tire', 'tires', 'transmission', 'turbo',
-  'turbocharger', 'tuning', 'tyre', 'tyres', 'wheel', 'wheels', 'wiring',
+  'turbocharger', 'tuning', 'tyre', 'tyres', 'wheel', 'wheels', 'wiring', 'performance',
   'audi', 'bmw', 'mercedes', 'mini', 'porsche', 'volkswagen', 'mhd', 'xhp', 'apr', 'kw',
   'b58', 'n55', 's55', 's58', 'm2', 'm3', 'm4', 'g80', 'g82', 'g87', 'f80', 'f82'
 ];

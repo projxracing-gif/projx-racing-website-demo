@@ -1,10 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  REVIEWED_ECS_CATALOGUE_STATUS,
   REVIEWED_ECS_PRODUCTS,
   mergeReviewedEcsProducts,
   reviewedFallbackResponse
 } from '../server/ecs-reviewed-catalog.js';
+import {
+  BMW_M3_AGGREGATE_PRODUCTS,
+  BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES
+} from '../server/data/ecs-bmw-m3-aggregate-products.js';
 
 function reviewedProduct(overrides = {}) {
   return {
@@ -80,6 +85,45 @@ function generatedProduct(overrides = {}) {
     ...overrides
   });
 }
+
+test('includes the reviewed BMW M3 aggregate through an auditable empty-safe source', () => {
+  assert.equal(
+    REVIEWED_ECS_CATALOGUE_STATUS.sourceRecordCounts.bmwM3Aggregate,
+    BMW_M3_AGGREGATE_PRODUCTS.length
+  );
+  assert.equal(
+    REVIEWED_ECS_CATALOGUE_STATUS.sourceRecordCount,
+    Object.values(REVIEWED_ECS_CATALOGUE_STATUS.sourceRecordCounts)
+      .reduce((total, count) => total + count, 0)
+  );
+  assert.equal(REVIEWED_ECS_CATALOGUE_STATUS.publishedProductCount, REVIEWED_ECS_PRODUCTS.length);
+  assert.ok(
+    REVIEWED_ECS_CATALOGUE_STATUS.bmwM3AggregateNewUniqueProductCount <= BMW_M3_AGGREGATE_PRODUCTS.length
+  );
+  const quarantined = new Set(BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES.map(String));
+  assert.equal(REVIEWED_ECS_PRODUCTS.some(product => {
+    const match = String(product.ecsPartNumber || product.sku || '').match(/(?:ES#)?(\d{3,12})/i);
+    return match && quarantined.has(match[1]);
+  }), false);
+});
+
+test('imports the real reviewed catalogue with an explicit BMW M3 capture boundary', () => {
+  const status = REVIEWED_ECS_CATALOGUE_STATUS.bmwM3AggregateCaptureStatus;
+  assert.equal(status.importPolicy, 'reconciled-sections-only');
+  assert.equal(status.requestedSectionCount, 7);
+  assert.equal(status.includedSectionCount, status.includedSections.length);
+  assert.equal(status.excludedSections.length,
+    status.requestedSectionCount - status.includedSectionCount);
+  assert.equal(status.complete, status.includedSectionCount === status.requestedSectionCount);
+  assert.equal(status.stage, status.complete ? 'complete' : 'staging-progress');
+  assert.ok(BMW_M3_AGGREGATE_PRODUCTS.length > 0);
+
+  const repairedIdentity = REVIEWED_ECS_PRODUCTS.filter(product => product.ecsPartNumber === 'ES#4772219');
+  assert.equal(repairedIdentity.length, 1);
+  assert.equal(repairedIdentity[0].mpn, '706402');
+  assert.equal(repairedIdentity[0].originalUrl,
+    'https://www.ecstuning.com/b-ate-parts/sl6-low-viscosity-brake-fluid-1-liter/%C2%AD706402~ate/');
+});
 
 test('deduplicates by ES number while preserving reviewed URLs and curated content', () => {
   const existing = [
