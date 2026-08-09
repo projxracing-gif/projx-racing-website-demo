@@ -13,6 +13,21 @@ const INTERIOR_PART_TYPE_SLUGS = Object.freeze([
   'sound-system', 'sun-shade', 'electronic', 'door', 'hood-release', 'lighting', 'storage',
   'convertible', 'headliner', 'mirror', 'sunroof', 'airbag', 'carpet', 'navigation', 'armrest', 'hatch'
 ]);
+const DRIVETRAIN_PART_TYPES = Object.freeze([
+  ['drivetrain-tools', 'Drivetrain Tools'],
+  ['drivetrain-differential', 'Differential Parts'],
+  ['drivetrain-manual-transmission', 'Manual Transmission Parts'],
+  ['drivetrain-shifter', 'Shifter Parts'],
+  ['drivetrain-automatic-transmission', 'Automatic Transmission Parts'],
+  ['drivetrain-axles', 'Axle Parts'],
+  ['drivetrain-clutch', 'Clutch Parts'],
+  ['drivetrain-mounts', 'Drivetrain Mounts'],
+  ['drivetrain-driveshafts', 'Driveshaft Parts'],
+  ['drivetrain-wheel-bearings', 'Wheel Bearing Parts'],
+  ['drivetrain-skid-plate', 'Skid Plates'],
+  ['drivetrain-transfer-case', 'Transfer Case Parts']
+]);
+const DRIVETRAIN_SENTINEL_ECS = Object.freeze(['ES#602', 'ES#3097303', 'ES#4811032']);
 const TOP_LEVEL_INTERIOR_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Interior\/[^/?#]+(?:\/\d+)?\/?$/i;
 const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
 const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => [
@@ -176,6 +191,20 @@ for (const slug of ['interior', ...INTERIOR_PART_TYPE_SLUGS]) {
   assert.ok(facet, `Expected the reviewed catalogue to expose the ${slug} Interior facet.`);
   assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u, `Expected the ${slug} Interior facet to have an Arabic name.`);
 }
+assert.equal(DRIVETRAIN_PART_TYPES.length, 12);
+assert.equal(new Set(DRIVETRAIN_PART_TYPES.map(([slug]) => slug)).size, 12);
+const drivetrainParentFacet = reviewedPartTypesBySlug.get('g-series-drivetrain');
+assert.equal(drivetrainParentFacet?.name, 'G-Series Drivetrain');
+assert.match(drivetrainParentFacet?.nameAr || '', /[\u0600-\u06ff]/u);
+for (const [slug, name] of DRIVETRAIN_PART_TYPES) {
+  const facet = reviewedPartTypesBySlug.get(slug);
+  assert.ok(facet, `Expected the reviewed catalogue to expose the ${slug} Drivetrain facet.`);
+  assert.equal(facet.name, name);
+  assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u,
+    `Expected the ${slug} Drivetrain facet to have an Arabic name.`);
+}
+assert.equal(reviewedPartTypesBySlug.has('drivetrain-pdk-transmission'), false,
+  'The quarantined PDK taxonomy must never appear as a customer-facing part-type facet.');
 assert.equal(reviewedBrowse.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
 const reviewedAll = await collectAllItems(reviewedOnly);
 assert.equal(reviewedAll.items.length, REVIEWED_ECS_COUNT);
@@ -224,6 +253,27 @@ assert.equal(representativeInteriorProduct.imageSourceUrl,
   'https://assets.ecstuning.com/product_library/783594_x300.webp');
 assert.match(representativeInteriorProduct.images[0].src,
   /^assets\/products\/ecs\/g-series-interior\/[a-f0-9]{24}\.webp$/);
+
+const reviewedDrivetrainProducts = REVIEWED_ECS_PRODUCTS.filter(product =>
+  product.filters?.categories?.includes('g-series-drivetrain')
+);
+assert.ok(reviewedDrivetrainProducts.length > 0,
+  'The reviewed catalogue must include the generated G-Series Drivetrain scope.');
+assert.equal(new Set(reviewedDrivetrainProducts.map(product => product.ecsPartNumber)).size,
+  reviewedDrivetrainProducts.length);
+const recognizedDrivetrainChildren = new Set(DRIVETRAIN_PART_TYPES.map(([slug]) => slug));
+assert.ok(reviewedDrivetrainProducts.every(product => [
+  product.categorySlug, product.subcategorySlug,
+  ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+].some(slug => recognizedDrivetrainChildren.has(slug))),
+'Every reviewed Drivetrain identity must retain an exact child part-type slug.');
+for (const ecsPartNumber of DRIVETRAIN_SENTINEL_ECS) {
+  const product = REVIEWED_ECS_PRODUCTS.find(item => item.ecsPartNumber === ecsPartNumber);
+  assert.ok(product, `${ecsPartNumber} must remain available as a Drivetrain readiness sentinel.`);
+  assert.ok(product.filters?.categories?.includes('g-series-drivetrain'));
+}
+assert.equal(REVIEWED_ECS_PRODUCTS.some(product => product.ecsPartNumber === 'ES#2019435'), false,
+  'The quarantined PDK identity must not enter the merged reviewed catalogue.');
 
 const staleReviewedOnly = createPartsCatalogHandler({
   databaseUrl: '', legacyHandler: false, now: () => Date.parse('2026-08-18T00:00:00Z')
@@ -327,6 +377,26 @@ const reviewedInteriorItems = await collectAllItems(reviewedOnly, { partType: 'i
 assert.equal(reviewedInteriorItems.items.length, INTERIOR_PRODUCT_COUNT);
 assert.equal(new Set(reviewedInteriorItems.items.map(item => item.handle)).size, INTERIOR_PRODUCT_COUNT);
 assert.equal(new Set(reviewedInteriorItems.items.map(item => item.sku)).size, INTERIOR_PRODUCT_COUNT);
+
+const reviewedDrivetrainFilter = await invoke(reviewedOnly, { query: { partType: 'g-series-drivetrain' } });
+assert.equal(reviewedDrivetrainFilter.status, 200);
+assert.ok(reviewedDrivetrainFilter.body.meta.totalResults > 0);
+assert.equal(reviewedDrivetrainFilter.body.meta.totalResults, reviewedCategoryCount('g-series-drivetrain'));
+const reviewedDrivetrainItems = await collectAllItems(reviewedOnly, { partType: 'g-series-drivetrain' });
+assert.equal(reviewedDrivetrainItems.items.length, reviewedDrivetrainFilter.body.meta.totalResults);
+assert.equal(new Set(reviewedDrivetrainItems.items.map(item => item.handle)).size,
+  reviewedDrivetrainItems.items.length);
+const quarantinedPdkSearch = await invoke(reviewedOnly, { query: { q: 'ES#2019435', supplier: 'ecs' } });
+assert.equal(quarantinedPdkSearch.status, 200);
+assert.equal(quarantinedPdkSearch.body.meta.totalResults, 0);
+assert.equal(quarantinedPdkSearch.body.items.length, 0);
+for (const [slug] of DRIVETRAIN_PART_TYPES) {
+  const expectedCount = reviewedCategoryCount(slug);
+  assert.ok(expectedCount > 0, `Expected reviewed Drivetrain products in ${slug}.`);
+  const filtered = await invoke(reviewedOnly, { query: { partType: slug } });
+  assert.equal(filtered.status, 200);
+  assert.equal(filtered.body.meta.totalResults, expectedCount);
+}
 
 const reviewedInteriorIdentifierSearch = await invoke(reviewedOnly, {
   query: { q: REPRESENTATIVE_INTERIOR_ECS, supplier: 'ecs' }
@@ -655,7 +725,7 @@ assert.equal(incompleteDatabaseFallback.body.items.length, Math.min(100, REVIEWE
 assert.equal(incompleteDatabaseFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
 assert.equal(incompleteDatabaseFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 
-const highCountWithoutExteriorSentinels = createPartsCatalogHandler({
+const highCountWithoutReviewedSentinels = createPartsCatalogHandler({
   query: async text => {
     if (text.includes('parts-catalog:stats')) {
       return [{
@@ -671,10 +741,10 @@ const highCountWithoutExteriorSentinels = createPartsCatalogHandler({
   legacyHandler: false,
   now: () => FIXED_NOW
 });
-const highCountExteriorFallback = await invoke(highCountWithoutExteriorSentinels);
-assert.equal(highCountExteriorFallback.status, 200);
-assert.equal(highCountExteriorFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
-assert.equal(highCountExteriorFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
+const highCountSentinelFallback = await invoke(highCountWithoutReviewedSentinels);
+assert.equal(highCountSentinelFallback.status, 200);
+assert.equal(highCountSentinelFallback.body.meta.fallbackReason, 'reviewed_ecs_not_seeded');
+assert.equal(highCountSentinelFallback.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
 
 const unconfigured = createPartsCatalogHandler({ databaseUrl: '', reviewedFallback: false, now: () => FIXED_NOW });
 const unconfiguredResponse = await invoke(unconfigured);

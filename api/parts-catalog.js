@@ -27,7 +27,10 @@ const IDENTIFIER_KINDS = "'sku', 'mpn', 'ecs'";
 const REVIEWED_ECS_SENTINEL_KEYS = Object.freeze([
   'ecs-es-4508291', // G87 Exterior-only capture sentinel
   'ecs-es-3469066', // G80 Exterior-only capture sentinel
-  'ecs-es-4563907' // G82 Exterior-only capture sentinel
+  'ecs-es-4563907', // G82 Exterior-only capture sentinel
+  'ecs-es-602', // G80 Drivetrain short ECS identity sentinel
+  'ecs-es-3097303', // G87/G82 Drivetrain Transfer Case capture sentinel
+  'ecs-es-4811032' // G80 Drivetrain Automatic Transmission capture sentinel
 ]);
 
 class PublicApiError extends Error {

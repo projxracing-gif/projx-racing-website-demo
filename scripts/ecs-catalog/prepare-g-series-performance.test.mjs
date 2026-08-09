@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  createGSeriesDrivetrainScope,
+  prepareGSeriesDrivetrain as prepareGSeriesDrivetrainSource,
   prepareGSeriesExterior as prepareGSeriesExteriorSource,
   prepareGSeriesInterior as prepareGSeriesInteriorSource,
   prepareGSeriesPerformance as prepareGSeriesPerformanceSource
@@ -57,6 +59,45 @@ const media = {
   ]
 };
 
+const drivetrainScopeManifest = {
+  schemaVersion: 1,
+  supplier: 'ECS Tuning',
+  kind: 'g-series-drivetrain-scope-manifest',
+  categories: {
+    'fixture-components': {
+      name: 'Fixture Drivetrain Components',
+      nameAr: '\u0645\u0643\u0648\u0646\u0627\u062a \u0627\u062e\u062a\u0628\u0627\u0631 \u0646\u0638\u0627\u0645 \u0627\u0644\u062f\u0641\u0639',
+      sourcePath: 'Drivetrain/Fixture_Components/',
+      slug: 'drivetrain-fixture-components'
+    },
+    'fixture-tools': {
+      name: 'Fixture Drivetrain Tools',
+      nameAr: '\u0623\u062f\u0648\u0627\u062a \u0627\u062e\u062a\u0628\u0627\u0631 \u0646\u0638\u0627\u0645 \u0627\u0644\u062f\u0641\u0639',
+      sourcePath: 'Drivetrain/Tools/',
+      slug: 'drivetrain-fixture-tools'
+    }
+  },
+  counts: {
+    'BMW G87 M2 S58 3.0L': { 'fixture-components': 0, 'fixture-tools': 1 },
+    'BMW G80 M3 Competition S58 3.0L': { 'fixture-components': 1, 'fixture-tools': 0 },
+    'BMW G82 M4 Competition S58 3.0L': { 'fixture-components': 0, 'fixture-tools': 1 }
+  }
+};
+
+const quarantinedDrivetrainScopeManifest = structuredClone(drivetrainScopeManifest);
+quarantinedDrivetrainScopeManifest.categories['fixture-pdk'] = {
+  name: 'Fixture PDK Transmission Parts',
+  nameAr: 'أجزاء ناقل الحركة PDK للاختبار',
+  sourcePath: 'Drivetrain/PDK_Transmission/',
+  slug: 'drivetrain-pdk-transmission',
+  catalogueDisposition: 'quarantined',
+  excludeFromCustomerFacing: true,
+  quarantineReason: 'Supplier taxonomy anomaly under test.'
+};
+for (const [vehicle, counts] of Object.entries(quarantinedDrivetrainScopeManifest.counts)) {
+  counts['fixture-pdk'] = vehicle === 'BMW G82 M4 Competition S58 3.0L' ? 1 : 0;
+}
+
 test('deduplicates ECS products and retains vehicle evidence', () => {
   const products = prepareGSeriesPerformance(source, media, { minimumProducts: 1 });
   assert.equal(products.length, 1);
@@ -107,6 +148,106 @@ test('prepares the exact Interior scope with parent and child filters', () => {
   assert.match(product.selectionNote, /vehicle Interior categories/);
   assert.deepEqual(product.filters.categories, ['interior', 'seats']);
   assert.equal(product.images[0].src, 'assets/products/ecs/g-series-interior/es4699999.webp');
+});
+
+test('prepares manifest-backed Drivetrain paths with collision-safe parent and child filters', () => {
+  const drivetrain = structuredClone(source);
+  drivetrain.records = [structuredClone(source.records[0]), structuredClone(source.records[1])];
+  drivetrain.records[0].category = 'Fixture Drivetrain Components';
+  drivetrain.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Drivetrain/Fixture_Components/';
+  drivetrain.records[1].category = 'Fixture Drivetrain Tools';
+  drivetrain.records[1].sourceUrl = 'https://www.ecstuning.com/BMW-G82-M4_Competition-S58_3.0L/Drivetrain/Tools/';
+  const drivetrainMedia = structuredClone(media);
+  drivetrainMedia.images[0].localPath = 'assets/products/ecs/g-series-drivetrain/es4699999.webp';
+  drivetrainMedia.images[1].localPath = 'assets/products/ecs/g-series-drivetrain/ecs-box-no-image.jpg';
+  const [product] = prepareGSeriesDrivetrainSource(drivetrain, drivetrainMedia, {
+    minimumProducts: 1,
+    requireCompleteScope: false,
+    scopeManifest: drivetrainScopeManifest
+  });
+  assert.equal(product.category, 'Fixture Drivetrain Components');
+  assert.equal(product.categoryAr, drivetrainScopeManifest.categories['fixture-components'].nameAr);
+  assert.equal(product.categorySlug, 'drivetrain-fixture-components');
+  assert.equal(product.fitments[0].evidence, 'ecs-vehicle-drivetrain-category');
+  assert.ok(product.fitments.every(fitment => fitment.confidence === 'possible'));
+  assert.ok(product.fitments.every(fitment => fitment.drivetrains.length === 0));
+  assert.deepEqual(product.filters.drivetrains, []);
+  assert.deepEqual(product.filters.categories, [
+    'g-series-drivetrain',
+    'drivetrain-fixture-components',
+    'drivetrain-fixture-tools'
+  ]);
+  assert.match(product.selectionNote, /vehicle Drivetrain categories/);
+  assert.deepEqual(product.selectionSources.map(item => item.sourceUrl), [
+    drivetrain.records[0].sourceUrl,
+    drivetrain.records[1].sourceUrl
+  ]);
+  assert.equal(product.images[0].src, 'assets/products/ecs/g-series-drivetrain/es4699999.webp');
+});
+
+test('keeps quarantined Drivetrain evidence in the manifest while excluding its complete ECS identity', () => {
+  const drivetrain = structuredClone(source);
+  const validShared = structuredClone(source.records[0]);
+  validShared.category = 'Fixture Drivetrain Components';
+  validShared.sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Drivetrain/Fixture_Components/';
+  const quarantinedShared = structuredClone(source.records[1]);
+  quarantinedShared.category = 'Fixture PDK Transmission Parts';
+  quarantinedShared.sourceUrl = 'https://www.ecstuning.com/BMW-G82-M4_Competition-S58_3.0L/Drivetrain/PDK_Transmission/';
+  quarantinedShared.catalogueDisposition = 'quarantined';
+  quarantinedShared.excludeFromCustomerFacing = true;
+  quarantinedShared.quarantineReason = 'Supplier taxonomy anomaly under test.';
+  const publishable = structuredClone(validShared);
+  publishable.ecsPartNumber = '602';
+  publishable.manufacturerPartNumber = 'SHORT-ES-602';
+  publishable.productUrl = 'https://www.ecstuning.com/b-test-brand-parts/short-ecs-identity/short-es-602/';
+  publishable.relevancePosition = 2;
+  drivetrain.records = [validShared, quarantinedShared, publishable];
+  const drivetrainMedia = structuredClone(media);
+  drivetrainMedia.images[0].localPath = 'assets/products/ecs/g-series-drivetrain/es4699999.webp';
+  drivetrainMedia.images[1].localPath = 'assets/products/ecs/g-series-drivetrain/ecs-box-no-image.jpg';
+
+  const scope = createGSeriesDrivetrainScope(quarantinedDrivetrainScopeManifest);
+  assert.equal(scope.scopeManifest.categories['fixture-pdk'].excludeFromCustomerFacing, true);
+  assert.equal(scope.quarantinedCategories.length, 1);
+  const products = prepareGSeriesDrivetrainSource(drivetrain, drivetrainMedia, {
+    minimumProducts: 1,
+    requireCompleteScope: false,
+    scopeManifest: quarantinedDrivetrainScopeManifest
+  });
+  assert.deepEqual(products.map(product => product.ecsPartNumber), ['ES#602']);
+  assert.ok(products.every(product => !product.filters.categories.includes('drivetrain-pdk-transmission')));
+
+  const missingRecordQuarantine = structuredClone(drivetrain);
+  delete missingRecordQuarantine.records[1].excludeFromCustomerFacing;
+  assert.throws(() => prepareGSeriesDrivetrainSource(missingRecordQuarantine, drivetrainMedia, {
+    minimumProducts: 1,
+    requireCompleteScope: false,
+    scopeManifest: quarantinedDrivetrainScopeManifest
+  }), /failed ECS source validation/);
+});
+
+test('requires a complete keyed Drivetrain scope manifest and exact category route', () => {
+  const scope = createGSeriesDrivetrainScope(drivetrainScopeManifest);
+  assert.equal(scope.parentCategorySlug, 'g-series-drivetrain');
+  assert.equal(scope.expectedCategoryCounts['BMW G80 M3 Competition S58 3.0L']['Fixture Drivetrain Components'], 1);
+  assert.throws(() => prepareGSeriesDrivetrainSource(source, media, { requireCompleteScope: false }),
+    /scope manifest is required/);
+
+  const drivetrain = structuredClone(source);
+  drivetrain.records = [drivetrain.records[0]];
+  drivetrain.records[0].category = 'Fixture Drivetrain Tools';
+  drivetrain.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Tools/Drivetrain/';
+  const drivetrainMedia = structuredClone(media);
+  drivetrainMedia.images[0].localPath = 'assets/products/ecs/g-series-drivetrain/es4699999.webp';
+  drivetrainMedia.images[1].localPath = 'assets/products/ecs/g-series-drivetrain/ecs-box-no-image.jpg';
+  assert.throws(() => prepareGSeriesDrivetrainSource(drivetrain, drivetrainMedia, {
+    requireCompleteScope: false,
+    scopeManifest: drivetrainScopeManifest
+  }), /failed ECS source validation/);
+
+  const unsafeSlug = structuredClone(drivetrainScopeManifest);
+  unsafeSlug.categories['fixture-tools'].slug = 'tools';
+  assert.throws(() => createGSeriesDrivetrainScope(unsafeSlug), /category manifest is invalid/);
 });
 
 test('rejects unverified or incomplete product sources', () => {

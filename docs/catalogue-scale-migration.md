@@ -2,9 +2,11 @@
 
 ## Status
 
-`migrations/003_catalogue_scale_foundation.sql` is an **additive, local migration design**. It has not been applied to Neon and does not change the current website API. Existing catalogue imports, offers, pages, and the merged 2,127-product ECS collection remain authoritative.
+`migrations/003_catalogue_scale_foundation.sql` is an **additive, local migration design**. It has not been applied to Neon and does not change the current website API. Existing catalogue imports, offers, pages, and the merged 2,334-product staging ECS collection remain authoritative.
 
 The migration prepares the data layer for multi-million-product supplier feeds without claiming that an ECS feed has been received or imported.
+
+The completed bounded G-Series Drivetrain staging scope is evidence for this migration design, not a database cutover: 64 public pages produced 732 placements across G80/G82/G87, 253 unique raw ECS identities and 252 customer-facing products after ES#2019435 was quarantined and excluded. The scope contains public retail USD observations only, zero price or supplier-identity conflicts, 232 verified supplier images and 20 official placeholders. No wholesale data was ingested, and nothing in this documentation changes production.
 
 ## What it adds
 

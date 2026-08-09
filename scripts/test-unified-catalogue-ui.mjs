@@ -79,6 +79,34 @@ assert.match(app, /data-tegiwa-directory-part-type=/,
   'Exact supplier part-type keys must be attached to directory controls.');
 assert.match(app, /partType:\s*"exterior"/,
   'The Exterior directory must include an exact all-Exterior scope.');
+const drivetrainDirectoryMatch = app.match(/\{\s*query:\s*"drivetrain",\s*partType:\s*"g-series-drivetrain",\s*en:\s*"Drivetrain",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"cooling"/);
+assert.ok(drivetrainDirectoryMatch, 'The Drivetrain directory must include an exact G-Series scope.');
+const drivetrainDirectoryEntries = [...drivetrainDirectoryMatch[1]
+  .matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
+  .map(([, name, nameAr, slug]) => ({ slug, name, nameAr }));
+const expectedDrivetrainDirectoryEntries = [
+  ['drivetrain-tools', 'Drivetrain Tools'],
+  ['drivetrain-differential', 'Differential Parts'],
+  ['drivetrain-manual-transmission', 'Manual Transmission Parts'],
+  ['drivetrain-shifter', 'Shifter Parts'],
+  ['drivetrain-automatic-transmission', 'Automatic Transmission Parts'],
+  ['drivetrain-axles', 'Axle Parts'],
+  ['drivetrain-clutch', 'Clutch Parts'],
+  ['drivetrain-mounts', 'Drivetrain Mounts'],
+  ['drivetrain-driveshafts', 'Driveshaft Parts'],
+  ['drivetrain-wheel-bearings', 'Wheel Bearing Parts'],
+  ['drivetrain-skid-plate', 'Skid Plates'],
+  ['drivetrain-transfer-case', 'Transfer Case Parts']
+];
+assert.deepEqual(drivetrainDirectoryEntries.map(({ slug, name }) => [slug, name]),
+  expectedDrivetrainDirectoryEntries,
+  'Drivetrain directory controls must expose the 12 verified customer-facing part types.');
+assert.ok(drivetrainDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/u.test(nameAr)),
+  'Every Drivetrain part-type control must preserve an Arabic label.');
+assert.doesNotMatch(drivetrainDirectoryMatch[1], /drivetrain-pdk-transmission/,
+  'The unverified PDK branch must not be exposed as a G-Series customer directory control.');
+assert.doesNotMatch(app, /drivetrain-pdk-transmission|PDK Transmission Parts/,
+  'The quarantined PDK taxonomy must not ship in the customer-facing application source.');
 const interiorDirectoryMatch = app.match(/\{\s*query:\s*"interior",\s*partType:\s*"interior",\s*en:\s*"Interior",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"exterior"/);
 assert.ok(interiorDirectoryMatch, 'The Interior directory must include an exact all-Interior scope.');
 const interiorDirectoryEntries = [...interiorDirectoryMatch[1].matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
@@ -140,6 +168,10 @@ assert.match(app, /price\.startingAt \? `\$\{storeText\(\)\.startingAt\}/,
   'Positive supplier starting prices must be clearly labelled as From prices.');
 assert.match(app, /image\.status === "supplier-media-unavailable"/,
   'Official supplier placeholders must be visibly labelled.');
+assert.match(app, /<h3 dir="auto">\$\{esc\(item\.title\)\}<\/h3>/,
+  'Supplier product titles must isolate their own text direction inside Arabic catalogue cards.');
+assert.match(app, /id="tegiwa-detail-title" dir="auto">\$\{esc\(product\.title\)\}<\/h2>/,
+  'Supplier product titles must preserve their text direction inside Arabic product details.');
 assert.match(styles, /\.tegiwa-image-placeholder/);
 assert.match(styles, /\.tegiwa-stock-badge[^}]*max-width:\s*calc\(100% - 24px\)[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s,
   'Mobile stock badges must wrap inside their 12px card insets.');

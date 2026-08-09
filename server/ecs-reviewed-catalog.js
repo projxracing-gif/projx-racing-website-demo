@@ -2,6 +2,10 @@ import '../assets/ecs-products.js';
 import { ECS_G_SERIES_PERFORMANCE_PRODUCTS } from './data/ecs-g-series-performance-products.js';
 import { ECS_G_SERIES_EXTERIOR_PRODUCTS } from './data/ecs-g-series-exterior-products.js';
 import { ECS_G_SERIES_INTERIOR_PRODUCTS } from './data/ecs-g-series-interior-products.js';
+import {
+  ECS_G_SERIES_DRIVETRAIN_PRODUCTS,
+  ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES
+} from './data/ecs-g-series-drivetrain-products.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -19,10 +23,10 @@ function ecsIdentity(product) {
   const dedicated = [product?.ecsPartNumber, product?.identifiers?.ecs];
   for (const value of dedicated) {
     const source = String(value ?? '').trim();
-    const match = source.match(/^(?:ES\s*#?\s*)?(\d{4,12})$/i);
+    const match = source.match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i);
     if (match) return match[1];
   }
-  const sku = String(product?.sku ?? '').trim().match(/^ES\s*#?\s*(\d{4,12})$/i);
+  const sku = String(product?.sku ?? '').trim().match(/^ES\s*#?\s*(\d{3,12})$/i);
   return sku?.[1] || null;
 }
 
@@ -335,11 +339,22 @@ export function mergeReviewedEcsProducts(existingProducts, generatedProducts) {
   return remapped;
 }
 
-export const REVIEWED_ECS_PRODUCTS = Object.freeze(mergeReviewedEcsProducts(
+const mergedReviewedEcsProducts = mergeReviewedEcsProducts(
   globalThis.PROJX_ECS_PRODUCTS || [],
   [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS,
-    ...ECS_G_SERIES_INTERIOR_PRODUCTS]
-));
+    ...ECS_G_SERIES_INTERIOR_PRODUCTS, ...ECS_G_SERIES_DRIVETRAIN_PRODUCTS]
+);
+const quarantinedEcsIdentities = new Set(ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES);
+const quarantinedProductSlugs = new Set(mergedReviewedEcsProducts
+  .filter(product => quarantinedEcsIdentities.has(ecsIdentity(product)))
+  .flatMap(product => [product?.slug, product?.publicKey]).filter(Boolean));
+export const REVIEWED_ECS_PRODUCTS = Object.freeze(mergedReviewedEcsProducts
+  .filter(product => !quarantinedEcsIdentities.has(ecsIdentity(product)))
+  .map(product => ({
+    ...product,
+    relatedProductSlugs: (product.relatedProductSlugs || [])
+      .filter(slug => !quarantinedProductSlugs.has(slug))
+  })));
 
 export class ReviewedFallbackError extends Error {
   constructor(status, code, message) {
@@ -483,6 +498,25 @@ function localCatalogueFacets(products) {
   for (const [slug, nameAr] of interiorArabicNames) {
     const current = partTypes.get(slug);
     if (current) partTypes.set(slug, { ...current, nameAr });
+  }
+  const drivetrainFacetNames = new Map([
+    ['g-series-drivetrain', ['G-Series Drivetrain', 'نظام نقل الحركة لسلسلة G']],
+    ['drivetrain-tools', ['Drivetrain Tools', 'أدوات نظام نقل الحركة']],
+    ['drivetrain-differential', ['Differential Parts', 'أجزاء الدفرنس']],
+    ['drivetrain-manual-transmission', ['Manual Transmission Parts', 'أجزاء ناقل الحركة اليدوي']],
+    ['drivetrain-shifter', ['Shifter Parts', 'أجزاء عصا ناقل الحركة']],
+    ['drivetrain-automatic-transmission', ['Automatic Transmission Parts', 'أجزاء ناقل الحركة الأوتوماتيكي']],
+    ['drivetrain-axles', ['Axle Parts', 'أجزاء المحاور']],
+    ['drivetrain-clutch', ['Clutch Parts', 'أجزاء القابض']],
+    ['drivetrain-mounts', ['Drivetrain Mounts', 'قواعد نظام نقل الحركة']],
+    ['drivetrain-driveshafts', ['Driveshaft Parts', 'أجزاء أعمدة نقل الحركة']],
+    ['drivetrain-wheel-bearings', ['Wheel Bearing Parts', 'أجزاء رمانات العجل']],
+    ['drivetrain-skid-plate', ['Skid Plates', 'ألواح الحماية السفلية']],
+    ['drivetrain-transfer-case', ['Transfer Case Parts', 'أجزاء علبة التحويل']]
+  ]);
+  for (const [slug, [name, nameAr]] of drivetrainFacetNames) {
+    const current = partTypes.get(slug);
+    if (current) partTypes.set(slug, { ...current, name, nameAr });
   }
   const byName = (left, right) => left.name.localeCompare(right.name) || left.slug.localeCompare(right.slug);
   return {

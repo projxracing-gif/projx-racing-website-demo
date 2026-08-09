@@ -2,6 +2,16 @@
 
 ## 9 August 2026
 
+### Complete G-Series Drivetrain catalogue scope
+
+- Captured all 64 public ECS Drivetrain listing pages for BMW G80 M3 Competition, G82 M4 Competition and G87 M2, reconciling 732 vehicle/category placements: 244 for G80, 248 for G82 and 240 for G87.
+- Reconciled the raw observations to 253 unique ECS identities with zero price or supplier-identity conflicts. The anomalous G82 PDK record, ES#2019435, remains in the private evidence set but is quarantined and fully excluded from customer-facing output, leaving 252 staging products.
+- Materialized 232 checksum-verified supplier product images and 20 clearly labelled official ECS placeholders. No guessed image replaces a supplier-media gap.
+- Preserved canonical product URLs, ECS and manufacturer part numbers, public retail USD observations, dated supplier availability wording and possible-only vehicle/category evidence. No wholesale, dealer-cost or authenticated supplier data is present.
+- Added an English/Arabic Drivetrain parent filter and bilingual customer-facing child categories while keeping the quarantined PDK taxonomy out of search, API results and the category directory.
+- Added repeatable scope-manifest, pagination, 732-row reconciliation, three-digit ECS identity, quarantine, image, price, merge, API and category-filter checks.
+- This release remains staging-only. It does not authorize or perform a production deployment.
+
 ### Complete G-Series Interior catalogue scope
 
 - Added every product placement shown in the public ECS Interior roots for BMW G87 M2, G80 M3 Competition and G82 M4 Competition: 1,958 category placements across 88 non-empty vehicle/category branches and 180 rendered catalogue pages, reconciled to 678 unique ECS products.

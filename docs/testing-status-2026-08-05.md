@@ -2,11 +2,14 @@
 
 ## Passed locally
 
+The current local build and validation figures below include the Drivetrain staging release. Public-preview browser results are recorded only after the branch deployment is verified.
+
 - Production build: 101 routes in each language, 202 localized pages total.
-- Production validation: 204 HTML files, 2,136 production files, 13 services, 12 projects, 46 brands, 44 curated Projx catalogue products, and 80 supplied Projx images.
-- Catalogue data audit: 2,127 unique reviewed ECS products, 2,127 local primary images, 2,094 safe public USD price observations, 1,981 detailed supplier descriptions, zero duplicate ECS identities/handles/source URLs, zero structured or independently verified exact-fitment records, and zero live-stock claims.
+- Production validation: 204 HTML files, 2,327 production files, 13 services, 12 projects, 46 brands, 44 curated Projx catalogue products, and 80 supplied Projx images.
+- Catalogue data audit: 2,334 unique reviewed ECS products, 2,334 local primary images, 2,301 safe public USD price observations, 2,181 detailed supplier descriptions, zero duplicate ECS identities/handles/source URLs, zero structured or independently verified exact-fitment records, and zero live-stock claims.
 - G-Series Exterior scope: all 1,725 observed placements across the 41 non-empty G87/G80/G82 Exterior branches were reconciled to 782 unique products. Of those, 643 have product-specific supplier media and 139 use a clearly labelled supplier-media-unavailable image.
 - G-Series Interior scope: all 1,958 observed placements across 88 non-empty G87/G80/G82 Interior vehicle/category branches and 180 listing pages were reconciled to 678 unique products. Of those, 559 have product-specific supplier media, 119 use a clearly labelled supplier-media-unavailable image, 373 new local WebP files were materialized, and 31 merged-catalogue price conflicts are held at Request price.
+- G-Series Drivetrain scope: all 64 public listing pages and 732 placements reconcile exactly as G80 244, G82 248 and G87 240. The raw evidence contains 253 unique ECS identities; ES#2019435 is quarantined and fully excluded, leaving 252 customer-facing products with 232 verified supplier images, 20 official placeholders, zero within-scope price or identity conflicts, public retail USD observations only and no wholesale data. English/Arabic parent and customer-facing child category mappings are present in the staging interface.
 - Catalogue tests: Tegiwa API, unified catalogue, ECS review, vehicle directory, duplicate checks, stock publisher, and product-detail outage fallback.
 - Commerce tests: cart add/change/remove/persistence, direct-product allowlist, quote-only policy, staging receipt, and duplicate-order prevention.
 - Account tests: profile, addresses, saved cart, orders, quotations, authentication failure states, lifecycle retention, and private endpoint protection.
@@ -23,7 +26,7 @@ Direct Add to Cart is enabled only for:
 
 - MagnusT GR Yaris GoPro headrest mount, LHD — supplier SKU `T-GOPRO-MOUNT-YARISGR-LHD`, GBP 31.19, with fitment confirmation required and a seven-day verification freshness limit.
 
-All 2,127 reviewed ECS products and all other non-approved supplier products remain Request a Quote until their price, availability, shipping, and fitment data is sufficiently reliable.
+All 2,334 reviewed ECS products and all other non-approved supplier products remain Request a Quote until their price, availability, shipping, and fitment data is sufficiently reliable.
 
 ## Activation still required
 
@@ -31,7 +34,7 @@ All 2,127 reviewed ECS products and all other non-approved supplier products rem
 - Transactional email: provide a Resend key, verified sender address/domain, SPF, DKIM, DMARC, durable CAPTCHA/WAF protection, and explicit enablement flags; then run real inbox delivery tests.
 - Hourly supplier stock: provide a supported vendor feed or publication permission plus Vercel Blob token, manifest secret, and an approved scheduler.
 - Payments: no payment gateway is connected. Staging checkout must remain non-charging until separate explicit approval and test credentials are supplied.
-- ECS wider-catalogue completeness: the requested G87/G80/G82 Performance, Exterior and Interior scopes are published as reviewed records, but this is not the entire multi-million-item ECS catalogue. ECS does not publish sales rank or units sold, and no API, stockfeed or FTP export has been supplied. Public price and availability observations are dated and require confirmation. Any broader ECS import still requires an approved repeatable source, field/update contract, scalable storage/import path and staged validation.
+- ECS wider-catalogue completeness: the requested G87/G80/G82 Performance, Exterior, Interior and Drivetrain scopes are prepared as reviewed staging records, but this is not the entire multi-million-item ECS catalogue and is not a production deployment. ECS does not publish sales rank or units sold, and no API, stockfeed or FTP export has been supplied. Public price and availability observations are dated and require confirmation. Any broader ECS import still requires an approved repeatable source, field/update contract, scalable storage/import path and staged validation.
 
 ## Safety statement
 

@@ -211,6 +211,61 @@ test('preserves primary selection wording while unioning duplicate catalogue evi
   ]);
 });
 
+test('appends exact Drivetrain evidence without replacing an established reviewed product', () => {
+  const established = reviewedProduct({
+    category: 'Performance',
+    categorySlug: 'performance-engine-drivetrain',
+    imageStatus: 'supplier-media-verified',
+    images: [{ src: 'assets/products/ecs/established.webp', alt: 'Established product image' }],
+    selectionSources: [{
+      vehicle: 'BMW G80 M3 Competition S58 3.0L', category: 'Performance Engine & Drivetrain Parts',
+      sourceUrl: 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Performance/',
+      relevancePosition: 3, observedAt: '2026-08-08T12:00:00Z'
+    }]
+  });
+  const drivetrain = generatedProduct({
+    category: 'Automatic Transmission Parts',
+    categoryAr: 'أجزاء ناقل الحركة الأوتوماتيكي',
+    categorySlug: 'drivetrain-automatic-transmission',
+    filters: {
+      supplier: ['ecs'], models: ['M3'], chassis: ['G80'],
+      categories: ['g-series-drivetrain', 'drivetrain-automatic-transmission'],
+      subcategories: ['drivetrain-automatic-transmission']
+    },
+    selectionSources: [{
+      vehicle: 'BMW G80 M3 Competition S58 3.0L', category: 'Automatic Transmission',
+      sourceUrl: 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Drivetrain/Automatic-Transmission/',
+      relevancePosition: 5, observedAt: '2026-08-09T12:00:00Z'
+    }]
+  });
+
+  const [merged] = mergeReviewedEcsProducts([established], [drivetrain]);
+  assert.equal(merged.category, 'Performance');
+  assert.equal(merged.categorySlug, 'performance-engine-drivetrain');
+  assert.deepEqual(merged.images, established.images);
+  assert.deepEqual(merged.filters.categories, [
+    'engine', 'g-series-drivetrain', 'drivetrain-automatic-transmission'
+  ]);
+  assert.deepEqual(merged.filters.subcategories, ['drivetrain-automatic-transmission']);
+  assert.deepEqual(merged.selectionSources.map(source => source.category), [
+    'Performance Engine & Drivetrain Parts', 'Automatic Transmission'
+  ]);
+});
+
+test('deduplicates a legitimate three-digit ECS Drivetrain identity', () => {
+  const identity = {
+    ecsPartNumber: 'ES#602', sku: 'ES#602', mpn: 'MT-LV-602',
+    publicKey: 'ecs-es-602', slug: 'es-602'
+  };
+  const [merged] = mergeReviewedEcsProducts(
+    [reviewedProduct(identity)],
+    [generatedProduct(identity)]
+  );
+  assert.equal(merged.ecsPartNumber, 'ES#602');
+  assert.equal(merged.publicKey, 'ecs-es-602');
+  assert.equal(merged.selectionSources.length, 1);
+});
+
 test('fails closed when the same ES number has a conflicting MPN or canonical product URL', () => {
   assert.throws(
     () => mergeReviewedEcsProducts([reviewedProduct()], [generatedProduct({ mpn: 'OTHER-MPN' })]),

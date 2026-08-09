@@ -35,9 +35,30 @@ No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT
 
 ## Current reviewed storefront collection
 
-The storefront contains 2,127 unique ECS products after duplicate-safe merging of 41 legacy manually reviewed products, 1,109 generated G-Series Performance products, 782 generated G-Series Exterior products, and 678 generated G-Series Interior products. The Interior set overlaps 230 identities already present in the established collection; those records merge by ECS number while retaining the established public handle and all vehicle/category evidence. The generated sets cover every captured Performance, Exterior and Interior branch for G87 M2, G80 M3 Competition and G82 M4 Competition. ECS category placement is not represented as a supplier-published sales ranking.
+The local staging storefront contains 2,334 unique ECS products after duplicate-safe merging of 41 legacy manually reviewed products with the generated G-Series Performance, Exterior, Interior and Drivetrain scopes. The generated sets cover every captured branch in those bounded scopes for G87 M2, G80 M3 Competition and G82 M4 Competition. ECS category placement is not represented as a supplier-published sales ranking, and this staging collection is not a production deployment.
 
-The Performance report is `docs/ecs-g-series-performance-catalogue-report.json`: 2,656 listing observations, 1,109 unique products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 public-price records and 8 request-price records. The Exterior report is `docs/ecs-g-series-exterior-catalogue-report.json`: 1,725 listing observations, 782 unique products, 643 verified product-specific images, 139 labelled supplier placeholders, 782 public-price observations, 71 missing supplier descriptions and 28 missing supplier brands. The Interior report is `docs/ecs-g-series-interior-catalogue-report.json`: 1,958 listing observations, 678 unique products, 559 verified product-specific images, 119 labelled supplier placeholders, 677 public-price observations, 42 missing supplier descriptions and 670 missing supplier brands. Thirty-one same-day price differences in the final merged catalogue are held at `Request price` rather than publishing an ambiguous amount.
+The Performance report is `docs/ecs-g-series-performance-catalogue-report.json`: 2,656 listing observations, 1,109 unique products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 public-price records and 8 request-price records. The Exterior report is `docs/ecs-g-series-exterior-catalogue-report.json`: 1,725 listing observations, 782 unique products, 643 verified product-specific images, 139 labelled supplier placeholders, 782 public-price observations, 71 missing supplier descriptions and 28 missing supplier brands. The Interior report is `docs/ecs-g-series-interior-catalogue-report.json`: 1,958 listing observations, 678 unique products, 559 verified product-specific images, 119 labelled supplier placeholders, 677 public-price observations, 42 missing supplier descriptions and 670 missing supplier brands. The Drivetrain report is `docs/ecs-g-series-drivetrain-catalogue-report.json`: 64 public listing pages, 732 placements (G80 244, G82 248 and G87 240), 253 unique raw ECS identities, one fully excluded quarantined identity and 252 customer-facing products, 232 verified supplier images, 20 official placeholders, 252 public retail USD observations, zero price conflicts and zero supplier-identity conflicts. No wholesale data is present. Thirty-one same-day price differences elsewhere in the final merged catalogue remain held at `Request price` rather than publishing an ambiguous amount.
+
+### Bounded Drivetrain staging workflow
+
+The capture directory and its source evidence stay under ignored `private-imports/`. Combine the three exact vehicle captures, then generate the tracked staging module and report:
+
+```text
+npm run catalog:ecs:combine-g-series-drivetrain -- \
+  --capture-dir private-imports/ecs-g-series-drivetrain-20260809 \
+  --manifest private-imports/ecs-g-series-drivetrain-20260809/g-series-drivetrain-scope-manifest.json \
+  --output private-imports/ecs-g-series-drivetrain-20260809/g-series-drivetrain-listing-capture.json
+
+npm run catalog:ecs:g-series-drivetrain -- \
+  --input private-imports/ecs-g-series-drivetrain-20260809/g-series-drivetrain-listing-capture.json \
+  --media-index private-imports/ecs-g-series-drivetrain-20260809/media-index.json \
+  --scope-manifest private-imports/ecs-g-series-drivetrain-20260809/g-series-drivetrain-scope-manifest.json \
+  --output server/data/ecs-g-series-drivetrain-products.js \
+  --report docs/ecs-g-series-drivetrain-catalogue-report.json \
+  --minimum-products 252
+```
+
+The shared scope manifest has 13 English/Arabic category definitions and exact keyed counts totalling 732. ES#2019435 is retained only in the private raw evidence, then quarantined and excluded before module generation. The customer-facing category directory and API must not expose its PDK category or product.
 
 The generated vehicle-category records deliberately retain these limitations:
 
@@ -45,7 +66,7 @@ The generated vehicle-category records deliberately retain these limitations:
 - supplier availability is an observation and the API returns `check_availability`;
 - prices are public supplier USD retail observations, not a Projx selling price;
 - no live ECS stock feed exists;
-- no verified detailed specifications, options, variations or drivetrain fitment are available; and
+- no independently verified detailed specifications, options, variations or exact drivetrain fitment are available; and
 - product-specific media is used only when captured and verified; otherwise the storefront shows a labelled ECS placeholder.
 
 Run the deterministic audit without contacting ECS:

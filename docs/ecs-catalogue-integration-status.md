@@ -4,11 +4,15 @@ Status date: 9 August 2026
 
 ## Verified outcome
 
-The customer-facing ECS collection now contains **2,127 unique products**. This is the duplicate-safe merge of 41 earlier manually reviewed records, 1,109 products captured from every listed Performance branch, 782 products captured from every listed Exterior branch, and 678 products captured from every listed Interior branch for BMW G87 M2, G80 M3 Competition and G82 M4 Competition. The Interior set overlaps 230 existing ECS identities, so it adds 448 new storefront products while enriching the established records without changing their public handles. The current audit passes with:
+The customer-facing staging ECS collection now contains **2,334 unique products**. This is the duplicate-safe merge of 41 earlier manually reviewed records plus the generated Performance, Exterior, Interior and Drivetrain scopes for BMW G87 M2, G80 M3 Competition and G82 M4 Competition. The Drivetrain capture contains 253 unique raw ECS identities; ES#2019435 is quarantined as an anomalous PDK placement and fully excluded, leaving 252 customer-facing Drivetrain products. The current local audit passes with:
 
-- 2,127 unique ECS identities and storefront handles;
-- 6,339 official vehicle/category listing observations across the three generated scopes;
-- 2,569 generated scope records before cross-scope deduplication;
+- 2,334 unique ECS identities and storefront handles after duplicate-safe cross-scope merging;
+- 7,071 official vehicle/category listing observations across the four generated scopes;
+- 2,821 generated customer-facing scope records before cross-scope deduplication;
+- 732 Drivetrain placement observations from 64 public listing pages, reconciled as 244 G80, 248 G82 and 240 G87 placements;
+- 253 unique raw Drivetrain ECS identities, one quarantined PDK identity and 252 customer-facing Drivetrain products;
+- 232 Drivetrain products with checksum-verified supplier media and 20 with a clearly labelled official ECS placeholder;
+- zero Drivetrain price conflicts, zero Drivetrain supplier-identity conflicts, public retail USD observations only and no wholesale or dealer-cost data;
 - 1,958 Interior placement observations reconciled to 678 unique products across 88 non-empty G87/G80/G82 category branches and 180 paginated listing pages;
 - 559 of the 678 Interior products with product-specific supplier media and 119 using a visibly labelled supplier-media-unavailable image;
 - 373 new Interior media files materialized locally, plus verified reuse of existing Performance and Exterior media;
@@ -20,7 +24,7 @@ The customer-facing ECS collection now contains **2,127 unique products**. This 
 - 436 new Exterior media files materialized locally, plus verified reuse of existing Performance media; and
 - possible-only ECS vehicle-category fitment evidence, confirmation-only availability and no claimed live stock.
 
-The storefront vehicle matcher returns 1,582 G87 M2, 1,755 G80 M3 and 1,711 G82 M4 records with possible supplier evidence after the generated catalogue and earlier reviewed records are merged. Filtering supports supplier, brand, category/subcategory, USD pricing, confirmation-required availability, saved vehicle, model, chassis, engine and possible fitment. The Interior directory has an exact parent filter plus 32 bilingual child filters. No generated ECS record is exposed as structured or independently verified exact fitment; VIN and option confirmation remain required.
+The local staging storefront matcher returns 1,764 G87 M2, 1,926 G80 M3 and 1,888 G82 M4 records with possible supplier evidence after the generated catalogue and earlier reviewed records are merged. Filtering supports supplier, brand, category/subcategory, USD pricing, confirmation-required availability, saved vehicle, model, chassis, engine and possible fitment. The Interior directory retains its exact parent filter plus 32 bilingual child filters. Drivetrain adds an English/Arabic parent filter plus 12 customer-facing bilingual child filters; the quarantined PDK category is absent from customer search, API results and the directory. No generated ECS record is exposed as structured or independently verified exact fitment; VIN and option confirmation remain required.
 
 ## Private ECS discovery queue
 
@@ -34,11 +38,11 @@ The ECS sitemap inventory is retained as private ingestion data only. It is not 
 
 The earlier preview incorrectly exposed URL-derived cards and added URL counts to the public product total. That path has been removed. The public discovery API now fails closed, normal ECS browsing returns reviewed structured products only, and the UI rejects a stale response containing `url_discovered` records.
 
-Together with the **193,253** Tegiwa catalogue entries, the customer-facing structured catalogue contains **195,380 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
+Together with the **193,253** Tegiwa catalogue entries, the local staging structured catalogue contains **195,587 products**. The private URL inventory is not included in this total. A URL can become a storefront product only after its commercial and fitment fields are retrieved, validated and published through the normal catalogue pipeline.
 
 ## ECS image coverage
 
-All 41 legacy reviewed ECS products retain their approved local media. In the generated G-Series Performance scope, **824 products have verified product-specific media** and **285 use a visibly labelled official ECS placeholder**. In the generated G-Series Exterior scope, **643 products have verified product-specific media** and **139 use the same clearly labelled placeholder**. In the generated G-Series Interior scope, **559 products have verified product-specific media** and **119 use the labelled placeholder** because ECS supplied no retrievable product image. Interior added 373 checksum-verified local 300-by-225 WebP files and safely reuses matching Performance and Exterior files. Supplier watermarks and attribution are preserved.
+All 41 legacy reviewed ECS products retain their approved local media. In the generated G-Series Performance scope, **824 products have verified product-specific media** and **285 use a visibly labelled official ECS placeholder**. In the generated G-Series Exterior scope, **643 products have verified product-specific media** and **139 use the same clearly labelled placeholder**. In the generated G-Series Interior scope, **559 products have verified product-specific media** and **119 use the labelled placeholder** because ECS supplied no retrievable product image. In the customer-facing G-Series Drivetrain scope, **232 products have verified supplier media** and **20 use the labelled official ECS placeholder**. Interior added 373 checksum-verified local 300-by-225 WebP files, and Drivetrain reuses or materializes only checksum-verified assets. Supplier watermarks and attribution are preserved.
 
 Completing ECS image coverage requires an authorised ECS number, manufacturer part number or canonical URL to image mapping. Imported media must be validated, checksummed, deduplicated, kept with its supplier attribution or watermark intact, mirrored to approved object storage and reviewed before publication. Search thumbnails, guessed images and watermark removal are not acceptable substitutes.
 
@@ -102,7 +106,7 @@ This 26-product batch was manually reviewed on 6 August 2026 from ECS vehicle-ca
 
 ## Data still missing
 
-The generated G-Series Exterior scope still has these controlled supplier-data gaps:
+The generated G-Series scopes still have these controlled supplier-data gaps:
 
 - detailed supplier description missing for 71 products;
 - manufacturer brand missing for 28 products;
@@ -112,7 +116,9 @@ The generated G-Series Exterior scope still has these controlled supplier-data g
 - Projx Racing selling price missing for all generated products; and
 - live ECS stock feed unavailable for all products.
 
-Supplier availability phrases and public prices are dated observations from 8 August 2026. The API deliberately requires confirmation and does not publish them as guaranteed live stock, delivery times or final Projx selling prices.
+For Drivetrain specifically, seven customer-facing products have no detailed supplier description and 20 have no product-specific supplier image, so the latter use the labelled official ECS placeholder. All 252 customer-facing Drivetrain products retain a public retail USD observation in the bounded source capture, and none has a within-scope price or supplier-identity conflict. The quarantined PDK record is evidence only and is not counted or returned as a customer product.
+
+Supplier availability phrases and public prices are dated scope observations, most recently including the 9 August 2026 Drivetrain capture. The API deliberately requires confirmation and does not publish them as guaranteed live stock, delivery times or final Projx selling prices.
 
 ## Permission and completion blocker
 
@@ -127,7 +133,7 @@ On 5 August 2026, ECS Wholesale advised by email that a private FTP file may be 
 3. a streaming, sharded importer and online storage sized for more than two million products; and
 4. staged count, duplicate, fitment, price, search and load validation before publication.
 
-The current automated-access workflow may fetch only explicitly allowlisted public ECS product URLs while the private authorization gate remains valid. It checkpoints and resumes bounded batches, rejects private/sensitive fields, deduplicates by ECS number and URL, and creates a non-publishing review queue. It must not traverse login areas, bypass Cloudflare or other controls, or claim the full supplier catalogue is complete until a complete source has been collected and verified.
+The current automated-access workflow may fetch only explicitly allowlisted public ECS product URLs while the private authorization gate remains valid. The completed Performance, Exterior, Interior and Drivetrain vehicle-category scopes are bounded staging collections, not the complete ECS catalogue. The workflow checkpoints and resumes bounded batches, rejects private/sensitive fields, deduplicates by ECS number and URL, and creates a non-publishing review queue. It must not traverse login areas, bypass Cloudflare or other controls, or claim the full supplier catalogue is complete until a complete source has been collected and verified.
 
 At the current minimum two-second request interval, two million individual page requests would require about 46 days of uninterrupted collection before retries or review. The existing single-file workflow and current free Neon project are not sized for that run. The measured database footprint projects to roughly 9 GB for one sparse two-million-product snapshot and more than 18 GB during atomic blue/green publication, before detailed fitment, variants or media.
 
