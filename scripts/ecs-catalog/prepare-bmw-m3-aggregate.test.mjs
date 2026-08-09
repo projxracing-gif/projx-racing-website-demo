@@ -209,6 +209,23 @@ test('repairs the captured ECS soft-hyphen mojibake without changing product ide
     'https://www.ecstuning.com/b-ate-parts/sl6-low-viscosity-brake-fluid-1-liter/%C2%AD706402~ate/');
 });
 
+test('keeps an otherwise valid product when ECS omits the brand instead of inventing one', () => {
+  const listing = record({
+    brand: '',
+    ecsPartNumber: '7123456',
+    manufacturerPartNumber: 'NO-BRAND-1',
+    productUrl: 'https://www.ecstuning.com/b-supplier-parts/no-brand-test/no-brand-1/',
+    title: 'Brand field omitted test product'
+  });
+  const result = prepareBmwM3AggregateCapture(capture([listing]), { nowMs });
+
+  assert.equal(result.audit.invalidRecordCount, 0);
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].brand, 'Supplier brand not provided');
+  assert.equal(result.products[0].brandSlug, 'supplier-brand-not-provided');
+  assert.equal(result.products[0].brandSupplied, false);
+});
+
 test('renders a deterministic importable compact data module', async () => {
   const result = prepareBmwM3AggregateCapture(capture([record()]), { nowMs });
   const first = renderBmwM3AggregateModule(result);

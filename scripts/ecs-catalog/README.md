@@ -103,6 +103,27 @@ After the preflight count is reviewed, remove only `--dry-run` from that command
 
 The safeguards are intentionally fail-closed: at most 25,000 required image mappings, at most 2 GiB downloaded in one run, at most 25 MB for one file, only HTTPS `assets.ecstuning.com` URLs without credentials/query strings, only JPEG/PNG/WebP bytes, a minimum 100-by-100 decoded image, content-addressed filenames, atomic index writes, and a maximum concurrency of eight (two in the documented command). If a supplier image fails, the strict command does not publish a complete index. Use `--allow-missing` only for a reviewed follow-up so every failure is recorded and the storefront can retain its labelled supplier-media-unavailable state.
 
+If the official ECS image host refuses a standalone request while the same exact image renders on its public listing page, use the browser page-assets runner instead of weakening the HTTP safeguards. It revisits only already-validated raw-page checkpoint URLs, verifies the page and rendered product count, inventories the images the browser actually observed, bundles only exact matching `assets.ecstuning.com` URLs, verifies the bytes and dimensions, and writes the same content-addressed media-index schema. It never opens an image URL directly and stops on an access challenge. Run it only in a persistent browser session that is not being used by a product-capture runner:
+
+```js
+const mediaModule = await import('file:///ABSOLUTE/REPOSITORY/scripts/ecs-catalog/capture-bmw-m3-page-assets.mjs?media-v1');
+const result = await mediaModule.captureEcsBmwM3PageAssets(
+  mediaModule.createCodexTabPageAssetsAdapter(tab),
+  {
+    captureDir: 'ABSOLUTE/REPOSITORY/private-imports/ecs-bmw-m3-20260809',
+    outputDir: 'ABSOLUTE/REPOSITORY/assets/products/ecs/bmw-m3',
+    indexPath: 'ABSOLUTE/REPOSITORY/private-imports/ecs-bmw-m3-20260809/media-index.json',
+    statePath: 'ABSOLUTE/REPOSITORY/private-imports/ecs-bmw-m3-20260809/media-capture-state.json',
+    sections: ['braking', 'steering'],
+    pageBudget: 10,
+    navigationDelayMs: 4000,
+    assetSettleDelayMs: 1500,
+  },
+);
+```
+
+The browser runner accepts partial durable checkpoints, so completed sections can be materialized while other sections are still being captured. Re-running the same call resumes from the verified index and state. A page remains `partial` when ECS advertises a non-placeholder product image but the browser does not observe or bundle it; those pages are retried rather than silently treated as complete. The focused no-network tests are `node --test scripts/ecs-catalog/capture-bmw-m3-page-assets.test.mjs`.
+
 ### Offline BMW M3 seven-section normalization
 
 After all seven reconciliation reports say `complete`, pass the seven direct `bmw-m3-<section>-records.json` files to the offline normalizer. These raw capture JSON files are the accepted inputs; no conversion or network request is needed. The command requires exactly one reconciled capture for each of `Braking`, `Engine`, `Exterior`, `Interior`, `Performance`, `Suspension` and `Steering`:

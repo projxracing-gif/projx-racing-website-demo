@@ -146,11 +146,13 @@ function normalizeRecord(record, index, document, nowMs) {
   const productUrl = canonicalProductUrl(record?.productUrl);
   const sourceUrl = canonicalSourceUrl(record?.sourceUrl ?? record?.source?.url ?? record?.source, section);
   const observedAt = recordTimestamp(record, document, nowMs);
+  const suppliedBrand = clean(record?.brand, 200);
   const normalized = {
     index,
     title: clean(record?.title, 500),
     description: clean(record?.description, 5_000),
-    brand: clean(record?.brand, 200),
+    brand: suppliedBrand || 'Supplier brand not provided',
+    brandSupplied: Boolean(suppliedBrand),
     digits: ecsDigits(record?.ecsPartNumber ?? record?.['ES#'] ?? record?.identifiers?.ecs),
     mpn: clean(record?.manufacturerPartNumber ?? record?.mpn ?? record?.MPN, 200)
       .replace(/\u00ad/g, ''),
@@ -303,6 +305,7 @@ function buildProduct(digits, records, mediaMap) {
     detailedDescriptionAvailable: Boolean(description),
     brand: current.brand,
     brandSlug: slugify(current.brand),
+    brandSupplied: current.brandSupplied,
     section: current.section.label,
     sectionAr: current.section.labelAr,
     sectionSlug: categorySlug,
