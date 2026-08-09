@@ -2,14 +2,14 @@
 
 ## Current staging state
 
-The verified BMW M3 progress release is no longer imported as one 16 MB JavaScript module. It is stored under `api/data/ecs-bmw-m3-reviewed/` as:
+The verified BMW M3 progress release is not imported as one large JavaScript module. It is stored under `api/data/ecs-bmw-m3-reviewed/` as:
 
-- one 7 KB manifest;
-- one compact routing index;
-- 17 deterministic product shards, each capped at 128 products and 4 MiB; and
+- one 24 KB manifest;
+- one 13.9 MiB compact routing index;
+- 81 deterministic product shards, each capped at 128 products and 4 MiB; and
 - SHA-256 checksums for the routing index and every shard.
 
-The progress release contains 2,071 reviewed BMW M3 products. Braking and Steering are reconciled and included. Engine, Exterior, Interior, Performance, and Suspension remain excluded until their capture reports reconcile exactly. After ES-number deduplication against the existing reviewed ECS collection, the storefront exposes 1,781 new identities and 5,164 total reviewed ECS identities.
+The progress release contains 10,267 reviewed BMW M3 products. Braking, Engine, Suspension, and Steering are reconciled and included. Exterior, Interior, and Performance remain excluded until their capture reports reconcile exactly. After ES-number deduplication against the existing reviewed ECS collection, the storefront exposes 8,674 new identities and 12,057 total reviewed ECS identities.
 
 The bundled release is deliberately marked `verified-progress`, not complete. It is a bounded fallback for the current staging preview only.
 

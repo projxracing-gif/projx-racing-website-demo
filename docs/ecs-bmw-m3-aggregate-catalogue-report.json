@@ -2,28 +2,29 @@
   "schemaVersion": 1,
   "supplier": "ECS Tuning",
   "kind": "bmw-m3-aggregate-import-audit",
-  "generatedAt": "2026-08-09T15:00:53.410Z",
+  "generatedAt": "2026-08-09T18:57:19.876Z",
   "sourceKind": "bmw-m3-aggregate-listing-capture",
-  "sourceGeneratedAt": "2026-08-09T15:00:53.410Z",
-  "rawRecordCount": 2789,
-  "validatedRecordCount": 2765,
-  "invalidRecordCount": 24,
-  "uniqueValidatedEcsIdentityCount": 2071,
-  "productCount": 2071,
-  "quarantinedIdentityCount": 0,
-  "quarantinedRecordCount": 0,
-  "duplicateObservationCount": 694,
-  "publicUsdPriceProductCount": 2071,
+  "sourceGeneratedAt": "2026-08-09T18:57:19.876Z",
+  "rawRecordCount": 13791,
+  "validatedRecordCount": 13791,
+  "invalidRecordCount": 0,
+  "uniqueValidatedEcsIdentityCount": 10288,
+  "productCount": 10267,
+  "quarantinedIdentityCount": 21,
+  "quarantinedRecordCount": 47,
+  "duplicateObservationCount": 3503,
+  "publicUsdPriceProductCount": 10267,
   "requestPriceProductCount": 0,
-  "supplierImageProductCount": 1925,
+  "supplierImageProductCount": 9435,
   "localAssetImageProductCount": 0,
-  "remoteCdnImageProductCount": 1925,
-  "missingSupplierDescriptionProductCount": 218,
+  "blobAssetImageProductCount": 0,
+  "remoteCdnImageProductCount": 9435,
+  "missingSupplierDescriptionProductCount": 790,
   "sections": {
     "braking": {
       "label": "Braking",
-      "observationCount": 2217,
-      "productCount": 1556,
+      "observationCount": 2237,
+      "productCount": 1568,
       "categories": [
         "BMW M3 ABS Brake Parts",
         "BMW M3 Big Brake Upgrades",
@@ -45,9 +46,33 @@
     },
     "engine": {
       "label": "Engine",
-      "observationCount": 0,
-      "productCount": 0,
-      "categories": []
+      "observationCount": 8452,
+      "productCount": 6156,
+      "categories": [
+        "BMW M3 Engine Chips, Tunes & Software",
+        "BMW M3 Engine Cooling Parts",
+        "BMW M3 Engine Covers & Accessories",
+        "BMW M3 Engine Drive Belt Parts",
+        "BMW M3 Engine Electrical Parts",
+        "BMW M3 Engine Emission Parts",
+        "BMW M3 Engine Fastener Kit Parts",
+        "BMW M3 Engine Filter Parts",
+        "BMW M3 Engine Fuel Parts",
+        "BMW M3 Engine Gaskets & Seals",
+        "BMW M3 Engine Ignition Parts",
+        "BMW M3 Engine Intake Parts",
+        "BMW M3 Engine Mechanical Parts",
+        "BMW M3 Engine Mount Parts",
+        "BMW M3 Engine Pulley Parts",
+        "BMW M3 Engine Skid Plate Parts",
+        "BMW M3 Engine Supercharger Parts",
+        "BMW M3 Engine Timing Parts",
+        "BMW M3 Engine Tools",
+        "BMW M3 Engine Turbocharger Parts",
+        "BMW M3 Engine Vacuum System Parts",
+        "BMW M3 Oil Change Service Kits and Accessories",
+        "BMW M3 Performance Engine Parts"
+      ]
     },
     "exterior": {
       "label": "Exterior",
@@ -69,14 +94,35 @@
     },
     "suspension": {
       "label": "Suspension",
-      "observationCount": 0,
-      "productCount": 0,
-      "categories": []
+      "observationCount": 2550,
+      "productCount": 2057,
+      "categories": [
+        "BMW M3 Active Body Control Suspension Parts",
+        "BMW M3 Air Ride Suspension Kits & Parts",
+        "BMW M3 BMW M Suspension Upgrades",
+        "BMW M3 Camber Kits",
+        "BMW M3 Coilover Kits & Accessories",
+        "BMW M3 Control Arm Parts & Accessories",
+        "BMW M3 Cup Kits",
+        "BMW M3 Electronic Suspension Parts",
+        "BMW M3 Lowering & Replacement Springs",
+        "BMW M3 Performance Suspension Parts",
+        "BMW M3 Self Leveling Suspension Parts",
+        "BMW M3 Shocks & Struts",
+        "BMW M3 Strut Tower Braces",
+        "BMW M3 Subframe Parts",
+        "BMW M3 Suspension Braces & Reinforcement Parts",
+        "BMW M3 Suspension Bushings",
+        "BMW M3 Suspension Installation Kits",
+        "BMW M3 Suspension Refresh Kits",
+        "BMW M3 Suspension Tools",
+        "BMW M3 Sway Bar Parts & Upgrades"
+      ]
     },
     "steering": {
       "label": "Steering",
-      "observationCount": 548,
-      "productCount": 517,
+      "observationCount": 552,
+      "productCount": 521,
       "categories": [
         "BMW M3 Power Steering Fluids",
         "BMW M3 Power Steering Oil Cooler Parts",
@@ -95,201 +141,373 @@
       ]
     }
   },
-  "invalidRecords": [
+  "invalidRecords": [],
+  "quarantine": [
     {
-      "recordIndex": 427,
-      "ecsPartNumber": "ES#5425612",
+      "ecsPartNumber": "ES#3183567",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        6984,
+        10380
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-vargas-turbo-technologies-parts/f8x-m3-m4-s55-vargas-silicone-turbo-manifold-pipes/vtts55-sil-cp~dk/"
       ]
     },
     {
-      "recordIndex": 428,
-      "ecsPartNumber": "ES#5425614",
+      "ecsPartNumber": "ES#3194684",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        4002,
+        5915,
+        6764,
+        10475
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-turner-motorsport-parts/turner-iat-relocation-harness/014579tms~dk/"
       ]
     },
     {
-      "recordIndex": 694,
-      "ecsPartNumber": "ES#4920099",
+      "ecsPartNumber": "ES#3202633",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        4307,
+        10493
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-shark-injector-parts/shark-injector-performance-software/n4mss54dk~dk/"
       ]
     },
     {
-      "recordIndex": 783,
-      "ecsPartNumber": "ES#3673305",
+      "ecsPartNumber": "ES#3240987",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        2362,
+        8335
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-ecs-parts/ecs-s54-vanos-rebuild-kit/012018ecs~dk/"
       ]
     },
     {
-      "recordIndex": 977,
-      "ecsPartNumber": "ES#3706662",
+      "ecsPartNumber": "ES#3241056",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        3036,
+        8494
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-ecs-parts/ecs-m5x-single-vanos-rebuild-kit/012016ecs~dk/"
       ]
     },
     {
-      "recordIndex": 978,
-      "ecsPartNumber": "ES#3706661",
+      "ecsPartNumber": "ES#3247970",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        11158,
+        13104
+      ],
+      "sections": [
+        "Suspension"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-assembled-by-ecs-parts/front-control-arm-refresh-kit/31122229453~dk/"
       ]
     },
     {
-      "recordIndex": 1172,
-      "ecsPartNumber": "ES#3706679",
+      "ecsPartNumber": "ES#3546790",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        3834,
+        10546
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-turner-motorsport-parts/turner-motorsport-polyurethane-engine-mounts/003293tms02~dk/"
       ]
     },
     {
-      "recordIndex": 1179,
-      "ecsPartNumber": "ES#3673305",
+      "ecsPartNumber": "ES#3604772",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        4152,
+        10480
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-shark-injector-parts/shark-injector-v20-performance-software/n4s54mv~dk/"
       ]
     },
     {
-      "recordIndex": 1190,
-      "ecsPartNumber": "ES#3673266",
+      "ecsPartNumber": "ES#3616059",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        2397,
+        9165
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-vargas-turbo-technologies-parts/bmw-billet-oil-cap/vtt-oilcap-1-brc/"
       ]
     },
     {
-      "recordIndex": 1263,
-      "ecsPartNumber": "ES#3179051",
+      "ecsPartNumber": "ES#4017812",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        11240,
+        13075
+      ],
+      "sections": [
+        "Suspension"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-turner-motorsport-parts/turner-f8x-adjustable-toe-links/23672tms03~dk/"
       ]
     },
     {
-      "recordIndex": 1494,
-      "ecsPartNumber": "ES#3673305",
+      "ecsPartNumber": "ES#4315842",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        2306,
+        9794
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-vargas-turbo-technologies-parts/vargas-n54-55-billet-crank-seal-guard-bmw-n54-n55-30l/vtt-crankguard~d/"
       ]
     },
     {
-      "recordIndex": 1506,
-      "ecsPartNumber": "ES#3673266",
+      "ecsPartNumber": "ES#4315903",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        3848,
+        10343
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-vargas-turbo-technologies-parts/vargas-s55-gc-turbo-upgrade-f8x-s55-30l/vtts55gc~dk/"
       ]
     },
     {
-      "recordIndex": 1710,
-      "ecsPartNumber": "ES#5425612",
+      "ecsPartNumber": "ES#4383147",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        11554,
+        13102
+      ],
+      "sections": [
+        "Suspension"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-irp-_-individual-racing-parts/irp-rear-adjustable-lower-camber-arms/irplca-fxmr~dk/"
       ]
     },
     {
-      "recordIndex": 1711,
-      "ecsPartNumber": "ES#5425614",
+      "ecsPartNumber": "ES#4387790",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        11374,
+        13092
+      ],
+      "sections": [
+        "Suspension"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-irp-_-individual-racing-parts/irp-rear-adjustable-upper-camber-arms/irpuca-fxmr~dk/"
       ]
     },
     {
-      "recordIndex": 1841,
-      "ecsPartNumber": "ES#3673266",
+      "ecsPartNumber": "ES#4615730",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        12042,
+        12820
+      ],
+      "sections": [
+        "Suspension"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-ecs-parts/e30-heavy-duty-rear-sway-bar-bracket-upgrade/016965la~dk/"
       ]
     },
     {
-      "recordIndex": 1979,
-      "ecsPartNumber": "ES#3048236",
+      "ecsPartNumber": "ES#4630189",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        3786,
+        10330
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-the-turbo-engineers-parts/new-tte940-s58-turbocharger-upgrade/te10516~dk/"
       ]
     },
     {
-      "recordIndex": 1985,
-      "ecsPartNumber": "ES#3147453",
+      "ecsPartNumber": "ES#4709329",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        2302,
+        7932,
+        9150
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-nrw-design-parts/s65-aluminum-valve-cover/s65vc~dk/"
       ]
     },
     {
-      "recordIndex": 2222,
-      "ecsPartNumber": "ES#4505459",
+      "ecsPartNumber": "ES#4715378",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        4527,
+        7267,
+        7849
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-fuel_it!-parts/water-methanol-port-injection-kit-s58/bms-mpiks58~dk/"
       ]
     },
     {
-      "recordIndex": 2228,
-      "ecsPartNumber": "ES#3048236",
+      "ecsPartNumber": "ES#4715572",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        4530,
+        7852
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-fuel_it!-parts/fuel-it-flex-fuel-kit-s55/ffk-s55~dk/"
       ]
     },
     {
-      "recordIndex": 2229,
-      "ecsPartNumber": "ES#4920099",
+      "ecsPartNumber": "ES#4727015",
       "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        5939,
+        9660
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-vargas-turbo-technologies-parts/vtt-ignition-coil-conversion-kit-s55-n55-to-b58-multiple-color-options-available/vtts55clcnv~dk/"
       ]
     },
     {
-      "recordIndex": 2488,
-      "ecsPartNumber": "ES#4940042",
+      "ecsPartNumber": "ES#4759177",
       "reasons": [
-        "missing-or-invalid-brand"
-      ]
-    },
-    {
-      "recordIndex": 2738,
-      "ecsPartNumber": "ES#5470917",
-      "reasons": [
-        "missing-or-invalid-brand"
-      ]
-    },
-    {
-      "recordIndex": 2739,
-      "ecsPartNumber": "ES#5470916",
-      "reasons": [
-        "missing-or-invalid-brand"
-      ]
-    },
-    {
-      "recordIndex": 2740,
-      "ecsPartNumber": "ES#5470915",
-      "reasons": [
-        "missing-or-invalid-brand"
+        "conflicting-same-day-public-price"
+      ],
+      "recordIndexes": [
+        2434,
+        3890,
+        9167
+      ],
+      "sections": [
+        "Engine"
+      ],
+      "productUrls": [
+        "https://www.ecstuning.com/b-turner-motorsport-parts/m50-m52-s50-s52-single-vanos-billet-valve-cover/030358la~dk/"
       ]
     }
   ],
-  "quarantine": [],
   "publicationMergeAudit": {
-    "generatedProductCount": 2071,
-    "overlapWithPreviouslyReviewedEcsCount": 290,
-    "newUniqueProductCount": 1781,
-    "crossSourceQuarantinedIdentityCount": 0,
-    "crossSourceQuarantinedIdentities": [],
-    "publishedAggregateCandidateCount": 2071
+    "staticReviewedProductCount": 3383,
+    "generatedProductCount": 10267,
+    "overlapWithPreviouslyReviewedEcsCount": 1593,
+    "newUniqueProductCount": 8674,
+    "projectedPublishedReviewedEcsCount": 12057
   },
   "captureProgress": {
     "stage": "staging-progress",
     "complete": false,
     "importPolicy": "reconciled-sections-only",
     "requestedSectionCount": 7,
-    "includedSectionCount": 2,
+    "includedSectionCount": 4,
     "includedSections": [
       "braking",
+      "engine",
+      "suspension",
       "steering"
     ],
     "excludedSections": [
-      "engine",
       "exterior",
       "interior",
-      "performance",
-      "suspension"
+      "performance"
     ],
     "sections": {
       "braking": {
@@ -305,58 +523,58 @@
       },
       "engine": {
         "label": "Engine",
-        "status": "capture-in-progress-excluded",
-        "complete": false,
-        "capturedPages": 287,
+        "status": "reconciled-and-included",
+        "complete": true,
+        "capturedPages": 540,
         "expectedPages": 540,
-        "capturedPlacements": 4572,
+        "capturedPlacements": 8452,
         "expectedPlacements": 8452,
-        "uniqueEcsProductsObserved": 4034,
-        "reconciliationGeneratedAt": "2026-08-09T15:53:01.020Z"
+        "uniqueEcsProductsObserved": 6172,
+        "reconciliationGeneratedAt": "2026-08-09T18:30:20.960Z"
       },
       "exterior": {
         "label": "Exterior",
         "status": "capture-in-progress-excluded",
         "complete": false,
-        "capturedPages": 16,
+        "capturedPages": 143,
         "expectedPages": 228,
-        "capturedPlacements": 256,
+        "capturedPlacements": 2288,
         "expectedPlacements": 3511,
-        "uniqueEcsProductsObserved": 256,
-        "reconciliationGeneratedAt": "2026-08-09T16:04:02.412Z"
+        "uniqueEcsProductsObserved": 2288,
+        "reconciliationGeneratedAt": "2026-08-09T19:04:47.591Z"
       },
       "interior": {
         "label": "Interior",
         "status": "capture-in-progress-excluded",
         "complete": false,
-        "capturedPages": 18,
+        "capturedPages": 65,
         "expectedPages": 324,
-        "capturedPlacements": 288,
+        "capturedPlacements": 1025,
         "expectedPlacements": 4870,
-        "uniqueEcsProductsObserved": 288,
-        "reconciliationGeneratedAt": "2026-08-09T16:03:58.243Z"
+        "uniqueEcsProductsObserved": 1023,
+        "reconciliationGeneratedAt": "2026-08-09T19:04:33.543Z"
       },
       "performance": {
         "label": "Performance",
-        "status": "not-started-excluded",
+        "status": "capture-in-progress-excluded",
         "complete": false,
-        "capturedPages": 0,
-        "expectedPages": 0,
-        "capturedPlacements": 0,
-        "expectedPlacements": 0,
-        "uniqueEcsProductsObserved": 0,
-        "reconciliationGeneratedAt": null
+        "capturedPages": 54,
+        "expectedPages": 249,
+        "capturedPlacements": 864,
+        "expectedPlacements": 3930,
+        "uniqueEcsProductsObserved": 864,
+        "reconciliationGeneratedAt": "2026-08-09T18:36:21.157Z"
       },
       "suspension": {
         "label": "Suspension",
-        "status": "capture-in-progress-excluded",
-        "complete": false,
-        "capturedPages": 24,
+        "status": "reconciled-and-included",
+        "complete": true,
+        "capturedPages": 171,
         "expectedPages": 171,
-        "capturedPlacements": 384,
+        "capturedPlacements": 2550,
         "expectedPlacements": 2550,
-        "uniqueEcsProductsObserved": 384,
-        "reconciliationGeneratedAt": "2026-08-09T15:38:06.849Z"
+        "uniqueEcsProductsObserved": 2062,
+        "reconciliationGeneratedAt": "2026-08-09T18:57:19.876Z"
       },
       "steering": {
         "label": "Steering",

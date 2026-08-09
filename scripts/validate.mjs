@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { tegiwaSkuMappingFingerprint } from '../server/tegiwa-sku-mapping.js';
+import { isRemovedFeatureSearchableSource } from './validation-source-scope.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(repo, 'dist');
@@ -623,10 +624,7 @@ const sourceFiles = filesRecursive(repo).filter(file => !file.includes(`${path.s
   && !file.includes(`${path.sep}node_modules${path.sep}`)
   && !file.includes(`${path.sep}private-imports${path.sep}`));
 const searchableSource = sourceFiles
-  .filter(file => /\.(?:js|mjs|html|css|json|webmanifest)$/i.test(file))
-  .filter(file => !file.endsWith(`${path.sep}scripts${path.sep}validate.mjs`))
-  .filter(file => !file.includes(`${path.sep}api${path.sep}data${path.sep}tegiwa-catalog-pages${path.sep}`))
-  .filter(file => !file.includes(`${path.sep}api${path.sep}data${path.sep}tegiwa-search-`))
+  .filter(file => isRemovedFeatureSearchableSource(file, repo))
   .map(file => fs.readFileSync(file, 'utf8'))
   .join('\n');
 for (const pattern of removedFeaturePatterns) assert(!pattern.test(searchableSource), `Removed feature remains in source: ${pattern}.`);

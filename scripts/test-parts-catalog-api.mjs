@@ -148,7 +148,8 @@ async function invoke(handler, {
 async function collectAllItems(handler, query = {}) {
   const items = [];
   let cursor = null;
-  for (let page = 0; page < 100; page += 1) {
+  const maximumPages = 5_000;
+  for (let page = 0; page < maximumPages; page += 1) {
     const pageQuery = cursor ? { ...query, cursor } : { ...query };
     delete pageQuery.page;
     const response = await invoke(handler, { query: pageQuery });
@@ -157,7 +158,7 @@ async function collectAllItems(handler, query = {}) {
     cursor = response.body.nextCursor || null;
     if (!cursor) return { items, lastResponse: response };
   }
-  throw new Error('Catalogue pagination did not terminate within 100 pages.');
+  throw new Error(`Catalogue pagination did not terminate within ${maximumPages} pages.`);
 }
 
 function row(index, overrides = {}) {
@@ -628,6 +629,55 @@ for (const [slug, , exactCount] of ENGINE_PART_TYPES) {
   assert.equal(new Set(filteredItems.items.map(item => item.handle)).size, exactCount);
   assert.equal(new Set(filteredItems.items.map(item => item.sku)).size, exactCount);
 }
+
+assert.equal(REVIEWED_ECS_PRODUCTS.some(product => product.ecsPartNumber === 'ES#25940'), false,
+  'The BMW M3 Engine sentinel must come from the reviewed shard release, not the static catalogue.');
+const reviewedBmwM3EngineShardSearch = await invoke(reviewedOnly, {
+  query: { q: 'ES#25940', supplier: 'ecs' }
+});
+assert.equal(reviewedBmwM3EngineShardSearch.status, 200);
+assert.equal(reviewedBmwM3EngineShardSearch.body.meta.totalResults, 1);
+assert.deepEqual(
+  reviewedBmwM3EngineShardSearch.body.meta.reviewedEcsCatalogueStatus
+    .bmwM3AggregateCaptureStatus.includedSections,
+  ['braking', 'engine', 'suspension', 'steering']
+);
+assert.equal(reviewedBmwM3EngineShardSearch.body.items[0].handle, 'ecs-es-25940');
+assert.equal(reviewedBmwM3EngineShardSearch.body.items[0].sku, 'ES#25940');
+assert.equal(reviewedBmwM3EngineShardSearch.body.items[0].mpn, '11617838010');
+assert.equal(reviewedBmwM3EngineShardSearch.body.items[0].price.min, 1485.99);
+assert.equal(reviewedBmwM3EngineShardSearch.body.items[0].image.status, 'supplier-media-verified');
+assert.equal(reviewedBmwM3EngineShardSearch.body.items[0].image.src,
+  'https://assets.ecstuning.com/product_library/563228_x300.webp');
+const reviewedBmwM3EngineShardDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-es-25940', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedBmwM3EngineShardDetail.status, 200);
+assert.equal(reviewedBmwM3EngineShardDetail.body.product.sku, 'ES#25940');
+assert.equal(reviewedBmwM3EngineShardDetail.body.product.category,
+  'Engine Parts / BMW M3 Engine Intake Parts');
+
+assert.equal(REVIEWED_ECS_PRODUCTS.some(product => product.ecsPartNumber === 'ES#4158729'), false,
+  'The BMW M3 Suspension sentinel must come from the reviewed shard release, not the static catalogue.');
+const reviewedBmwM3SuspensionShardSearch = await invoke(reviewedOnly, {
+  query: { q: 'ES#4158729', supplier: 'ecs' }
+});
+assert.equal(reviewedBmwM3SuspensionShardSearch.status, 200);
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.meta.totalResults, 1);
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.items[0].handle, 'ecs-es-4158729');
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.items[0].sku, 'ES#4158729');
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.items[0].mpn, '034-401-1065');
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.items[0].price.min, 381);
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.items[0].image.status, 'supplier-media-verified');
+assert.equal(reviewedBmwM3SuspensionShardSearch.body.items[0].image.src,
+  'https://assets.ecstuning.com/product_library/1594008_x300.webp');
+const reviewedBmwM3SuspensionShardDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-es-4158729', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedBmwM3SuspensionShardDetail.status, 200);
+assert.equal(reviewedBmwM3SuspensionShardDetail.body.product.sku, 'ES#4158729');
+assert.equal(reviewedBmwM3SuspensionShardDetail.body.product.category,
+  'Suspension Parts / BMW M3 Control Arm Parts & Accessories');
 
 const reviewedBrakingIdentifierSearch = await invoke(reviewedOnly, {
   query: { q: 'ES#4900999', supplier: 'ecs' }
@@ -1435,7 +1485,8 @@ assert.equal(fullEcsCatalogue.body.items.length, Math.min(100, REVIEWED_ECS_COUN
 assert.equal(fullEcsCatalogue.body.meta.catalogProductCount, REVIEWED_ECS_COUNT);
 assert.equal(fullEcsCatalogue.body.meta.totalResults, REVIEWED_ECS_COUNT);
 assert.equal(fullEcsCatalogue.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
-assert.ok(fullEcsCatalogue.body.items.every(item => item.title && item.sku && item.image?.src));
+assert.ok(fullEcsCatalogue.body.items.every(item => item.title && item.sku));
+assert.ok(fullEcsCatalogue.body.items.every(item => !item.image || item.image.src));
 assert.ok(fullEcsCatalogue.body.items.every(item => item.dataStatus !== 'url_discovered'));
 const fullEcsItems = await collectAllItems(discoveryEnabled, { supplier: 'ecs' });
 assert.equal(fullEcsItems.items.length, REVIEWED_ECS_COUNT);

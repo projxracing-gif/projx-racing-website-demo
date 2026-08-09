@@ -121,9 +121,13 @@ test('keeps the runtime module empty and exposes BMW M3 progress through verifie
     status.requestedSectionCount - status.includedSectionCount);
   assert.equal(status.complete, status.includedSectionCount === status.requestedSectionCount);
   assert.equal(status.stage, status.complete ? 'complete' : 'staging-progress');
-  assert.equal(combined.sourceRecordCounts.bmwM3Sharded, 2071);
-  assert.ok(combined.bmwM3AggregateNewUniqueProductCount > 0);
+  assert.deepEqual(status.includedSections, ['braking', 'engine', 'suspension', 'steering']);
+  assert.deepEqual(status.excludedSections, ['exterior', 'interior', 'performance']);
+  assert.equal(combined.sourceRecordCounts.bmwM3Sharded, 10267);
+  assert.equal(combined.bmwM3AggregateNewUniqueProductCount, 8674);
+  assert.equal(combined.publishedProductCount, 12057);
   assert.equal(combined.shardRelease.source, 'bundled-verified-progress');
+  assert.equal(combined.shardRelease.shardCount, 81);
 
   const repairedIdentity = REVIEWED_ECS_PRODUCTS.filter(product => product.ecsPartNumber === 'ES#4772219');
   assert.equal(repairedIdentity.length, 1);
