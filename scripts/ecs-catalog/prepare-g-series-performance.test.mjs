@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {
   createGSeriesBrakingScope,
   createGSeriesDrivetrainScope,
+  createGSeriesEngineScope,
   prepareGSeriesBraking as prepareGSeriesBrakingSource,
   prepareGSeriesDrivetrain as prepareGSeriesDrivetrainSource,
+  prepareGSeriesEngine as prepareGSeriesEngineSource,
   prepareGSeriesExterior as prepareGSeriesExteriorSource,
   prepareGSeriesInterior as prepareGSeriesInteriorSource,
   prepareGSeriesPerformance as prepareGSeriesPerformanceSource
@@ -122,6 +124,31 @@ const brakingScopeManifest = {
     'BMW G87 M2 S58 3.0L': { 'fixture-pads': 0, 'fixture-tools': 1 },
     'BMW G80 M3 Competition S58 3.0L': { 'fixture-pads': 1, 'fixture-tools': 0 },
     'BMW G82 M4 Competition S58 3.0L': { 'fixture-pads': 0, 'fixture-tools': 1 }
+  }
+};
+
+const engineScopeManifest = {
+  schemaVersion: 1,
+  supplier: 'ECS Tuning',
+  kind: 'g-series-engine-scope-manifest',
+  categories: {
+    'fixture-performance': {
+      name: 'Fixture Performance Engine Parts',
+      nameAr: '\u0642\u0637\u0639 \u0623\u062f\u0627\u0621 \u0627\u0644\u0645\u062d\u0631\u0643 \u0644\u0644\u0627\u062e\u062a\u0628\u0627\u0631',
+      sourcePath: 'Engine/Performance/',
+      slug: 'engine-fixture-performance'
+    },
+    'fixture-tools': {
+      name: 'Fixture Engine Tools',
+      nameAr: '\u0623\u062f\u0648\u0627\u062a \u0627\u0644\u0645\u062d\u0631\u0643 \u0644\u0644\u0627\u062e\u062a\u0628\u0627\u0631',
+      sourcePath: 'Engine/Tools/',
+      slug: 'engine-fixture-tools'
+    }
+  },
+  counts: {
+    'BMW G87 M2 S58 3.0L': { 'fixture-performance': 0, 'fixture-tools': 1 },
+    'BMW G80 M3 Competition S58 3.0L': { 'fixture-performance': 1, 'fixture-tools': 0 },
+    'BMW G82 M4 Competition S58 3.0L': { 'fixture-performance': 0, 'fixture-tools': 1 }
   }
 };
 
@@ -256,6 +283,73 @@ test('prepares manifest-backed Braking paths with collision-safe parent and chil
   const unsafeSlug = structuredClone(brakingScopeManifest);
   unsafeSlug.categories['fixture-tools'].slug = 'drivetrain-fixture-tools';
   assert.throws(() => createGSeriesBrakingScope(unsafeSlug), /Braking category manifest is invalid/);
+});
+
+test('prepares manifest-backed Engine paths with collision-safe parent and child filters', () => {
+  const engine = structuredClone(source);
+  engine.records = [structuredClone(source.records[0]), structuredClone(source.records[1])];
+  engine.records[0].category = 'Fixture Performance Engine Parts';
+  engine.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Engine/Performance/';
+  engine.records[1].category = 'Fixture Engine Tools';
+  engine.records[1].sourceUrl = 'https://www.ecstuning.com/BMW-G82-M4_Competition-S58_3.0L/Engine/Tools/';
+  const engineMedia = structuredClone(media);
+  engineMedia.images[0].localPath = 'assets/products/ecs/g-series-engine/es4699999.webp';
+  engineMedia.images[1].localPath = 'assets/products/ecs/g-series-engine/ecs-box-no-image.jpg';
+  const [product] = prepareGSeriesEngineSource(engine, engineMedia, {
+    minimumProducts: 1,
+    requireCompleteScope: false,
+    scopeManifest: engineScopeManifest
+  });
+  assert.equal(product.category, 'Fixture Performance Engine Parts');
+  assert.equal(product.categoryAr, engineScopeManifest.categories['fixture-performance'].nameAr);
+  assert.equal(product.categorySlug, 'engine-fixture-performance');
+  assert.equal(product.fitments[0].evidence, 'ecs-vehicle-engine-category');
+  assert.ok(product.fitments.every(fitment => fitment.confidence === 'possible'));
+  assert.deepEqual(product.filters.categories, [
+    'g-series-engine',
+    'engine-fixture-performance',
+    'engine-fixture-tools'
+  ]);
+  assert.deepEqual(product.selectionSources.map(item => item.sourceUrl), [
+    engine.records[0].sourceUrl,
+    engine.records[1].sourceUrl
+  ]);
+  assert.equal(product.images[0].src, 'assets/products/ecs/g-series-engine/es4699999.webp');
+
+  const scope = createGSeriesEngineScope(engineScopeManifest);
+  assert.equal(scope.parentCategorySlug, 'g-series-engine');
+  assert.equal(scope.expectedCategoryCounts['BMW G80 M3 Competition S58 3.0L']['Fixture Performance Engine Parts'], 1);
+  assert.throws(() => prepareGSeriesEngineSource(engine, engineMedia, {
+    requireCompleteScope: false
+  }), /Engine scope manifest is required/);
+
+  const unsafePath = structuredClone(engineScopeManifest);
+  unsafePath.categories['fixture-tools'].sourcePath = 'Drivetrain/Tools/';
+  assert.throws(() => createGSeriesEngineScope(unsafePath), /Engine category manifest is invalid/);
+  const unsafeSlug = structuredClone(engineScopeManifest);
+  unsafeSlug.categories['fixture-tools'].slug = 'drivetrain-fixture-tools';
+  assert.throws(() => createGSeriesEngineScope(unsafeSlug), /Engine category manifest is invalid/);
+});
+
+test('keeps legitimate supplier assembly copy clear of the removed interactive builder wording', () => {
+  const supplierBuilderCopy = ['Build', 'your', 'engine'].join(' ');
+  const removedBuilderPattern = new RegExp(['build', 'your', 'engine'].join(' '), 'i');
+  const engine = structuredClone(source);
+  engine.records = [structuredClone(source.records[0])];
+  engine.records[0].category = 'Fixture Performance Engine Parts';
+  engine.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Engine/Performance/';
+  engine.records[0].description = `${supplierBuilderCopy} the right way!`;
+  engine.records[0].imageAlt = `Assembly Lube - ${supplierBuilderCopy} the right way!`;
+  const engineMedia = structuredClone(media);
+  engineMedia.images[0].localPath = 'assets/products/ecs/g-series-engine/es4699999.webp';
+  const [product] = prepareGSeriesEngineSource(engine, engineMedia, {
+    minimumProducts: 1,
+    requireCompleteScope: false,
+    scopeManifest: engineScopeManifest
+  });
+  assert.equal(product.description, 'Assemble your engine the right way!');
+  assert.match(product.images[0].alt, /Assemble your engine the right way!/);
+  assert.doesNotMatch(JSON.stringify(product), removedBuilderPattern);
 });
 
 test('keeps quarantined Drivetrain evidence in the manifest while excluding its complete ECS identity', () => {

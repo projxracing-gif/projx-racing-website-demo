@@ -805,10 +805,30 @@
       ]
     },
     {
-      query: "engine", en: "Engine", ar: "المحرك", items: [
-        ["spark plugs", "Spark Plugs", "بواجي"], ["ignition coils", "Ignition Coils", "كويلات"], ["engine mounts", "Engine Mounts", "قواعد المحرك"],
-        ["camshafts", "Camshafts", "أعمدة كامات"], ["pistons rods", "Pistons & Rods", "بساتم وأذرعة"], ["crankshafts", "Crankshafts", "أعمدة كرنك"],
-        ["engine bearings", "Bearings", "سبايك المحرك"], ["gaskets seals", "Gaskets & Seals", "جوانات وصوف"], ["oil pumps sumps", "Oil Pumps & Sumps", "مضخات وأحواض الزيت"]
+      query: "engine", partType: "g-series-engine", en: "Engine", ar: "المحرك", items: [
+        ["", "Performance Engine Parts", "قطع أداء المحرك", "engine-performance"],
+        ["", "Engine Intake Parts", "قطع سحب هواء المحرك", "engine-intake"],
+        ["", "Engine Fuel Parts", "قطع وقود المحرك", "engine-fuel"],
+        ["", "Engine Tools", "أدوات المحرك", "engine-tools"],
+        ["", "Engine Electrical Parts", "قطع كهرباء المحرك", "engine-electrical"],
+        ["", "Engine Mechanical Parts", "القطع الميكانيكية للمحرك", "engine-mechanical"],
+        ["", "Engine Cooling Parts", "قطع تبريد المحرك", "engine-cooling"],
+        ["", "Oil Change Service Kits and Accessories", "أطقم وملحقات تغيير الزيت", "engine-oil-service"],
+        ["", "Engine Covers & Accessories", "أغطية المحرك وملحقاته", "engine-covers"],
+        ["", "Engine Ignition Parts", "قطع إشعال المحرك", "engine-ignition"],
+        ["", "Engine Turbocharger Parts", "قطع الشاحن التوربيني", "engine-turbocharger"],
+        ["", "Engine Gaskets & Seals", "حشيات وأختام المحرك", "engine-gaskets-seals"],
+        ["", "Engine Filter Parts", "فلاتر المحرك", "engine-filter"],
+        ["", "Engine Chips, Tunes & Software", "شرائح وبرمجة وضبط المحرك", "engine-software"],
+        ["", "Engine Drive Belt Parts", "قطع سيور المحرك", "engine-drive-belts"],
+        ["", "Engine Emission Parts", "قطع انبعاثات المحرك", "engine-emissions"],
+        ["", "Engine Pulley Parts", "بكرات المحرك", "engine-pulleys"],
+        ["", "Engine Timing Parts", "قطع توقيت المحرك", "engine-timing"],
+        ["", "Engine Mount Parts", "قواعد المحرك", "engine-mount"],
+        ["", "Engine Vacuum System Parts", "قطع نظام تفريغ المحرك", "engine-vacuum-system"],
+        ["", "Engine Skid Plate Parts", "ألواح حماية أسفل المحرك", "engine-skid-plate"],
+        ["", "Engine Fastener Kit Parts", "أطقم مثبتات المحرك", "engine-fastener-kit"],
+        ["", "Engine Supercharger Parts", "قطع الشاحن الفائق", "engine-supercharger"]
       ]
     },
     {

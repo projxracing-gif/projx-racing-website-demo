@@ -2,6 +2,16 @@
 
 ## 9 August 2026
 
+### Complete G-Series Engine catalogue scope
+
+- Captured and reconciled all 355 public ECS Engine listing pages for BMW G80 M3 Competition, G82 M4 Competition and G87 M2: 5,052 vehicle/category placements across all 23 Engine branches.
+- Deduplicated those observations by ECS number to 1,260 Engine products with zero supplier-identity conflicts or same-category duplicates. Of these, 405 merge with an existing reviewed identity and 855 are new, bringing the reviewed ECS storefront to 3,383 unique products.
+- Preserved ECS and manufacturer part numbers, canonical source URLs, public USD observations, dated supplier availability, descriptions where supplied, and separate G80/G82/G87 selection evidence. Fitment remains possible-only and availability remains confirmation-required.
+- Added 734 new checksum-verified supplier image mappings, reused 309 existing mappings, and retained 1,079 product-specific images. The 180 listings without supplier media plus one image that returned HTTP 403 use the clearly labelled ECS media-unavailable fallback.
+- Preserved 1,230 fixed public USD price observations and 14 positive public `Starting at` observations. All 14 configurable starting-price products remain quote-only; 13 conflicting-price products plus three zero/variable-price products suppress the amount and remain at `Request price`, for 30 Engine products in the quotation flow and no ambiguous price or live-stock promise.
+- Added an exact bilingual Engine parent filter and 23 bilingual child filters for performance, intake, fuel, tools, electrical, mechanical, cooling, oil service, covers, ignition, turbocharger, gaskets, filters, software, drive belts, emissions, pulleys, timing, mounts, vacuum, skid plates, fasteners and superchargers.
+- Added complete scope-manifest, route, page-count, identity, media, price, API, pagination, filter and bilingual UI checks. This remains a staging/preview release and does not activate production payments.
+
 ### Complete G-Series Drivetrain catalogue scope
 
 - Captured all 64 public ECS Drivetrain listing pages for BMW G80 M3 Competition, G82 M4 Competition and G87 M2, reconciling 732 vehicle/category placements: 244 for G80, 248 for G82 and 240 for G87.

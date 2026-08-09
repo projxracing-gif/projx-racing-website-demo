@@ -10,6 +10,10 @@ import {
   ECS_G_SERIES_BRAKING_PRODUCTS,
   ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES
 } from './data/ecs-g-series-braking-products.js';
+import {
+  ECS_G_SERIES_ENGINE_PRODUCTS,
+  ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES
+} from './data/ecs-g-series-engine-products.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -347,11 +351,12 @@ const mergedReviewedEcsProducts = mergeReviewedEcsProducts(
   globalThis.PROJX_ECS_PRODUCTS || [],
   [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS,
     ...ECS_G_SERIES_INTERIOR_PRODUCTS, ...ECS_G_SERIES_DRIVETRAIN_PRODUCTS,
-    ...ECS_G_SERIES_BRAKING_PRODUCTS]
+    ...ECS_G_SERIES_BRAKING_PRODUCTS, ...ECS_G_SERIES_ENGINE_PRODUCTS]
 );
 const quarantinedEcsIdentities = new Set([
   ...ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES,
-  ...ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES
+  ...ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES,
+  ...ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES
 ]);
 const quarantinedProductSlugs = new Set(mergedReviewedEcsProducts
   .filter(product => quarantinedEcsIdentities.has(ecsIdentity(product)))
@@ -545,6 +550,36 @@ function localCatalogueFacets(products) {
     ['braking-parking-brake', ['Emergency Parking Brake Parts', 'قطع فرامل التوقف الطارئة']]
   ]);
   for (const [slug, [name, nameAr]] of brakingFacetNames) {
+    const current = partTypes.get(slug);
+    if (current) partTypes.set(slug, { ...current, name, nameAr });
+  }
+  const engineFacetNames = new Map([
+    ['g-series-engine', ['G-Series Engine', 'محرك سلسلة G']],
+    ['engine-performance', ['Performance Engine Parts', 'قطع أداء المحرك']],
+    ['engine-intake', ['Engine Intake Parts', 'قطع سحب هواء المحرك']],
+    ['engine-fuel', ['Engine Fuel Parts', 'قطع وقود المحرك']],
+    ['engine-tools', ['Engine Tools', 'أدوات المحرك']],
+    ['engine-electrical', ['Engine Electrical Parts', 'قطع كهرباء المحرك']],
+    ['engine-mechanical', ['Engine Mechanical Parts', 'القطع الميكانيكية للمحرك']],
+    ['engine-cooling', ['Engine Cooling Parts', 'قطع تبريد المحرك']],
+    ['engine-oil-service', ['Oil Change Service Kits and Accessories', 'أطقم وملحقات تغيير الزيت']],
+    ['engine-covers', ['Engine Covers & Accessories', 'أغطية المحرك وملحقاته']],
+    ['engine-ignition', ['Engine Ignition Parts', 'قطع إشعال المحرك']],
+    ['engine-turbocharger', ['Engine Turbocharger Parts', 'قطع الشاحن التوربيني']],
+    ['engine-gaskets-seals', ['Engine Gaskets & Seals', 'حشيات وأختام المحرك']],
+    ['engine-filter', ['Engine Filter Parts', 'فلاتر المحرك']],
+    ['engine-software', ['Engine Chips, Tunes & Software', 'شرائح وبرمجة وضبط المحرك']],
+    ['engine-drive-belts', ['Engine Drive Belt Parts', 'قطع سيور المحرك']],
+    ['engine-emissions', ['Engine Emission Parts', 'قطع انبعاثات المحرك']],
+    ['engine-pulleys', ['Engine Pulley Parts', 'بكرات المحرك']],
+    ['engine-timing', ['Engine Timing Parts', 'قطع توقيت المحرك']],
+    ['engine-mount', ['Engine Mount Parts', 'قواعد المحرك']],
+    ['engine-vacuum-system', ['Engine Vacuum System Parts', 'قطع نظام تفريغ المحرك']],
+    ['engine-skid-plate', ['Engine Skid Plate Parts', 'ألواح حماية أسفل المحرك']],
+    ['engine-fastener-kit', ['Engine Fastener Kit Parts', 'أطقم مثبتات المحرك']],
+    ['engine-supercharger', ['Engine Supercharger Parts', 'قطع الشاحن الفائق']]
+  ]);
+  for (const [slug, [name, nameAr]] of engineFacetNames) {
     const current = partTypes.get(slug);
     if (current) partTypes.set(slug, { ...current, name, nameAr });
   }

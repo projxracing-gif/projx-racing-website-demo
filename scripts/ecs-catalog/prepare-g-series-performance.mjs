@@ -7,7 +7,7 @@ const REPO = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const ECS_PRODUCT_HOST = 'www.ecstuning.com';
 const ECS_IMAGE_HOST = 'assets.ecstuning.com';
 const PRODUCT_PATH = /^\/b-[^/?#]+-parts\/[^/?#]+\/[^/?#]+\/$/i;
-const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior|interior|drivetrain|braking)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
+const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior|interior|drivetrain|braking|engine)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
 const VEHICLES = Object.freeze({
   'BMW G87 M2 S58 3.0L': Object.freeze({ model: 'M2', trim: null, generation: 'G87' }),
   'BMW G80 M3 Competition S58 3.0L': Object.freeze({ model: 'M3', trim: 'Competition', generation: 'G80' }),
@@ -219,6 +219,11 @@ const BRAKING_VEHICLE_SOURCE_PATHS = Object.freeze({
   'BMW G80 M3 Competition S58 3.0L': '/BMW-G80-M3_Competition-S58_3.0L/Braking/',
   'BMW G82 M4 Competition S58 3.0L': '/BMW-G82-M4_Competition-S58_3.0L/Braking/'
 });
+const ENGINE_VEHICLE_SOURCE_PATHS = Object.freeze({
+  'BMW G87 M2 S58 3.0L': '/BMW-G87-M2-S58_3.0L/Engine/',
+  'BMW G80 M3 Competition S58 3.0L': '/BMW-G80-M3_Competition-S58_3.0L/Engine/',
+  'BMW G82 M4 Competition S58 3.0L': '/BMW-G82-M4_Competition-S58_3.0L/Engine/'
+});
 const CATALOGUE_SCOPES = Object.freeze({
   performance: Object.freeze({
     key: 'performance', label: 'Performance', exportName: 'ECS_G_SERIES_PERFORMANCE_PRODUCTS',
@@ -275,6 +280,21 @@ const CATALOGUE_SCOPES = Object.freeze({
     manifestSlugPrefix: 'braking',
     fitmentNoteAr: '\u0623\u062f\u0631\u062c\u062a ECS \u0627\u0644\u0642\u0637\u0639\u0629 \u0636\u0645\u0646 \u0641\u0626\u0629 \u0627\u0644\u0641\u0631\u0627\u0645\u0644 \u0644\u0647\u0630\u0647 \u0627\u0644\u0633\u064a\u0627\u0631\u0629\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0631\u0642\u0645 \u0627\u0644\u0647\u064a\u0643\u0644 \u0648\u0633\u0646\u0629 \u0627\u0644\u0635\u0646\u0639 \u0648\u0646\u0648\u0639 \u0646\u0638\u0627\u0645 \u0627\u0644\u0641\u0631\u0627\u0645\u0644 \u0648\u0627\u0644\u062e\u064a\u0627\u0631\u0627\u062a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.',
     selectionNoteAr: '\u0645\u062f\u0631\u062c \u0636\u0645\u0646 \u0641\u0626\u0627\u062a \u0641\u0631\u0627\u0645\u0644 \u0627\u0644\u0633\u064a\u0627\u0631\u0629 \u0644\u062f\u0649 ECS \u0648\u0641\u0642 \u062a\u0631\u062a\u064a\u0628 \u0627\u0644\u0635\u0644\u0629 \u0627\u0644\u0638\u0627\u0647\u0631\u061b \u0644\u0627 \u062a\u0646\u0634\u0631 ECS \u062a\u0631\u062a\u064a\u0628\u0627\u064b \u0628\u062d\u0633\u0628 \u0639\u062f\u062f \u0627\u0644\u0648\u062d\u062f\u0627\u062a \u0627\u0644\u0645\u0628\u0627\u0639\u0629.'
+  }),
+  engine: Object.freeze({
+    key: 'engine', label: 'Engine', exportName: 'ECS_G_SERIES_ENGINE_PRODUCTS',
+    quarantineExportName: 'ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES',
+    parentCategorySlug: 'g-series-engine',
+    vehicleSourcePaths: ENGINE_VEHICLE_SOURCE_PATHS,
+    vehicleBasePaths: DRIVETRAIN_VEHICLE_BASE_PATHS,
+    categoryPathsAreVehicleRelative: true,
+    manifestRequired: true,
+    manifestKind: 'g-series-engine-scope-manifest',
+    manifestLabel: 'Engine',
+    manifestPathSegment: 'Engine',
+    manifestSlugPrefix: 'engine',
+    fitmentNoteAr: '\u0623\u062f\u0631\u062c\u062a ECS \u0627\u0644\u0642\u0637\u0639\u0629 \u0636\u0645\u0646 \u0641\u0626\u0629 \u0627\u0644\u0645\u062d\u0631\u0643 \u0644\u0647\u0630\u0647 \u0627\u0644\u0633\u064a\u0627\u0631\u0629\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0631\u0642\u0645 \u0627\u0644\u0647\u064a\u0643\u0644 \u0648\u0633\u0646\u0629 \u0627\u0644\u0635\u0646\u0639 \u0648\u0627\u0644\u0645\u062d\u0631\u0643 \u0648\u0646\u0638\u0627\u0645 \u0627\u0644\u062f\u0641\u0639 \u0648\u0627\u0644\u062e\u064a\u0627\u0631\u0627\u062a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.',
+    selectionNoteAr: '\u0645\u062f\u0631\u062c \u0636\u0645\u0646 \u0641\u0626\u0627\u062a \u0627\u0644\u0645\u062d\u0631\u0643 \u0644\u062f\u0649 ECS \u0648\u0641\u0642 \u062a\u0631\u062a\u064a\u0628 \u0627\u0644\u0635\u0644\u0629 \u0627\u0644\u0638\u0627\u0647\u0631\u061b \u0644\u0627 \u062a\u0646\u0634\u0631 ECS \u062a\u0631\u062a\u064a\u0628\u0627\u064b \u0628\u062d\u0633\u0628 \u0639\u062f\u062f \u0627\u0644\u0648\u062d\u062f\u0627\u062a \u0627\u0644\u0645\u0628\u0627\u0639\u0629.'
   })
 });
 
@@ -323,7 +343,8 @@ function supplierCopy(value, maximum = 5_000) {
     .replace(/Want To Haggle\?\s*Give Us A Call Or Chat To Make An Offer On This Product!\s*/gi, ' ')
     .replace(/We Price Match\s*[-\u2013\u2014]\s*Give Us A Call Or Chat!\s*/gi, ' ')
     .replace(/Don['\u2019]t See A Bundle You Want\s*[-\u2013\u2014]\s*Give Us A Call Or Chat\s*[-\u2013\u2014]\s*We Will Make One!\s*/gi, ' ')
-    .replace(/Don['\u2019]t Wait,?\s*They May Not Be Around Forever!\s*/gi, ' '), maximum);
+    .replace(/Don['\u2019]t Wait,?\s*They May Not Be Around Forever!\s*/gi, ' ')
+    .replace(/\bBuild\s+your\s+engine\b/gi, 'Assemble your engine'), maximum);
 }
 
 function slugify(value) {
@@ -462,6 +483,10 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
 
 export function createGSeriesBrakingScope(manifestDocument) {
   return createGSeriesManifestScope(manifestDocument, 'braking');
+}
+
+export function createGSeriesEngineScope(manifestDocument) {
+  return createGSeriesManifestScope(manifestDocument, 'engine');
 }
 
 function catalogueScope(scopeName, manifestDocument = null) {
@@ -836,6 +861,10 @@ export function prepareGSeriesBraking(rawDocument, mediaDocument, options = {}) 
   return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'braking' });
 }
 
+export function prepareGSeriesEngine(rawDocument, mediaDocument, options = {}) {
+  return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'engine' });
+}
+
 function option(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : null;
@@ -877,7 +906,7 @@ async function main() {
   const minimumProducts = Number(option('--minimum-products') || 1);
   const scopeName = option('--scope') || 'performance';
   if (!input || !mediaIndex || !output) {
-    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior|interior|drivetrain|braking] [--scope-manifest <manifest.json>] [--report <report.json>] [--minimum-products <count>]');
+    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior|interior|drivetrain|braking|engine] [--scope-manifest <manifest.json>] [--report <report.json>] [--minimum-products <count>]');
   }
   if (!CATALOGUE_SCOPES[scopeName]) throw new Error(`Unknown ECS G-Series catalogue scope: ${scopeName}.`);
   const [rawDocument, mediaDocument, explicitScopeManifest] = await Promise.all([

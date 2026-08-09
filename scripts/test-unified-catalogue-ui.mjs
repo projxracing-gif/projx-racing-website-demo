@@ -110,6 +110,41 @@ assert.deepEqual(brakingDirectoryEntries.map(({ slug, name }) => [slug, name]),
   'Brakes directory controls must expose the 15 verified top-level Braking part types.');
 assert.ok(brakingDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/u.test(nameAr)),
   'Every Braking part-type control must preserve an Arabic label.');
+const engineDirectoryMatch = app.match(/\{\s*query:\s*"engine",\s*partType:\s*"g-series-engine",\s*en:\s*"Engine",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"drivetrain"/);
+assert.ok(engineDirectoryMatch, 'The Engine directory must include the exact G-Series Engine scope.');
+const engineDirectoryEntries = [...engineDirectoryMatch[1]
+  .matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
+  .map(([, name, nameAr, slug]) => ({ slug, name, nameAr }));
+const expectedEngineDirectoryEntries = [
+  ['engine-performance', 'Performance Engine Parts'],
+  ['engine-intake', 'Engine Intake Parts'],
+  ['engine-fuel', 'Engine Fuel Parts'],
+  ['engine-tools', 'Engine Tools'],
+  ['engine-electrical', 'Engine Electrical Parts'],
+  ['engine-mechanical', 'Engine Mechanical Parts'],
+  ['engine-cooling', 'Engine Cooling Parts'],
+  ['engine-oil-service', 'Oil Change Service Kits and Accessories'],
+  ['engine-covers', 'Engine Covers & Accessories'],
+  ['engine-ignition', 'Engine Ignition Parts'],
+  ['engine-turbocharger', 'Engine Turbocharger Parts'],
+  ['engine-gaskets-seals', 'Engine Gaskets & Seals'],
+  ['engine-filter', 'Engine Filter Parts'],
+  ['engine-software', 'Engine Chips, Tunes & Software'],
+  ['engine-drive-belts', 'Engine Drive Belt Parts'],
+  ['engine-emissions', 'Engine Emission Parts'],
+  ['engine-pulleys', 'Engine Pulley Parts'],
+  ['engine-timing', 'Engine Timing Parts'],
+  ['engine-mount', 'Engine Mount Parts'],
+  ['engine-vacuum-system', 'Engine Vacuum System Parts'],
+  ['engine-skid-plate', 'Engine Skid Plate Parts'],
+  ['engine-fastener-kit', 'Engine Fastener Kit Parts'],
+  ['engine-supercharger', 'Engine Supercharger Parts']
+];
+assert.deepEqual(engineDirectoryEntries.map(({ slug, name }) => [slug, name]),
+  expectedEngineDirectoryEntries,
+  'Engine directory controls must expose all 23 verified top-level Engine part types.');
+assert.ok(engineDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/u.test(nameAr)),
+  'Every Engine part-type control must preserve an Arabic label.');
 const drivetrainDirectoryMatch = app.match(/\{\s*query:\s*"drivetrain",\s*partType:\s*"g-series-drivetrain",\s*en:\s*"Drivetrain",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"cooling"/);
 assert.ok(drivetrainDirectoryMatch, 'The Drivetrain directory must include an exact G-Series scope.');
 const drivetrainDirectoryEntries = [...drivetrainDirectoryMatch[1]

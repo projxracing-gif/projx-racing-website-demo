@@ -46,8 +46,49 @@ const BRAKING_PART_TYPES = Object.freeze([
   ['braking-parking-brake', 'Emergency Parking Brake Parts']
 ]);
 const BRAKING_SENTINEL_ECS = Object.freeze(['ES#4900999', 'ES#4216356', 'ES#4818888']);
+const ENGINE_PRODUCT_COUNT = 1_260;
+const ENGINE_PART_TYPES = Object.freeze([
+  ['engine-performance', 'Performance Engine Parts', 390],
+  ['engine-intake', 'Engine Intake Parts', 203],
+  ['engine-fuel', 'Engine Fuel Parts', 184],
+  ['engine-tools', 'Engine Tools', 167],
+  ['engine-electrical', 'Engine Electrical Parts', 159],
+  ['engine-mechanical', 'Engine Mechanical Parts', 135],
+  ['engine-cooling', 'Engine Cooling Parts', 117],
+  ['engine-oil-service', 'Oil Change Service Kits and Accessories', 86],
+  ['engine-covers', 'Engine Covers & Accessories', 58],
+  ['engine-ignition', 'Engine Ignition Parts', 47],
+  ['engine-turbocharger', 'Engine Turbocharger Parts', 47],
+  ['engine-gaskets-seals', 'Engine Gaskets & Seals', 38],
+  ['engine-filter', 'Engine Filter Parts', 30],
+  ['engine-software', 'Engine Chips, Tunes & Software', 33],
+  ['engine-drive-belts', 'Engine Drive Belt Parts', 20],
+  ['engine-emissions', 'Engine Emission Parts', 21],
+  ['engine-pulleys', 'Engine Pulley Parts', 19],
+  ['engine-timing', 'Engine Timing Parts', 16],
+  ['engine-mount', 'Engine Mount Parts', 7],
+  ['engine-vacuum-system', 'Engine Vacuum System Parts', 6],
+  ['engine-skid-plate', 'Engine Skid Plate Parts', 5],
+  ['engine-fastener-kit', 'Engine Fastener Kit Parts', 1],
+  ['engine-supercharger', 'Engine Supercharger Parts', 1]
+]);
+const ENGINE_SENTINELS = Object.freeze([
+  {
+    ecsPartNumber: 'ES#4690036', mpn: 'ECA-G-B58-S58-AT', category: 'Engine Fuel Parts',
+    childSlug: 'engine-fuel', price: 490, chassis: ['G80', 'G82'], models: ['M3', 'M4']
+  },
+  {
+    ecsPartNumber: 'ES#4876812', mpn: '8321', category: 'Engine Cooling Parts',
+    childSlug: 'engine-cooling', price: 485, chassis: ['G80', 'G82', 'G87'], models: ['M3', 'M4', 'M2']
+  },
+  {
+    ecsPartNumber: 'ES#2848320', mpn: '11367614288', category: 'Engine Mechanical Parts',
+    childSlug: 'engine-timing', price: 128.68, chassis: ['G80', 'G82', 'G87'], models: ['M3', 'M4', 'M2']
+  }
+]);
 const TOP_LEVEL_INTERIOR_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Interior\/[^/?#]+(?:\/\d+)?\/?$/i;
 const TOP_LEVEL_BRAKING_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Braking\/[^/?#]+(?:\/\d+)?\/?$/i;
+const TOP_LEVEL_ENGINE_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Engine\/[^/?#]+(?:\/\d+)?\/?$/i;
 const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
 const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => [
   product.categorySlug, product.subcategorySlug,
@@ -234,6 +275,18 @@ for (const [slug, name] of BRAKING_PART_TYPES) {
   assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u,
     `Expected the ${slug} Braking facet to have an Arabic name.`);
 }
+assert.equal(ENGINE_PART_TYPES.length, 23);
+assert.equal(new Set(ENGINE_PART_TYPES.map(([slug]) => slug)).size, 23);
+const engineParentFacet = reviewedPartTypesBySlug.get('g-series-engine');
+assert.equal(engineParentFacet?.name, 'G-Series Engine');
+assert.match(engineParentFacet?.nameAr || '', /[\u0600-\u06ff]/u);
+for (const [slug, name] of ENGINE_PART_TYPES) {
+  const facet = reviewedPartTypesBySlug.get(slug);
+  assert.ok(facet, `Expected the reviewed catalogue to expose the ${slug} Engine facet.`);
+  assert.equal(facet.name, name);
+  assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u,
+    `Expected the ${slug} Engine facet to have an Arabic name.`);
+}
 assert.equal(reviewedPartTypesBySlug.has('drivetrain-pdk-transmission'), false,
   'The quarantined PDK taxonomy must never appear as a customer-facing part-type facet.');
 assert.equal(reviewedBrowse.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
@@ -329,6 +382,36 @@ for (const ecsPartNumber of BRAKING_SENTINEL_ECS) {
   assert.ok(product.filters?.categories?.includes('g-series-braking'));
   assert.equal(product.imageStatus, 'supplier-media-verified');
 }
+const reviewedEngineProducts = REVIEWED_ECS_PRODUCTS.filter(product =>
+  product.filters?.categories?.includes('g-series-engine')
+);
+assert.equal(reviewedEngineProducts.length, ENGINE_PRODUCT_COUNT,
+  'The reviewed catalogue must retain all 1,260 duplicate-safe G-Series Engine identities.');
+assert.equal(new Set(reviewedEngineProducts.map(product => product.ecsPartNumber)).size, ENGINE_PRODUCT_COUNT);
+assert.ok(reviewedEngineProducts.every(product => (product.selectionSources || []).some(source =>
+  TOP_LEVEL_ENGINE_SOURCE.test(String(source?.sourceUrl || ''))
+)), 'Every reviewed Engine identity must retain exact ECS vehicle-category evidence.');
+const recognizedEngineChildren = new Set(ENGINE_PART_TYPES.map(([slug]) => slug));
+assert.ok(reviewedEngineProducts.every(product => [
+  product.categorySlug, product.subcategorySlug,
+  ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+].some(slug => recognizedEngineChildren.has(slug))),
+'Every reviewed Engine identity must retain an exact child part-type slug.');
+assert.ok(reviewedEngineProducts.every(product => product.fitments?.length > 0
+  && product.fitments.every(fitment => fitment.confidence === 'possible')),
+'Engine fitment must remain possible-only pending VIN, model-year, drivetrain and option confirmation.');
+assert.ok(reviewedEngineProducts.every(product => product.availabilityCode === 'check_availability'
+  && product.filters?.availability?.includes('confirmation-required')),
+'Dated ECS availability observations must remain confirmation-required rather than becoming live-stock promises.');
+for (const { ecsPartNumber, childSlug } of ENGINE_SENTINELS) {
+  const product = REVIEWED_ECS_PRODUCTS.find(item => item.ecsPartNumber === ecsPartNumber);
+  assert.ok(product, `${ecsPartNumber} must remain available as an Engine readiness sentinel.`);
+  assert.ok(product.filters?.categories?.includes('g-series-engine'));
+  assert.ok(product.filters?.categories?.includes(childSlug));
+  assert.equal(product.imageStatus, 'supplier-media-verified');
+  assert.match(product.images[0].src,
+    /^assets\/products\/ecs\/g-series-engine\/[a-f0-9]{24}\.webp$/);
+}
 assert.equal(REVIEWED_ECS_PRODUCTS.some(product => product.ecsPartNumber === 'ES#2019435'), false,
   'The quarantined PDK identity must not enter the merged reviewed catalogue.');
 
@@ -404,7 +487,7 @@ const reviewedG8xDetail = await invoke(reviewedOnly, {
 assert.equal(reviewedG8xDetail.status, 200);
 assert.deepEqual(new Set(reviewedG8xDetail.body.product.fitments.flatMap(fitment => fitment.chassis)), new Set(['G80', 'G82', 'G87']));
 assert.ok(reviewedG8xDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
-assert.equal(reviewedG8xDetail.body.product.availability.checkedAt, '2026-08-08');
+assert.equal(reviewedG8xDetail.body.product.availability.checkedAt, '2026-08-09');
 assert.ok(reviewedG8xDetail.body.product.descriptionAr);
 
 const reviewedBrandFilter = await invoke(reviewedOnly, { query: { brand: 'csf-cooling' } });
@@ -471,6 +554,31 @@ for (const [slug] of BRAKING_PART_TYPES) {
   assert.equal(filtered.body.meta.totalResults, expectedCount);
 }
 
+const reviewedEngineFilter = await invoke(reviewedOnly, { query: { partType: 'g-series-engine' } });
+assert.equal(reviewedEngineFilter.status, 200);
+assert.equal(reviewedEngineFilter.body.meta.totalResults, ENGINE_PRODUCT_COUNT);
+assert.equal(reviewedEngineFilter.body.meta.totalResults, reviewedCategoryCount('g-series-engine'));
+assert.equal(reviewedEngineFilter.body.meta.totalPages, 13);
+const reviewedEngineItems = await collectAllItems(reviewedOnly, { partType: 'g-series-engine' });
+assert.equal(reviewedEngineItems.items.length, ENGINE_PRODUCT_COUNT);
+assert.equal(new Set(reviewedEngineItems.items.map(item => item.handle)).size, ENGINE_PRODUCT_COUNT);
+assert.equal(new Set(reviewedEngineItems.items.map(item => item.sku)).size, ENGINE_PRODUCT_COUNT);
+assert.equal(reviewedEngineItems.lastResponse.body.meta.page, 13);
+assert.equal(reviewedEngineItems.lastResponse.body.items.length, 60);
+assert.ok(reviewedEngineItems.items.every(item => item.availability.code === 'check_availability'));
+for (const [slug, , exactCount] of ENGINE_PART_TYPES) {
+  assert.equal(reviewedCategoryCount(slug), exactCount,
+    `Expected the generated ${slug} Engine facet to retain exactly ${exactCount} identities.`);
+  const filtered = await invoke(reviewedOnly, { query: { partType: slug } });
+  assert.equal(filtered.status, 200);
+  assert.equal(filtered.body.meta.totalResults, exactCount);
+  assert.equal(filtered.body.meta.totalPages, Math.ceil(exactCount / 100));
+  const filteredItems = await collectAllItems(reviewedOnly, { partType: slug });
+  assert.equal(filteredItems.items.length, exactCount);
+  assert.equal(new Set(filteredItems.items.map(item => item.handle)).size, exactCount);
+  assert.equal(new Set(filteredItems.items.map(item => item.sku)).size, exactCount);
+}
+
 const reviewedBrakingIdentifierSearch = await invoke(reviewedOnly, {
   query: { q: 'ES#4900999', supplier: 'ecs' }
 });
@@ -500,6 +608,65 @@ assert.deepEqual(new Set(reviewedBrakingDetail.body.product.fitments.map(fitment
 assert.ok(reviewedBrakingDetail.body.product.fitments.every(fitment => fitment.confidence === 'possible'));
 assert.ok(reviewedBrakingDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
 assert.ok(reviewedBrakingDetail.body.product.fitments.every(fitment => /confirm/i.test(fitment.note)));
+
+for (const sentinel of ENGINE_SENTINELS) {
+  const identifierSearch = await invoke(reviewedOnly, {
+    query: { q: sentinel.ecsPartNumber, supplier: 'ecs' }
+  });
+  assert.equal(identifierSearch.status, 200);
+  assert.equal(identifierSearch.body.meta.totalResults, 1);
+  assert.equal(identifierSearch.body.items.length, 1);
+  assert.equal(identifierSearch.body.items[0].handle,
+    `ecs-${sentinel.ecsPartNumber.toLocaleLowerCase('en-US').replace('#', '-')}`);
+  assert.equal(identifierSearch.body.items[0].sku, sentinel.ecsPartNumber);
+  assert.equal(identifierSearch.body.items[0].mpn, sentinel.mpn);
+  assert.equal(identifierSearch.body.items[0].category, sentinel.category);
+  assert.equal(identifierSearch.body.items[0].fitmentConfidence, null);
+  assert.equal(identifierSearch.body.items[0].availability.code, 'check_availability');
+  assert.equal(identifierSearch.body.items[0].price.min, sentinel.price);
+  assert.equal(identifierSearch.body.items[0].image.status, 'supplier-media-verified');
+  assert.match(identifierSearch.body.items[0].image.src,
+    /^\/assets\/products\/ecs\/g-series-engine\/[a-f0-9]{24}\.webp$/);
+
+  const mpnSearch = await invoke(reviewedOnly, { query: { q: sentinel.mpn, supplier: 'ecs' } });
+  assert.equal(mpnSearch.status, 200);
+  assert.ok(mpnSearch.body.meta.totalResults >= 1);
+  assert.ok(mpnSearch.body.items.some(item => item.sku === sentinel.ecsPartNumber),
+    `${sentinel.ecsPartNumber} must remain discoverable by manufacturer part number ${sentinel.mpn}.`);
+
+  const childFilterSearch = await invoke(reviewedOnly, {
+    query: { q: sentinel.ecsPartNumber, supplier: 'ecs', partType: sentinel.childSlug }
+  });
+  assert.equal(childFilterSearch.status, 200);
+  assert.equal(childFilterSearch.body.meta.totalResults, 1,
+    `${sentinel.ecsPartNumber} must remain discoverable through ${sentinel.childSlug}.`);
+  assert.equal(childFilterSearch.body.items[0].sku, sentinel.ecsPartNumber);
+
+  const detail = await invoke(reviewedOnly, {
+    query: { handle: identifierSearch.body.items[0].handle, supplier: 'ecs', currency: 'USD' }
+  });
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.product.sku, sentinel.ecsPartNumber);
+  assert.equal(detail.body.product.mpn, sentinel.mpn);
+  assert.equal(detail.body.product.category, sentinel.category);
+  assert.equal(detail.body.product.price.min, sentinel.price);
+  assert.equal(detail.body.product.availability.code, 'check_availability');
+  assert.match(detail.body.product.availability.leadTime, /require confirmation/i);
+  assert.equal(detail.body.product.image.status, 'supplier-media-verified');
+  assert.ok(detail.body.product.images.length > 0);
+  assert.ok(detail.body.product.images.every(image => image.status === 'supplier-media-verified'));
+  assert.match(detail.body.product.image.src,
+    /^\/assets\/products\/ecs\/g-series-engine\/[a-f0-9]{24}\.webp$/);
+  assert.deepEqual(new Set(detail.body.product.fitments.flatMap(fitment => fitment.chassis)),
+    new Set(sentinel.chassis));
+  assert.deepEqual(new Set(detail.body.product.fitments.map(fitment => fitment.model)),
+    new Set(sentinel.models));
+  assert.ok(detail.body.product.fitments.every(fitment => fitment.confidence === 'possible'));
+  assert.ok(detail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
+  assert.ok(detail.body.product.fitments.every(fitment => /confirm/i.test(fitment.note)));
+  assert.equal(detail.body.product.dataQuality.exactFitmentAvailable, false);
+  assert.equal(detail.body.product.dataQuality.stockFeedAvailable, false);
+}
 
 const reviewedInteriorIdentifierSearch = await invoke(reviewedOnly, {
   query: { q: REPRESENTATIVE_INTERIOR_ECS, supplier: 'ecs' }

@@ -33,7 +33,10 @@ const REVIEWED_ECS_SENTINEL_KEYS = Object.freeze([
   'ecs-es-4811032', // G80 Drivetrain Automatic Transmission capture sentinel
   'ecs-es-4900999', // G80/G82 Braking ABS capture sentinel
   'ecs-es-4216356', // G80/G82/G87 Braking Caliper capture sentinel
-  'ecs-es-4818888' // G80/G82/G87 Braking Service Kit capture sentinel
+  'ecs-es-4818888', // G80/G82/G87 Braking Service Kit capture sentinel
+  'ecs-es-4690036', // G80/G82/G87 Engine Fuel capture sentinel
+  'ecs-es-4876812', // G80/G82/G87 Engine Cooling capture sentinel
+  'ecs-es-2848320' // G80/G82/G87 Engine Timing capture sentinel
 ]);
 
 class PublicApiError extends Error {

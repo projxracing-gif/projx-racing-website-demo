@@ -20,6 +20,10 @@ function option(name) {
   return index >= 0 ? process.argv[index + 1] : null;
 }
 
+function hasOption(name) {
+  return process.argv.includes(name);
+}
+
 function inside(parent, candidate) {
   const relative = path.relative(parent, candidate);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
@@ -134,8 +138,10 @@ async function main() {
   const existingIndexPath = option('--existing-media-index');
   const outputDirectoryOption = option('--output-dir');
   const indexPathOption = option('--index');
+  const allowMissing = hasOption('--allow-missing');
+  const concurrency = Math.min(8, Math.max(1, Number.parseInt(option('--concurrency') || '2', 10) || 2));
   if (!input || !outputDirectoryOption || !indexPathOption) {
-    throw new Error('Usage: materialize-remote-assets.mjs --input <capture.json> --output-dir <repo-directory> --index <media-index.json> [--existing-media-index <media-index.json>]');
+    throw new Error('Usage: materialize-remote-assets.mjs --input <capture.json> --output-dir <repo-directory> --index <media-index.json> [--existing-media-index <media-index.json>] [--allow-missing] [--concurrency <1-8>]');
   }
   const outputDirectory = path.resolve(outputDirectoryOption);
   const indexPath = path.resolve(indexPathOption);
@@ -158,28 +164,66 @@ async function main() {
   const existingUrls = new Set(existing.images.map(image => officialImageUrl(image?.sourceUrl)).filter(Boolean));
   const observedAt = [...customerFacing.records.map(record => String(record?.observedAt || ''))]
     .filter(value => Number.isFinite(Date.parse(value))).sort().at(-1) || null;
-  const requestedUrls = [...new Set(customerFacing.records
-    .map(record => officialImageUrl(record?.imageUrl)).filter(Boolean))]
-    .filter(sourceUrl => !existingUrls.has(sourceUrl)).sort();
+  const requestedByPrimaryUrl = new Map();
+  for (const record of customerFacing.records) {
+    const sourceUrl = officialImageUrl(record?.imageUrl) || officialImageUrl(record?.imageFallbackUrl);
+    const fallbackUrl = officialImageUrl(record?.imageFallbackUrl);
+    if (!sourceUrl || existingUrls.has(sourceUrl) || (fallbackUrl && existingUrls.has(fallbackUrl))) continue;
+    const current = requestedByPrimaryUrl.get(sourceUrl);
+    if (!current?.fallbackUrl || (fallbackUrl && fallbackUrl !== sourceUrl)) {
+      requestedByPrimaryUrl.set(sourceUrl, {
+        sourceUrl,
+        fallbackUrl: fallbackUrl && fallbackUrl !== sourceUrl ? fallbackUrl : null
+      });
+    }
+  }
+  const requestedImages = [...requestedByPrimaryUrl.values()]
+    .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl));
   if (!observedAt) throw new Error('The ECS capture has no valid media observation timestamp.');
   await mkdir(outputDirectory, { recursive: true });
-  const images = await mapConcurrent(requestedUrls, 2,
-    sourceUrl => downloadImage(sourceUrl, outputDirectory, observedAt));
+  const outcomes = await mapConcurrent(requestedImages, concurrency, async ({ sourceUrl, fallbackUrl }) => {
+    try {
+      return { image: await downloadImage(sourceUrl, outputDirectory, observedAt) };
+    } catch (error) {
+      if (fallbackUrl) {
+        try {
+          return { image: await downloadImage(fallbackUrl, outputDirectory, observedAt) };
+        } catch (fallbackError) {
+          return { failure: {
+            sourceUrl,
+            fallbackUrl,
+            reason: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+          } };
+        }
+      }
+      return { failure: {
+        sourceUrl,
+        reason: error instanceof Error ? error.message : String(error)
+      } };
+    }
+  });
+  const images = outcomes.map(outcome => outcome.image).filter(Boolean);
+  const failures = outcomes.map(outcome => outcome.failure).filter(Boolean);
+  if (failures.length && !allowMissing) {
+    throw new Error(`${failures.length} ECS media request(s) failed; rerun with --allow-missing to use the labelled supplier-media-unavailable fallback.`);
+  }
   const document = {
     schemaVersion: 1,
     supplier: 'ECS Tuning',
     generatedAt: observedAt,
     images: images.map(({ observedAt: _ignored, ...image }) => image)
-      .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl))
+      .sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl)),
+    failures
   };
   await mkdir(path.dirname(indexPath), { recursive: true });
   const temporary = `${indexPath}.tmp-${process.pid}`;
   await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
   await rename(temporary, indexPath);
   console.log(JSON.stringify({
-    requestedImageCount: requestedUrls.length,
+    requestedImageCount: requestedImages.length,
     imageMappings: document.images.length,
     uniqueFiles: new Set(document.images.map(image => image.sha256)).size,
+    failedImageCount: failures.length,
     existingMediaUrlCount: existingUrls.size,
     quarantinedIdentityCount: customerFacing.quarantinedIdentities.size,
     generatedAt: observedAt
