@@ -30,7 +30,10 @@ const REVIEWED_ECS_SENTINEL_KEYS = Object.freeze([
   'ecs-es-4563907', // G82 Exterior-only capture sentinel
   'ecs-es-602', // G80 Drivetrain short ECS identity sentinel
   'ecs-es-3097303', // G87/G82 Drivetrain Transfer Case capture sentinel
-  'ecs-es-4811032' // G80 Drivetrain Automatic Transmission capture sentinel
+  'ecs-es-4811032', // G80 Drivetrain Automatic Transmission capture sentinel
+  'ecs-es-4900999', // G80/G82 Braking ABS capture sentinel
+  'ecs-es-4216356', // G80/G82/G87 Braking Caliper capture sentinel
+  'ecs-es-4818888' // G80/G82/G87 Braking Service Kit capture sentinel
 ]);
 
 class PublicApiError extends Error {

@@ -252,6 +252,49 @@ test('appends exact Drivetrain evidence without replacing an established reviewe
   ]);
 });
 
+test('appends exact Braking evidence to an overlapping Performance product without duplication', () => {
+  const performance = generatedProduct({
+    category: 'Performance Brake Parts & Upgrades',
+    categorySlug: 'performance-brakes',
+    filters: {
+      supplier: ['ecs'], models: ['M3'], chassis: ['G80'],
+      categories: ['performance', 'performance-brakes'], subcategories: ['performance-brakes']
+    },
+    selectionSources: [{
+      vehicle: 'BMW G80 M3 Competition S58 3.0L', category: 'Performance Brake Parts & Upgrades',
+      sourceUrl: 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Performance/Braking/',
+      relevancePosition: 6, observedAt: '2026-08-08T12:00:00Z'
+    }]
+  });
+  const braking = generatedProduct({
+    category: 'Performance Brake Parts',
+    categorySlug: 'braking-performance',
+    filters: {
+      supplier: ['ecs'], models: ['M3'], chassis: ['G80'],
+      categories: ['g-series-braking', 'braking-performance'],
+      subcategories: ['braking-performance']
+    },
+    selectionSources: [{
+      vehicle: 'BMW G80 M3 Competition S58 3.0L', category: 'Performance Brake Parts',
+      sourceUrl: 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Braking/Performance/',
+      relevancePosition: 3, observedAt: '2026-08-09T12:00:00Z'
+    }]
+  });
+
+  const mergedProducts = mergeReviewedEcsProducts([performance], [braking]);
+  assert.equal(mergedProducts.length, 1);
+  const [merged] = mergedProducts;
+  assert.equal(merged.category, 'Performance Brake Parts & Upgrades');
+  assert.equal(merged.categorySlug, 'performance-brakes');
+  assert.deepEqual(merged.filters.categories, [
+    'performance', 'performance-brakes', 'g-series-braking', 'braking-performance'
+  ]);
+  assert.deepEqual(merged.filters.subcategories, ['performance-brakes', 'braking-performance']);
+  assert.deepEqual(merged.selectionSources.map(source => source.category), [
+    'Performance Brake Parts & Upgrades', 'Performance Brake Parts'
+  ]);
+});
+
 test('deduplicates a legitimate three-digit ECS Drivetrain identity', () => {
   const identity = {
     ecsPartNumber: 'ES#602', sku: 'ES#602', mpn: 'MT-LV-602',

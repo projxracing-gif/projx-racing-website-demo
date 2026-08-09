@@ -28,7 +28,26 @@ const DRIVETRAIN_PART_TYPES = Object.freeze([
   ['drivetrain-transfer-case', 'Transfer Case Parts']
 ]);
 const DRIVETRAIN_SENTINEL_ECS = Object.freeze(['ES#602', 'ES#3097303', 'ES#4811032']);
+const BRAKING_PART_TYPES = Object.freeze([
+  ['braking-tools', 'Brake Tools'],
+  ['braking-pads', 'Brake Pads'],
+  ['braking-performance', 'Performance Brake Parts'],
+  ['braking-fluid', 'Brake Fluids'],
+  ['braking-rotors', 'Brake Rotors'],
+  ['braking-calipers', 'Brake Calipers'],
+  ['braking-compounds', 'Brake Compounds & Lubricants'],
+  ['braking-lines', 'Brake Lines'],
+  ['braking-big-brakes', 'Big Brake Upgrades'],
+  ['braking-service-kits', 'Brake Service Kits'],
+  ['braking-electrical', 'Electrical Brake Parts & Components'],
+  ['braking-sensors', 'Brake Sensors'],
+  ['braking-abs', 'ABS Brake Parts'],
+  ['braking-master-cylinder', 'Brake Master Cylinder Parts'],
+  ['braking-parking-brake', 'Emergency Parking Brake Parts']
+]);
+const BRAKING_SENTINEL_ECS = Object.freeze(['ES#4900999', 'ES#4216356', 'ES#4818888']);
 const TOP_LEVEL_INTERIOR_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Interior\/[^/?#]+(?:\/\d+)?\/?$/i;
+const TOP_LEVEL_BRAKING_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Braking\/[^/?#]+(?:\/\d+)?\/?$/i;
 const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
 const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => [
   product.categorySlug, product.subcategorySlug,
@@ -203,6 +222,18 @@ for (const [slug, name] of DRIVETRAIN_PART_TYPES) {
   assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u,
     `Expected the ${slug} Drivetrain facet to have an Arabic name.`);
 }
+assert.equal(BRAKING_PART_TYPES.length, 15);
+assert.equal(new Set(BRAKING_PART_TYPES.map(([slug]) => slug)).size, 15);
+const brakingParentFacet = reviewedPartTypesBySlug.get('g-series-braking');
+assert.equal(brakingParentFacet?.name, 'G-Series Braking');
+assert.match(brakingParentFacet?.nameAr || '', /[\u0600-\u06ff]/u);
+for (const [slug, name] of BRAKING_PART_TYPES) {
+  const facet = reviewedPartTypesBySlug.get(slug);
+  assert.ok(facet, `Expected the reviewed catalogue to expose the ${slug} Braking facet.`);
+  assert.equal(facet.name, name);
+  assert.match(facet.nameAr || '', /[\u0600-\u06ff]/u,
+    `Expected the ${slug} Braking facet to have an Arabic name.`);
+}
 assert.equal(reviewedPartTypesBySlug.has('drivetrain-pdk-transmission'), false,
   'The quarantined PDK taxonomy must never appear as a customer-facing part-type facet.');
 assert.equal(reviewedBrowse.body.meta.totalPages, Math.ceil(REVIEWED_ECS_COUNT / 100));
@@ -271,6 +302,32 @@ for (const ecsPartNumber of DRIVETRAIN_SENTINEL_ECS) {
   const product = REVIEWED_ECS_PRODUCTS.find(item => item.ecsPartNumber === ecsPartNumber);
   assert.ok(product, `${ecsPartNumber} must remain available as a Drivetrain readiness sentinel.`);
   assert.ok(product.filters?.categories?.includes('g-series-drivetrain'));
+}
+const reviewedBrakingProducts = REVIEWED_ECS_PRODUCTS.filter(product =>
+  product.filters?.categories?.includes('g-series-braking')
+);
+assert.equal(reviewedBrakingProducts.length, 253,
+  'The reviewed catalogue must retain all 253 duplicate-safe G-Series Braking identities.');
+assert.equal(new Set(reviewedBrakingProducts.map(product => product.ecsPartNumber)).size, 253);
+assert.ok(reviewedBrakingProducts.every(product => (product.selectionSources || []).some(source =>
+  TOP_LEVEL_BRAKING_SOURCE.test(String(source?.sourceUrl || ''))
+)), 'Every reviewed Braking identity must retain exact ECS vehicle-category evidence.');
+const recognizedBrakingChildren = new Set(BRAKING_PART_TYPES.map(([slug]) => slug));
+assert.ok(reviewedBrakingProducts.every(product => [
+  product.categorySlug, product.subcategorySlug,
+  ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
+].some(slug => recognizedBrakingChildren.has(slug))),
+'Every reviewed Braking identity must retain an exact child part-type slug.');
+assert.ok(reviewedBrakingProducts.every(product => product.fitments?.every(fitment =>
+  fitment.confidence === 'possible'
+)), 'Braking fitment must remain possible-only pending VIN and brake-option confirmation.');
+assert.ok(reviewedBrakingProducts.every(product => product.availabilityCode === 'check_availability'),
+  'Dated ECS availability observations must never become a live-stock promise.');
+for (const ecsPartNumber of BRAKING_SENTINEL_ECS) {
+  const product = REVIEWED_ECS_PRODUCTS.find(item => item.ecsPartNumber === ecsPartNumber);
+  assert.ok(product, `${ecsPartNumber} must remain available as a Braking readiness sentinel.`);
+  assert.ok(product.filters?.categories?.includes('g-series-braking'));
+  assert.equal(product.imageStatus, 'supplier-media-verified');
 }
 assert.equal(REVIEWED_ECS_PRODUCTS.some(product => product.ecsPartNumber === 'ES#2019435'), false,
   'The quarantined PDK identity must not enter the merged reviewed catalogue.');
@@ -397,6 +454,52 @@ for (const [slug] of DRIVETRAIN_PART_TYPES) {
   assert.equal(filtered.status, 200);
   assert.equal(filtered.body.meta.totalResults, expectedCount);
 }
+const reviewedBrakingFilter = await invoke(reviewedOnly, { query: { partType: 'g-series-braking' } });
+assert.equal(reviewedBrakingFilter.status, 200);
+assert.equal(reviewedBrakingFilter.body.meta.totalResults, 253);
+assert.equal(reviewedBrakingFilter.body.meta.totalResults, reviewedCategoryCount('g-series-braking'));
+const reviewedBrakingItems = await collectAllItems(reviewedOnly, { partType: 'g-series-braking' });
+assert.equal(reviewedBrakingItems.items.length, 253);
+assert.equal(new Set(reviewedBrakingItems.items.map(item => item.handle)).size, 253);
+assert.equal(new Set(reviewedBrakingItems.items.map(item => item.sku)).size, 253);
+assert.ok(reviewedBrakingItems.items.every(item => item.availability.code === 'check_availability'));
+for (const [slug] of BRAKING_PART_TYPES) {
+  const expectedCount = reviewedCategoryCount(slug);
+  assert.ok(expectedCount > 0, `Expected reviewed Braking products in ${slug}.`);
+  const filtered = await invoke(reviewedOnly, { query: { partType: slug } });
+  assert.equal(filtered.status, 200);
+  assert.equal(filtered.body.meta.totalResults, expectedCount);
+}
+
+const reviewedBrakingIdentifierSearch = await invoke(reviewedOnly, {
+  query: { q: 'ES#4900999', supplier: 'ecs' }
+});
+assert.equal(reviewedBrakingIdentifierSearch.status, 200);
+assert.equal(reviewedBrakingIdentifierSearch.body.items.length, 1);
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].handle, 'ecs-es-4900999');
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].sku, 'ES#4900999');
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].mpn, '34525A16AC6');
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].category, 'ABS Brake Parts');
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].fitmentConfidence, null);
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].availability.code, 'check_availability');
+assert.equal(reviewedBrakingIdentifierSearch.body.items[0].image.status, 'supplier-media-verified');
+assert.match(reviewedBrakingIdentifierSearch.body.items[0].image.src,
+  /^\/assets\/products\/ecs\/g-series-braking\/[a-f0-9]{24}\.webp$/);
+
+const reviewedBrakingDetail = await invoke(reviewedOnly, {
+  query: { handle: 'ecs-es-4900999', supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(reviewedBrakingDetail.status, 200);
+assert.equal(reviewedBrakingDetail.body.product.sku, 'ES#4900999');
+assert.equal(reviewedBrakingDetail.body.product.mpn, '34525A16AC6');
+assert.equal(reviewedBrakingDetail.body.product.category, 'ABS Brake Parts');
+assert.deepEqual(new Set(reviewedBrakingDetail.body.product.fitments.flatMap(fitment => fitment.chassis)),
+  new Set(['G80', 'G82']));
+assert.deepEqual(new Set(reviewedBrakingDetail.body.product.fitments.map(fitment => fitment.model)),
+  new Set(['M3', 'M4']));
+assert.ok(reviewedBrakingDetail.body.product.fitments.every(fitment => fitment.confidence === 'possible'));
+assert.ok(reviewedBrakingDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
+assert.ok(reviewedBrakingDetail.body.product.fitments.every(fitment => /confirm/i.test(fitment.note)));
 
 const reviewedInteriorIdentifierSearch = await invoke(reviewedOnly, {
   query: { q: REPRESENTATIVE_INTERIOR_ECS, supplier: 'ecs' }

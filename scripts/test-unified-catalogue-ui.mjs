@@ -69,6 +69,10 @@ assert.match(app, /params\.set\("brand", state\.tegiwaCatalog\.brand\)/,
   'Brand filters must be sent to the unified catalogue API.');
 assert.match(app, /params\.set\("partType", state\.tegiwaCatalog\.partType\)/,
   'Part-type filters must be sent to the unified catalogue API.');
+assert.match(app, /function syncTegiwaCatalogueUrl\(\)[\s\S]*for \(const \[key, defaultValue\] of Object\.entries\(TEGIWA_SEARCH_DEFAULTS\)\)[\s\S]*params\.set\(key, state\.tegiwaCatalog\[key\]\)/,
+  'Successful catalogue interactions must persist the exact active filters in the shareable route.');
+assert.match(app, /renderTegiwaControls\(payload\);\s*syncTegiwaCatalogueUrl\(\);/,
+  'The shareable catalogue route must update only after a successful response is rendered.');
 assert.match(app, /Math\.max\(state\.tegiwaCatalog\.catalogProductCount, count\)/,
   'The headline catalogue total must not collapse to one supplier when a scoped filter is applied.');
 assert.match(app, /Math\.max\(state\.tegiwaCatalog\.availableProductCount, available\)/,
@@ -79,6 +83,33 @@ assert.match(app, /data-tegiwa-directory-part-type=/,
   'Exact supplier part-type keys must be attached to directory controls.');
 assert.match(app, /partType:\s*"exterior"/,
   'The Exterior directory must include an exact all-Exterior scope.');
+const brakingDirectoryMatch = app.match(/\{\s*query:\s*"braking",\s*partType:\s*"g-series-braking",\s*en:\s*"Brakes",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"suspension"/);
+assert.ok(brakingDirectoryMatch, 'The Brakes directory must include an exact G-Series braking scope.');
+const brakingDirectoryEntries = [...brakingDirectoryMatch[1]
+  .matchAll(/\["",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)]
+  .map(([, name, nameAr, slug]) => ({ slug, name, nameAr }));
+const expectedBrakingDirectoryEntries = [
+  ['braking-tools', 'Brake Tools'],
+  ['braking-pads', 'Brake Pads'],
+  ['braking-performance', 'Performance Brake Parts'],
+  ['braking-fluid', 'Brake Fluids'],
+  ['braking-rotors', 'Brake Rotors'],
+  ['braking-calipers', 'Brake Calipers'],
+  ['braking-compounds', 'Brake Compounds & Lubricants'],
+  ['braking-lines', 'Brake Lines'],
+  ['braking-big-brakes', 'Big Brake Upgrades'],
+  ['braking-service-kits', 'Brake Service Kits'],
+  ['braking-electrical', 'Electrical Brake Parts & Components'],
+  ['braking-sensors', 'Brake Sensors'],
+  ['braking-abs', 'ABS Brake Parts'],
+  ['braking-master-cylinder', 'Brake Master Cylinder Parts'],
+  ['braking-parking-brake', 'Emergency Parking Brake Parts']
+];
+assert.deepEqual(brakingDirectoryEntries.map(({ slug, name }) => [slug, name]),
+  expectedBrakingDirectoryEntries,
+  'Brakes directory controls must expose the 15 verified top-level Braking part types.');
+assert.ok(brakingDirectoryEntries.every(({ nameAr }) => /[\u0600-\u06ff]/u.test(nameAr)),
+  'Every Braking part-type control must preserve an Arabic label.');
 const drivetrainDirectoryMatch = app.match(/\{\s*query:\s*"drivetrain",\s*partType:\s*"g-series-drivetrain",\s*en:\s*"Drivetrain",\s*ar:\s*"[^"]+",\s*items:\s*\[([\s\S]*?)\]\s*\n\s*\},\s*\n\s*\{\s*query:\s*"cooling"/);
 assert.ok(drivetrainDirectoryMatch, 'The Drivetrain directory must include an exact G-Series scope.');
 const drivetrainDirectoryEntries = [...drivetrainDirectoryMatch[1]

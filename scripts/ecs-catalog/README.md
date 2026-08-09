@@ -35,9 +35,9 @@ No login, dealer portal, session cookie, dealer price, wholesale price, tax, VAT
 
 ## Current reviewed storefront collection
 
-The local staging storefront contains 2,334 unique ECS products after duplicate-safe merging of 41 legacy manually reviewed products with the generated G-Series Performance, Exterior, Interior and Drivetrain scopes. The generated sets cover every captured branch in those bounded scopes for G87 M2, G80 M3 Competition and G82 M4 Competition. ECS category placement is not represented as a supplier-published sales ranking, and this staging collection is not a production deployment.
+The local staging storefront contains 2,528 unique ECS products after duplicate-safe merging of 41 legacy manually reviewed products with the generated G-Series Performance, Exterior, Interior, Drivetrain and Braking scopes. The generated sets cover every captured branch in those bounded scopes for G87 M2, G80 M3 Competition and G82 M4 Competition. ECS category placement is not represented as a supplier-published sales ranking, and this staging collection is not a production deployment.
 
-The Performance report is `docs/ecs-g-series-performance-catalogue-report.json`: 2,656 listing observations, 1,109 unique products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 public-price records and 8 request-price records. The Exterior report is `docs/ecs-g-series-exterior-catalogue-report.json`: 1,725 listing observations, 782 unique products, 643 verified product-specific images, 139 labelled supplier placeholders, 782 public-price observations, 71 missing supplier descriptions and 28 missing supplier brands. The Interior report is `docs/ecs-g-series-interior-catalogue-report.json`: 1,958 listing observations, 678 unique products, 559 verified product-specific images, 119 labelled supplier placeholders, 677 public-price observations, 42 missing supplier descriptions and 670 missing supplier brands. The Drivetrain report is `docs/ecs-g-series-drivetrain-catalogue-report.json`: 64 public listing pages, 732 placements (G80 244, G82 248 and G87 240), 253 unique raw ECS identities, one fully excluded quarantined identity and 252 customer-facing products, 232 verified supplier images, 20 official placeholders, 252 public retail USD observations, zero price conflicts and zero supplier-identity conflicts. No wholesale data is present. Thirty-one same-day price differences elsewhere in the final merged catalogue remain held at `Request price` rather than publishing an ambiguous amount.
+The Performance report is `docs/ecs-g-series-performance-catalogue-report.json`: 2,656 listing observations, 1,109 unique products, 824 verified product-specific images, 285 labelled supplier placeholders, 1,101 public-price records and 8 request-price records. The Exterior report is `docs/ecs-g-series-exterior-catalogue-report.json`: 1,725 listing observations, 782 unique products, 643 verified product-specific images, 139 labelled supplier placeholders, 782 public-price observations, 71 missing supplier descriptions and 28 missing supplier brands. The Interior report is `docs/ecs-g-series-interior-catalogue-report.json`: 1,958 listing observations, 678 unique products, 559 verified product-specific images, 119 labelled supplier placeholders, 677 public-price observations, 42 missing supplier descriptions and 670 missing supplier brands. The Drivetrain report is `docs/ecs-g-series-drivetrain-catalogue-report.json`: 64 public listing pages, 732 placements (G80 244, G82 248 and G87 240), 253 unique raw ECS identities, one fully excluded quarantined identity and 252 customer-facing products, 232 verified supplier images, 20 official placeholders, 252 public retail USD observations, zero price conflicts and zero supplier-identity conflicts. The Braking report is `docs/ecs-g-series-braking-catalogue-report.json`: 77 public listing pages, 822 placements (G80 289, G82 288 and G87 245), 253 customer-facing products, 216 verified supplier images, 37 official labelled placeholders, 253 public retail USD observations, zero price conflicts and zero quarantined identities. No wholesale data is present. Thirty-one same-day price differences elsewhere in the final merged catalogue remain held at `Request price` rather than publishing an ambiguous amount.
 
 ### Bounded Drivetrain staging workflow
 
@@ -68,6 +68,27 @@ The generated vehicle-category records deliberately retain these limitations:
 - no live ECS stock feed exists;
 - no independently verified detailed specifications, options, variations or exact drivetrain fitment are available; and
 - product-specific media is used only when captured and verified; otherwise the storefront shows a labelled ECS placeholder.
+
+### Bounded Braking staging workflow
+
+Keep the three exact vehicle captures, shared scope manifest and media indexes under ignored `private-imports/`. Combine the reconciled G80, G82 and G87 captures before generating the tracked Braking module and report:
+
+```text
+npm run catalog:ecs:combine-g-series-braking -- \
+  --capture-dir private-imports/ecs-g-series-braking-20260809 \
+  --manifest private-imports/ecs-g-series-braking-20260809/g-series-braking-scope-manifest.json \
+  --output private-imports/ecs-g-series-braking-20260809/g-series-braking-listing-capture.json
+
+npm run catalog:ecs:g-series-braking -- \
+  --input private-imports/ecs-g-series-braking-20260809/g-series-braking-listing-capture.json \
+  --media-index private-imports/ecs-g-series-braking-20260809/media-index.json \
+  --scope-manifest private-imports/ecs-g-series-braking-20260809/g-series-braking-scope-manifest.json \
+  --output server/data/ecs-g-series-braking-products.js \
+  --report docs/ecs-g-series-braking-catalogue-report.json \
+  --minimum-products 253
+```
+
+The Braking manifest has 15 English/Arabic category definitions and exact keyed counts totalling 822 placements. It uses exact `Braking/.../` vehicle-relative paths and collision-safe `braking-*` child slugs; the generated records keep the same possible-fitment, dated-price, confirmation-only availability and verified-media safeguards as the other bounded G-Series scopes. G87 publishes 13 of the 15 branches, so Electrical and ABS remain explicit verified zero-count entries rather than being silently omitted.
 
 Run the deterministic audit without contacting ECS:
 

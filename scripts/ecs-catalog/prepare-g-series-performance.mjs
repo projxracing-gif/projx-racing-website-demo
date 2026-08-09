@@ -7,7 +7,7 @@ const REPO = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const ECS_PRODUCT_HOST = 'www.ecstuning.com';
 const ECS_IMAGE_HOST = 'assets.ecstuning.com';
 const PRODUCT_PATH = /^\/b-[^/?#]+-parts\/[^/?#]+\/[^/?#]+\/$/i;
-const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior|interior|drivetrain)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
+const SAFE_ASSET_PATH = /^assets\/products\/ecs\/g-series-(?:performance|exterior|interior|drivetrain|braking)\/[a-z0-9][a-z0-9._-]*\.(?:avif|jpe?g|png|webp)$/i;
 const VEHICLES = Object.freeze({
   'BMW G87 M2 S58 3.0L': Object.freeze({ model: 'M2', trim: null, generation: 'G87' }),
   'BMW G80 M3 Competition S58 3.0L': Object.freeze({ model: 'M3', trim: 'Competition', generation: 'G80' }),
@@ -214,6 +214,11 @@ const DRIVETRAIN_VEHICLE_BASE_PATHS = Object.freeze({
   'BMW G80 M3 Competition S58 3.0L': '/BMW-G80-M3_Competition-S58_3.0L/',
   'BMW G82 M4 Competition S58 3.0L': '/BMW-G82-M4_Competition-S58_3.0L/'
 });
+const BRAKING_VEHICLE_SOURCE_PATHS = Object.freeze({
+  'BMW G87 M2 S58 3.0L': '/BMW-G87-M2-S58_3.0L/Braking/',
+  'BMW G80 M3 Competition S58 3.0L': '/BMW-G80-M3_Competition-S58_3.0L/Braking/',
+  'BMW G82 M4 Competition S58 3.0L': '/BMW-G82-M4_Competition-S58_3.0L/Braking/'
+});
 const CATALOGUE_SCOPES = Object.freeze({
   performance: Object.freeze({
     key: 'performance', label: 'Performance', exportName: 'ECS_G_SERIES_PERFORMANCE_PRODUCTS',
@@ -243,13 +248,33 @@ const CATALOGUE_SCOPES = Object.freeze({
   }),
   drivetrain: Object.freeze({
     key: 'drivetrain', label: 'Drivetrain', exportName: 'ECS_G_SERIES_DRIVETRAIN_PRODUCTS',
+    quarantineExportName: 'ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES',
     parentCategorySlug: 'g-series-drivetrain',
     vehicleSourcePaths: DRIVETRAIN_VEHICLE_SOURCE_PATHS,
     vehicleBasePaths: DRIVETRAIN_VEHICLE_BASE_PATHS,
     categoryPathsAreVehicleRelative: true,
     manifestRequired: true,
+    manifestKind: 'g-series-drivetrain-scope-manifest',
+    manifestLabel: 'Drivetrain',
+    manifestPathSegment: 'Drivetrain',
+    manifestSlugPrefix: 'drivetrain',
     fitmentNoteAr: '\u0623\u062f\u0631\u062c\u062a ECS \u0627\u0644\u0642\u0637\u0639\u0629 \u0636\u0645\u0646 \u0641\u0626\u0629 \u0646\u0638\u0627\u0645 \u0627\u0644\u062f\u0641\u0639 \u0644\u0647\u0630\u0647 \u0627\u0644\u0633\u064a\u0627\u0631\u0629\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0631\u0642\u0645 \u0627\u0644\u0647\u064a\u0643\u0644 \u0648\u0633\u0646\u0629 \u0627\u0644\u0635\u0646\u0639 \u0648\u0627\u0644\u0645\u062d\u0631\u0643 \u0648\u0646\u0638\u0627\u0645 \u0627\u0644\u062f\u0641\u0639 \u0648\u0627\u0644\u062e\u064a\u0627\u0631\u0627\u062a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.',
     selectionNoteAr: '\u0645\u062f\u0631\u062c \u0636\u0645\u0646 \u0641\u0626\u0627\u062a \u0646\u0638\u0627\u0645 \u0627\u0644\u062f\u0641\u0639 \u0644\u062f\u0649 ECS \u0648\u0641\u0642 \u062a\u0631\u062a\u064a\u0628 \u0627\u0644\u0635\u0644\u0629 \u0627\u0644\u0638\u0627\u0647\u0631\u061b \u0644\u0627 \u062a\u0646\u0634\u0631 ECS \u062a\u0631\u062a\u064a\u0628\u0627\u064b \u0628\u062d\u0633\u0628 \u0639\u062f\u062f \u0627\u0644\u0648\u062d\u062f\u0627\u062a \u0627\u0644\u0645\u0628\u0627\u0639\u0629.'
+  }),
+  braking: Object.freeze({
+    key: 'braking', label: 'Braking', exportName: 'ECS_G_SERIES_BRAKING_PRODUCTS',
+    quarantineExportName: 'ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES',
+    parentCategorySlug: 'g-series-braking',
+    vehicleSourcePaths: BRAKING_VEHICLE_SOURCE_PATHS,
+    vehicleBasePaths: DRIVETRAIN_VEHICLE_BASE_PATHS,
+    categoryPathsAreVehicleRelative: true,
+    manifestRequired: true,
+    manifestKind: 'g-series-braking-scope-manifest',
+    manifestLabel: 'Braking',
+    manifestPathSegment: 'Braking',
+    manifestSlugPrefix: 'braking',
+    fitmentNoteAr: '\u0623\u062f\u0631\u062c\u062a ECS \u0627\u0644\u0642\u0637\u0639\u0629 \u0636\u0645\u0646 \u0641\u0626\u0629 \u0627\u0644\u0641\u0631\u0627\u0645\u0644 \u0644\u0647\u0630\u0647 \u0627\u0644\u0633\u064a\u0627\u0631\u0629\u061b \u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u0631\u0642\u0645 \u0627\u0644\u0647\u064a\u0643\u0644 \u0648\u0633\u0646\u0629 \u0627\u0644\u0635\u0646\u0639 \u0648\u0646\u0648\u0639 \u0646\u0638\u0627\u0645 \u0627\u0644\u0641\u0631\u0627\u0645\u0644 \u0648\u0627\u0644\u062e\u064a\u0627\u0631\u0627\u062a \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.',
+    selectionNoteAr: '\u0645\u062f\u0631\u062c \u0636\u0645\u0646 \u0641\u0626\u0627\u062a \u0641\u0631\u0627\u0645\u0644 \u0627\u0644\u0633\u064a\u0627\u0631\u0629 \u0644\u062f\u0649 ECS \u0648\u0641\u0642 \u062a\u0631\u062a\u064a\u0628 \u0627\u0644\u0635\u0644\u0629 \u0627\u0644\u0638\u0627\u0647\u0631\u061b \u0644\u0627 \u062a\u0646\u0634\u0631 ECS \u062a\u0631\u062a\u064a\u0628\u0627\u064b \u0628\u062d\u0633\u0628 \u0639\u062f\u062f \u0627\u0644\u0648\u062d\u062f\u0627\u062a \u0627\u0644\u0645\u0628\u0627\u0639\u0629.'
   })
 });
 
@@ -311,26 +336,32 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function safeVehicleRelativeCategoryPath(value) {
+function safeVehicleRelativeCategoryPath(value, requiredSegment) {
   const sourcePath = clean(value, 300);
   if (!sourcePath || sourcePath.startsWith('/') || !sourcePath.endsWith('/')
     || sourcePath.includes('\\') || /[?#]/.test(sourcePath)) return null;
   const segments = sourcePath.slice(0, -1).split('/');
-  if (!segments.includes('Drivetrain') || segments.some(segment => !segment
+  if (!segments.includes(requiredSegment) || segments.some(segment => !segment
     || segment === '.' || segment === '..'
     || !/^[a-z0-9][a-z0-9_.!%+&(),~-]*$/i.test(segment))) return null;
   return sourcePath;
 }
 
-export function createGSeriesDrivetrainScope(manifestDocument) {
+function createGSeriesManifestScope(manifestDocument, scopeName) {
+  const configured = CATALOGUE_SCOPES[scopeName];
+  if (!configured?.manifestRequired || !configured.manifestKind || !configured.manifestLabel
+    || !configured.manifestPathSegment || !configured.manifestSlugPrefix) {
+    throw new Error(`The ECS G-Series ${scopeName} manifest scope is not configured.`);
+  }
+  const label = configured.manifestLabel;
   const document = manifestDocument?.scopeManifest || manifestDocument;
   if (document?.schemaVersion !== 1 || document?.supplier !== 'ECS Tuning'
-    || document?.kind !== 'g-series-drivetrain-scope-manifest'
+    || document?.kind !== configured.manifestKind
     || !isPlainObject(document?.categories) || !isPlainObject(document?.counts)) {
-    throw new Error('A validated G-Series Drivetrain scope manifest is required.');
+    throw new Error(`A validated G-Series ${label} scope manifest is required.`);
   }
   const categoryEntries = Object.entries(document.categories);
-  if (!categoryEntries.length) throw new Error('The G-Series Drivetrain scope manifest has no categories.');
+  if (!categoryEntries.length) throw new Error(`The G-Series ${label} scope manifest has no categories.`);
   const categoryKeys = {};
   const categoryAr = {};
   const categorySourcePaths = {};
@@ -342,7 +373,7 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
   for (const [key, entry] of categoryEntries) {
     const name = clean(entry?.name, 160);
     const nameAr = clean(entry?.nameAr, 160);
-    const sourcePath = safeVehicleRelativeCategoryPath(entry?.sourcePath);
+    const sourcePath = safeVehicleRelativeCategoryPath(entry?.sourcePath, configured.manifestPathSegment);
     const categorySlug = clean(entry?.slug, 120).toLocaleLowerCase('en-US');
     const catalogueDisposition = clean(entry?.catalogueDisposition, 40);
     const quarantineReason = clean(entry?.quarantineReason, 500);
@@ -351,11 +382,12 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
     const quarantineValid = !quarantineConfigured || (entry?.excludeFromCustomerFacing === true
       && catalogueDisposition === 'quarantined' && Boolean(quarantineReason));
     const normalizedName = name.toLocaleLowerCase('en-US');
+    const slugPattern = new RegExp(`^${configured.manifestSlugPrefix}-[a-z0-9]+(?:-[a-z0-9]+)*$`);
     if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(key) || !name || !nameAr || !sourcePath
-      || !/^drivetrain-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(categorySlug)
+      || !slugPattern.test(categorySlug)
       || !quarantineValid || seenNames.has(normalizedName) || seenPaths.has(sourcePath)
       || seenSlugs.has(categorySlug)) {
-      throw new Error(`The G-Series Drivetrain category manifest is invalid for ${key || 'an entry'}.`);
+      throw new Error(`The G-Series ${label} category manifest is invalid for ${key || 'an entry'}.`);
     }
     seenNames.add(normalizedName);
     seenPaths.add(sourcePath);
@@ -376,7 +408,7 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
   const expectedVehicleNames = Object.keys(VEHICLES);
   if (Object.keys(document.counts).length !== expectedVehicleNames.length
     || expectedVehicleNames.some(vehicle => !Object.hasOwn(document.counts, vehicle))) {
-    throw new Error('The G-Series Drivetrain scope manifest must contain exact keyed counts for G87, G80 and G82.');
+    throw new Error(`The G-Series ${label} scope manifest must contain exact keyed counts for G87, G80 and G82.`);
   }
   const expectedCategoryKeys = Object.keys(categoryKeys);
   const expectedCategoryCounts = {};
@@ -386,14 +418,14 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
     const vehicleCounts = document.counts[vehicle];
     if (!isPlainObject(vehicleCounts) || Object.keys(vehicleCounts).length !== expectedCategoryKeys.length
       || expectedCategoryKeys.some(key => !Object.hasOwn(vehicleCounts, key))) {
-      throw new Error(`The G-Series Drivetrain scope manifest has incomplete keyed counts for ${vehicle}.`);
+      throw new Error(`The G-Series ${label} scope manifest has incomplete keyed counts for ${vehicle}.`);
     }
     expectedCategoryCounts[vehicle] = {};
     canonicalCounts[vehicle] = {};
     for (const key of expectedCategoryKeys) {
       const count = Number(vehicleCounts[key]);
       if (!Number.isInteger(count) || count < 0) {
-        throw new Error(`The G-Series Drivetrain scope manifest has an invalid count for ${vehicle} / ${key}.`);
+        throw new Error(`The G-Series ${label} scope manifest has an invalid count for ${vehicle} / ${key}.`);
       }
       const category = categoryKeys[key];
       expectedCategoryCounts[vehicle][category] = count;
@@ -401,11 +433,11 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
       totalPlacements += count;
     }
   }
-  if (!totalPlacements) throw new Error('The G-Series Drivetrain scope manifest has no captured placements.');
+  if (!totalPlacements) throw new Error(`The G-Series ${label} scope manifest has no captured placements.`);
   const scopeManifest = Object.freeze({
     schemaVersion: 1,
     supplier: 'ECS Tuning',
-    kind: 'g-series-drivetrain-scope-manifest',
+    kind: configured.manifestKind,
     categories: Object.freeze(canonicalCategories),
     counts: Object.freeze(canonicalCounts)
   });
@@ -413,7 +445,7 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
     .filter(category => category.excludeFromCustomerFacing === true)
     .map(category => Object.freeze({ ...category })));
   return Object.freeze({
-    ...CATALOGUE_SCOPES.drivetrain,
+    ...configured,
     categoryKeys: Object.freeze(categoryKeys),
     categoryAr: Object.freeze(categoryAr),
     categorySourcePaths: Object.freeze(categorySourcePaths),
@@ -424,10 +456,18 @@ export function createGSeriesDrivetrainScope(manifestDocument) {
   });
 }
 
+export function createGSeriesDrivetrainScope(manifestDocument) {
+  return createGSeriesManifestScope(manifestDocument, 'drivetrain');
+}
+
+export function createGSeriesBrakingScope(manifestDocument) {
+  return createGSeriesManifestScope(manifestDocument, 'braking');
+}
+
 function catalogueScope(scopeName, manifestDocument = null) {
   const configured = CATALOGUE_SCOPES[scopeName];
   if (!configured) throw new Error(`Unknown ECS G-Series catalogue scope: ${scopeName}.`);
-  return configured.manifestRequired ? createGSeriesDrivetrainScope(manifestDocument) : configured;
+  return configured.manifestRequired ? createGSeriesManifestScope(manifestDocument, scopeName) : configured;
 }
 
 function expectedCategorySourcePath(scope, vehicle, category) {
@@ -792,6 +832,10 @@ export function prepareGSeriesDrivetrain(rawDocument, mediaDocument, options = {
   return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'drivetrain' });
 }
 
+export function prepareGSeriesBraking(rawDocument, mediaDocument, options = {}) {
+  return prepareGSeriesCatalogue(rawDocument, mediaDocument, { ...options, scopeName: 'braking' });
+}
+
 function option(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : null;
@@ -833,7 +877,7 @@ async function main() {
   const minimumProducts = Number(option('--minimum-products') || 1);
   const scopeName = option('--scope') || 'performance';
   if (!input || !mediaIndex || !output) {
-    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior|interior|drivetrain] [--scope-manifest <manifest.json>] [--report <report.json>] [--minimum-products <count>]');
+    throw new Error('Usage: prepare-g-series-performance.mjs --input <capture.json> --media-index <media.json> --output <module.js> [--scope performance|exterior|interior|drivetrain|braking] [--scope-manifest <manifest.json>] [--report <report.json>] [--minimum-products <count>]');
   }
   if (!CATALOGUE_SCOPES[scopeName]) throw new Error(`Unknown ECS G-Series catalogue scope: ${scopeName}.`);
   const [rawDocument, mediaDocument, explicitScopeManifest] = await Promise.all([
@@ -854,8 +898,8 @@ async function main() {
   const relativeOutput = path.relative(REPO, absoluteOutput);
   if (relativeOutput.startsWith('..') || path.isAbsolute(relativeOutput)) throw new Error('The generated module must stay inside the repository.');
   await mkdir(path.dirname(absoluteOutput), { recursive: true });
-  const quarantineExport = scopeName === 'drivetrain'
-    ? `export const ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES = Object.freeze(${JSON.stringify(quarantinedEcsIdentities, null, 2)});\n`
+  const quarantineExport = scope.quarantineExportName
+    ? `export const ${scope.quarantineExportName} = Object.freeze(${JSON.stringify(quarantinedEcsIdentities, null, 2)});\n`
     : '';
   const moduleBody = `// Generated from a validated, dated ECS vehicle-category capture.\n${quarantineExport}export const ${scope.exportName} = Object.freeze(${JSON.stringify(products, null, 2)});\n`;
   await writeAtomic(absoluteOutput, moduleBody);

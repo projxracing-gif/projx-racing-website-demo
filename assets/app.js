@@ -772,9 +772,22 @@
 
   const PARTS_CATALOGUE_DIRECTORY = [
     {
-      query: "brake", en: "Brakes", ar: "الفرامل", items: [
-        ["brake discs", "Brake Discs", "ديسكات الفرامل"], ["brake pads", "Brake Pads", "فحمات الفرامل"], ["big brake kit", "Big Brake Kits", "أنظمة فرامل كبيرة"],
-        ["brake fluid", "Brake Fluid", "زيت الفرامل"], ["brake lines", "Brake Lines", "ليّات الفرامل"], ["brake pedals", "Brake Pedals", "دواسات الفرامل"]
+      query: "braking", partType: "g-series-braking", en: "Brakes", ar: "الفرامل", items: [
+        ["", "Brake Tools", "أدوات الفرامل", "braking-tools"],
+        ["", "Brake Pads", "فحمات الفرامل", "braking-pads"],
+        ["", "Performance Brake Parts", "قطع فرامل الأداء", "braking-performance"],
+        ["", "Brake Fluids", "سوائل الفرامل", "braking-fluid"],
+        ["", "Brake Rotors", "أقراص الفرامل", "braking-rotors"],
+        ["", "Brake Calipers", "كليبرات الفرامل", "braking-calipers"],
+        ["", "Brake Compounds & Lubricants", "مركبات وشحوم الفرامل", "braking-compounds"],
+        ["", "Brake Lines", "خطوط الفرامل", "braking-lines"],
+        ["", "Big Brake Upgrades", "ترقيات الفرامل الكبيرة", "braking-big-brakes"],
+        ["", "Brake Service Kits", "أطقم صيانة الفرامل", "braking-service-kits"],
+        ["", "Electrical Brake Parts & Components", "قطع ومكونات الفرامل الكهربائية", "braking-electrical"],
+        ["", "Brake Sensors", "حساسات الفرامل", "braking-sensors"],
+        ["", "ABS Brake Parts", "قطع نظام ABS", "braking-abs"],
+        ["", "Brake Master Cylinder Parts", "قطع ماستر الفرامل", "braking-master-cylinder"],
+        ["", "Emergency Parking Brake Parts", "قطع فرامل التوقف الطارئة", "braking-parking-brake"]
       ]
     },
     {
@@ -1035,6 +1048,25 @@
     if (!params.has(TEGIWA_PRODUCT_QUERY)) return false;
     params.delete(TEGIWA_PRODUCT_QUERY);
     history.replaceState(tegiwaHistoryState(), "", absoluteRouteUrl(routeWithQuery(currentPath(), params)));
+    updateLanguageRouteLinks();
+    return true;
+  }
+  function syncTegiwaCatalogueUrl() {
+    if (currentPath() !== "/parts") return false;
+    const params = currentRouteQueryParams();
+    const productHandle = tegiwaProductHandle(params.get(TEGIWA_PRODUCT_QUERY));
+    params.delete("q");
+    params.delete("page");
+    for (const key of Object.keys(TEGIWA_SEARCH_DEFAULTS)) params.delete(key);
+    if (state.tegiwaCatalog.query) params.set("q", state.tegiwaCatalog.query);
+    for (const [key, defaultValue] of Object.entries(TEGIWA_SEARCH_DEFAULTS)) {
+      if (state.tegiwaCatalog[key] !== defaultValue) params.set(key, state.tegiwaCatalog[key]);
+    }
+    if (state.tegiwaCatalog.currentPage > 1) params.set("page", String(state.tegiwaCatalog.currentPage));
+    if (productHandle) params.set(TEGIWA_PRODUCT_QUERY, productHandle);
+    const url = absoluteRouteUrl(routeWithQuery("/parts", params));
+    if (url === location.href) return false;
+    history.replaceState(tegiwaHistoryState(productHandle), "", url);
     updateLanguageRouteLinks();
     return true;
   }
@@ -2967,6 +2999,7 @@
       if (!Array.isArray(payload.items)) throw new Error("catalogue_unavailable");
       applyCatalogueSource(result);
       renderTegiwaControls(payload);
+      syncTegiwaCatalogueUrl();
       if (scrollResults) requestAnimationFrame(() => {
         const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
         root.querySelector("[data-tegiwa-results]")?.scrollIntoView({ behavior, block: "start" });

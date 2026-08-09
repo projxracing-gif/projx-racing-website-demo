@@ -6,6 +6,10 @@ import {
   ECS_G_SERIES_DRIVETRAIN_PRODUCTS,
   ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES
 } from './data/ecs-g-series-drivetrain-products.js';
+import {
+  ECS_G_SERIES_BRAKING_PRODUCTS,
+  ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES
+} from './data/ecs-g-series-braking-products.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -342,9 +346,13 @@ export function mergeReviewedEcsProducts(existingProducts, generatedProducts) {
 const mergedReviewedEcsProducts = mergeReviewedEcsProducts(
   globalThis.PROJX_ECS_PRODUCTS || [],
   [...ECS_G_SERIES_PERFORMANCE_PRODUCTS, ...ECS_G_SERIES_EXTERIOR_PRODUCTS,
-    ...ECS_G_SERIES_INTERIOR_PRODUCTS, ...ECS_G_SERIES_DRIVETRAIN_PRODUCTS]
+    ...ECS_G_SERIES_INTERIOR_PRODUCTS, ...ECS_G_SERIES_DRIVETRAIN_PRODUCTS,
+    ...ECS_G_SERIES_BRAKING_PRODUCTS]
 );
-const quarantinedEcsIdentities = new Set(ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES);
+const quarantinedEcsIdentities = new Set([
+  ...ECS_G_SERIES_DRIVETRAIN_QUARANTINED_ECS_IDENTITIES,
+  ...ECS_G_SERIES_BRAKING_QUARANTINED_ECS_IDENTITIES
+]);
 const quarantinedProductSlugs = new Set(mergedReviewedEcsProducts
   .filter(product => quarantinedEcsIdentities.has(ecsIdentity(product)))
   .flatMap(product => [product?.slug, product?.publicKey]).filter(Boolean));
@@ -515,6 +523,28 @@ function localCatalogueFacets(products) {
     ['drivetrain-transfer-case', ['Transfer Case Parts', 'أجزاء علبة التحويل']]
   ]);
   for (const [slug, [name, nameAr]] of drivetrainFacetNames) {
+    const current = partTypes.get(slug);
+    if (current) partTypes.set(slug, { ...current, name, nameAr });
+  }
+  const brakingFacetNames = new Map([
+    ['g-series-braking', ['G-Series Braking', 'فرامل سلسلة G']],
+    ['braking-tools', ['Brake Tools', 'أدوات الفرامل']],
+    ['braking-pads', ['Brake Pads', 'فحمات الفرامل']],
+    ['braking-performance', ['Performance Brake Parts', 'قطع فرامل الأداء']],
+    ['braking-fluid', ['Brake Fluids', 'سوائل الفرامل']],
+    ['braking-rotors', ['Brake Rotors', 'أقراص الفرامل']],
+    ['braking-calipers', ['Brake Calipers', 'كليبرات الفرامل']],
+    ['braking-compounds', ['Brake Compounds & Lubricants', 'مركبات وشحوم الفرامل']],
+    ['braking-lines', ['Brake Lines', 'خطوط الفرامل']],
+    ['braking-big-brakes', ['Big Brake Upgrades', 'ترقيات الفرامل الكبيرة']],
+    ['braking-service-kits', ['Brake Service Kits', 'أطقم صيانة الفرامل']],
+    ['braking-electrical', ['Electrical Brake Parts & Components', 'قطع ومكونات الفرامل الكهربائية']],
+    ['braking-sensors', ['Brake Sensors', 'حساسات الفرامل']],
+    ['braking-abs', ['ABS Brake Parts', 'قطع نظام ABS']],
+    ['braking-master-cylinder', ['Brake Master Cylinder Parts', 'قطع ماستر الفرامل']],
+    ['braking-parking-brake', ['Emergency Parking Brake Parts', 'قطع فرامل التوقف الطارئة']]
+  ]);
+  for (const [slug, [name, nameAr]] of brakingFacetNames) {
     const current = partTypes.get(slug);
     if (current) partTypes.set(slug, { ...current, name, nameAr });
   }

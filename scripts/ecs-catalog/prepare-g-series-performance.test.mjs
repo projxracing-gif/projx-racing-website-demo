@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  createGSeriesBrakingScope,
   createGSeriesDrivetrainScope,
+  prepareGSeriesBraking as prepareGSeriesBrakingSource,
   prepareGSeriesDrivetrain as prepareGSeriesDrivetrainSource,
   prepareGSeriesExterior as prepareGSeriesExteriorSource,
   prepareGSeriesInterior as prepareGSeriesInteriorSource,
@@ -98,6 +100,31 @@ for (const [vehicle, counts] of Object.entries(quarantinedDrivetrainScopeManifes
   counts['fixture-pdk'] = vehicle === 'BMW G82 M4 Competition S58 3.0L' ? 1 : 0;
 }
 
+const brakingScopeManifest = {
+  schemaVersion: 1,
+  supplier: 'ECS Tuning',
+  kind: 'g-series-braking-scope-manifest',
+  categories: {
+    'fixture-pads': {
+      name: 'Fixture Brake Pads',
+      nameAr: '\u0641\u062d\u0645\u0627\u062a \u0641\u0631\u0627\u0645\u0644 \u0644\u0644\u0627\u062e\u062a\u0628\u0627\u0631',
+      sourcePath: 'Braking/Pads/',
+      slug: 'braking-fixture-pads'
+    },
+    'fixture-tools': {
+      name: 'Fixture Brake Tools',
+      nameAr: '\u0623\u062f\u0648\u0627\u062a \u0641\u0631\u0627\u0645\u0644 \u0644\u0644\u0627\u062e\u062a\u0628\u0627\u0631',
+      sourcePath: 'Braking/Tools/',
+      slug: 'braking-fixture-tools'
+    }
+  },
+  counts: {
+    'BMW G87 M2 S58 3.0L': { 'fixture-pads': 0, 'fixture-tools': 1 },
+    'BMW G80 M3 Competition S58 3.0L': { 'fixture-pads': 1, 'fixture-tools': 0 },
+    'BMW G82 M4 Competition S58 3.0L': { 'fixture-pads': 0, 'fixture-tools': 1 }
+  }
+};
+
 test('deduplicates ECS products and retains vehicle evidence', () => {
   const products = prepareGSeriesPerformance(source, media, { minimumProducts: 1 });
   assert.equal(products.length, 1);
@@ -183,6 +210,52 @@ test('prepares manifest-backed Drivetrain paths with collision-safe parent and c
     drivetrain.records[1].sourceUrl
   ]);
   assert.equal(product.images[0].src, 'assets/products/ecs/g-series-drivetrain/es4699999.webp');
+});
+
+test('prepares manifest-backed Braking paths with collision-safe parent and child filters', () => {
+  const braking = structuredClone(source);
+  braking.records = [structuredClone(source.records[0]), structuredClone(source.records[1])];
+  braking.records[0].category = 'Fixture Brake Pads';
+  braking.records[0].sourceUrl = 'https://www.ecstuning.com/BMW-G80-M3_Competition-S58_3.0L/Braking/Pads/';
+  braking.records[1].category = 'Fixture Brake Tools';
+  braking.records[1].sourceUrl = 'https://www.ecstuning.com/BMW-G82-M4_Competition-S58_3.0L/Braking/Tools/';
+  const brakingMedia = structuredClone(media);
+  brakingMedia.images[0].localPath = 'assets/products/ecs/g-series-braking/es4699999.webp';
+  brakingMedia.images[1].localPath = 'assets/products/ecs/g-series-braking/ecs-box-no-image.jpg';
+  const [product] = prepareGSeriesBrakingSource(braking, brakingMedia, {
+    minimumProducts: 1,
+    requireCompleteScope: false,
+    scopeManifest: brakingScopeManifest
+  });
+  assert.equal(product.category, 'Fixture Brake Pads');
+  assert.equal(product.categoryAr, brakingScopeManifest.categories['fixture-pads'].nameAr);
+  assert.equal(product.categorySlug, 'braking-fixture-pads');
+  assert.equal(product.fitments[0].evidence, 'ecs-vehicle-braking-category');
+  assert.ok(product.fitments.every(fitment => fitment.confidence === 'possible'));
+  assert.deepEqual(product.filters.categories, [
+    'g-series-braking',
+    'braking-fixture-pads',
+    'braking-fixture-tools'
+  ]);
+  assert.deepEqual(product.selectionSources.map(item => item.sourceUrl), [
+    braking.records[0].sourceUrl,
+    braking.records[1].sourceUrl
+  ]);
+  assert.equal(product.images[0].src, 'assets/products/ecs/g-series-braking/es4699999.webp');
+
+  const scope = createGSeriesBrakingScope(brakingScopeManifest);
+  assert.equal(scope.parentCategorySlug, 'g-series-braking');
+  assert.equal(scope.expectedCategoryCounts['BMW G80 M3 Competition S58 3.0L']['Fixture Brake Pads'], 1);
+  assert.throws(() => prepareGSeriesBrakingSource(braking, brakingMedia, {
+    requireCompleteScope: false
+  }), /Braking scope manifest is required/);
+
+  const unsafePath = structuredClone(brakingScopeManifest);
+  unsafePath.categories['fixture-tools'].sourcePath = 'Drivetrain/Tools/';
+  assert.throws(() => createGSeriesBrakingScope(unsafePath), /Braking category manifest is invalid/);
+  const unsafeSlug = structuredClone(brakingScopeManifest);
+  unsafeSlug.categories['fixture-tools'].slug = 'drivetrain-fixture-tools';
+  assert.throws(() => createGSeriesBrakingScope(unsafeSlug), /Braking category manifest is invalid/);
 });
 
 test('keeps quarantined Drivetrain evidence in the manifest while excluding its complete ECS identity', () => {
