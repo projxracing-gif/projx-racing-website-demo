@@ -99,7 +99,25 @@ tests.push(['shipping estimator returns one truthful Great Britain supplier grou
   && shippingEstimate.body.estimate?.groups?.[0]?.originCountryCode === 'GB']);
 tests.push(['shipping estimator never fabricates an unavailable rate', shippingEstimate.body.estimate?.status === 'confirmation_required'
   && shippingEstimate.body.estimate?.groups?.[0]?.rate === null
-  && shippingEstimate.body.estimate?.groups?.[0]?.reason === 'authorised_supplier_rate_access_required']);
+  && shippingEstimate.body.estimate?.groups?.[0]?.carrier === null
+  && shippingEstimate.body.estimate?.groups?.[0]?.service === null
+  && shippingEstimate.body.estimate?.groups?.[0]?.reason === 'verified_package_data_missing_and_live_rate_access_not_connected'
+  && shippingEstimate.body.estimate?.groups?.[0]?.packageDataStatus === 'not_available'
+  && shippingEstimate.body.estimate?.groups?.[0]?.rateAccessStatus === 'not_connected'
+  && shippingEstimate.body.estimate?.groups?.[0]?.blockingReasons?.join(',') === 'verified_package_data_required,authorised_dynamic_rate_access_required']);
+const tegiwaShippingGroup = shippingEstimate.body.estimate?.groups?.[0];
+tests.push(['Tegiwa group identifies the verified checkout and rate-source evidence', tegiwaShippingGroup?.quoteMethod === 'shopify_dynamic_checkout'
+  && tegiwaShippingGroup?.rateSource === 'Calcurates'
+  && tegiwaShippingGroup?.fulfilmentSystem === 'Despatch Cloud'
+  && tegiwaShippingGroup?.evidenceAsOf === '2026-08-10']);
+tests.push(['Tegiwa metadata does not promote a bounded DHL observation to a live quote', tegiwaShippingGroup?.carrier === null
+  && tegiwaShippingGroup?.observedCarrierFamilies?.join(',') === 'DHL Express'
+  && tegiwaShippingGroup?.restrictions?.includes('dhl_express_observation_is_limited_to_one_bounded_kuwait_test')
+  && tegiwaShippingGroup?.restrictions?.includes('despatch_cloud_is_a_fulfilment_and_data_processor_not_a_verified_rating_engine')]);
+tests.push(['Tegiwa metadata exposes required calculation inputs without a proprietary formula', tegiwaShippingGroup?.calculationFactors?.includes('verified_package_weight_and_dimensions')
+  && tegiwaShippingGroup?.requiredInputs?.includes('destination_postcode')
+  && tegiwaShippingGroup?.consolidationPolicy === 'supplier_checkout_confirmation_required'
+  && tegiwaShippingGroup?.dutiesMode === 'not_proven_included_confirm_exact_quote']);
 const mixedPlan = shippingPlan([
   { productId: 'tegiwa-test', sku: 'TEG-1', quantity: 1, supplier: { slug: 'tegiwa', name: 'Tegiwa', originCountryCode: 'GB', originCountryName: 'Great Britain' } },
   { productId: 'ecs-test', sku: 'ECS-1', quantity: 2, supplier: { slug: 'ecs', name: 'ECS Tuning', originCountryCode: 'US', originCountryName: 'United States' } }
@@ -107,6 +125,39 @@ const mixedPlan = shippingPlan([
 tests.push(['mixed supplier carts are explicitly split into separate origin groups', mixedPlan.splitShipment === true
   && mixedPlan.groupCount === 2
   && mixedPlan.groups.map(group => group.originCountryCode).sort().join(',') === 'GB,US']);
+const ecsShippingGroup = mixedPlan.groups.find(group => group.supplier === 'ecs');
+tests.push(['ECS group truthfully exposes dynamic method and undisclosed backend metadata', ecsShippingGroup?.quoteMethod === 'dynamic_destination_aware_supplier_cart'
+  && ecsShippingGroup?.rateSource === 'undisclosed_supplier_backend'
+  && ecsShippingGroup?.fulfilmentSystem === 'undisclosed'
+  && ecsShippingGroup?.observedCarrierFamilies?.join(',') === 'UPS,FedEx,USPS'
+  && ecsShippingGroup?.restrictions?.includes('backend_rating_vendor_is_not_publicly_disclosed')
+  && ecsShippingGroup?.evidenceAsOf === '2026-08-10']);
+tests.push(['ECS metadata preserves disclosed consolidation and duties constraints', ecsShippingGroup?.calculationFactors?.includes('fulfilment_location')
+  && ecsShippingGroup?.requiredInputs?.includes('verified_package_weight_and_dimensions')
+  && ecsShippingGroup?.consolidationPolicy === 'hold_until_all_items_are_in_stock_unless_partial_shipment_is_requested'
+  && ecsShippingGroup?.dutiesMode === 'recipient_responsible_unless_supplier_explicitly_states_otherwise']);
+const originPlan = shippingPlan([
+  { productId: 'ecs-ohio-a', sku: 'ECS-OH-1', quantity: 1, supplier: { slug: 'ecs', name: 'ECS Tuning', originId: 'ECS-OH', originCountryCode: 'US', originCountryName: 'United States' } },
+  { productId: 'ecs-ohio-b', sku: 'ECS-OH-2', quantity: 2, supplier: { slug: 'ecs', name: 'ECS Tuning', originId: 'ecs-oh', originCountryCode: 'US', originCountryName: 'United States' } },
+  { productId: 'ecs-direct', sku: 'ECS-DS-1', quantity: 1, supplier: { slug: 'ecs', name: 'ECS Tuning', originId: 'DIRECT-SHIP-1', originCountryCode: 'US', originCountryName: 'United States' } }
+], basePayload.destination);
+tests.push(['explicit origin IDs override supplier grouping and consolidate case-insensitively', originPlan.groupCount === 2
+  && originPlan.groups.find(group => group.originId === 'ECS-OH')?.itemCount === 2
+  && originPlan.groups.every(group => group.groupBasis === 'origin_id')]);
+const crossSupplierOriginPlan = shippingPlan([
+  { productId: 'tegiwa-main', sku: 'TEG-MAIN', quantity: 1, supplier: { slug: 'tegiwa', name: 'Tegiwa', originId: 'MAIN', originCountryCode: 'GB', originCountryName: 'Great Britain' } },
+  { productId: 'ecs-main', sku: 'ECS-MAIN', quantity: 1, supplier: { slug: 'ecs', name: 'ECS Tuning', originId: 'main', originCountryCode: 'US', originCountryName: 'United States' } }
+], basePayload.destination);
+tests.push(['equal origin IDs never merge across different suppliers', crossSupplierOriginPlan.groupCount === 2
+  && crossSupplierOriginPlan.groups.map(group => group.supplier).sort().join(',') === 'ecs,tegiwa']);
+const supplierFallbackPlan = shippingPlan([
+  { productId: 'tegiwa-a', sku: 'TEG-A', quantity: 1, supplier: { slug: 'tegiwa', name: 'Tegiwa', originCountryCode: 'GB', originCountryName: 'Great Britain' } },
+  { productId: 'tegiwa-b', sku: 'TEG-B', quantity: 1, supplier: { slug: 'tegiwa', name: 'Tegiwa', originCountryCode: 'GB', originCountryName: 'Great Britain' } }
+], basePayload.destination);
+tests.push(['supplier is the grouping fallback when no origin ID is available', supplierFallbackPlan.groupCount === 1
+  && supplierFallbackPlan.groups[0]?.groupBasis === 'supplier'
+  && supplierFallbackPlan.groups[0]?.originId === null
+  && supplierFallbackPlan.groups[0]?.itemCount === 2]);
 
 tests.push(['rejects non-POST methods', (await invoke({ method: 'GET' })).status === 405]);
 tests.push(['rejects cross-origin submission', (await invoke({ body: basePayload, origin: 'https://example.com' })).status === 403]);

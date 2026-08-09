@@ -628,6 +628,26 @@
       shippingRate: "تكلفة الشحن",
       shippingDutiesExcluded: "لا تشمل الضرائب أو الجمارك أو التوصيل المحلي.",
       shippingNotCharged: "لن تتم إضافة أو تحصيل رسوم شحن غير مؤكدة.",
+      shippingRateConfirmed: "تم تأكيد سعر الشحن المباشر",
+      shippingRatesConfirmed: "تم تأكيد سعر مباشر لكل شحنة.",
+      shippingHowCalculated: "كيف تُحسب هذه الشحنة",
+      shippingHowCalculatedHint: "الطريقة المعروفة والبيانات المطلوبة والقيود",
+      shippingMethod: "طريقة التسعير",
+      shippingRateSource: "مصدر السعر المُلاحظ",
+      shippingFulfilmentSystem: "نظام تنفيذ الطلب",
+      shippingObservedCarriers: "شركات النقل المُلاحظة أو المذكورة في سياسة المورد",
+      shippingCalculationFactors: "عوامل الحساب",
+      shippingRequiredInputs: "البيانات المستخدمة أو المطلوبة للسعر المباشر",
+      shippingRestrictions: "قيود مهمة",
+      shippingReadiness: "جاهزية السعر المباشر",
+      shippingNoConfirmedRate: "لا يوجد سعر شحن مباشر مؤكد لهذه الشحنة.",
+      shippingConsolidationPolicy: "سياسة تجميع الشحنة",
+      shippingDutiesMode: "الضرائب والجمارك",
+      shippingEvidenceAsOf: "تاريخ مراجعة الدليل",
+      shippingTegiwaEvidence: "إعداد Tegiwa المُلاحظ: أعادت صفحة مورد Shopify سعراً من Calcurates لخدمة DHL Express Worldwide في اختبار محدود واحد إلى الكويت. هذا لا يثبت تعرفة قابلة لإعادة الاستخدام أو خدمة مضمونة.",
+      shippingDespatchCloudClarification: "تم تعريف Despatch Cloud كنظام لتنفيذ الطلب ومعالجة البيانات، وليس كمحرك مؤكد لحساب سعر Tegiwa.",
+      shippingEcsEvidence: "تعرض ECS خيارات شحن خاصة بالوجهة ومحتويات السلة. محرك التسعير الأساسي غير معلن للعامة.",
+      shippingDestinationSpecific: "تعتمد الخدمات والتكلفة النهائية على الوجهة والسلة والطرد وموقع تنفيذ الطلب الفعلي.",
       shippingPlannerReceipt: "خطة الشحن المسجلة",
       continueShopping: "متابعة التسوق",
       proceedCheckout: "المتابعة للطلب التجريبي",
@@ -718,6 +738,26 @@
       shippingRate: "Shipping charge",
       shippingDutiesExcluded: "Tax, customs and local delivery are not included.",
       shippingNotCharged: "No unconfirmed shipping charge is added or collected.",
+      shippingRateConfirmed: "Live shipping rate confirmed",
+      shippingRatesConfirmed: "A live rate is confirmed for every shipment.",
+      shippingHowCalculated: "How this shipment is calculated",
+      shippingHowCalculatedHint: "Known method, required data and restrictions",
+      shippingMethod: "Quote method",
+      shippingRateSource: "Observed rate source",
+      shippingFulfilmentSystem: "Fulfilment system",
+      shippingObservedCarriers: "Observed or supplier-disclosed carrier families",
+      shippingCalculationFactors: "Calculation factors",
+      shippingRequiredInputs: "Inputs used or required for a live quote",
+      shippingRestrictions: "Important restrictions",
+      shippingReadiness: "Live-rate readiness",
+      shippingNoConfirmedRate: "No confirmed live shipping rate exists for this shipment.",
+      shippingConsolidationPolicy: "Shipment consolidation",
+      shippingDutiesMode: "Duties and taxes",
+      shippingEvidenceAsOf: "Evidence reviewed",
+      shippingTegiwaEvidence: "Observed Tegiwa configuration: its Shopify supplier checkout returned a Calcurates rate for DHL Express Worldwide in one bounded Kuwait test. This does not establish a reusable tariff or guaranteed service.",
+      shippingDespatchCloudClarification: "Despatch Cloud is identified as a fulfilment and data-processing system, not as a proven Tegiwa rate engine.",
+      shippingEcsEvidence: "ECS returns shipping options specific to the destination and cart. Its underlying rating engine is not publicly disclosed.",
+      shippingDestinationSpecific: "Final services and charges depend on the exact destination, cart, package and fulfilment location.",
       shippingPlannerReceipt: "Recorded shipping plan",
       continueShopping: "Continue shopping",
       proceedCheckout: "Continue to test checkout",
@@ -771,6 +811,84 @@
       paymentNone: "No payment gateway or card-data field exists in this staging flow.",
       item: "item",
       items: "items"
+    };
+  }
+
+  function shippingMetadataText() {
+    return state.locale === "ar" ? {
+      values: {
+        dynamic_supplier_checkout: "تسعير ديناميكي في صفحة المورد",
+        shopify_dynamic_checkout: "تسعير ديناميكي عبر صفحة Shopify للمورد",
+        shopify_carrier_calculated: "سعر ناقل محسوب عبر صفحة Shopify للمورد",
+        dynamic_destination_aware_supplier_cart: "سعر ديناميكي حسب الوجهة وسلة المورد",
+        supplier_cart_dynamic: "سعر ديناميكي حسب سلة المورد",
+        supplier_confirmation: "تأكيد مباشر من المورد",
+        undisclosed_supplier_backend: "محرك المورد غير معلن للعامة",
+        undisclosed: "غير معلن للعامة",
+        destination: "الوجهة",
+        cart_contents: "محتويات السلة والكميات",
+        verified_package_weight_and_dimensions: "وزن الطرد وأبعاده بعد التحقق",
+        eligible_carrier_service: "خدمة النقل المؤهلة للمسار",
+        supplier_shipping_rules: "قواعد الشحن لدى المورد",
+        fulfilment_location: "موقع تنفيذ الطلب الفعلي",
+        destination_country: "دولة الوجهة",
+        destination_city: "مدينة / محافظة الوجهة",
+        destination_postcode: "الرمز البريدي للوجهة",
+        live_rate_requires_supplier_checkout_or_authorised_rate_access: "يتطلب السعر المباشر صفحة المورد أو وصولاً معتمداً للأسعار.",
+        dhl_express_observation_is_limited_to_one_bounded_kuwait_test: "ملاحظة DHL Express مبنية على اختبار محدود واحد إلى الكويت وليست ضماناً لخدمة كل طلب.",
+        despatch_cloud_is_a_fulfilment_and_data_processor_not_a_verified_rating_engine: "Despatch Cloud نظام تنفيذ ومعالجة بيانات، وليس محرك تسعير تم التحقق منه.",
+        backend_rating_vendor_is_not_publicly_disclosed: "مزود محرك التسعير لدى ECS غير معلن للعامة.",
+        live_rate_requires_supplier_cart_and_complete_package_data: "يتطلب السعر المباشر سلة المورد وبيانات الطرد المكتملة.",
+        direct_ship_freight_and_partial_shipments_may_price_separately: "قد تُسعّر الشحنات المباشرة أو الكبيرة أو الجزئية بشكل منفصل.",
+        carrier_availability_varies_by_destination_and_package: "تختلف شركات وخدمات النقل حسب الوجهة والطرد.",
+        live_rate_requires_authorised_supplier_or_carrier_access: "يتطلب السعر المباشر وصولاً معتمداً من المورد أو شركة النقل.",
+        supplier_checkout_confirmation_required: "يجب تأكيد التجميع في صفحة المورد.",
+        not_proven_included_confirm_exact_quote: "لم يثبت شمول الرسوم والضرائب؛ يجب تأكيد السعر المحدد.",
+        hold_until_all_items_are_in_stock_unless_partial_shipment_is_requested: "تنتظر ECS عادةً توفر كامل الطلب ما لم يُطلب شحن جزئي، وقد تترتب تكلفة إضافية.",
+        supplier_confirmation_required: "يحتاج إلى تأكيد المورد.",
+        recipient_responsible_unless_supplier_explicitly_states_otherwise: "يتحمل المستلم الرسوم ما لم يذكر المورد خلاف ذلك بوضوح للسعر المحدد.",
+        verified_package_data_required: "بيانات وزن وأبعاد الطرد المؤكدة غير متوفرة.",
+        authorised_dynamic_rate_access_required: "الوصول المعتمد إلى سعر ديناميكي غير متصل.",
+        not_available: "بيانات الطرد المؤكدة غير متوفرة",
+        not_connected: "الوصول المعتمد للأسعار غير متصل"
+      }
+    } : {
+      values: {
+        dynamic_supplier_checkout: "Dynamic supplier-checkout quote",
+        shopify_dynamic_checkout: "Dynamic supplier Shopify-checkout quote",
+        shopify_carrier_calculated: "Carrier-calculated supplier Shopify checkout",
+        dynamic_destination_aware_supplier_cart: "Dynamic destination-aware supplier-cart quote",
+        supplier_cart_dynamic: "Dynamic supplier-cart quote",
+        supplier_confirmation: "Direct supplier confirmation",
+        undisclosed_supplier_backend: "Supplier backend not publicly disclosed",
+        undisclosed: "Not publicly disclosed",
+        destination: "Destination",
+        cart_contents: "Cart contents and quantities",
+        verified_package_weight_and_dimensions: "Verified packaged weight and dimensions",
+        eligible_carrier_service: "Carrier service eligible for the route",
+        supplier_shipping_rules: "Supplier shipping rules",
+        fulfilment_location: "Actual fulfilment location",
+        destination_country: "Destination country",
+        destination_city: "Destination city / governorate",
+        destination_postcode: "Destination postcode",
+        live_rate_requires_supplier_checkout_or_authorised_rate_access: "A live rate requires the supplier checkout or authorised rate access.",
+        dhl_express_observation_is_limited_to_one_bounded_kuwait_test: "The DHL Express observation comes from one bounded Kuwait test and does not guarantee service for every order.",
+        despatch_cloud_is_a_fulfilment_and_data_processor_not_a_verified_rating_engine: "Despatch Cloud is a fulfilment/data processor, not a verified rating engine.",
+        backend_rating_vendor_is_not_publicly_disclosed: "ECS's rate-engine provider is not publicly disclosed.",
+        live_rate_requires_supplier_cart_and_complete_package_data: "A live rate requires the supplier cart and complete package data.",
+        direct_ship_freight_and_partial_shipments_may_price_separately: "Direct-ship, freight and partial shipments may be priced separately.",
+        carrier_availability_varies_by_destination_and_package: "Carrier and service availability varies by destination and package.",
+        live_rate_requires_authorised_supplier_or_carrier_access: "A live rate requires authorised supplier or carrier access.",
+        supplier_checkout_confirmation_required: "Consolidation must be confirmed in the supplier checkout.",
+        not_proven_included_confirm_exact_quote: "Duties and taxes are not proven included; confirm the exact quote.",
+        hold_until_all_items_are_in_stock_unless_partial_shipment_is_requested: "ECS normally holds the order until all items are in stock unless a partial shipment is requested; extra shipping may apply.",
+        supplier_confirmation_required: "Supplier confirmation is required.",
+        recipient_responsible_unless_supplier_explicitly_states_otherwise: "The recipient is responsible unless the supplier explicitly states otherwise for the exact quote.",
+        verified_package_data_required: "Verified packaged weight and dimensions are unavailable.",
+        authorised_dynamic_rate_access_required: "Authorised dynamic-rate access is not connected.",
+        not_available: "Verified package data unavailable",
+        not_connected: "Authorised rate access not connected"
+      }
     };
   }
 
@@ -3508,6 +3626,16 @@
     return [...grouped.values()];
   }
 
+  function safeShippingTextList(value, maximum = 12, textLimit = 180) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value.slice(0, maximum).map(item => cleanText(item || "", textLimit)).filter(Boolean))];
+  }
+
+  function safeShippingCode(value, maximum = 100) {
+    const code = cleanText(value || "", maximum).toLowerCase();
+    return /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/.test(code) ? code : "";
+  }
+
   function safeShippingPlan(plan) {
     if (!plan || typeof plan !== "object" || Array.isArray(plan)) return null;
     const groups = Array.isArray(plan.groups) ? plan.groups.slice(0, 8).map(group => ({
@@ -3515,11 +3643,30 @@
       supplierName: cleanText(group?.supplierName || "", 120),
       originCountryCode: cleanText(group?.originCountryCode || "", 2).toUpperCase(),
       originCountryName: cleanText(group?.originCountryName || "", 120),
+      originId: cleanText(group?.originId || "", 100),
+      groupBasis: safeShippingCode(group?.groupBasis),
       itemCount: Math.max(0, Math.min(99, Number(group?.itemCount) || 0)),
       quantity: Math.max(0, Math.min(999, Number(group?.quantity) || 0)),
       status: group?.status === "confirmed" ? "confirmed" : "confirmation_required",
-      rate: group?.rate !== null && group?.rate !== undefined && Number.isFinite(Number(group.rate)) ? Number(group.rate) : null,
-      currency: /^[A-Z]{3}$/.test(String(group?.currency || "").toUpperCase()) ? String(group.currency).toUpperCase() : ""
+      rate: typeof group?.rate === "number" && Number.isFinite(group.rate) && group.rate >= 0 ? group.rate : null,
+      currency: /^[A-Z]{3}$/.test(String(group?.currency || "").toUpperCase()) ? String(group.currency).toUpperCase() : "",
+      carrier: cleanText(group?.carrier || "", 120),
+      service: cleanText(group?.service || "", 160),
+      quoteId: cleanText(group?.quoteId || group?.rateQuoteId || "", 160),
+      quoteExpiresAt: cleanText(group?.quoteExpiresAt || group?.rateExpiresAt || "", 40),
+      quoteMethod: safeShippingCode(group?.quoteMethod),
+      rateSource: cleanText(group?.rateSource || "", 120),
+      fulfilmentSystem: cleanText(group?.fulfilmentSystem || "", 120),
+      calculationFactors: safeShippingTextList(group?.calculationFactors),
+      requiredInputs: safeShippingTextList(group?.requiredInputs),
+      restrictions: safeShippingTextList(group?.restrictions, 16, 240),
+      consolidationPolicy: safeShippingCode(group?.consolidationPolicy, 160),
+      dutiesMode: safeShippingCode(group?.dutiesMode, 160),
+      observedCarrierFamilies: safeShippingTextList(group?.observedCarrierFamilies, 8, 80),
+      packageDataStatus: safeShippingCode(group?.packageDataStatus),
+      rateAccessStatus: safeShippingCode(group?.rateAccessStatus),
+      blockingReasons: safeShippingTextList(group?.blockingReasons, 12, 180),
+      evidenceAsOf: /^\d{4}-\d{2}-\d{2}$/.test(String(group?.evidenceAsOf || "")) ? String(group.evidenceAsOf) : ""
     })).filter(group => group.supplier && ["GB", "US"].includes(group.originCountryCode)) : [];
     if (!groups.length) return null;
     return {
@@ -3541,30 +3688,160 @@
     return group.originCountryName || group.originCountryCode;
   }
 
+  function shippingMetadataFallback(group) {
+    const supplier = cleanText(group?.supplier || "", 80).toLowerCase();
+    if (supplier === "tegiwa") return {
+      quoteMethod: "shopify_dynamic_checkout",
+      rateSource: "Calcurates",
+      fulfilmentSystem: "Despatch Cloud",
+      calculationFactors: ["destination", "cart_contents", "verified_package_weight_and_dimensions", "eligible_carrier_service", "supplier_shipping_rules"],
+      requiredInputs: ["destination_country", "destination_city", "destination_postcode", "cart_contents", "verified_package_weight_and_dimensions"],
+      restrictions: ["live_rate_requires_supplier_checkout_or_authorised_rate_access", "dhl_express_observation_is_limited_to_one_bounded_kuwait_test", "despatch_cloud_is_a_fulfilment_and_data_processor_not_a_verified_rating_engine"],
+      consolidationPolicy: "supplier_checkout_confirmation_required",
+      dutiesMode: "not_proven_included_confirm_exact_quote",
+      observedCarrierFamilies: ["DHL Express"],
+      evidenceAsOf: "2026-08-10"
+    };
+    if (supplier === "ecs" || supplier === "ecs-tuning") return {
+      quoteMethod: "dynamic_destination_aware_supplier_cart",
+      rateSource: "undisclosed_supplier_backend",
+      fulfilmentSystem: "undisclosed",
+      calculationFactors: ["destination", "cart_contents", "verified_package_weight_and_dimensions", "eligible_carrier_service", "fulfilment_location", "supplier_shipping_rules"],
+      requiredInputs: ["destination_country", "destination_city", "destination_postcode", "cart_contents", "verified_package_weight_and_dimensions", "fulfilment_location"],
+      restrictions: ["backend_rating_vendor_is_not_publicly_disclosed", "live_rate_requires_supplier_cart_and_complete_package_data", "direct_ship_freight_and_partial_shipments_may_price_separately", "carrier_availability_varies_by_destination_and_package"],
+      consolidationPolicy: "hold_until_all_items_are_in_stock_unless_partial_shipment_is_requested",
+      dutiesMode: "recipient_responsible_unless_supplier_explicitly_states_otherwise",
+      observedCarrierFamilies: ["UPS", "FedEx", "USPS"],
+      evidenceAsOf: "2026-08-10"
+    };
+    return {
+      quoteMethod: "supplier_confirmation",
+      rateSource: "undisclosed",
+      fulfilmentSystem: "undisclosed",
+      calculationFactors: ["destination", "cart_contents", "verified_package_weight_and_dimensions", "supplier_shipping_rules"],
+      requiredInputs: ["destination_country", "destination_city", "destination_postcode", "cart_contents", "verified_package_weight_and_dimensions"],
+      restrictions: ["live_rate_requires_authorised_supplier_or_carrier_access"],
+      consolidationPolicy: "supplier_confirmation_required",
+      dutiesMode: "supplier_confirmation_required",
+      observedCarrierFamilies: [],
+      evidenceAsOf: "2026-08-10"
+    };
+  }
+
+  function shippingPresentationGroup(group) {
+    const fallback = shippingMetadataFallback(group);
+    return {
+      ...fallback,
+      ...group,
+      quoteMethod: group.quoteMethod || fallback.quoteMethod,
+      rateSource: group.rateSource || fallback.rateSource,
+      fulfilmentSystem: group.fulfilmentSystem || fallback.fulfilmentSystem,
+      calculationFactors: group.calculationFactors?.length ? group.calculationFactors : fallback.calculationFactors,
+      requiredInputs: group.requiredInputs?.length ? group.requiredInputs : fallback.requiredInputs,
+      restrictions: group.restrictions?.length ? group.restrictions : fallback.restrictions,
+      observedCarrierFamilies: group.observedCarrierFamilies?.length ? group.observedCarrierFamilies : fallback.observedCarrierFamilies,
+      consolidationPolicy: group.consolidationPolicy || fallback.consolidationPolicy,
+      dutiesMode: group.dutiesMode || fallback.dutiesMode,
+      evidenceAsOf: group.evidenceAsOf || fallback.evidenceAsOf,
+      blockingReasons: group.blockingReasons?.length ? group.blockingReasons : (group.status === "confirmed" ? [] : ["verified_package_data_required", "authorised_dynamic_rate_access_required"])
+    };
+  }
+
+  function shippingMetadataLabel(value) {
+    const safe = cleanText(value || "", 240);
+    if (!safe) return "—";
+    const values = shippingMetadataText().values;
+    return Object.prototype.hasOwnProperty.call(values, safe)
+      ? values[safe]
+      : safe.replace(/[_-]+/g, " ").replace(/^./, character => character.toUpperCase());
+  }
+
+  function shippingGroupHasConfirmedRate(group) {
+    const hasRate = typeof group?.rate === "number";
+    const amount = group?.rate;
+    const currency = String(group?.currency || "").toUpperCase();
+    const expiry = Date.parse(String(group?.quoteExpiresAt || ""));
+    return group?.status === "confirmed"
+      && hasRate
+      && Number.isFinite(amount)
+      && amount >= 0
+      && /^[A-Z]{3}$/.test(currency)
+      && Boolean(cleanText(group?.carrier || "", 120))
+      && Boolean(cleanText(group?.service || "", 160))
+      && Boolean(cleanText(group?.quoteId || "", 160))
+      && Number.isFinite(expiry)
+      && expiry > Date.now();
+  }
+
+  function shippingMetadataList(values) {
+    return `<ul>${values.map(value => `<li>${esc(shippingMetadataLabel(value))}</li>`).join("")}</ul>`;
+  }
+
+  function shippingCalculationMarkup(sourceGroup) {
+    const text = commerceText();
+    const group = shippingPresentationGroup(sourceGroup);
+    const supplier = cleanText(group.supplier || "", 80).toLowerCase();
+    const isTegiwa = supplier === "tegiwa";
+    const isEcs = supplier === "ecs" || supplier === "ecs-tuning";
+    const evidence = isTegiwa
+      ? `<p>${esc(text.shippingTegiwaEvidence)}</p><p>${esc(text.shippingDespatchCloudClarification)}</p>`
+      : isEcs ? `<p>${esc(text.shippingEcsEvidence)}</p>` : "";
+    const readiness = group.blockingReasons.length
+      ? shippingMetadataList(group.blockingReasons)
+      : `<p>${esc(shippingGroupHasConfirmedRate(group) ? text.shippingRateConfirmed : text.shippingNoConfirmedRate)}</p>`;
+    const observedCarriers = group.observedCarrierFamilies.length ? group.observedCarrierFamilies.join(" / ") : "—";
+    return `<details class="shipping-calculation-details">
+      <summary><span><strong>${esc(text.shippingHowCalculated)}</strong><small>${esc(text.shippingHowCalculatedHint)}</small></span><span class="shipping-disclosure-icon" aria-hidden="true">+</span></summary>
+      <div class="shipping-calculation-body">
+        <div class="shipping-evidence-note">${evidence}<p>${esc(text.shippingDestinationSpecific)}</p></div>
+        <dl class="shipping-calculation-facts">
+          <div><dt>${esc(text.shippingMethod)}</dt><dd>${esc(shippingMetadataLabel(group.quoteMethod))}</dd></div>
+          <div><dt>${esc(text.shippingRateSource)}</dt><dd><bdi>${esc(shippingMetadataLabel(group.rateSource))}</bdi></dd></div>
+          <div><dt>${esc(text.shippingFulfilmentSystem)}</dt><dd><bdi>${esc(shippingMetadataLabel(group.fulfilmentSystem))}</bdi></dd></div>
+          <div><dt>${esc(text.shippingObservedCarriers)}</dt><dd><bdi>${esc(observedCarriers)}</bdi></dd></div>
+          <div><dt>${esc(text.shippingEvidenceAsOf)}</dt><dd><bdi dir="ltr">${esc(group.evidenceAsOf || "—")}</bdi></dd></div>
+        </dl>
+        <div class="shipping-calculation-grid">
+          <section><h4>${esc(text.shippingCalculationFactors)}</h4>${shippingMetadataList(group.calculationFactors)}</section>
+          <section><h4>${esc(text.shippingRequiredInputs)}</h4>${shippingMetadataList(group.requiredInputs)}</section>
+          <section><h4>${esc(text.shippingReadiness)}</h4>${readiness}</section>
+          <section><h4>${esc(text.shippingRestrictions)}</h4>${shippingMetadataList(group.restrictions)}</section>
+        </div>
+        <dl class="shipping-policy-notes">
+          <div><dt>${esc(text.shippingConsolidationPolicy)}</dt><dd>${esc(shippingMetadataLabel(group.consolidationPolicy))}</dd></div>
+          <div class="shipping-duties-note"><dt>${esc(text.shippingDutiesMode)}</dt><dd>${esc(shippingMetadataLabel(group.dutiesMode))} ${esc(text.shippingDutiesExcluded)}</dd></div>
+        </dl>
+      </div>
+    </details>`;
+  }
+
   function shipmentPlannerMarkup(plan = state.shippingEstimate, { live = true } = {}) {
     const text = commerceText();
     const safePlan = safeShippingPlan(plan);
     const groups = safePlan?.groups || cartShipmentGroups();
     const split = groups.length > 1;
+    const allRatesConfirmed = groups.length > 0 && groups.every(shippingGroupHasConfirmedRate);
     const statusText = state.shippingEstimateStatus === "loading" && live ? text.shippingEstimating
       : state.shippingEstimateStatus === "error" && live ? text.shippingEstimateError
-        : safePlan ? text.shippingAuthorisedAccessRequired : text.shippingEnterDestination;
+        : allRatesConfirmed ? text.shippingRatesConfirmed
+          : safePlan ? text.shippingAuthorisedAccessRequired : text.shippingEnterDestination;
     const destination = safePlan?.destination?.country && safePlan?.destination?.city
       ? `<p class="shipping-planner-destination"><strong>${esc(text.shippingDestination)}:</strong> ${esc(`${safePlan.destination.city}, ${safePlan.destination.country}`)}</p>` : "";
     const cards = groups.map(group => {
-      const rate = group.status === "confirmed" && group.rate !== null && group.currency
+      const rate = shippingGroupHasConfirmedRate(group)
         ? commerceMoney(group.rate, group.currency) : text.shippingConfirmationRequired;
       const countLabel = group.itemCount === 1 ? text.item : text.items;
       return `<article class="shipping-group" data-shipping-supplier="${esc(group.supplier)}">
         <span class="shipping-origin-code" aria-hidden="true"><bdi dir="ltr">${esc(group.originCountryCode)}</bdi></span>
         <div class="shipping-group-copy"><span>${esc(text.shippingSupplier)}</span><strong>${esc(group.supplierName || group.supplier)}</strong><p>${esc(text.shippingFrom)} ${esc(shippingOriginLabel(group, text))}</p></div>
         <dl><div><dt>${esc(text.quantity)}</dt><dd>${esc(`${group.itemCount} ${countLabel} / ${group.quantity} ${group.quantity === 1 ? text.shippingUnit : text.shippingUnits}`)}</dd></div><div><dt>${esc(text.shippingRate)}</dt><dd>${esc(rate)}</dd></div></dl>
+        ${shippingCalculationMarkup(group)}
       </article>`;
     }).join("");
     const splitNotice = split ? `<div class="shipping-split-notice">${icons.filter}<span>${esc(text.splitSupplierNotice)}</span></div>` : "";
     const rootAttribute = live ? " data-shipping-planner" : "";
     return `<section class="shipping-planner${state.shippingEstimateStatus === "loading" && live ? " is-loading" : ""}"${rootAttribute} aria-live="polite" aria-busy="${state.shippingEstimateStatus === "loading" && live ? "true" : "false"}">
-      <header><div><span class="eyebrow">${esc(text.shippingPlannerTitle)}</span><h3>${esc(split ? text.splitSupplierShipment.replace("{count}", String(groups.length)) : text.singleSupplierShipment)}</h3></div><span class="shipping-plan-status">${esc(text.shippingConfirmationRequired)}</span></header>
+      <header><div><span class="eyebrow">${esc(text.shippingPlannerTitle)}</span><h3>${esc(split ? text.splitSupplierShipment.replace("{count}", String(groups.length)) : text.singleSupplierShipment)}</h3></div><span class="shipping-plan-status${allRatesConfirmed ? " is-confirmed" : ""}">${esc(allRatesConfirmed ? text.shippingRateConfirmed : text.shippingConfirmationRequired)}</span></header>
       <p>${esc(text.shippingPlannerIntro)}</p>${destination}${splitNotice}<div class="shipping-groups">${cards}</div>
       <div class="shipping-plan-message"><strong>${esc(statusText)}</strong><span>${esc(text.shippingDutiesExcluded)} ${esc(text.shippingNotCharged)}</span></div>
     </section>`;
@@ -4155,8 +4432,11 @@
   function accountCartItemsForApi() {
     return state.cart.map(item => {
       const product = commerceProduct(item.productId);
+      const policy = commercePolicy(product);
+      const supplier = cleanText(policy?.supplier?.slug || "", 80).toLowerCase();
+      if (!product || !policy || !supplier) return null;
       return {
-        supplier: "tegiwa",
+        supplier,
         productId: item.productId,
         supplierProductId: null,
         variantId: null,
@@ -4167,7 +4447,7 @@
         unitAmount: Math.round(Number(item.unitAmount) * 100),
         currency: item.currency
       };
-    });
+    }).filter(Boolean);
   }
 
   async function showAccountDashboardTab(root, clerk, tab = "profile") {
