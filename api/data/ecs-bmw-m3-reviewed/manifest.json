@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "supplier": "ECS Tuning",
+  "kind": "ecs-reviewed-product-shard-manifest",
+  "releaseId": "20260809T150053410Z-8a92c4f5b7e3c5e8",
+  "generatedAt": "2026-08-09T15:00:53.410Z",
+  "publicationMode": "verified-progress",
+  "complete": false,
+  "requestedSections": [
+    "braking",
+    "engine",
+    "exterior",
+    "interior",
+    "performance",
+    "suspension",
+    "steering"
+  ],
+  "includedSections": [
+    "braking",
+    "steering"
+  ],
+  "excludedSections": [
+    "engine",
+    "exterior",
+    "interior",
+    "performance",
+    "suspension"
+  ],
+  "sections": {
+    "braking": {
+      "complete": true,
+      "included": true,
+      "capturedPages": 147,
+      "expectedPages": 147,
+      "capturedPlacements": 2237,
+      "expectedPlacements": 2237,
+      "productCount": 1556
+    },
+    "engine": {
+      "complete": false,
+      "included": false,
+      "capturedPages": 287,
+      "expectedPages": 540,
+      "capturedPlacements": 4572,
+      "expectedPlacements": 8452,
+      "productCount": 0
+    },
+    "exterior": {
+      "complete": false,
+      "included": false,
+      "capturedPages": 16,
+      "expectedPages": 228,
+      "capturedPlacements": 256,
+      "expectedPlacements": 3511,
+      "productCount": 0
+    },
+    "interior": {
+      "complete": false,
+      "included": false,
+      "capturedPages": 18,
+      "expectedPages": 324,
+      "capturedPlacements": 288,
+      "expectedPlacements": 4870,
+      "productCount": 0
+    },
+    "performance": {
+      "complete": false,
+      "included": false,
+      "capturedPages": 0,
+      "expectedPages": 0,
+      "capturedPlacements": 0,
+      "expectedPlacements": 0,
+      "productCount": 0
+    },
+    "suspension": {
+      "complete": false,
+      "included": false,
+      "capturedPages": 24,
+      "expectedPages": 171,
+      "capturedPlacements": 384,
+      "expectedPlacements": 2550,
+      "productCount": 0
+    },
+    "steering": {
+      "complete": true,
+      "included": true,
+      "capturedPages": 42,
+      "expectedPages": 42,
+      "capturedPlacements": 552,
+      "expectedPlacements": 552,
+      "productCount": 517
+    }
+  },
+  "counts": {
+    "productCount": 2071,
+    "routeCount": 2071,
+    "shardCount": 17,
+    "quarantinedIdentityCount": 0
+  },
+  "index": {
+    "file": "index.json",
+    "bytes": 2925512,
+    "sha256": "7f01733ed1f15ea8dd6eb4544d9875bad4c97a6ae4c25100d803cc928d7dc2c9"
+  },
+  "shards": [
+    {
+      "sequence": 1,
+      "file": "shard-00001.json",
+      "productCount": 128,
+      "bytes": 839717,
+      "sha256": "258df9c090deea541a5e01906f1bd3df1a68d558b4f40f7a95b561743d0b3690",
+      "firstKey": "ecs-es-54046",
+      "lastKey": "ecs-es-5471638"
+    },
+    {
+      "sequence": 2,
+      "file": "shard-00002.json",
+      "productCount": 128,
+      "bytes": 826630,
+      "sha256": "44a8490b7f2fbaaef7db8ecfa2794b632426fb3712af531d412f0c040fcb450e",
+      "firstKey": "ecs-es-4504853",
+      "lastKey": "ecs-es-2944315"
+    },
+    {
+      "sequence": 3,
+      "file": "shard-00003.json",
+      "productCount": 128,
+      "bytes": 814356,
+      "sha256": "e43a71a7ef7f75171379904c40bc32abdd5c3e85a30c45665098c4d874fc75c7",
+      "firstKey": "ecs-es-4752721",
+      "lastKey": "ecs-es-62160"
+    },
+    {
+      "sequence": 4,
+      "file": "shard-00004.json",
+      "productCount": 128,
+      "bytes": 821173,
+      "sha256": "dce3fd76905a5aa4cde23f40d0b88ca0a96516b792526b4f10e8e42253317a2a",
+      "firstKey": "ecs-es-60314",
+      "lastKey": "ecs-es-4145207"
+    },
+    {
+      "sequence": 5,
+      "file": "shard-00005.json",
+      "productCount": 128,
+      "bytes": 825377,
+      "sha256": "76d2b9d168ab08aa552f8bb999b185ba837226e99198f7cd849fc10ccdaeae99",
+      "firstKey": "ecs-es-4145263",
+      "lastKey": "ecs-es-3701749"
+    },
+    {
+      "sequence": 6,
+      "file": "shard-00006.json",
+      "productCount": 128,
+      "bytes": 853553,
+      "sha256": "130d949fee94541907aa4e02dafed253f6e3e139c83fffb34dad835f5998ad04",
+      "firstKey": "ecs-es-129194",
+      "lastKey": "ecs-es-2593534"
+    },
+    {
+      "sequence": 7,
+      "file": "shard-00007.json",
+      "productCount": 128,
+      "bytes": 880311,
+      "sha256": "f7a2fdbb6616ad7af12ca00c65521fb48244b718239883cc2766443b48cdda3c",
+      "firstKey": "ecs-es-2718208",
+      "lastKey": "ecs-es-2153882"
+    },
+    {
+      "sequence": 8,
+      "file": "shard-00008.json",
+      "productCount": 128,
+      "bytes": 850933,
+      "sha256": "cde0eab281f4c8d83cf1d7a15647ccef5abcb90391fc518d6e9434228b74da4e",
+      "firstKey": "ecs-es-2135714",
+      "lastKey": "ecs-es-4669203"
+    },
+    {
+      "sequence": 9,
+      "file": "shard-00009.json",
+      "productCount": 128,
+      "bytes": 814357,
+      "sha256": "4fdf55ed68de1fc9999d5d2e8f3f22110447888f1e4f9355cb480867dea9b590",
+      "firstKey": "ecs-es-4669193",
+      "lastKey": "ecs-es-53206"
+    },
+    {
+      "sequence": 10,
+      "file": "shard-00010.json",
+      "productCount": 128,
+      "bytes": 816183,
+      "sha256": "42b60064422d50b56817f9e57799f5e36c26a9f3bb1ffe7b9022e391de49daac",
+      "firstKey": "ecs-es-62204",
+      "lastKey": "ecs-es-4736891"
+    },
+    {
+      "sequence": 11,
+      "file": "shard-00011.json",
+      "productCount": 128,
+      "bytes": 828030,
+      "sha256": "b9004252127a720bfa0b19515488561074474db8d43ecf991ea7170c712ecc43",
+      "firstKey": "ecs-es-4742215",
+      "lastKey": "ecs-es-2870541"
+    },
+    {
+      "sequence": 12,
+      "file": "shard-00012.json",
+      "productCount": 128,
+      "bytes": 837409,
+      "sha256": "20c529c81824336ffaae0027392da85223627d0ced2d786192cb6c8db8435ef9",
+      "firstKey": "ecs-es-4164848",
+      "lastKey": "ecs-es-2855384"
+    },
+    {
+      "sequence": 13,
+      "file": "shard-00013.json",
+      "productCount": 128,
+      "bytes": 879902,
+      "sha256": "9090cae27fe0150d3b8c1a0730f1d7b1064338192ebad965c1d5be3d97019a71",
+      "firstKey": "ecs-es-2875472",
+      "lastKey": "ecs-es-517815"
+    },
+    {
+      "sequence": 14,
+      "file": "shard-00014.json",
+      "productCount": 128,
+      "bytes": 817280,
+      "sha256": "14e104fa928f646b26959c965629d23bb63d9357fd7eced587e8d594968d1770",
+      "firstKey": "ecs-es-2590068",
+      "lastKey": "ecs-es-2744621"
+    },
+    {
+      "sequence": 15,
+      "file": "shard-00015.json",
+      "productCount": 128,
+      "bytes": 804043,
+      "sha256": "32cfb6061569975bdae6c905bfcf0010d7cab4f82b9344657c231edf2e3b9845",
+      "firstKey": "ecs-es-2744325",
+      "lastKey": "ecs-es-2534383"
+    },
+    {
+      "sequence": 16,
+      "file": "shard-00016.json",
+      "productCount": 128,
+      "bytes": 842229,
+      "sha256": "7105d5df6fb1810e3ab310a8483a9643125740921ea19d9fdaeb4e24e8bceaac",
+      "firstKey": "ecs-es-2778115",
+      "lastKey": "ecs-es-2939135"
+    },
+    {
+      "sequence": 17,
+      "file": "shard-00017.json",
+      "productCount": 23,
+      "bytes": 155795,
+      "sha256": "89dc886f7e610d41dc29b82d2de972b1c92ef7d41b916a0ab043a9fa2e0dd7cb",
+      "firstKey": "ecs-es-3178485",
+      "lastKey": "ecs-es-4635702"
+    }
+  ],
+  "contentSetSha256": "01d7061ca0205276e4e06f0791ca51eacf84c6e918c77d60cb19c6b165280719"
+}

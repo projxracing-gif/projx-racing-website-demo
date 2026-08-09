@@ -676,8 +676,21 @@ function localCatalogueFacets(products) {
 }
 
 function rootAsset(value) {
-  const source = text(value, 1_000).replace(/^\/+/, '');
-  return source ? `/${source}` : null;
+  const source = text(value, 1_000);
+  if (!source) return null;
+  if (/^https:\/\//i.test(source)) {
+    try {
+      const url = new URL(source);
+      if (url.protocol !== 'https:' || url.username || url.password || url.port
+        || url.hostname.toLowerCase() !== 'assets.ecstuning.com') return null;
+      return source;
+    } catch {
+      return null;
+    }
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(source) || source.includes('\\')) return null;
+  const local = source.replace(/^\/+/, '');
+  return local ? `/${local}` : null;
 }
 
 function dateValue(value) {
@@ -700,7 +713,10 @@ function finitePriceAmount(product) {
   return Number.isFinite(amount) ? amount : null;
 }
 
-function productSearchDocument(product) {
+export function reviewedEcsProductSearchDocument(product) {
+  if (typeof product?.searchDocument === 'string' && product.searchDocument.trim()) {
+    return product.searchDocument;
+  }
   return [
     product.title, product.titleAr, product.brand, product.category, product.categoryAr,
     product.subcategory, product.subcategoryAr, product.ecsPartNumber, product.sku, product.mpn,
@@ -717,13 +733,13 @@ function productSearchDocument(product) {
 }
 
 function productSearchText(product) {
-  return identity(productSearchDocument(product));
+  return identity(reviewedEcsProductSearchDocument(product));
 }
 
 const vocabularyCache = new WeakMap();
 function productSearchVocabulary(products) {
   if (!vocabularyCache.has(products)) {
-    vocabularyCache.set(products, catalogSearchVocabulary(products.map(productSearchDocument)));
+    vocabularyCache.set(products, catalogSearchVocabulary(products.map(reviewedEcsProductSearchDocument)));
   }
   return vocabularyCache.get(products);
 }
@@ -790,7 +806,7 @@ function productMatches(product, request, nowValue, searchPlan = null) {
     .some(value => identifierIdentity(value) === identifierIdentity(request.query));
   if (exact) return true;
   const plan = searchPlan || buildCatalogSearchPlan(request.query, {
-    vocabulary: catalogSearchVocabulary([productSearchDocument(product)])
+    vocabulary: catalogSearchVocabulary([reviewedEcsProductSearchDocument(product)])
   });
   return plan.tokenGroups.length > 0 && textMatchesSearchPlan(productSearchText(product), plan);
 }
@@ -842,6 +858,14 @@ function sortProducts(products, request, nowValue, searchPlan = null) {
     }
     return left.title.localeCompare(right.title);
   });
+}
+
+export function selectReviewedEcsProducts(products, request, nowValue) {
+  if (!Array.isArray(products)) throw new TypeError('Reviewed ECS products must be an array.');
+  const searchPlan = searchPlanFor(products, request?.query);
+  const matches = products.filter(product => productMatches(product, request, nowValue, searchPlan));
+  const exactMatches = matches.filter(product => exactIdentifierMatch(product, request?.query));
+  return sortProducts(exactMatches.length ? exactMatches : matches, request, nowValue, searchPlan);
 }
 
 function price(product, nowValue) {

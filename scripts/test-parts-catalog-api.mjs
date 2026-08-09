@@ -1,13 +1,26 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
-import {
-  REVIEWED_ECS_CATALOGUE_STATUS,
-  REVIEWED_ECS_PRODUCTS
-} from '../server/ecs-reviewed-catalog.js';
+import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 import { cataloguePartTypeMatches } from '../server/catalog-taxonomy.js';
 
 const FIXED_NOW = Date.parse('2026-08-09T09:30:00Z');
-const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length;
+const REVIEWED_SHARD_INDEX = JSON.parse(await readFile(
+  new URL('../api/data/ecs-bmw-m3-reviewed/index.json', import.meta.url), 'utf8'
+));
+const REVIEWED_STATIC_IDENTITIES = new Set(REVIEWED_ECS_PRODUCTS
+  .flatMap(product => [product.publicKey, product.slug]).filter(Boolean));
+const REVIEWED_STATIC_ECS_IDENTITIES = new Set(REVIEWED_ECS_PRODUCTS
+  .flatMap(product => [product.ecsPartNumber, product.sku])
+  .map(value => String(value || '').match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i)?.[1]).filter(Boolean));
+const REVIEWED_SHARDED_UNIQUE_ROUTES = REVIEWED_SHARD_INDEX.routes.filter(route =>
+  !REVIEWED_STATIC_IDENTITIES.has(route.publicKey) && !REVIEWED_STATIC_IDENTITIES.has(route.slug)
+  && !REVIEWED_STATIC_ECS_IDENTITIES.has(
+    String(route.ecsPartNumber || route.sku || '').match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i)?.[1]
+  ));
+const REVIEWED_SHARDED_UNIQUE_COUNT = REVIEWED_SHARDED_UNIQUE_ROUTES.length;
+const REVIEWED_ROUTING_PRODUCTS = [...REVIEWED_ECS_PRODUCTS, ...REVIEWED_SHARDED_UNIQUE_ROUTES];
+const REVIEWED_ECS_COUNT = REVIEWED_ECS_PRODUCTS.length + REVIEWED_SHARDED_UNIQUE_COUNT;
 const TEGIWA_FIXTURE_COUNT = 193_256;
 const INTERIOR_PRODUCT_COUNT = 678;
 const REPRESENTATIVE_INTERIOR_ECS = 'ES#3010016';
@@ -93,18 +106,18 @@ const ENGINE_SENTINELS = Object.freeze([
 const TOP_LEVEL_INTERIOR_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Interior\/[^/?#]+(?:\/\d+)?\/?$/i;
 const TOP_LEVEL_BRAKING_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Braking\/[^/?#]+(?:\/\d+)?\/?$/i;
 const TOP_LEVEL_ENGINE_SOURCE = /^https:\/\/www\.ecstuning\.com\/BMW-G(?:87-M2-S58_3\.0L|80-M3_Competition-S58_3\.0L|82-M4_Competition-S58_3\.0L)\/Engine\/[^/?#]+(?:\/\d+)?\/?$/i;
-const reviewedBrandCount = brandSlug => REVIEWED_ECS_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
-const reviewedCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product => [
+const reviewedBrandCount = brandSlug => REVIEWED_ROUTING_PRODUCTS.filter(product => product.brandSlug === brandSlug).length;
+const reviewedCategoryCount = categorySlug => REVIEWED_ROUTING_PRODUCTS.filter(product => [
   product.categorySlug, product.subcategorySlug,
   ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
 ].includes(categorySlug)).length;
-const reviewedParentCategoryCount = categorySlug => REVIEWED_ECS_PRODUCTS.filter(product =>
+const reviewedParentCategoryCount = categorySlug => REVIEWED_ROUTING_PRODUCTS.filter(product =>
   cataloguePartTypeMatches([
     product.categorySlug, product.subcategorySlug,
     ...(product.filters?.categories || []), ...(product.filters?.subcategories || [])
   ], categorySlug)
 ).length;
-const reviewedModelCount = model => REVIEWED_ECS_PRODUCTS.filter(product => (product.fitments || []).some(fitment =>
+const reviewedModelCount = model => REVIEWED_ROUTING_PRODUCTS.filter(product => (product.fitments || []).some(fitment =>
   [fitment.model, ...(fitment.models || [])].some(value => String(value || '').split('/').some(item =>
     item.trim().toLocaleLowerCase('en-US').split(/[^a-z0-9]+/u).includes(model.toLocaleLowerCase('en-US'))
   ))
@@ -242,7 +255,10 @@ assert.equal(reviewedBrowse.body.mode, 'browse');
 assert.equal(reviewedBrowse.body.items.length, Math.min(100, REVIEWED_ECS_COUNT));
 assert.equal(reviewedBrowse.body.meta.totalResults, REVIEWED_ECS_COUNT);
 assert.equal(reviewedBrowse.body.meta.reviewedEcsProductCount, REVIEWED_ECS_COUNT);
-assert.deepEqual(reviewedBrowse.body.meta.reviewedEcsCatalogueStatus, REVIEWED_ECS_CATALOGUE_STATUS);
+assert.equal(reviewedBrowse.body.meta.reviewedEcsCatalogueStatus.schemaVersion, 2);
+assert.equal(reviewedBrowse.body.meta.reviewedEcsCatalogueStatus.publishedProductCount, REVIEWED_ECS_COUNT);
+assert.equal(reviewedBrowse.body.meta.reviewedEcsCatalogueStatus.shardRelease.routeCount,
+  REVIEWED_SHARD_INDEX.routeCount);
 assert.equal(reviewedBrowse.body.meta.partialCatalogue, true);
 assert.equal(reviewedBrowse.body.meta.catalogueSource, 'reviewed-local-fallback');
 assert.deepEqual(reviewedBrowse.body.meta.suppliers, [{ slug: 'ecs', name: 'ECS Tuning' }]);
@@ -509,6 +525,15 @@ assert.deepEqual(new Set(reviewedG8xDetail.body.product.fitments.flatMap(fitment
 assert.ok(reviewedG8xDetail.body.product.fitments.every(fitment => fitment.engine === 'S58'));
 assert.equal(reviewedG8xDetail.body.product.availability.checkedAt, '2026-08-09');
 assert.ok(reviewedG8xDetail.body.product.descriptionAr);
+
+const reviewedM3SteeringMedia = await invoke(reviewedOnly, {
+  query: { q: 'ES#54046', supplier: 'ecs' }
+});
+assert.equal(reviewedM3SteeringMedia.status, 200);
+assert.equal(reviewedM3SteeringMedia.body.items.length, 1);
+assert.equal(reviewedM3SteeringMedia.body.items[0].image.src,
+  'https://assets.ecstuning.com/product_library/25194_x300.webp');
+assert.equal(reviewedM3SteeringMedia.body.items[0].image.src.startsWith('/https://'), false);
 
 const reviewedBrandFilter = await invoke(reviewedOnly, { query: { brand: 'csf-cooling' } });
 assert.equal(reviewedBrandFilter.status, 200);

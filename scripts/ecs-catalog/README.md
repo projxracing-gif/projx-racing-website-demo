@@ -2,6 +2,10 @@
 
 The original isolated ingestion workflow prepares public ECS product records for later storefront review and never publishes them directly. The separate, explicit G-Series preparation and media-materialization commands generate reviewable storefront assets only after their bounded source and integrity checks pass.
 
+Complete BMW M3 reviewed-product payloads must use the bounded shard path documented in
+`docs/ecs-reviewed-shard-storage.md`; they must not be embedded in
+`server/data/ecs-bmw-m3-aggregate-products.js`.
+
 ## Important access rule
 
 Projx Racing has retained written ECS approval dated 5 August 2026 for automated copying of ECS products onto the Projx website. The approval evidence and reviewed authorization record are private, ignored by Git and required by the `--fetch` safety gate.

@@ -4,12 +4,14 @@ import {
   REVIEWED_ECS_CATALOGUE_STATUS,
   REVIEWED_ECS_PRODUCTS,
   mergeReviewedEcsProducts,
+  reviewedEcsProductCard,
   reviewedFallbackResponse
 } from '../server/ecs-reviewed-catalog.js';
 import {
   BMW_M3_AGGREGATE_PRODUCTS,
   BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES
 } from '../server/data/ecs-bmw-m3-aggregate-products.js';
+import { createConfiguredReviewedShardCatalogueProvider } from '../server/ecs-reviewed-shard-catalog.js';
 
 function reviewedProduct(overrides = {}) {
   return {
@@ -107,8 +109,11 @@ test('includes the reviewed BMW M3 aggregate through an auditable empty-safe sou
   }), false);
 });
 
-test('imports the real reviewed catalogue with an explicit BMW M3 capture boundary', () => {
-  const status = REVIEWED_ECS_CATALOGUE_STATUS.bmwM3AggregateCaptureStatus;
+test('keeps the runtime module empty and exposes BMW M3 progress through verified shards', async () => {
+  assert.equal(BMW_M3_AGGREGATE_PRODUCTS.length, 0);
+  const provider = createConfiguredReviewedShardCatalogueProvider();
+  const combined = await provider.getStatus(REVIEWED_ECS_PRODUCTS);
+  const status = combined.bmwM3AggregateCaptureStatus;
   assert.equal(status.importPolicy, 'reconciled-sections-only');
   assert.equal(status.requestedSectionCount, 7);
   assert.equal(status.includedSectionCount, status.includedSections.length);
@@ -116,7 +121,9 @@ test('imports the real reviewed catalogue with an explicit BMW M3 capture bounda
     status.requestedSectionCount - status.includedSectionCount);
   assert.equal(status.complete, status.includedSectionCount === status.requestedSectionCount);
   assert.equal(status.stage, status.complete ? 'complete' : 'staging-progress');
-  assert.ok(BMW_M3_AGGREGATE_PRODUCTS.length > 0);
+  assert.equal(combined.sourceRecordCounts.bmwM3Sharded, 2071);
+  assert.ok(combined.bmwM3AggregateNewUniqueProductCount > 0);
+  assert.equal(combined.shardRelease.source, 'bundled-verified-progress');
 
   const repairedIdentity = REVIEWED_ECS_PRODUCTS.filter(product => product.ecsPartNumber === 'ES#4772219');
   assert.equal(repairedIdentity.length, 1);
@@ -470,4 +477,17 @@ test('explains a conflicting public supplier price without exposing an incorrect
   });
   assert.equal(response.items[0].price.min, null);
   assert.match(response.items[0].price.note, /Conflicting public supplier prices/);
+});
+
+test('preserves official ECS HTTPS media URLs without converting them into local paths', () => {
+  const source = 'https://assets.ecstuning.com/product_library/25194_x300.webp';
+  const card = reviewedEcsProductCard(reviewedProduct({
+    images: [{ src: source, alt: 'BMW M3 steering wheel trim' }],
+    imageStatus: 'supplier-media-verified'
+  }), {
+    structuredVehicle: false,
+    fitment: 'all'
+  }, Date.parse('2026-08-09T12:00:00Z'));
+  assert.equal(card.image.src, source);
+  assert.equal(card.image.src.startsWith('/https://'), false);
 });

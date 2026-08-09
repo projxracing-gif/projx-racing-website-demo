@@ -14,6 +14,10 @@ import {
   catalogueParentPartTypeFacets,
   cataloguePartTypeMembers
 } from '../server/catalog-taxonomy.js';
+import {
+  createConfiguredReviewedShardCatalogueProvider,
+  ReviewedShardProviderError
+} from '../server/ecs-reviewed-shard-catalog.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -920,6 +924,7 @@ export function createPartsCatalogHandler({
   searchRateLimit,
   reviewedFallback = true,
   reviewedProducts = REVIEWED_ECS_PRODUCTS,
+  reviewedShardProvider = undefined,
   legacyHandler,
   legacyHandlerLoader = loadDefaultLegacyHandler,
   logger = console
@@ -927,6 +932,12 @@ export function createPartsCatalogHandler({
   if (query !== null && typeof query !== 'function') throw new TypeError('The query adapter must be a function.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   if (!Array.isArray(reviewedProducts)) throw new TypeError('Reviewed fallback products must be an array.');
+  if (reviewedShardProvider !== undefined && reviewedShardProvider !== null
+    && reviewedShardProvider !== false
+    && (typeof reviewedShardProvider?.prepareProducts !== 'function'
+      || typeof reviewedShardProvider?.getStatus !== 'function')) {
+    throw new TypeError('The reviewed shard provider must expose prepareProducts and getStatus.');
+  }
   if (legacyHandler !== undefined && legacyHandler !== null && legacyHandler !== false && typeof legacyHandler !== 'function') {
     throw new TypeError('The legacy catalog handler must be a function, null or false.');
   }
@@ -935,6 +946,7 @@ export function createPartsCatalogHandler({
   let adapterPromise = null;
   let loadedLegacyHandler = typeof legacyHandler === 'function' ? legacyHandler : null;
   let legacyHandlerPromise = null;
+  let configuredReviewedShardProvider = reviewedShardProvider || null;
   const rateLimit = createRateLimiter(now, searchRateLimit);
   const getAdapter = async () => {
     if (adapter) return adapter;
@@ -950,7 +962,14 @@ export function createPartsCatalogHandler({
     loadedLegacyHandler = await legacyHandlerPromise;
     return typeof loadedLegacyHandler === 'function' ? loadedLegacyHandler : null;
   };
-  const reviewedEcsCatalogueStatus = reviewedProducts === REVIEWED_ECS_PRODUCTS
+  const getReviewedShardProvider = () => {
+    if (reviewedShardProvider === false || reviewedShardProvider === null) return null;
+    if (configuredReviewedShardProvider) return configuredReviewedShardProvider;
+    if (reviewedProducts !== REVIEWED_ECS_PRODUCTS) return null;
+    configuredReviewedShardProvider = createConfiguredReviewedShardCatalogueProvider();
+    return configuredReviewedShardProvider;
+  };
+  const staticReviewedEcsCatalogueStatus = reviewedProducts === REVIEWED_ECS_PRODUCTS
     ? REVIEWED_ECS_CATALOGUE_STATUS
     : {
         schemaVersion: 1,
@@ -961,10 +980,14 @@ export function createPartsCatalogHandler({
         publishedProductCount: reviewedProducts.length,
         bmwM3AggregateNewUniqueProductCount: null
       };
-  const withEcsReferenceStats = async stats => ({
-    ...stats,
-    reviewedEcsCatalogueStatus
-  });
+  const withEcsReferenceStats = async (stats, statusOverride = null) => {
+    let reviewedEcsCatalogueStatus = statusOverride || staticReviewedEcsCatalogueStatus;
+    if (!statusOverride) {
+      const provider = getReviewedShardProvider();
+      if (provider) reviewedEcsCatalogueStatus = await provider.getStatus(reviewedProducts);
+    }
+    return { ...stats, reviewedEcsCatalogueStatus };
+  };
   return async function partsCatalogHandler(req, res) {
     if (req.method !== 'GET') {
       res.setHeader('Allow', 'GET');
@@ -1012,22 +1035,34 @@ export function createPartsCatalogHandler({
         });
       }
       try {
+        const shardProvider = getReviewedShardProvider();
+        const prepared = shardProvider
+          ? await shardProvider.prepareProducts({
+              request,
+              baseProducts: reviewedProducts,
+              nowValue: Number(now())
+            })
+          : { products: reviewedProducts, status: staticReviewedEcsCatalogueStatus };
         const body = await reviewedFallbackResponse({
           request,
           req,
           nowValue: Number(now()),
           reason,
           legacyHandler: fallbackLegacyHandler,
-          products: reviewedProducts
+          products: prepared.products
         });
         if (Object.hasOwn(body, 'nextOffset')) {
           body.nextCursor = body.nextOffset === null ? null : encodeCursor(body.nextOffset, request.fingerprint);
           delete body.nextOffset;
         }
-        body.meta = await withEcsReferenceStats(body.meta);
+        body.meta = await withEcsReferenceStats(body.meta, prepared.status);
         return sendJson(res, 200, body, true);
       } catch (error) {
         if (error instanceof ReviewedFallbackError) return sendError(res, error.status, error.code, error.message);
+        if (error instanceof ReviewedShardProviderError) {
+          logger?.error?.('Reviewed shard catalogue failed closed', { code: error.code });
+          return sendError(res, error.status, error.code, error.message);
+        }
         logger?.error?.('Reviewed parts fallback failed', {
           message: error instanceof Error ? error.message : 'unknown_error'
         });
@@ -1095,7 +1130,10 @@ export function createPartsCatalogHandler({
           execute(sql, buildListQuery(suggestionRequest, SUGGESTION_LIMIT)), execute(sql, buildStatsQuery())
         ]);
         const stats = await withEcsReferenceStats(requirePublishedCatalogue(statsRows[0]));
-        if (!catalogueIncludesReviewedEcs(stats, reviewedProducts.length)) return sendReviewedFallback('reviewed_ecs_not_seeded');
+        if (!catalogueIncludesReviewedEcs(
+          stats,
+          stats.reviewedEcsCatalogueStatus?.publishedProductCount || reviewedProducts.length
+        )) return sendReviewedFallback('reviewed_ecs_not_seeded');
         const suggestions = rows.slice(0, SUGGESTION_LIMIT).map(row => {
           const card = cardFromRow(row, nowValue);
           return {
@@ -1116,7 +1154,10 @@ export function createPartsCatalogHandler({
         execute(sql, buildListQuery(request)), execute(sql, buildStatsQuery()), execute(sql, buildCountQuery(request))
       ]);
       const stats = await withEcsReferenceStats(requirePublishedCatalogue(statsRows[0]));
-      if (!catalogueIncludesReviewedEcs(stats, reviewedProducts.length)) return sendReviewedFallback('reviewed_ecs_not_seeded');
+      if (!catalogueIncludesReviewedEcs(
+        stats,
+        stats.reviewedEcsCatalogueStatus?.publishedProductCount || reviewedProducts.length
+      )) return sendReviewedFallback('reviewed_ecs_not_seeded');
       const totalResults = boundedInteger(countRows[0]?.total_results, 0, 100_000_000);
       if (request.offset > 0 && request.offset >= totalResults) {
         return sendError(
