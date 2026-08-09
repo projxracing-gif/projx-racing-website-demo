@@ -95,6 +95,55 @@ The same detail-page pass can recover supplier description and brand evidence fo
 the flagged 75 and 16 products. Until evidence is captured, the current explicit
 missing-data labels remain correct.
 
+## Resumable detail-page runner
+
+The recovery runner is an injected-browser library, not a command-line network
+client. Its package command performs a no-network preflight of the exact private
+queue and checksum only:
+
+```powershell
+npm run catalog:ecs:bmw-m3-media-recovery-browser
+```
+
+The preflight is pinned to the current 832-item queue, release ID, queue SHA-256,
+identity-set SHA-256 and full-record-set SHA-256. It reports
+`browserStarted: false` and `networkAccessed: false`. A live pass must be started
+deliberately from an already-authorized persistent public ECS tab by injecting the
+tab adapter:
+
+```js
+const recovery = await import(
+  'file:///ABSOLUTE/REPOSITORY/scripts/ecs-catalog/run-bmw-m3-media-recovery.mjs'
+);
+const result = await recovery.runBmwM3MediaRecoveryBrowser(
+  recovery.createCodexTabBmwM3MediaRecoveryAdapter(tab),
+  {
+    queuePath: 'ABSOLUTE/REPOSITORY/private-imports/ecs-bmw-m3-20260809/media-recovery-queue.json',
+    outputDir: 'ABSOLUTE/REPOSITORY/private-imports/ecs-bmw-m3-20260809/media-recovery-browser',
+    pageBudget: 10,
+    navigationDelayMs: 4000,
+  },
+);
+```
+
+The runner visits only the queue's exact canonical public product URLs. It checks
+the final URL, canonical link, ES number, manufacturer part number and product
+title before accepting evidence. Media must be observed in that product's gallery
+or Product JSON-LD and must be an exact HTTPS
+`assets.ecstuning.com/product_library/` JPEG, PNG or WebP URL. Foreign media,
+generic logos, placeholders and synthetic URLs are rejected. Brand and
+description text is retained only for queue items explicitly missing those
+fields. Price, stock, availability, fitment and delivery data are never captured.
+
+Each accepted product writes one atomic, create-only checkpoint below the ignored
+private output directory. Re-running validates and skips those checkpoints, then
+continues in queue order up to the bounded `pageBudget`. A progress report is
+updated after each accepted product. Interactive challenges stop the run
+immediately without a bypass attempt. URL, identity or media conflicts write a
+minimal private quarantine record and stop; an unresolved quarantine blocks later
+resume until it is reviewed. Output paths cannot leave `private-imports/`, linked
+directories are rejected and existing checkpoints are never overwritten.
+
 ## Focused verification
 
 ```powershell
@@ -106,3 +155,14 @@ foreign/query/fragment URL rejection, duplicate and conflicting identities,
 contradictory media state, shard checksum drift, private-only output confinement,
 no-overwrite behavior, and linked-directory escape rejection where the operating
 system permits directory links.
+
+The runner's injected-adapter tests are also entirely offline:
+
+```powershell
+node --test scripts/ecs-catalog/run-bmw-m3-media-recovery.test.mjs
+```
+
+They cover verified media, authoritative no-image results, challenge stopping,
+identity and canonical-page conflicts, foreign/generic media, bounded resume,
+queue checksum and duplicate-identity drift, output confinement and checkpoint
+no-overwrite behavior.
