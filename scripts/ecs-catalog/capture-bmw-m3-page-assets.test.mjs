@@ -34,10 +34,12 @@ test('allows official product media but rejects placeholders and foreign URLs', 
   assert.equal(canonicalOfficialImageUrl('https://assets.ecstuning.com/product_library/ecs_box_no_image.webp'), null);
   assert.equal(canonicalOfficialImageUrl('https://example.com/product.webp'), null);
   assert.equal(canonicalOfficialImageUrl('http://assets.ecstuning.com/product.webp'), null);
+  assert.equal(canonicalOfficialImageUrl('https://assets.ecstuning.com/product_library/product.avif'), null);
 });
 
 test('requests primary images and safely aliases an observed fallback', () => {
   const checkpoint = {
+    observedAt: '2026-08-09T12:00:00.000Z',
     records: [
       {
         ecsDigits: '123456',
@@ -61,12 +63,13 @@ test('requests primary images and safely aliases an observed fallback', () => {
     assetId: 'image-1',
     downloadedFromUrl: 'https://assets.ecstuning.com/product_library/123_x300.jpg',
     sourceUrl: 'https://assets.ecstuning.com/product_library/123_x300.webp',
+    observedAt: '2026-08-09T12:00:00.000Z',
   }]);
   assert.deepEqual(matched.missing, []);
 });
 
 test('validates a durable BMW M3 page checkpoint before media use', () => {
-  const checkpoint = __test.validateCheckpoint({
+  const document = {
     schemaVersion: 1,
     supplier: 'ECS Tuning',
     accessClass: 'public-retail',
@@ -83,12 +86,19 @@ test('validates a durable BMW M3 page checkpoint before media use', () => {
       ecsPartNumber: 'ES#123456',
       vehicle: 'BMW M3',
       section: 'Engine',
+      categoryKey: 'bmw-m3-intake',
+      sourceUrl: 'https://www.ecstuning.com/BMW-M3/Engine/Intake/2',
       imageUrl: 'https://assets.ecstuning.com/product_library/123_x300.webp',
       imageFallbackUrl: 'https://assets.ecstuning.com/product_library/123_x300.jpg',
     }],
-  }, 'engine');
+  };
+  const checkpoint = __test.validateCheckpoint(document, 'engine');
   assert.equal(checkpoint.page, 2);
   assert.equal(checkpoint.records[0].ecsDigits, '123456');
+
+  document.sourceUrl = 'https://www.ecstuning.com/BMW-M3/Engine/Intake/3';
+  document.records[0].sourceUrl = document.sourceUrl;
+  assert.throws(() => __test.validateCheckpoint(document, 'engine'), /media checkpoint is invalid/);
 });
 
 test('fails closed when a source URL maps to conflicting local bytes', () => {
@@ -139,6 +149,8 @@ test('materializes one exact browser-observed checkpoint and resumes from its in
       ecsPartNumber: 'ES#123456',
       vehicle: 'BMW M3',
       section: 'Braking',
+      categoryKey: 'bmw-m3-brake-fluid',
+      sourceUrl,
       imageUrl,
       imageFallbackUrl: 'https://assets.ecstuning.com/product_library/123_x300.jpg',
     }],
@@ -192,9 +204,12 @@ test('materializes one exact browser-observed checkpoint and resumes from its in
   assert.equal(first.totalMappings, 1);
   const index = JSON.parse(await readFile(options.indexPath, 'utf8'));
   assert.equal(index.images[0].sourceUrl, imageUrl);
+  assert.equal(index.generatedAt, '2026-08-09T12:00:00.000Z');
   assert.deepEqual({ width: index.images[0].width, height: index.images[0].height }, { width: 100, height: 200 });
   assert.match(index.images[0].localPath, /^assets\/products\/ecs\/\.media-test-[^/]+\/[a-f0-9]{24}\.webp$/);
   const second = await captureEcsBmwM3PageAssets(adapter, options);
   assert.equal(second.attemptedPages, 0);
   assert.equal(bundleCalls, 1);
+  const resumedIndex = JSON.parse(await readFile(options.indexPath, 'utf8'));
+  assert.equal(resumedIndex.generatedAt, '2026-08-09T12:00:00.000Z');
 });

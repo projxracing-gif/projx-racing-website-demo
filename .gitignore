@@ -36,6 +36,7 @@ desktop.ini
 # Private supplier imports and dealer data
 private-imports/
 dealer-imports/
+assets/products/ecs/bmw-m3/
 *.csv
 *.tsv
 *.xls

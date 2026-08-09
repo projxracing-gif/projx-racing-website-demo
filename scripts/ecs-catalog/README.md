@@ -124,6 +124,15 @@ const result = await mediaModule.captureEcsBmwM3PageAssets(
 
 The browser runner accepts partial durable checkpoints, so completed sections can be materialized while other sections are still being captured. Re-running the same call resumes from the verified index and state. A page remains `partial` when ECS advertises a non-placeholder product image but the browser does not observe or bundle it; those pages are retried rather than silently treated as complete. The focused no-network tests are `node --test scripts/ecs-catalog/capture-bmw-m3-page-assets.test.mjs`.
 
+Do not commit the eventual multi-gigabyte local media directory to GitHub. After the completed media index passes local review, run the preview publisher in dry-run mode. It re-reads every local file, verifies its SHA-256 checksum and dimensions, deduplicates identical bytes, and reports the exact upload size without needing credentials:
+
+```text
+npm run catalog:ecs:publish-bmw-m3-media -- \
+  --index private-imports/ecs-bmw-m3-20260809/media-index.json
+```
+
+A real staging upload additionally requires `--output private-imports/ecs-bmw-m3-20260809/media-index-published.json --preview` and server-only Blob credentials. Prefer the short-lived `VERCEL_OIDC_TOKEN` plus `BLOB_STORE_ID` pair; `BLOB_READ_WRITE_TOKEN` remains a legacy fallback. An optional `--concurrency 1` through `--concurrency 8` controls bounded uploads; the default is four. This is an important external write and must be explicitly approved. The publisher uploads immutable content-hash paths under `projx-racing/ecs-media/bmw-m3/`, reads every object back to verify its checksum, and writes a local published index only after all objects pass. Credentials are never written to the index, repository, product data or logs. The BMW M3 normalizer accepts that published index and allows only exact public `*.public.blob.vercel-storage.com` URLs.
+
 ### Offline BMW M3 seven-section normalization
 
 After all seven reconciliation reports say `complete`, pass the seven direct `bmw-m3-<section>-records.json` files to the offline normalizer. These raw capture JSON files are the accepted inputs; no conversion or network request is needed. The command requires exactly one reconciled capture for each of `Braking`, `Engine`, `Exterior`, `Interior`, `Performance`, `Suspension` and `Steering`:

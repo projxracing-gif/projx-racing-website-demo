@@ -262,3 +262,30 @@ test('maps captured ECS CDN images to verified local materialized assets when an
   assert.equal(result.audit.localAssetImageProductCount, 1);
   assert.equal(result.audit.remoteCdnImageProductCount, 0);
 });
+
+test('maps verified ECS media to an approved public Vercel Blob URL', () => {
+  const publicUrl = 'https://projx-racing-media.public.blob.vercel-storage.com/projx-racing/ecs-media/bmw-m3/abcdef.webp';
+  const mediaIndex = {
+    schemaVersion: 1,
+    supplier: 'ECS Tuning',
+    storage: 'vercel-blob-public',
+    images: [{
+      sourceUrl: 'https://assets.ecstuning.com/product_library/4700001_x300.webp',
+      publicUrl,
+      width: 300,
+      height: 225,
+      sha256: 'b'.repeat(64)
+    }]
+  };
+  const result = prepareBmwM3AggregateCapture(capture([record()]), { nowMs, mediaIndex });
+  assert.equal(result.products[0].images[0].src, publicUrl);
+  assert.equal(result.audit.blobAssetImageProductCount, 1);
+  assert.equal(result.audit.localAssetImageProductCount, 0);
+  assert.equal(result.audit.remoteCdnImageProductCount, 0);
+
+  mediaIndex.images[0].publicUrl = 'https://example.com/unsafe.webp';
+  assert.throws(
+    () => prepareBmwM3AggregateCapture(capture([record()]), { nowMs, mediaIndex }),
+    /media index entry 1 is invalid/,
+  );
+});

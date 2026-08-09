@@ -158,7 +158,7 @@ async function main() {
 
 export const __test = Object.freeze({ officialImageUrl, webpSize, jpegSize, pngSize, dimensions });
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv?.[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

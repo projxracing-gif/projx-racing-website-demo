@@ -681,8 +681,10 @@ function rootAsset(value) {
   if (/^https:\/\//i.test(source)) {
     try {
       const url = new URL(source);
+      const hostname = url.hostname.toLowerCase();
       if (url.protocol !== 'https:' || url.username || url.password || url.port
-        || url.hostname.toLowerCase() !== 'assets.ecstuning.com') return null;
+        || (hostname !== 'assets.ecstuning.com'
+          && !/\.public\.blob\.vercel-storage\.com$/i.test(hostname))) return null;
       return source;
     } catch {
       return null;

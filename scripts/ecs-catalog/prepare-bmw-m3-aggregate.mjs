@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const ECS_PRODUCT_HOST = 'www.ecstuning.com';
 const ECS_IMAGE_HOST = 'assets.ecstuning.com';
+const PUBLIC_BLOB_HOST = /\.public\.blob\.vercel-storage\.com$/i;
 const PRODUCT_PATH = /^\/b-[^/?#]+\/[^/?#]+\/[^/?#]+\/$/i;
 const OBSERVATION_FUTURE_TOLERANCE_MS = 5 * 60 * 1_000;
 
@@ -65,6 +66,21 @@ function canonicalProductUrl(value) {
   return canonicalHttpsUrl(repaired, ECS_PRODUCT_HOST, PRODUCT_PATH);
 }
 
+function canonicalPublicBlobUrl(value) {
+  try {
+    const url = new URL(clean(value, 2_000));
+    if (url.protocol !== 'https:' || !PUBLIC_BLOB_HOST.test(url.hostname)
+      || url.username || url.password || url.port || url.search || url.hash) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isPublicBlobAsset(value) {
+  return Boolean(canonicalPublicBlobUrl(value));
+}
+
 function sectionDefinition(value) {
   const key = slugify(value);
   return Object.hasOwn(BMW_M3_AGGREGATE_SECTIONS, key)
@@ -102,22 +118,24 @@ function mediaIndexMap(document) {
   for (const [index, image] of document.images.entries()) {
     const sourceUrl = canonicalHttpsUrl(image?.sourceUrl, ECS_IMAGE_HOST, null, false);
     const localPath = clean(image?.localPath, 1_000).replaceAll('\\', '/');
+    const publicUrl = canonicalPublicBlobUrl(image?.publicUrl);
+    const src = publicUrl || localPath;
     const width = Number(image?.width);
     const height = Number(image?.height);
     const sha256 = clean(image?.sha256, 100).toLocaleLowerCase('en-US');
     const unsafeSegment = localPath.split('/').some(segment => segment === '..' || segment === '.');
-    if (!sourceUrl || unsafeSegment
-      || !/^assets\/products\/ecs\/[a-z0-9][a-z0-9._/-]*\.(?:avif|jpe?g|png|webp)$/i.test(localPath)
+    if (!sourceUrl || (publicUrl && localPath) || (!publicUrl && (unsafeSegment
+      || !/^assets\/products\/ecs\/[a-z0-9][a-z0-9._/-]*\.(?:avif|jpe?g|png|webp)$/i.test(localPath)))
       || !Number.isInteger(width) || width < 1 || width > 8_000
       || !Number.isInteger(height) || height < 1 || height > 8_000
       || !/^[a-f0-9]{64}$/.test(sha256)) {
       throw new Error(`BMW M3 media index entry ${index + 1} is invalid.`);
     }
     const existing = result.get(sourceUrl);
-    if (existing && (existing.localPath !== localPath || existing.sha256 !== sha256)) {
+    if (existing && (existing.src !== src || existing.sha256 !== sha256)) {
       throw new Error(`BMW M3 media index has conflicting files for ${sourceUrl}.`);
     }
-    if (!existing) result.set(sourceUrl, { sourceUrl, localPath, width, height, sha256 });
+    if (!existing) result.set(sourceUrl, { sourceUrl, src, width, height, sha256 });
   }
   return result;
 }
@@ -270,7 +288,7 @@ function buildProduct(digits, records, mediaMap) {
   const renderedImages = images.map(sourceUrl => {
     const local = mediaMap.get(sourceUrl);
     return local
-      ? { src: local.localPath, width: local.width, height: local.height, sourceUrl }
+      ? { src: local.src, width: local.width, height: local.height, sourceUrl }
       : { src: sourceUrl, sourceUrl };
   });
   const observedDate = (withPrice || current).observedAt.slice(0, 10);
@@ -450,7 +468,10 @@ export function prepareBmwM3AggregateCapture(document, options = {}) {
     requestPriceProductCount: products.filter(product => product.priceAmount === null).length,
     supplierImageProductCount: products.filter(product => product.images.length > 0).length,
     localAssetImageProductCount: products.filter(product => product.images.some(image => !/^https:/i.test(image.src))).length,
-    remoteCdnImageProductCount: products.filter(product => product.images.some(image => /^https:/i.test(image.src))).length,
+    blobAssetImageProductCount: products.filter(product => product.images
+      .some(image => isPublicBlobAsset(image.src))).length,
+    remoteCdnImageProductCount: products.filter(product => product.images
+      .some(image => /^https:\/\/assets\.ecstuning\.com\//i.test(image.src))).length,
     missingSupplierDescriptionProductCount: products.filter(product => !product.detailedDescriptionAvailable).length,
     sections: sectionAudit(products, valid),
     invalidRecords,

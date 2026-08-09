@@ -491,3 +491,24 @@ test('preserves official ECS HTTPS media URLs without converting them into local
   assert.equal(card.image.src, source);
   assert.equal(card.image.src.startsWith('/https://'), false);
 });
+
+test('preserves approved public Vercel Blob media and rejects foreign remote images', () => {
+  const source = 'https://projx-racing-media.public.blob.vercel-storage.com/projx-racing/ecs-media/bmw-m3/example.webp';
+  const card = reviewedEcsProductCard(reviewedProduct({
+    images: [{ src: source, alt: 'BMW M3 verified product image' }],
+    imageStatus: 'supplier-media-verified'
+  }), {
+    structuredVehicle: false,
+    fitment: 'all'
+  }, Date.parse('2026-08-09T12:00:00Z'));
+  assert.equal(card.image.src, source);
+
+  const rejected = reviewedEcsProductCard(reviewedProduct({
+    images: [{ src: 'https://example.com/unsafe.webp', alt: 'Unsafe remote image' }],
+    imageStatus: 'supplier-media-verified'
+  }), {
+    structuredVehicle: false,
+    fitment: 'all'
+  }, Date.parse('2026-08-09T12:00:00Z'));
+  assert.notEqual(rejected.image.src, 'https://example.com/unsafe.webp');
+});

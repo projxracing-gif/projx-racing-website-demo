@@ -11,8 +11,16 @@ import {
   createReviewedShardCatalogueProvider,
   signReviewedShardManifest
 } from '../../server/ecs-reviewed-shard-catalog.js';
+import {
+  publishReviewedProductShards,
+  ReviewedShardPublisherError
+} from './publish-reviewed-product-shards.mjs';
 
 const NOW = Date.parse('2026-08-09T16:00:00.000Z');
+const LEGACY_TOKEN = 'test_blob_token_1234567890';
+const OIDC_TOKEN = 'test_oidc_token_1234567890';
+const STORE_ID = 'store_testblob1234567890';
+const MANIFEST_SECRET = 'reviewed-shard-test-secret-'.repeat(2);
 
 function audit({ complete = false } = {}) {
   const sectionKeys = ['braking', 'engine', 'exterior', 'interior', 'performance', 'suspension', 'steering'];
@@ -70,12 +78,47 @@ function request(overrides = {}) {
   };
 }
 
-async function fixture() {
+async function fixture({ complete = false } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'projx-reviewed-shards-'));
   const products = Array.from({ length: 300 }, (_, index) => product(index + 1));
-  const release = buildReviewedProductShardRelease(products, audit(), { shardSize: 128 });
+  const release = buildReviewedProductShardRelease(products, audit({ complete }), { shardSize: 128 });
   await writeReviewedProductShardRelease(root, release);
   return { root, products, release };
+}
+
+function memoryBlobSdk() {
+  const objects = new Map();
+  const putCalls = [];
+  const getCalls = [];
+  const url = pathname => `https://reviewed-test.public.blob.vercel-storage.com/${pathname}`;
+  return {
+    putCalls,
+    getCalls,
+    async put(pathname, body, options) {
+      const buffer = Buffer.from(body);
+      putCalls.push({ pathname, options });
+      objects.set(pathname, { buffer, contentType: options.contentType });
+      return { url: url(pathname) };
+    },
+    async get(pathname, options) {
+      getCalls.push({ pathname, options });
+      const object = objects.get(pathname);
+      if (!object) return null;
+      return {
+        statusCode: 200,
+        stream: new ReadableStream({
+          start(controller) {
+            controller.enqueue(object.buffer);
+            controller.close();
+          }
+        }),
+        blob: {
+          url: url(pathname), pathname, size: object.buffer.length,
+          contentType: object.contentType, etag: `etag-${object.buffer.length}`
+        }
+      };
+    }
+  };
 }
 
 test('build is deterministic, bounded and records verified progress explicitly', () => {
@@ -167,7 +210,7 @@ test('unreconciled sections and products outside included sections are rejected'
 });
 
 test('a signed complete Blob release is accepted while a modified signature fails closed', async () => {
-  const secret = 'reviewed-shard-test-secret-'.repeat(2);
+  const secret = MANIFEST_SECRET;
   const products = Array.from({ length: 300 }, (_, index) => product(index + 1));
   const release = buildReviewedProductShardRelease(products, audit({ complete: true }), { shardSize: 128 });
   const host = 'reviewed-test.public.blob.vercel-storage.com';
@@ -219,4 +262,55 @@ test('a signed complete Blob release is accepted while a modified signature fail
     now: () => NOW
   });
   await assert.rejects(() => invalid.getStatus([]), error => error?.code === 'invalid_reviewed_shard_manifest');
+});
+
+test('reviewed shard publishing prefers OIDC and omits the legacy token option', async (t) => {
+  const current = await fixture({ complete: true });
+  t.after(() => rm(current.root, { recursive: true, force: true }));
+  const sdk = memoryBlobSdk();
+  const result = await publishReviewedProductShards({
+    directory: current.root,
+    dryRun: false,
+    previewConfirmed: true,
+    token: LEGACY_TOKEN,
+    oidcToken: OIDC_TOKEN,
+    storeId: STORE_ID,
+    manifestSecret: MANIFEST_SECRET,
+    blobSdk: sdk,
+    now: NOW
+  });
+  assert.equal(result.status, 'published');
+  assert.ok(sdk.putCalls.length > 0);
+  assert.ok(sdk.getCalls.length > 0);
+  for (const { options } of [...sdk.putCalls, ...sdk.getCalls]) {
+    assert.equal(options.oidcToken, OIDC_TOKEN);
+    assert.equal(options.storeId, STORE_ID);
+    assert.equal(Object.hasOwn(options, 'token'), false);
+  }
+});
+
+test('reviewed shard publishing rejects either incomplete OIDC combination before remote access', async (t) => {
+  const current = await fixture({ complete: true });
+  t.after(() => rm(current.root, { recursive: true, force: true }));
+  for (const credentials of [
+    { oidcToken: OIDC_TOKEN, storeId: '' },
+    { oidcToken: '', storeId: STORE_ID }
+  ]) {
+    const sdk = memoryBlobSdk();
+    await assert.rejects(
+      publishReviewedProductShards({
+        directory: current.root,
+        dryRun: false,
+        previewConfirmed: true,
+        token: LEGACY_TOKEN,
+        ...credentials,
+        manifestSecret: MANIFEST_SECRET,
+        blobSdk: sdk,
+        now: NOW
+      }),
+      error => error instanceof ReviewedShardPublisherError && error.code === 'blob_oidc_incomplete'
+    );
+    assert.equal(sdk.putCalls.length, 0);
+    assert.equal(sdk.getCalls.length, 0);
+  }
 });

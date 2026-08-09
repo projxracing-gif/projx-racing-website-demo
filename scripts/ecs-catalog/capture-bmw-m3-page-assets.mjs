@@ -69,8 +69,8 @@ export function canonicalOfficialImageUrl(value) {
     const url = new URL(clean(value));
     if (url.protocol !== 'https:' || url.hostname !== ECS_IMAGE_HOST || url.username
       || url.password || url.port || url.search || url.hash) return null;
-    if (!/\.(?:avif|jpe?g|png|webp)$/i.test(url.pathname)
-      || /\/ecs_box_no_image\.(?:avif|jpe?g|png|webp)$/i.test(url.pathname)) return null;
+    if (!/\.(?:jpe?g|png|webp)$/i.test(url.pathname)
+      || /\/ecs_box_no_image\.(?:jpe?g|png|webp)$/i.test(url.pathname)) return null;
     return url.toString();
   } catch {
     return null;
@@ -106,11 +106,17 @@ function validateCheckpoint(document, expectedSection) {
   const categoryUrl = canonicalBmwM3ListingUrl(document?.categoryUrl, expectedSection);
   const page = Number(document?.page);
   const expected = Number(document?.expected);
+  const categoryKey = clean(document?.categoryKey);
+  const category = categoryUrl ? new URL(categoryUrl) : null;
+  const source = sourceUrl ? new URL(sourceUrl) : null;
+  const pageMatchesCategory = Boolean(category && source && (page === 1
+    ? sourceUrl === categoryUrl
+    : source.pathname === `${category.pathname.replace(/\/+$/, '')}/${page}`));
   if (document?.schemaVersion !== 1 || document?.supplier !== 'ECS Tuning'
     || document?.accessClass !== 'public-retail'
     || document?.kind !== 'bmw-m3-section-listing-page'
     || document?.vehicle !== 'BMW M3' || document?.section !== sectionLabel
-    || !sourceUrl || !categoryUrl || !exactTimestamp(document?.observedAt)
+    || !sourceUrl || !categoryUrl || !categoryKey || !pageMatchesCategory || !exactTimestamp(document?.observedAt)
     || !Number.isInteger(page) || page < 1 || !Number.isInteger(expected) || expected < 1 || expected > 16
     || !Array.isArray(document?.records) || document.records.length !== expected) {
     throw new Error(`BMW M3 ${sectionLabel} media checkpoint is invalid.`);
@@ -120,6 +126,8 @@ function validateCheckpoint(document, expectedSection) {
     const fallbackUrl = canonicalOfficialImageUrl(record?.imageFallbackUrl);
     const ecsDigits = clean(record?.ecsPartNumber).replace(/^ES#/i, '');
     if (record?.section !== sectionLabel || record?.vehicle !== 'BMW M3'
+      || clean(record?.categoryKey) !== categoryKey
+      || canonicalBmwM3ListingUrl(record?.sourceUrl, expectedSection) !== sourceUrl
       || !/^\d{3,12}$/.test(ecsDigits)) {
       throw new Error(`BMW M3 ${sectionLabel} media record ${index + 1} is invalid.`);
     }
@@ -127,7 +135,7 @@ function validateCheckpoint(document, expectedSection) {
   });
   return {
     section: expectedSection,
-    categoryKey: clean(document.categoryKey),
+    categoryKey,
     page,
     expected,
     observedAt: document.observedAt,
@@ -147,6 +155,7 @@ export function requestedImages(checkpoint, existingByUrl = new Map()) {
       primaryUrl,
       fallbackUrl: record.fallbackUrl && record.fallbackUrl !== primaryUrl
         ? record.fallbackUrl : null,
+      observedAt: checkpoint.observedAt,
     });
   }
   return requested;
@@ -175,6 +184,7 @@ export function matchInventoryAssets(requested, inventory) {
       assetId: asset.id,
       downloadedFromUrl: canonicalOfficialImageUrl(asset.url),
       sourceUrl: item.primaryUrl,
+      observedAt: item.observedAt,
     });
   }
   return { assets: [...selectedById.values()], aliases, missing };
@@ -211,10 +221,12 @@ async function readPagePlan(captureDir, sections) {
 }
 
 async function readExistingIndex(indexPath) {
-  if (!(await exists(indexPath))) return new Map();
+  if (!(await exists(indexPath))) return { generatedAt: null, images: new Map() };
   const document = JSON.parse(await readFile(indexPath, 'utf8'));
   if (document?.schemaVersion !== 1 || document?.supplier !== 'ECS Tuning'
     || !Array.isArray(document?.images)) throw new Error('Existing BMW M3 media index is invalid.');
+  const generatedAt = exactTimestamp(document?.generatedAt);
+  if (!generatedAt) throw new Error('Existing BMW M3 media index timestamp is invalid.');
   const result = new Map();
   for (const [position, image] of document.images.entries()) {
     const sourceUrl = canonicalOfficialImageUrl(image?.sourceUrl);
@@ -223,11 +235,18 @@ async function readExistingIndex(indexPath) {
     const width = Number(image?.width);
     const height = Number(image?.height);
     const digest = clean(image?.sha256).toLocaleLowerCase('en-US');
+    const contentType = clean(image?.contentType).toLocaleLowerCase('en-US');
     if (!sourceUrl || !inside(MEDIA_ROOT, resolved) || !inside(REPO, resolved)
       || !Number.isInteger(width) || width < 1 || width > 8_000
       || !Number.isInteger(height) || height < 1 || height > 8_000
+      || !Object.hasOwn(ALLOWED_TYPES, contentType)
       || !/^[a-f0-9]{64}$/.test(digest) || !(await exists(resolved))) {
       throw new Error(`Existing BMW M3 media index entry ${position + 1} is invalid.`);
+    }
+    const bytes = await readFile(resolved);
+    const measured = imageValidation.dimensions(bytes, contentType);
+    if (sha256(bytes) !== digest || measured.width !== width || measured.height !== height) {
+      throw new Error(`Existing BMW M3 media index entry ${position + 1} failed byte verification.`);
     }
     const prior = result.get(sourceUrl);
     if (prior && (prior.localPath !== localPath || prior.sha256 !== digest)) {
@@ -235,7 +254,7 @@ async function readExistingIndex(indexPath) {
     }
     result.set(sourceUrl, { ...image, sourceUrl, localPath, width, height, sha256: digest });
   }
-  return result;
+  return { generatedAt, images: result };
 }
 
 async function materializeBundle(bundle, aliases, outputDirectory) {
@@ -279,6 +298,7 @@ async function materializeBundle(bundle, aliases, outputDirectory) {
         height: size.height,
         contentType,
         sha256: digest,
+        observedAt: alias.observedAt,
       });
     }
   }
@@ -346,7 +366,8 @@ export async function captureEcsBmwM3PageAssets(adapter, {
   await mkdir(resolvedOutput, { recursive: true });
   const pages = await readPagePlan(resolvedCaptureDir, normalizedSections);
   if (!pages.length) throw new Error('No validated BMW M3 listing checkpoints are available for media capture.');
-  const imagesByUrl = await readExistingIndex(resolvedIndex);
+  const existingIndex = await readExistingIndex(resolvedIndex);
+  const imagesByUrl = existingIndex.images;
   const state = await (async () => {
     if (!(await exists(resolvedState))) return { schemaVersion: 1, supplier: 'ECS Tuning', pages: {} };
     const document = JSON.parse(await readFile(resolvedState, 'utf8'));
@@ -360,18 +381,19 @@ export async function captureEcsBmwM3PageAssets(adapter, {
   let completedPages = 0;
   let addedMappings = 0;
   const unresolved = [];
-  let newestObservation = [...imagesByUrl.values()].map((image) => image?.observedAt)
-    .filter(exactTimestamp).sort().at(-1) || null;
+  let newestObservation = existingIndex.generatedAt;
 
   for (const page of pages) {
     const requested = requestedImages(page, imagesByUrl);
+    const expectedImageUrls = [...new Set(page.records
+      .map((record) => record.primaryUrl || record.fallbackUrl).filter(Boolean))];
     if (!requested.length) {
       state.pages[pageKey(page.sourceUrl)] = {
         sourceUrl: page.sourceUrl,
         section: page.section,
         status: 'complete',
         expectedProducts: page.expected,
-        mappedImages: page.records.filter((record) => record.primaryUrl || record.fallbackUrl).length,
+        mappedImages: expectedImageUrls.filter((url) => imagesByUrl.has(url)).length,
         missingImages: [],
         updatedAt: new Date().toISOString(),
       };
@@ -421,7 +443,7 @@ export async function captureEcsBmwM3PageAssets(adapter, {
         section: page.section,
         status,
         expectedProducts: page.expected,
-        mappedImages: requested.length - missing.length,
+        mappedImages: expectedImageUrls.filter((url) => imagesByUrl.has(url)).length,
         missingImages: missing,
         updatedAt: new Date().toISOString(),
       };
@@ -493,9 +515,13 @@ export function createCodexTabPageAssetsAdapter(tab) {
       );
     },
     async prepareAssets() {
-      await tab.playwright.evaluate(() => {
-        window.scrollTo(0, document.documentElement.scrollHeight);
-      }, undefined, { timeoutMs: 15_000 });
+      for (const fraction of [0, 0.25, 0.5, 0.75, 1]) {
+        await tab.playwright.evaluate(({ position }) => {
+          const maximum = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          window.scrollTo(0, Math.round(maximum * position));
+        }, { position: fraction }, { timeoutMs: 15_000 });
+        await tab.playwright.waitForTimeout(250);
+      }
     },
     async listAssets() { return (await getCapability()).list(); },
     async bundleAssets(options) { return (await getCapability()).bundle(options); },

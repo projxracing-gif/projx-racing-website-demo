@@ -12,6 +12,7 @@ export const ECS_REVIEWED_RELEASE_PREFIX = 'projx-racing/ecs-reviewed/releases/'
 export const ECS_REVIEWED_CURRENT_PATH = 'projx-racing/ecs-reviewed/preview/current.json';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_\-.]{20,4096}$/;
+const STORE_ID_PATTERN = /^(?:store_)?[A-Za-z0-9_-]{3,256}$/;
 const MAX_READ_BYTES = 4 * 1024 * 1024;
 
 export class ReviewedShardPublisherError extends Error {
@@ -24,6 +25,27 @@ export class ReviewedShardPublisherError extends Error {
 
 function fail(code, message) {
   throw new ReviewedShardPublisherError(code, message);
+}
+
+const credential = value => typeof value === 'string' ? value.trim() : '';
+
+function blobAuthOptions({ token = '', oidcToken = '', storeId = '' } = {}) {
+  const legacyToken = credential(token);
+  const vercelOidcToken = credential(oidcToken);
+  const blobStoreId = credential(storeId);
+  if (Boolean(vercelOidcToken) !== Boolean(blobStoreId)) {
+    fail('blob_oidc_incomplete', 'VERCEL_OIDC_TOKEN and BLOB_STORE_ID must be configured together.');
+  }
+  if (vercelOidcToken && blobStoreId) {
+    if (!TOKEN_PATTERN.test(vercelOidcToken) || !STORE_ID_PATTERN.test(blobStoreId)) {
+      fail('blob_oidc_invalid', 'The Vercel OIDC Blob credential configuration is invalid.');
+    }
+    return Object.freeze({ oidcToken: vercelOidcToken, storeId: blobStoreId });
+  }
+  if (!TOKEN_PATTERN.test(legacyToken)) {
+    fail('blob_token_required', 'Configure VERCEL_OIDC_TOKEN with BLOB_STORE_ID, or provide BLOB_READ_WRITE_TOKEN, for a real preview publish.');
+  }
+  return Object.freeze({ token: legacyToken });
 }
 
 function sha256(value) {
@@ -81,16 +103,16 @@ function validateSdk(sdk) {
   return sdk;
 }
 
-async function getExisting(sdk, pathname, token) {
+async function getExisting(sdk, pathname, authOptions) {
   try {
-    return await sdk.get(pathname, { token, access: 'public' });
+    return await sdk.get(pathname, { ...authOptions, access: 'public' });
   } catch {
     return null;
   }
 }
 
-async function verifyRemote(sdk, pathname, expected, token) {
-  const response = await getExisting(sdk, pathname, token);
+async function verifyRemote(sdk, pathname, expected, authOptions) {
+  const response = await getExisting(sdk, pathname, authOptions);
   if (!response || response.statusCode !== 200) fail('remote_verify_failed', `${pathname} could not be read back.`);
   const body = await readStream(response.stream, Math.max(MAX_READ_BYTES, expected.length));
   if (body.length !== expected.length || sha256(body) !== sha256(expected)) {
@@ -99,18 +121,18 @@ async function verifyRemote(sdk, pathname, expected, token) {
   return response;
 }
 
-async function putImmutable(sdk, pathname, buffer, token) {
+async function putImmutable(sdk, pathname, buffer, authOptions) {
   let blob;
   try {
     blob = await sdk.put(pathname, buffer, {
-      token, access: 'public', contentType: 'application/json', cacheControlMaxAge: 31_536_000,
+      ...authOptions, access: 'public', contentType: 'application/json', cacheControlMaxAge: 31_536_000,
       addRandomSuffix: false, allowOverwrite: false, multipart: buffer.length > 4 * 1024 * 1024
     });
   } catch (error) {
     if (!['BlobAlreadyExistsError', 'BlobPreconditionFailedError'].includes(error?.name)
       && !['BLOB_ALREADY_EXISTS', 'BLOB_PRECONDITION_FAILED'].includes(error?.code)) throw error;
   }
-  const response = await verifyRemote(sdk, pathname, buffer, token);
+  const response = await verifyRemote(sdk, pathname, buffer, authOptions);
   const url = blob?.url || response?.blob?.url;
   if (!url) fail('remote_verify_failed', `${pathname} did not expose a public URL.`);
   return { url, etag: response?.blob?.etag || null };
@@ -121,6 +143,8 @@ export async function publishReviewedProductShards({
   dryRun = true,
   previewConfirmed = false,
   token = process.env.BLOB_READ_WRITE_TOKEN || '',
+  oidcToken = process.env.VERCEL_OIDC_TOKEN || '',
+  storeId = process.env.BLOB_STORE_ID || '',
   manifestSecret = process.env.ECS_REVIEWED_SHARD_MANIFEST_SECRET || '',
   blobSdk = null,
   now = Date.now()
@@ -140,7 +164,7 @@ export async function publishReviewedProductShards({
   };
   if (dryRun) return Object.freeze(plan);
   if (!previewConfirmed) fail('preview_confirmation_required', 'A real reviewed shard publish requires explicit preview confirmation.');
-  if (!TOKEN_PATTERN.test(token)) fail('blob_token_required', 'BLOB_READ_WRITE_TOKEN is required for a real preview publish.');
+  const authOptions = blobAuthOptions({ token, oidcToken, storeId });
   if (typeof manifestSecret !== 'string' || Buffer.byteLength(manifestSecret, 'utf8') < 32) {
     fail('manifest_secret_required', 'ECS_REVIEWED_SHARD_MANIFEST_SECRET is required for a real preview publish.');
   }
@@ -151,7 +175,7 @@ export async function publishReviewedProductShards({
   const remoteByFile = new Map();
   for (const artifact of local.artifacts) {
     const pathname = `${prefix}${artifact.descriptor.file}`;
-    remoteByFile.set(artifact.descriptor.file, await putImmutable(sdk, pathname, artifact.buffer, token));
+    remoteByFile.set(artifact.descriptor.file, await putImmutable(sdk, pathname, artifact.buffer, authOptions));
   }
   const publishedAt = new Date(nowValue).toISOString();
   const expiresAt = new Date(nowValue + 7 * 24 * 60 * 60 * 1_000).toISOString();
@@ -179,7 +203,7 @@ export async function publishReviewedProductShards({
     fail('manifest_signing_failed', 'The reviewed shard manifest signature could not be verified locally.');
   }
   const body = Buffer.from(`${JSON.stringify(remoteManifest)}\n`, 'utf8');
-  let existing = await getExisting(sdk, ECS_REVIEWED_CURRENT_PATH, token);
+  let existing = await getExisting(sdk, ECS_REVIEWED_CURRENT_PATH, authOptions);
   if (existing?.statusCode === 200) {
     const currentBody = await readStream(existing.stream, 2 * 1024 * 1024);
     try {
@@ -192,7 +216,7 @@ export async function publishReviewedProductShards({
   }
   try {
     await sdk.put(ECS_REVIEWED_CURRENT_PATH, body, {
-      token, access: 'public', contentType: 'application/json', cacheControlMaxAge: 60,
+      ...authOptions, access: 'public', contentType: 'application/json', cacheControlMaxAge: 60,
       addRandomSuffix: false, allowOverwrite: Boolean(existing),
       ...(existing?.blob?.etag ? { ifMatch: existing.blob.etag } : {})
     });
@@ -202,7 +226,7 @@ export async function publishReviewedProductShards({
     }
     fail('manifest_upload_failed', 'The reviewed shard current manifest could not be published.');
   }
-  await verifyRemote(sdk, ECS_REVIEWED_CURRENT_PATH, body, token);
+  await verifyRemote(sdk, ECS_REVIEWED_CURRENT_PATH, body, authOptions);
   return Object.freeze({
     ...plan, status: 'published', dryRun: false,
     currentManifest: Object.freeze(remoteManifest)
@@ -242,3 +266,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exitCode = 1;
   });
 }
+
+export const __test = Object.freeze({ blobAuthOptions });
