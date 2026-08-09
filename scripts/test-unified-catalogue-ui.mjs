@@ -274,4 +274,24 @@ assert.match(styles, /\.catalogue-fallback-notice/);
 assert.match(styles, /\.tegiwa-fitment-list/);
 assert.doesNotMatch(styles, /\.ecs-reference-/);
 
+const cssRule = selector => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return styles.match(new RegExp(`(?:^|\\n)\\s*${escapedSelector}\\s*\\{([^}]*)\\}`, 'm'))?.[1] || '';
+};
+const numericZIndex = selector => Number(cssRule(selector).match(/z-index:\s*(\d+)/)?.[1]);
+assert.match(cssRule('.header-inner'), /padding-left:\s*var\(--safe-left\)/,
+  'The header must protect its physical left edge from the iPhone landscape safe area.');
+assert.match(cssRule('.header-inner'), /padding-right:\s*var\(--safe-right\)/,
+  'The header must protect its physical right edge from the iPhone landscape safe area.');
+assert.match(cssRule('.mobile-nav'), /max\(18px,\s*var\(--safe-right\)\)[^;]*max\(20px,\s*var\(--safe-left\)\)/,
+  'The English and RTL mobile drawers must protect both physical landscape safe areas.');
+assert.match(styles, /@media\s*\(max-width:\s*430px\)\s*\{[^}]*\.header-contact\s*\{\s*display:\s*none;/s,
+  'The redundant header WhatsApp control must be hidden across narrow iPhone widths.');
+assert.ok(numericZIndex('.tegiwa-search-box:focus-within') < numericZIndex('.site-header'),
+  'Focused catalogue search controls must remain below the sticky header.');
+assert.ok(numericZIndex('.tegiwa-suggestions') < numericZIndex('.site-header'),
+  'Catalogue suggestions must remain below the sticky header.');
+assert.ok(numericZIndex('.tegiwa-suggestions') > 8,
+  'Catalogue suggestions must still overlay ordinary catalogue cards and review markers.');
+
 console.log('Unified catalogue UI source checks passed.');
