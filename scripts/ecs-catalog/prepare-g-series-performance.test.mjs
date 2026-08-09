@@ -345,6 +345,14 @@ test('repairs known supplier temperature encoding and rejects unresolved replace
   assert.throws(() => prepareGSeriesPerformance(temperatures, media), /unresolved replacement character/);
 });
 
+test('repairs known supplier smart punctuation encoding before compatibility normalization', () => {
+  const punctuation = structuredClone(source);
+  punctuation.records = [punctuation.records[0]];
+  punctuation.records[0].description = 'BMW\u00e2\u20ac\u2122s legacy \u00e2\u20ac\u201d engineered for track use\u00e2\u20ac\u00a6';
+  const [product] = prepareGSeriesPerformance(punctuation, media);
+  assert.equal(product.description, 'BMW’s legacy — engineered for track use...');
+});
+
 test('keeps zero-value or starting-price configurators quote-only', () => {
   const configurable = structuredClone(source);
   configurable.records = [configurable.records[0]];

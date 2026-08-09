@@ -3082,10 +3082,10 @@ export const ECS_G_SERIES_DRIVETRAIN_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-4871698",
     "title": "BMW G87 M2 Carbon Fiber Driveshaft",
     "titleAr": "BMW G87 M2 Carbon Fiber Driveshaft",
-    "summary": "This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMWâ€TMs legacy of excellence.",
-    "summaryAr": "وصف المورد الأصلي: This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMWâ€TMs legacy of excellence.",
-    "description": "This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMWâ€TMs legacy of excellence.",
-    "descriptionAr": "وصف المورد الأصلي: This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMWâ€TMs legacy of excellence.",
+    "summary": "This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMW’s legacy of excellence.",
+    "summaryAr": "وصف المورد الأصلي: This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMW’s legacy of excellence.",
+    "description": "This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMW’s legacy of excellence.",
+    "descriptionAr": "وصف المورد الأصلي: This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMW’s legacy of excellence.",
     "detailedDescriptionAvailable": true,
     "brand": "Vargas Turbo Technologies",
     "brandSlug": "vargas-turbo-technologies",
@@ -3223,7 +3223,7 @@ export const ECS_G_SERIES_DRIVETRAIN_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "BMW G87 M2 Carbon Fiber Driveshaft | Projx Racing",
-      "metaDescription": "This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMWâ€TMs legacy of excellence.",
+      "metaDescription": "This carbon fiber driveshaft from Vargas is a must-have upgrade that blends cutting-edge technology with BMW’s legacy of excellence.",
       "path": "/parts/es-4871698/"
     },
     "relatedProductSlugs": [

@@ -255,9 +255,16 @@ const CATALOGUE_SCOPES = Object.freeze({
 
 function repairSupplierEncoding(value) {
   const repaired = String(value ?? '')
+    .replace(/\u00e2\u20ac\u2122/g, '\u2019')
+    .replace(/\u00e2\u20ac\u0153/g, '\u201c')
+    .replace(/\u00e2\u20ac\u009d/g, '\u201d')
+    .replace(/\u00e2\u20ac\u201c/g, '\u2013')
+    .replace(/\u00e2\u20ac\u201d/g, '\u2014')
+    .replace(/\u00e2\u20ac\u00a6/g, '\u2026')
     .replace(/(\d)(?:\uFFFD|ï¿½|Â°)(?=[CF]\b)/g, '$1°')
-    .replace(/Â°/g, '°');
-  if (repaired.includes('\uFFFD') || repaired.includes('ï¿½')) {
+    .replace(/Â°/g, '°')
+    .replace(/Ã—/g, '×');
+  if (repaired.includes('\uFFFD') || repaired.includes('ï¿½') || repaired.includes('\u00e2\u20ac')) {
     throw new Error('Supplier text contains an unresolved replacement character.');
   }
   return repaired;
