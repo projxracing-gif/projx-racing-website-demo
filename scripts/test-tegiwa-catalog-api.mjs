@@ -327,10 +327,8 @@ assert.equal((await invoke(searchHandler, { query: { q: separatorHeavySku } })).
 
 const normalBmwSearch = await invoke(searchHandler, { query: { q: 'BMW M3' } });
 assert.equal(normalBmwSearch.status, 200);
-assert.ok(normalBmwSearch.body.items.some(item => item.handle === 'bmw-m3-fixture'));
-assert.deepEqual(new Set(normalBmwSearch.body.items.map(item => item.handle)), new Set([
-  'bavarian-platform-fixture', 'motorsport-three-fixture', 'bmw-m3-fixture'
-]));
+assert.deepEqual(normalBmwSearch.body.items.map(item => item.handle), ['bmw-m3-fixture'],
+  'Multi-word smart search must prefer products matching every term instead of flooding results with one-token matches.');
 assert.equal(normalBmwSearch.body.meta.canonicalQuery, 'bmw m3');
 assert.equal(normalBmwSearch.body.items.some(item => Object.hasOwn(item, 'matchedSku')), false);
 
@@ -632,9 +630,9 @@ assert.equal(productionPageOutOfRange.body.error.code, 'invalid_page');
 
 const productionSearch = await invoke(productionHandler, { query: { q: 'engine management ecu' } });
 assert.equal(productionSearch.status, 200);
-assert.equal(productionSearch.body.items.length, 100);
-assert.ok(productionSearch.body.meta.totalResults > 100);
-assert.ok(productionSearch.body.meta.totalPages > 1);
+assert.ok(productionSearch.body.items.length > 0 && productionSearch.body.items.length <= 100);
+assert.equal(productionSearch.body.items.length, Math.min(100, productionSearch.body.meta.totalResults));
+assert.equal(productionSearch.body.meta.totalPages, Math.ceil(productionSearch.body.meta.totalResults / 100));
 assert.equal(productionSearch.body.meta.canonicalQuery, 'engine management ecu');
 assert.ok(productionSearch.body.items.every(item => item.handle && item.title && item.image?.src));
 assert.ok(productionSearch.body.items.every(item => Object.hasOwn(item, 'sku') && Number.isInteger(item.skuCount)));
@@ -662,10 +660,12 @@ const productionNormalBmw = await invoke(productionHandler, { query: { q: 'BMW M
 assert.equal(productionNormalBmw.status, 200);
 assert.equal(productionNormalBmw.body.meta.canonicalQuery, 'bmw m3');
 assert.equal(productionNormalBmw.body.items.some(item => Object.hasOwn(item, 'matchedSku')), false);
-const productionSearchPageTwo = await invoke(productionHandler, { query: { q: 'engine management ecu', page: '2' } });
+const productionBroadSearch = await invoke(productionHandler, { query: { q: 'engine' } });
+assert.ok(productionBroadSearch.body.meta.totalResults > 100);
+const productionSearchPageTwo = await invoke(productionHandler, { query: { q: 'engine', page: '2' } });
 assert.equal(productionSearchPageTwo.body.items.length, 100);
 assert.equal(new Set([
-  ...productionSearch.body.items.map(item => item.handle),
+  ...productionBroadSearch.body.items.map(item => item.handle),
   ...productionSearchPageTwo.body.items.map(item => item.handle)
 ]).size, 200);
 const productionTypoSearch = await invoke(productionHandler, { query: { q: 'engien managment ecu' } });

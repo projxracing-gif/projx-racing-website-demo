@@ -802,6 +802,30 @@ assert.equal(reviewedSuggestions.status, 200);
 assert.ok(reviewedSuggestions.body.suggestions.length >= 2);
 assert.ok(reviewedSuggestions.body.suggestions.every(item => item.supplier.slug === 'ecs'));
 
+const reviewedTypoSearch = await invoke(reviewedOnly, { query: { q: 'flex feul analizer', supplier: 'ecs' } });
+assert.equal(reviewedTypoSearch.status, 200);
+assert.equal(reviewedTypoSearch.body.meta.corrected, true);
+assert.equal(reviewedTypoSearch.body.meta.canonicalQuery, 'flex fuel analyzer');
+assert.ok(reviewedTypoSearch.body.items.some(item => item.sku === 'ES#4690036'));
+
+const reviewedTypoSuggestions = await invoke(reviewedOnly, {
+  query: { q: 'flex feul analizer', suggest: '1', supplier: 'ecs' }
+});
+assert.equal(reviewedTypoSuggestions.status, 200);
+assert.equal(reviewedTypoSuggestions.body.correction.corrected, true);
+assert.equal(reviewedTypoSuggestions.body.correction.canonicalQuery, 'flex fuel analyzer');
+assert.ok(reviewedTypoSuggestions.body.suggestions.some(item => item.handle === 'ecs-es-4690036'));
+assert.ok(reviewedTypoSuggestions.body.suggestions.every(item => item.brand && item.category && item.sku && item.image));
+
+const reviewedArabicBrakeSearch = await invoke(reviewedOnly, {
+  query: { q: '\u0641\u062d\u0645\u0627\u062a \u0641\u0631\u0627\u0645\u0644', supplier: 'ecs' }
+});
+assert.equal(reviewedArabicBrakeSearch.status, 200);
+assert.equal(reviewedArabicBrakeSearch.body.meta.translated, true);
+assert.equal(reviewedArabicBrakeSearch.body.meta.canonicalQuery, 'brake pad');
+assert.ok(reviewedArabicBrakeSearch.body.items.length > 0);
+assert.ok(reviewedArabicBrakeSearch.body.items.every(item => /brake|pad/i.test(`${item.title} ${item.category}`)));
+
 const legacyFallbackRequests = [];
 async function legacyFallbackHandler(req, res) {
   legacyFallbackRequests.push({ ...(req.query || {}) });

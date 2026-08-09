@@ -1419,7 +1419,21 @@ function damerauLevenshteinWithin(left, right, maximum) {
   return previous[rightCharacters.length];
 }
 
+const PROTECTED_SEARCH_TOKENS = new Set([
+  'apr', 'can', 'ecu', 'ecs', 'mhd', 'mpn', 'sku', 'xhp',
+  'b58', 'n55', 's55', 's58', 'f80', 'f82', 'g80', 'g82', 'g87', 'm2', 'm3', 'm4'
+]);
+
+const PREFERRED_SEARCH_CORRECTIONS = new Map([
+  ['analizer', 'analyzer'], ['engien', 'engine'], ['feul', 'fuel'], ['fule', 'fuel'],
+  ['intercoler', 'intercooler'], ['intercoolr', 'intercooler'], ['managment', 'management'],
+  ['downpippe', 'downpipe'], ['turbochargers', 'turbocharger']
+]);
+
 function correctedToken(provider, token) {
+  if (PROTECTED_SEARCH_TOKENS.has(token)) return token;
+  const preferred = PREFERRED_SEARCH_CORRECTIONS.get(token);
+  if (preferred && (provider.termCount(preferred) > 0 || prefixTerms(provider, preferred).length > 0)) return preferred;
   if (provider.termCount(token) > 0 || prefixTerms(provider, token).length > 0 || Array.from(token).length < 3) return token;
   const length = Array.from(token).length;
   const maximum = length >= 8 ? 2 : 1;
@@ -1438,6 +1452,32 @@ function correctedToken(provider, token) {
     }
   }
   return best?.term || token;
+}
+
+function equivalentSearchTokens(provider, token) {
+  const candidates = new Set([token]);
+  const groups = [
+    ['tire', 'tires', 'tyre', 'tyres'], ['disc', 'discs', 'rotor', 'rotors'],
+    ['gearbox', 'transmission'], ['wheel', 'wheels', 'rim', 'rims'],
+    ['filter', 'filters'], ['injector', 'injectors'], ['intercooler', 'intercoolers'],
+    ['downpipe', 'downpipes'], ['turbocharger', 'turbochargers'], ['coilpack', 'coilpacks'],
+    ['pad', 'pads'], ['plug', 'plugs'], ['piston', 'pistons'], ['gasket', 'gaskets']
+  ];
+  for (const group of groups) {
+    if (group.includes(token)) group.forEach(value => candidates.add(value));
+  }
+  if (token.endsWith('s') && !token.endsWith('ss') && token.length > 4) candidates.add(token.slice(0, -1));
+  else candidates.add(`${token}s`);
+  return [...candidates].filter(value => provider.termCount(value) > 0 || prefixTerms(provider, value).length > 0);
+}
+
+function tokenPostingGroup(provider, token) {
+  const terms = new Set();
+  for (const equivalent of equivalentSearchTokens(provider, token)) {
+    for (const term of prefixTerms(provider, equivalent)) terms.add(term);
+    if (!terms.has(equivalent) && provider.termCount(equivalent)) terms.add(equivalent);
+  }
+  return unionPostingLists([...terms].map(term => provider.termPostings(term)));
 }
 
 function unionPostingLists(lists) {
@@ -1501,11 +1541,7 @@ function searchPlan(provider, query) {
   const corrections = localized.corrections.concat(localized.tokens
     .map((from, index) => ({ from, to: canonicalTokens[index] }))
     .filter(value => value.from !== value.to));
-  const tokenGroups = canonicalTokens.map(token => {
-    const terms = prefixTerms(provider, token);
-    if (!terms.length && provider.termCount(token)) terms.push(token);
-    return unionPostingLists(terms.map(term => provider.termPostings(term)));
-  });
+  const tokenGroups = canonicalTokens.map(token => tokenPostingGroup(provider, token));
   const exactGroups = canonicalTokens.map(token => provider.termPostings(token));
   return {
     query,
@@ -1536,13 +1572,20 @@ function availabilityMatches(filter, code) {
 }
 
 function rankedSearchDocuments(provider, index, plan, { sort, availability, pricing, match = 'any' }) {
-  const candidates = match === 'vehicle'
-    ? intersectPostingLists(plan.tokenGroups)
-    : unionPostingLists(plan.tokenGroups);
+  const looseCandidates = unionPostingLists(plan.tokenGroups);
+  const strictCandidates = intersectPostingLists(plan.tokenGroups);
   const matchedTokenCounts = new Uint8Array(provider.productCount);
   for (const group of plan.tokenGroups) for (const documentId of group) matchedTokenCounts[documentId] += 1;
+  let candidates;
+  if (match === 'vehicle' || plan.tokenGroups.length <= 1 || strictCandidates.length) {
+    candidates = match === 'vehicle' || plan.tokenGroups.length > 1 ? strictCandidates : looseCandidates;
+  } else {
+    let maximumMatched = 0;
+    for (const documentId of looseCandidates) maximumMatched = Math.max(maximumMatched, matchedTokenCounts[documentId]);
+    candidates = looseCandidates.filter(documentId => matchedTokenCounts[documentId] === maximumMatched);
+  }
   const allPrefix = new Uint8Array(provider.productCount);
-  for (const documentId of intersectPostingLists(plan.tokenGroups)) allPrefix[documentId] = 1;
+  for (const documentId of strictCandidates) allPrefix[documentId] = 1;
   const allExact = new Uint8Array(provider.productCount);
   for (const documentId of intersectPostingLists(plan.exactGroups)) allExact[documentId] = 1;
   const phrase = new Uint8Array(provider.productCount);
@@ -1739,7 +1782,11 @@ async function suggestCatalog(provider, index, summary, query, catalogLoader) {
   const cards = await cardsForDocumentIds(documentIds, index, summary, catalogLoader);
   return {
     mode: 'suggest',
-    suggestions: cards.map(card => ({ query: card.title, label: card.title, kind: 'product', handle: card.handle })),
+    suggestions: cards.map(card => ({
+      query: card.title, label: card.title, kind: 'product', handle: card.handle,
+      brand: card.vendor || null, category: card.category || null,
+      sku: card.sku || card.mpn || null, image: card.image || null
+    })),
     correction: {
       query,
       canonicalQuery: plan.canonicalQuery,

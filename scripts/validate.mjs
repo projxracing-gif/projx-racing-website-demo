@@ -36,7 +36,7 @@ function loadProjectData() {
 for (const file of [
   'assets/app.js', 'assets/data.js', 'assets/ecs-products.js', 'assets/tegiwa-vehicle-directory.js', 'assets/site-config.js', 'assets/styles.css',
   'assets/i18n/en.js', 'assets/i18n/ar.js', 'template.html', 'sw.js',
-  'api/enquiry.js', 'api/tegiwa-catalog.js', 'server/tegiwa-sku-mapping.js', 'api/parts-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
+  'api/enquiry.js', 'api/tegiwa-catalog.js', 'server/tegiwa-sku-mapping.js', 'server/catalog-search-intelligence.js', 'api/parts-catalog.js', 'api/data/tegiwa-stock-index.json', 'api/data/tegiwa-sitemap-manifest.json',
   'api/data/tegiwa-catalog-summary.json', 'api/data/tegiwa-search-summary.json', 'api/data/tegiwa-search-terms.json',
   'api/data/tegiwa-search-term-postings.bin', 'api/data/tegiwa-search-pairs.bin',
   'api/data/tegiwa-search-pair-postings.bin', 'api/data/tegiwa-search-metadata.bin',

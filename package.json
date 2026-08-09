@@ -8,7 +8,7 @@
     "lint": "node scripts/lint.mjs",
     "build": "node scripts/build.mjs",
     "validate": "node scripts/validate.mjs",
-    "test:api": "node scripts/test-api.mjs && node scripts/test-tegiwa-catalog-api.mjs && node scripts/test-parts-catalog-api.mjs && node --test scripts/test-ecs-reviewed-catalog-merge.mjs",
+    "test:api": "node --test scripts/test-catalog-search-intelligence.mjs && node scripts/test-api.mjs && node scripts/test-tegiwa-catalog-api.mjs && node scripts/test-parts-catalog-api.mjs && node --test scripts/test-ecs-reviewed-catalog-merge.mjs",
     "catalog:prepare": "node scripts/catalog-import.mjs",
     "catalog:ecs:prepare": "node scripts/ecs-catalog/ingest.mjs",
     "catalog:ecs:collect-sitemaps": "node scripts/ecs-catalog/collect-sitemaps.mjs",

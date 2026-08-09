@@ -228,6 +228,16 @@ assert.match(setupCatalogue, /catalogueFilterValue\(key, routeParams\.get\(key\)
   'Direct catalogue filter values must pass through the same allowlist as interactive filters.');
 assert.match(setupCatalogue, /loadTegiwaCatalog\(\{ query: routeQuery, match: "any", page: routePage \}\)/,
   'Direct catalogue URLs must load their requested query, part type and page.');
+assert.match(setupCatalogue, /compositionstart/);
+assert.match(setupCatalogue, /compositionend/,
+  'Autocomplete must wait for Arabic and other IME composition to finish before searching.');
+assert.match(app, /suggestionCache\.get\(cacheKey\)/);
+assert.match(app, /suggestionCache\.set\(cacheKey, payload\)/,
+  'Repeated autocomplete requests must use the bounded in-memory suggestion cache.');
+assert.match(app, /if \(handle && option\?\.dataset\.kind === "product"\) \{\s*openTegiwaProduct\(handle, input\);/,
+  'Choosing a product autocomplete result must open that exact product instead of rerunning a broad text search.');
+assert.match(app, /entry\.brand \|\| "", entry\.sku \|\| "", entry\.category \|\| "", entry\.supplier \|\| ""/,
+  'Product suggestions must expose useful brand, SKU, category and supplier context.');
 
 assert.match(app, /currencyDisplay:\s*"code"/);
 assert.match(app, /price\.startingAt \? `\$\{storeText\(\)\.startingAt\}/,

@@ -2,6 +2,16 @@
 
 ## 9 August 2026
 
+### Smarter bilingual product search
+
+- Added catalogue-aware typo correction for common automotive searches while protecting short tuning, engine and chassis terms such as MHD, xHP, CAN, B58, S58, F80, G80 and G87.
+- Added Kuwaiti/Arabic automotive aliases for brakes, brake pads, engines, turbos, intercoolers, exhausts, transmissions, suspension, cooling, fuel, tuning, ignition, wheels, tyres and service terms.
+- Reworked multi-word matching to favour products that match every requested concept, with a best-available fallback only when no strict intersection exists. This removes the previous broad any-word result floods.
+- Prioritized exact ECS/SKU/MPN identities, title phrases and prefixes, then brand, category, specification and vehicle evidence. Exact part-number searches remain deterministic.
+- Upgraded autocomplete with product media, brand, SKU, category and supplier context; selecting a product now opens that exact product instead of rerunning a broad text query.
+- Added typo-correction and search-all choices, bounded suggestion caching, request cancellation, keyboard navigation, IME-safe Arabic input, direction isolation and an iPhone-safe suggestion overlay above the mobile action bar.
+- Added focused tests for misspellings, protected automotive codes, Arabic/Kuwaiti aliases, plural/synonym matching, exact identities, suggestion metadata, direct product opening and mobile/RTL layout behaviour.
+
 ### Complete G-Series Engine catalogue scope
 
 - Captured and reconciled all 355 public ECS Engine listing pages for BMW G80 M3 Competition, G82 M4 Competition and G87 M2: 5,052 vehicle/category placements across all 23 Engine branches.

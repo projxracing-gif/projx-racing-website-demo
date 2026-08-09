@@ -14,6 +14,11 @@ import {
   ECS_G_SERIES_ENGINE_PRODUCTS,
   ECS_G_SERIES_ENGINE_QUARANTINED_ECS_IDENTITIES
 } from './data/ecs-g-series-engine-products.js';
+import {
+  buildCatalogSearchPlan,
+  catalogSearchMeta,
+  catalogSearchVocabulary
+} from './catalog-search-intelligence.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -615,16 +620,41 @@ function finitePriceAmount(product) {
   return Number.isFinite(amount) ? amount : null;
 }
 
-function productSearchText(product) {
-  return identity([
-    product.title, product.brand, product.category, product.subcategory,
-    product.ecsPartNumber, product.sku, product.mpn,
+function productSearchDocument(product) {
+  return [
+    product.title, product.titleAr, product.brand, product.category, product.categoryAr,
+    product.subcategory, product.subcategoryAr, product.ecsPartNumber, product.sku, product.mpn,
+    product.description, product.descriptionAr, product.summary, product.summaryAr,
     ...(product.selectionSources || []).map(source => source?.category),
+    ...(product.specifications || []).flatMap(specification => [
+      specification?.name, specification?.label, specification?.value
+    ]),
     ...(product.fitments || []).flatMap(fitment => [
       fitment.make, fitment.model, fitment.generation,
       ...(fitment.models || []), ...(fitment.chassis || []), ...(fitment.engines || [])
     ])
-  ].join(' '));
+  ].filter(Boolean).join(' ');
+}
+
+function productSearchText(product) {
+  return identity(productSearchDocument(product));
+}
+
+const vocabularyCache = new WeakMap();
+function productSearchVocabulary(products) {
+  if (!vocabularyCache.has(products)) {
+    vocabularyCache.set(products, catalogSearchVocabulary(products.map(productSearchDocument)));
+  }
+  return vocabularyCache.get(products);
+}
+
+function searchPlanFor(products, query) {
+  return query ? buildCatalogSearchPlan(query, { vocabulary: productSearchVocabulary(products) }) : null;
+}
+
+function textMatchesSearchPlan(value, plan) {
+  const haystack = identity(value);
+  return Boolean(haystack) && plan.tokenGroups.every(group => group.some(token => haystack.includes(token)));
 }
 
 function equalsOrContains(candidate, requested) {
@@ -661,7 +691,7 @@ function availabilityMatches(requested) {
   return requested === 'all' || requested === 'check';
 }
 
-function productMatches(product, request, nowValue) {
+function productMatches(product, request, nowValue, searchPlan = null) {
   if (request.supplier && request.supplier !== 'ecs') return false;
   if (request.currency && request.currency !== 'USD') return false;
   if (request.brand && request.brand !== product.brandSlug) return false;
@@ -679,20 +709,41 @@ function productMatches(product, request, nowValue) {
   const exact = [product.ecsPartNumber, product.sku, product.mpn]
     .some(value => identifierIdentity(value) === identifierIdentity(request.query));
   if (exact) return true;
-  const haystack = productSearchText(product);
-  return unique(identity(request.query).split(' ')).every(token => haystack.includes(token));
+  const plan = searchPlan || buildCatalogSearchPlan(request.query, {
+    vocabulary: catalogSearchVocabulary([productSearchDocument(product)])
+  });
+  return plan.tokenGroups.length > 0 && textMatchesSearchPlan(productSearchText(product), plan);
 }
 
-function relevanceScore(product, query) {
+function relevanceScore(product, query, searchPlan = null) {
   if (!query) return 0;
   const queryIdentifier = identifierIdentity(query);
   if ([product.ecsPartNumber, product.sku, product.mpn]
-    .some(value => identifierIdentity(value) === queryIdentifier)) return 10_000;
+    .some(value => identifierIdentity(value) === queryIdentifier)) return 100_000;
+  const plan = searchPlan || buildCatalogSearchPlan(query);
+  const phrase = identity(plan.canonicalQuery || query);
+  const title = identity(product.title);
+  const brand = identity(product.brand);
+  const category = identity([product.category, product.subcategory].filter(Boolean).join(' '));
   const haystack = productSearchText(product);
-  return unique(identity(query).split(' ')).reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+  const identifiers = [product.ecsPartNumber, product.sku, product.mpn].map(identifierIdentity).filter(Boolean);
+  let score = 0;
+  if (queryIdentifier && identifiers.some(value => value.startsWith(queryIdentifier))) score += 20_000;
+  if (title === phrase) score += 12_000;
+  else if (phrase && title.startsWith(phrase)) score += 8_000;
+  else if (phrase && title.includes(phrase)) score += 5_000;
+  if (brand === phrase) score += 3_500;
+  if (category === phrase || (phrase && category.startsWith(phrase))) score += 2_500;
+  const titleGroups = plan.tokenGroups.filter(group => group.some(token => title.includes(token))).length;
+  const brandGroups = plan.tokenGroups.filter(group => group.some(token => brand.includes(token))).length;
+  const categoryGroups = plan.tokenGroups.filter(group => group.some(token => category.includes(token))).length;
+  const allGroups = plan.tokenGroups.filter(group => group.some(token => haystack.includes(token))).length;
+  if (plan.tokenGroups.length && titleGroups === plan.tokenGroups.length) score += 2_000;
+  score += titleGroups * 300 + brandGroups * 240 + categoryGroups * 180 + allGroups * 80;
+  return score;
 }
 
-function sortProducts(products, request, nowValue) {
+function sortProducts(products, request, nowValue, searchPlan = null) {
   return [...products].sort((left, right) => {
     if (request.sort === 'name_asc') return left.title.localeCompare(right.title);
     if (request.sort === 'name_desc') return right.title.localeCompare(left.title);
@@ -706,7 +757,7 @@ function sortProducts(products, request, nowValue) {
       }
     }
     if (request.query) {
-      const difference = relevanceScore(right, request.query) - relevanceScore(left, request.query);
+      const difference = relevanceScore(right, request.query, searchPlan) - relevanceScore(left, request.query, searchPlan);
       if (difference) return difference;
     }
     return left.title.localeCompare(right.title);
@@ -949,9 +1000,24 @@ function legacyListParameters(request, page) {
   return parameters;
 }
 
+function resolvedSearchMeta(searchPlan, legacyMeta, request) {
+  const local = searchPlan ? catalogSearchMeta(searchPlan) : null;
+  const legacy = legacyMeta && (legacyMeta.corrected || legacyMeta.translated)
+    ? {
+        canonicalQuery: text(legacyMeta.canonicalQuery, 120) || request.query || null,
+        translated: Boolean(legacyMeta.translated), corrected: Boolean(legacyMeta.corrected),
+        corrections: Array.isArray(legacyMeta.corrections) ? legacyMeta.corrections.slice(0, 12) : []
+      }
+    : null;
+  if (local?.corrected || local?.translated) return local;
+  return legacy || local || {
+    canonicalQuery: request.query || null, translated: false, corrected: false, corrections: []
+  };
+}
+
 function overallMeta({
   request, localProducts, legacyMeta, count, totalResults, reason, nowValue,
-  legacyError = null, mixedSupplierResults = false, legacyCatalogueMeta = null
+  legacyError = null, mixedSupplierResults = false, legacyCatalogueMeta = null, searchPlan = null
 }) {
   const legacyCatalogCount = Number(legacyMeta?.catalogProductCount ?? legacyCatalogueMeta?.catalogProductCount) || 0;
   const legacyAvailableCount = Number(legacyMeta?.availableProductCount ?? legacyCatalogueMeta?.availableProductCount) || 0;
@@ -972,6 +1038,7 @@ function overallMeta({
     ...(legacyCatalogCount ? [{ slug: 'tegiwa', name: 'Tegiwa' }] : []),
     ...(localProducts.length ? [{ slug: 'ecs', name: 'ECS Tuning' }] : [])
   ].map(value => JSON.stringify(value))).map(value => JSON.parse(value));
+  const searchMeta = resolvedSearchMeta(searchPlan, legacyMeta, request);
   return {
     count,
     catalogProductCount: legacyCatalogCount + localProducts.length,
@@ -986,10 +1053,7 @@ function overallMeta({
     partTypes: sortFacets(partTypes),
     currencies: unique([...(legacyCatalogCount ? ['GBP'] : []), ...(localProducts.length ? ['USD'] : [])]),
     query: request.query || null,
-    canonicalQuery: request.query || null,
-    translated: false,
-    corrected: false,
-    corrections: [],
+    ...searchMeta,
     page: request.page,
     pageSize: PAGE_SIZE,
     totalResults,
@@ -1018,10 +1082,11 @@ function overallMeta({
 }
 
 async function listResponse({ request, req, nowValue, reason, legacyHandler, products }) {
-  const localMatches = products.filter(product => productMatches(product, request, nowValue));
+  const searchPlan = searchPlanFor(products, request.query);
+  const localMatches = products.filter(product => productMatches(product, request, nowValue, searchPlan));
   const exactIdentifierMatches = localMatches.filter(product => exactIdentifierMatch(product, request.query));
   const exactIdentifierOnly = exactIdentifierMatches.length > 0;
-  const localAll = sortProducts(exactIdentifierOnly ? exactIdentifierMatches : localMatches, request, nowValue);
+  const localAll = sortProducts(exactIdentifierOnly ? exactIdentifierMatches : localMatches, request, nowValue, searchPlan);
   const localSlice = localAll.slice(request.offset, request.offset + PAGE_SIZE);
   const items = localSlice.map(product => card(product, request, nowValue));
   let legacyMeta = null;
@@ -1074,31 +1139,36 @@ async function listResponse({ request, req, nowValue, reason, legacyHandler, pro
       request, localProducts: products, legacyMeta, count: items.length,
       totalResults, reason, nowValue, legacyError,
       mixedSupplierResults: !request.supplier && !request.currency && localAll.length > 0 && legacyTotal > 0,
-      legacyCatalogueMeta: legacyHandler?.catalogueMeta
+      legacyCatalogueMeta: legacyHandler?.catalogueMeta, searchPlan
     }),
     nextOffset: items.length === PAGE_SIZE && nextOffset < totalResults ? nextOffset : null
   };
 }
 
 async function suggestionResponse({ request, req, nowValue, reason, legacyHandler, products }) {
+  const searchPlan = searchPlanFor(products, request.query);
   const localMatches = products.filter(product => productMatches(product, {
     ...request, availability: 'all', pricing: 'all', fitment: 'all', structuredVehicle: Boolean(
       request.year || request.make || request.model || request.generation || request.engine
     )
-  }, nowValue));
+  }, nowValue, searchPlan));
   const exactIdentifierMatches = localMatches.filter(product => exactIdentifierMatch(product, request.query));
   const exactIdentifierOnly = exactIdentifierMatches.length > 0;
   const local = sortProducts(exactIdentifierOnly ? exactIdentifierMatches : localMatches,
-    { ...request, sort: 'relevance' }, nowValue).slice(0, SUGGESTION_LIMIT);
+    { ...request, sort: 'relevance' }, nowValue, searchPlan).slice(0, SUGGESTION_LIMIT);
   const suggestions = local.map(product => ({
     query: product.title, label: product.title, kind: 'product',
     labelAr: text(product.titleAr, 300) || null,
-    handle: product.publicKey, supplier: { slug: 'ecs', name: 'ECS Tuning' }
+    handle: product.publicKey, supplier: { slug: 'ecs', name: 'ECS Tuning' },
+    brand: text(product.brand, 120) || null,
+    category: text(product.subcategory || product.category, 160) || null,
+    sku: text(product.ecsPartNumber || product.sku || product.mpn, 120) || null,
+    image: image(product)
   }));
   let legacyMeta = null;
   let legacyError = null;
   if (legacyHandler && legacyEligible(request) && suggestions.length < SUGGESTION_LIMIT) {
-    const parameters = new URLSearchParams({ q: request.query, suggest: '1' });
+    const parameters = new URLSearchParams({ q: legacySearchQuery(request), suggest: '1' });
     try {
       const payload = normalizedLegacyPayload(await invokeLegacy(legacyHandler, req, parameters), request);
       legacyMeta = payload?.meta || {};
@@ -1115,16 +1185,17 @@ async function suggestionResponse({ request, req, nowValue, reason, legacyHandle
       else throw error;
     }
   }
+  const correction = resolvedSearchMeta(searchPlan, legacyMeta, request);
   return {
     mode: 'suggest', suggestions,
-    correction: { query: request.query, canonicalQuery: request.query, translated: false, corrected: false, corrections: [] },
+    correction: { query: request.query, ...correction },
     meta: {
       count: suggestions.length, limit: SUGGESTION_LIMIT,
       ...overallMeta({
         request: { ...request, page: 1, sort: 'relevance', availability: 'all', pricing: 'all', match: 'any' },
         localProducts: products, legacyMeta, count: suggestions.length,
         totalResults: suggestions.length, reason, nowValue, legacyError,
-        legacyCatalogueMeta: legacyHandler?.catalogueMeta
+        legacyCatalogueMeta: legacyHandler?.catalogueMeta, searchPlan
       })
     },
     nextCursor: null

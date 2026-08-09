@@ -941,15 +941,20 @@ html[lang^="ar"] .tegiwa-catalog-head h2 { line-height: 1.14; letter-spacing: 0;
 .tegiwa-search > label { color: var(--text); font-size: .78rem; font-weight: 850; }
 .tegiwa-search-row { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 9px; align-items: stretch; }
 .tegiwa-search-box { position: relative; min-width: 0; }
+.tegiwa-search-box:focus-within { z-index: 220; }
 .tegiwa-search-icon { position: absolute; z-index: 2; inset-inline-start: 16px; top: 26px; width: 21px; height: 21px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
 .tegiwa-search-icon svg { width: 100%; }
 .tegiwa-search-box .input { min-height: 52px; padding-inline-start: 49px; }
-.tegiwa-suggestions { position: absolute; z-index: 40; inset-inline: 0; top: calc(100% + 6px); display: grid; max-height: min(430px, 62vh); padding: 6px; gap: 2px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 20px 50px rgba(8,12,19,.2); }
+.tegiwa-suggestions { position: absolute; z-index: 220; inset-inline: 0; top: calc(100% + 6px); display: grid; max-height: min(430px, calc(100dvh - 180px - var(--safe-bottom))); padding: 6px; gap: 2px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 20px 50px rgba(8,12,19,.2); }
 .tegiwa-suggestions[hidden] { display: none; }
-.tegiwa-suggestion { display: grid; width: 100%; min-height: 48px; padding: 9px 12px; grid-template-columns: 24px minmax(0, 1fr); gap: 2px 10px; align-items: center; border: 0; border-radius: 9px; color: var(--text); background: transparent; font: inherit; text-align: start; cursor: pointer; }
-.tegiwa-suggestion > span { display: grid; grid-row: 1 / span 2; width: 20px; color: var(--muted); place-items: center; }
+.tegiwa-suggestion { display: grid; width: 100%; min-height: 52px; padding: 7px 10px; grid-template-columns: 42px minmax(0, 1fr); gap: 2px 10px; align-items: center; border: 0; border-radius: 9px; color: var(--text); background: transparent; font: inherit; text-align: start; cursor: pointer; }
+.tegiwa-suggestion > span { display: grid; grid-row: 1 / span 2; width: 42px; height: 42px; color: var(--muted); place-items: center; }
 .tegiwa-suggestion > span svg { width: 18px; }
+.tegiwa-suggestion .tegiwa-suggestion-thumb { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.tegiwa-suggestion-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.tegiwa-suggestion-icon { width: 24px !important; }
 .tegiwa-suggestion strong { min-width: 0; overflow-wrap: anywhere; font-size: .78rem; }
+.tegiwa-suggestion strong bdi { unicode-bidi: plaintext; }
 .tegiwa-suggestion small { color: var(--muted); font-size: .66rem; }
 .tegiwa-suggestion:hover, .tegiwa-suggestion:focus-visible, .tegiwa-suggestion.is-active { outline: 0; color: var(--text-strong); background: color-mix(in srgb, var(--red) 7%, var(--surface-2)); }
 .tegiwa-suggestion.is-correction > span { color: var(--green); }
@@ -1548,7 +1553,7 @@ html[dir="rtl"] .nav-dropdown-panel { inset-inline-start: auto; inset-inline-end
   .tegiwa-search-toolbar, .tegiwa-filter-toggle { width: 100%; }
   .tegiwa-filter-toggle { justify-content: center; }
   .tegiwa-filter-panel { grid-template-columns: 1fr; }
-  .tegiwa-suggestions { max-height: min(360px, 55vh); }
+  .tegiwa-suggestions { max-height: min(360px, calc(100dvh - 170px - var(--safe-bottom))); }
   .tegiwa-product-grid { grid-template-columns: 1fr; }
   .tegiwa-product-card.is-loading { min-height: 430px; }
   .tegiwa-pagination { grid-template-columns: 1fr 1fr; }

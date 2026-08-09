@@ -4,6 +4,11 @@ import {
   ReviewedFallbackError,
   reviewedFallbackResponse
 } from '../server/ecs-reviewed-catalog.js';
+import {
+  buildCatalogSearchPlan,
+  catalogSearchMeta,
+  catalogSearchVocabulary
+} from '../server/catalog-search-intelligence.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -38,6 +43,7 @@ const REVIEWED_ECS_SENTINEL_KEYS = Object.freeze([
   'ecs-es-4876812', // G80/G82/G87 Engine Cooling capture sentinel
   'ecs-es-2848320' // G80/G82/G87 Engine Timing capture sentinel
 ]);
+const DATABASE_SEARCH_VOCABULARY = catalogSearchVocabulary();
 
 class PublicApiError extends Error {
   constructor(status, code, message) {
@@ -214,6 +220,7 @@ function parseRequest(req) {
 
   const filters = { supplier, brand, partType, currency, fitment, year, make, model, generation, engine };
   const structuredVehicle = Boolean(year || make || model || generation || engine);
+  const searchPlan = query ? buildCatalogSearchPlan(query, { vocabulary: DATABASE_SEARCH_VOCABULARY }) : null;
   if (handle) {
     const disallowed = Object.keys(values).filter(key => !['handle', 'supplier', 'currency'].includes(key));
     if (query || suggest || disallowed.length) throw new PublicApiError(400, 'invalid_parameters', 'Product detail accepts only handle, supplier and currency.');
@@ -224,14 +231,14 @@ function parseRequest(req) {
       || values.availability !== undefined || values.pricing !== undefined || values.match !== undefined) {
       throw new PublicApiError(400, 'invalid_parameters', 'Suggestions require a query and cannot use paging or result sorting.');
     }
-    return { mode: 'suggest', query, ...filters };
+    return { mode: 'suggest', query, searchPlan, ...filters };
   }
   if (match === 'vehicle' && !query && !structuredVehicle) {
     throw new PublicApiError(400, 'invalid_parameters', 'Vehicle matching requires a search query or structured vehicle selection.');
   }
 
   const mode = query ? 'search' : 'browse';
-  const request = { mode, query, sort, availability, pricing, match, ...filters };
+  const request = { mode, query, searchPlan, sort, availability, pricing, match, ...filters };
   const page = positiveInteger(values.page, 1);
   if (values.page !== undefined && values.cursor !== undefined) {
     throw new PublicApiError(400, 'invalid_parameters', 'Use either a page or a catalog cursor, not both.');
@@ -404,13 +411,20 @@ function productFilters(request, binder, { includeQuery = true } = {}) {
   if (includeQuery && request.query) {
     const exactIdentity = binder.add(identifierIdentity(request.query));
     const rawIdentity = binder.add(request.query.toLocaleLowerCase('en-US'));
-    const query = binder.add(request.query);
+    const canonicalQuery = request.searchPlan?.canonicalQuery || request.query;
+    const query = binder.add(canonicalQuery);
+    const prefixQuery = request.searchPlan?.prefixTsQuery
+      ? binder.add(request.searchPlan.prefixTsQuery)
+      : null;
     const vector = request.match === 'vehicle' ? 'ps.vehicle_vector' : 'ps.search_vector';
+    const fuzzyDocument = request.match === 'vehicle' ? 'ps.vehicle_text' : 'ps.search_text';
+    const prefixClause = prefixQuery ? ` OR ${vector} @@ to_tsquery('simple', ${prefixQuery})` : '';
     conditions.push(`(
       (EXISTS (SELECT 1 FROM exact_identifier) AND exact_identifier.product_id IS NOT NULL)
       OR
       (NOT EXISTS (SELECT 1 FROM exact_identifier)
-        AND (${vector} @@ websearch_to_tsquery('simple', ${query}) OR ps.search_text % ${query}))
+        AND (${vector} @@ websearch_to_tsquery('simple', ${query})${prefixClause}
+          OR ${query} <% ${fuzzyDocument}))
     )`);
     return {
       conditions,
@@ -424,10 +438,16 @@ function productFilters(request, binder, { includeQuery = true } = {}) {
         WHERE pi.kind IN (${IDENTIFIER_KINDS})
           AND (pi.normalized_value = ${exactIdentity} OR lower(pi.value) = ${rawIdentity})
       )`,
-      queryParameter: query
+      queryParameter: query,
+      prefixQueryParameter: prefixQuery,
+      fuzzyDocument
     };
   }
-  return { conditions, exactCte: 'exact_identifier AS (SELECT NULL::bigint AS product_id WHERE false)', queryParameter: null };
+  return {
+    conditions,
+    exactCte: 'exact_identifier AS (SELECT NULL::bigint AS product_id WHERE false)',
+    queryParameter: null, prefixQueryParameter: null, fuzzyDocument: 'ps.search_text'
+  };
 }
 
 function buildListQuery(request, limit = PAGE_SIZE) {
@@ -438,8 +458,17 @@ function buildListQuery(request, limit = PAGE_SIZE) {
   const offset = binder.add(request.offset || 0);
   const rowLimit = binder.add(limit);
   const relevance = request.query
-    ? `(CASE WHEN exact_identifier.product_id IS NOT NULL THEN 1000 ELSE 0 END
-      + ts_rank_cd(${request.match === 'vehicle' ? 'ps.vehicle_vector' : 'ps.search_vector'}, websearch_to_tsquery('simple', ${filters.queryParameter})))`
+    ? `(CASE WHEN exact_identifier.product_id IS NOT NULL THEN 100000 ELSE 0 END
+      + CASE
+          WHEN ps.title_sort = ${filters.queryParameter} THEN 12000
+          WHEN ps.title_sort LIKE (${filters.queryParameter} || '%') THEN 8000
+          WHEN position(${filters.queryParameter} in ps.title_sort) > 0 THEN 5000
+          ELSE 0
+        END
+      + (ts_rank_cd(${request.match === 'vehicle' ? 'ps.vehicle_vector' : 'ps.search_vector'},
+          websearch_to_tsquery('simple', ${filters.queryParameter})) * 1000)
+      ${filters.prefixQueryParameter ? `+ (ts_rank_cd(${request.match === 'vehicle' ? 'ps.vehicle_vector' : 'ps.search_vector'}, to_tsquery('simple', ${filters.prefixQueryParameter})) * 600)` : ''}
+      + (word_similarity(${filters.queryParameter}, ${filters.fuzzyDocument}) * 100))`
     : '0';
   const orderBy = {
     relevance: `${relevance} DESC, ps.browse_rank, p.id`,
@@ -448,7 +477,7 @@ function buildListQuery(request, limit = PAGE_SIZE) {
     price_asc: 'offer.currency ASC NULLS LAST, offer.price_min ASC NULLS LAST, ps.title_sort, p.id',
     price_desc: 'offer.currency ASC NULLS LAST, offer.price_max DESC NULLS LAST, ps.title_sort, p.id'
   }[request.sort] || 'ps.title_sort ASC, p.id';
-  const scopedOrderBy = !request.supplier && !request.currency
+  const scopedOrderBy = !request.supplier && !request.currency && ['price_asc', 'price_desc'].includes(request.sort)
     ? `s.slug ASC, ${orderBy}`
     : orderBy;
 
@@ -1044,11 +1073,16 @@ export function createPartsCatalogHandler({
         if (!catalogueIncludesReviewedEcs(stats, reviewedProducts.length)) return sendReviewedFallback('reviewed_ecs_not_seeded');
         const suggestions = rows.slice(0, SUGGESTION_LIMIT).map(row => {
           const card = cardFromRow(row, nowValue);
-          return { query: card.title, label: card.title, kind: 'product', handle: card.handle, supplier: card.supplier };
+          return {
+            query: card.title, label: card.title, kind: 'product', handle: card.handle,
+            supplier: card.supplier, brand: card.vendor || null, category: card.category || null,
+            sku: card.sku || card.mpn || null, image: card.image || null
+          };
         });
+        const correction = catalogSearchMeta(request.searchPlan);
         return sendJson(res, 200, {
           mode: 'suggest', suggestions,
-          correction: { query: request.query, canonicalQuery: request.query, translated: false, corrected: false, corrections: [] },
+          correction: { query: request.query, ...correction },
           meta: { count: suggestions.length, limit: SUGGESTION_LIMIT, ...stats }, nextCursor: null
         }, true);
       }
@@ -1076,11 +1110,14 @@ export function createPartsCatalogHandler({
         items,
         meta: {
           count: items.length, ...stats,
-          query: request.query || null, canonicalQuery: request.query || null,
-          translated: false, corrected: false, corrections: [],
+          query: request.query || null,
+          ...(request.searchPlan ? catalogSearchMeta(request.searchPlan) : {
+            canonicalQuery: null, translated: false, corrected: false, corrections: []
+          }),
           page: request.page, pageSize: PAGE_SIZE, totalResults,
           totalPages: Math.ceil(totalResults / PAGE_SIZE), sort: request.sort,
-          ...sortMeta(!request.supplier && !request.currency && stats.suppliers.length > 1),
+          ...sortMeta(!request.supplier && !request.currency && stats.suppliers.length > 1
+            && ['price_asc', 'price_desc'].includes(request.sort)),
           availability: request.availability, pricing: request.pricing, match: request.match,
           filters: filtersMeta(request)
         },

@@ -223,6 +223,8 @@
       detailHandle: "",
       suggestionController: null,
       suggestionTimer: null,
+      suggestionCache: new Map(),
+      suggestionComposing: false,
       activeSuggestion: -1,
       lastRequest: {}
     },
@@ -385,6 +387,7 @@
       tegiwaClearFilters: "مسح الفلاتر",
       tegiwaSearchSuggestions: "اقتراحات البحث",
       tegiwaDidYouMean: "هل تقصد «{query}»؟",
+      tegiwaSearchAll: "ابحث في جميع المنتجات عن «{query}»",
       tegiwaCorrectedSearch: "تم تصحيح البحث من «{from}» إلى «{to}».",
       tegiwaSearchEquivalent: "ابحث في كتالوج المورد عن «{query}»",
       tegiwaTranslatedSearch: "تمت مطابقة «{from}» مع مصطلح الكتالوج «{to}».",
@@ -555,6 +558,7 @@
       tegiwaClearFilters: "Clear filters",
       tegiwaSearchSuggestions: "Search suggestions",
       tegiwaDidYouMean: "Did you mean “{query}”?",
+      tegiwaSearchAll: "Search all products for “{query}”",
       tegiwaCorrectedSearch: "Search corrected from “{from}” to “{to}”.",
       tegiwaSearchEquivalent: "Search supplier catalogue for “{query}”",
       tegiwaTranslatedSearch: "Matched “{from}” to supplier catalogue term “{to}”.",
@@ -2727,6 +2731,7 @@
     const listbox = document.querySelector("[data-tegiwa-suggestions]");
     if (input) {
       input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-busy");
       input.removeAttribute("aria-activedescendant");
     }
     if (listbox) {
@@ -2768,24 +2773,44 @@
       const key = query.toLocaleLowerCase();
       if (query.length < 2 || seen.has(key)) continue;
       seen.add(key);
-      entries.push({ query, label: cleanText(state.locale === "ar" ? (suggestion.labelAr || suggestion.label || query) : (suggestion.label || query), 180), kind: suggestion.kind || "product", supplier: cleanText(suggestion.supplier?.name || "", 120) });
-      if (entries.length >= 8) break;
+      entries.push({
+        query,
+        label: cleanText(state.locale === "ar" ? (suggestion.labelAr || suggestion.label || query) : (suggestion.label || query), 180),
+        kind: suggestion.kind || "product",
+        handle: tegiwaProductHandle(suggestion.handle),
+        supplier: cleanText(suggestion.supplier?.name || "", 120),
+        brand: cleanText(suggestion.brand || "", 120),
+        category: cleanText(state.locale === "ar" ? (suggestion.categoryAr || suggestion.category || "") : (suggestion.category || ""), 160),
+        sku: cleanText(suggestion.sku || suggestion.mpn || "", 120),
+        image: suggestion.image && typeof suggestion.image === "object" ? suggestion.image : null
+      });
+      if (entries.length >= 7) break;
     }
-    if (!entries.length) {
-      hideTegiwaSuggestions();
-      return;
+    const submittedQuery = cleanText(input.value, 120);
+    const submittedKey = submittedQuery.toLocaleLowerCase();
+    if (submittedQuery.length >= 2 && !seen.has(submittedKey) && entries.length < 8) {
+      entries.push({
+        query: submittedQuery,
+        label: tegiwaTemplate(labels.tegiwaSearchAll, { query: submittedQuery }),
+        kind: "query"
+      });
     }
     listbox.innerHTML = entries.map((entry, index) => {
       const labelKey = entry.label.toLocaleLowerCase();
       const queryKey = entry.query.toLocaleLowerCase();
       const secondaryText = [
         entry.kind !== "correction" && labelKey !== queryKey && !labelKey.startsWith(queryKey) ? entry.query : "",
-        entry.supplier || ""
+        entry.brand || "", entry.sku || "", entry.category || "", entry.supplier || ""
       ].filter(Boolean).join(" • ");
       const secondary = secondaryText ? `<small>${esc(secondaryText)}</small>` : "";
-      return `<button id="tegiwa-suggestion-${index}" class="tegiwa-suggestion${entry.kind === "correction" ? " is-correction" : ""}" type="button" role="option" aria-selected="false" data-action="tegiwa-suggestion" data-tegiwa-suggestion data-query="${esc(entry.query)}"><span aria-hidden="true">${entry.kind === "correction" ? icons.check : icons.search}</span><strong>${esc(entry.label)}</strong>${secondary}</button>`;
+      const product = entry.kind === "product" && entry.handle;
+      const visual = product && entry.image?.src
+        ? `<span class="tegiwa-suggestion-thumb" aria-hidden="true">${tegiwaImageMarkup(entry.image, entry.label)}</span>`
+        : `<span class="tegiwa-suggestion-icon" aria-hidden="true">${entry.kind === "correction" ? icons.check : icons.search}</span>`;
+      return `<button id="tegiwa-suggestion-${index}" class="tegiwa-suggestion${entry.kind === "correction" ? " is-correction" : ""}${product ? " is-product" : ""}" type="button" role="option" aria-selected="false" data-action="tegiwa-suggestion" data-tegiwa-suggestion data-kind="${esc(entry.kind)}" data-query="${esc(entry.query)}"${entry.handle ? ` data-handle="${esc(entry.handle)}"` : ""}>${visual}<strong><bdi dir="auto">${esc(entry.label)}</bdi></strong>${secondary}</button>`;
     }).join("");
     listbox.hidden = false;
+    input.removeAttribute("aria-busy");
     input.setAttribute("aria-expanded", "true");
     input.removeAttribute("aria-activedescendant");
     state.tegiwaCatalog.activeSuggestion = -1;
@@ -2799,10 +2824,22 @@
       hideTegiwaSuggestions();
       return;
     }
+    if (state.tegiwaCatalog.suggestionComposing) return;
+    const cacheKey = JSON.stringify([
+      query.toLocaleLowerCase(), state.tegiwaCatalog.supplier, state.tegiwaCatalog.brand,
+      state.tegiwaCatalog.partType, state.tegiwaCatalog.currency, state.tegiwaCatalog.fitment,
+      state.tegiwaCatalog.match, partsVehicleApiFields()
+    ]);
+    const cached = state.tegiwaCatalog.suggestionCache.get(cacheKey);
+    if (cached) {
+      renderTegiwaSuggestions(cached, input);
+      return;
+    }
     state.tegiwaCatalog.suggestionTimer = window.setTimeout(async () => {
       state.tegiwaCatalog.suggestionTimer = null;
       const controller = new AbortController();
       state.tegiwaCatalog.suggestionController = controller;
+      input.setAttribute("aria-busy", "true");
       try {
         const request = partsCatalogueParams({ query, suggest: true });
         const result = await fetchPartsCatalogue(request, { signal: controller.signal });
@@ -2810,10 +2847,15 @@
         if (payload.mode !== "suggest" || !Array.isArray(payload.suggestions)) throw new Error("suggestions_unavailable");
         if (cleanText(input.value, 120) !== query || document.activeElement !== input) return;
         applyCatalogueSource(result);
+        state.tegiwaCatalog.suggestionCache.set(cacheKey, payload);
+        if (state.tegiwaCatalog.suggestionCache.size > 24) {
+          state.tegiwaCatalog.suggestionCache.delete(state.tegiwaCatalog.suggestionCache.keys().next().value);
+        }
         renderTegiwaSuggestions(payload, input);
       } catch (error) {
         if (error?.name !== "AbortError") hideTegiwaSuggestions();
       } finally {
+        input.removeAttribute("aria-busy");
         if (state.tegiwaCatalog.suggestionController === controller) state.tegiwaCatalog.suggestionController = null;
       }
     }, 240);
@@ -2824,8 +2866,13 @@
     const query = cleanText(option?.dataset.query || "", 120);
     if (!input || query.length < 2) return;
     input.value = query;
+    const handle = tegiwaProductHandle(option?.dataset.handle || "");
     hideTegiwaSuggestions();
     clearTegiwaDirectorySelection();
+    if (handle && option?.dataset.kind === "product") {
+      openTegiwaProduct(handle, input);
+      return;
+    }
     loadTegiwaCatalog({ query, match: partsVehicleLabel() ? "vehicle" : "any", page: 1, scrollResults: true });
   }
 
@@ -3069,6 +3116,16 @@
     const input = root.querySelector("[data-tegiwa-search-input]");
     if (input) input.value = routeQuery;
     input?.addEventListener("input", () => {
+      if (state.tegiwaCatalog.suggestionComposing) return;
+      clearTegiwaDirectorySelection();
+      scheduleTegiwaSuggestions(input);
+    });
+    input?.addEventListener("compositionstart", () => {
+      state.tegiwaCatalog.suggestionComposing = true;
+      window.clearTimeout(state.tegiwaCatalog.suggestionTimer);
+    });
+    input?.addEventListener("compositionend", () => {
+      state.tegiwaCatalog.suggestionComposing = false;
       clearTegiwaDirectorySelection();
       scheduleTegiwaSuggestions(input);
     });
@@ -3339,7 +3396,7 @@
           <form class="tegiwa-search" data-tegiwa-search>
             <label for="tegiwa-search-input">${esc(labels.tegiwaSearchLabel)}</label>
             <div class="tegiwa-search-row">
-              <div class="tegiwa-search-box"><span class="tegiwa-search-icon">${icons.search}</span><input id="tegiwa-search-input" class="input" name="q" type="search" minlength="2" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(labels.tegiwaSearchPlaceholder)}" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="tegiwa-search-suggestions" data-tegiwa-search-input><div class="tegiwa-suggestions" id="tegiwa-search-suggestions" role="listbox" aria-label="${esc(labels.tegiwaSearchSuggestions)}" data-tegiwa-suggestions hidden></div></div>
+              <div class="tegiwa-search-box"><span class="tegiwa-search-icon">${icons.search}</span><input id="tegiwa-search-input" class="input" name="q" type="search" minlength="2" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" dir="auto" placeholder="${esc(labels.tegiwaSearchPlaceholder)}" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="tegiwa-search-suggestions" data-tegiwa-search-input><div class="tegiwa-suggestions" id="tegiwa-search-suggestions" role="listbox" aria-label="${esc(labels.tegiwaSearchSuggestions)}" data-tegiwa-suggestions hidden></div></div>
               <button class="btn" type="submit" data-tegiwa-control>${esc(labels.tegiwaSearchAction)}${icons.search}</button><button class="btn btn-outline" type="button" data-action="tegiwa-reset" data-tegiwa-control>${esc(labels.tegiwaBrowseAction)}${icons.arrow}</button>
             </div>
             <div class="tegiwa-search-toolbar"><button class="tegiwa-filter-toggle" type="button" data-action="toggle-tegiwa-filters" aria-expanded="false" aria-controls="tegiwa-filter-panel">${icons.filter}<span>${esc(labels.tegiwaSortFilter)}</span><small data-tegiwa-filter-count hidden></small></button></div>
