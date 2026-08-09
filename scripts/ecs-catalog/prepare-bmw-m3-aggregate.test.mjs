@@ -157,6 +157,78 @@ test('uses a newer dated retail observation but still publishes confirmation-onl
   assert.equal(product.stockPolicy, 'manual-confirm');
 });
 
+test('preserves a positive supplier starting price as quote-only starting-from evidence', () => {
+  const result = prepareBmwM3AggregateCapture(capture([
+    record({ publicUsdPrice: '$726.00 USD' }),
+    record({ publicUsdPrice: 'Starting at $726.00 USD' })
+  ]), { nowMs });
+  const product = result.products[0];
+
+  assert.equal(product.priceAmount, 726);
+  assert.equal(product.priceStartingAt, true);
+  assert.equal(product.quoteOnly, true);
+  assert.equal(product.purchaseMode, 'variant-confirmation-required');
+  assert.equal(product.priceType, 'supplier-public-retail-starting-at');
+  assert.match(product.priceNote, /not a fixed unit price/);
+  assert.ok(product.sourceObservations.some(observation => observation.priceStartingAt));
+  assert.equal(result.audit.publicUsdPriceProductCount, 1);
+  assert.equal(result.audit.requestPriceProductCount, 0);
+  assert.equal(result.audit.startingPriceProductCount, 1);
+  assert.equal(result.audit.zeroStartingPriceRequestProductCount, 0);
+});
+
+test('turns a zero-value supplier starting price into controlled Request price', () => {
+  const result = prepareBmwM3AggregateCapture(capture([
+    record({ publicUsdPrice: 0, priceText: 'Starting at $0.00 USD' })
+  ]), { nowMs });
+  const product = result.products[0];
+
+  assert.equal(product.priceAmount, null);
+  assert.equal(product.priceStartingAt, false);
+  assert.equal(product.quoteOnly, true);
+  assert.equal(product.purchaseMode, 'request-price');
+  assert.equal(product.priceType, 'confirmation-required');
+  assert.match(product.priceNote, /\$0\.00 starting value/);
+  assert.deepEqual(product.sourceObservations.map(observation => ({
+    publicUsdPrice: observation.publicUsdPrice,
+    priceStartingAt: observation.priceStartingAt
+  })), [{ publicUsdPrice: 0, priceStartingAt: true }]);
+  assert.equal(result.audit.publicUsdPriceProductCount, 0);
+  assert.equal(result.audit.requestPriceProductCount, 1);
+  assert.equal(result.audit.startingPriceProductCount, 0);
+  assert.equal(result.audit.zeroStartingPriceRequestProductCount, 1);
+});
+
+test('keeps ES#3170130 quarantined when sections show different same-day starting prices', () => {
+  const common = {
+    title: 'F87 M2 BMW M Performance Steering Wheel',
+    ecsPartNumber: 'ES#3170130',
+    manufacturerPartNumber: '32302413014',
+    productUrl: 'https://www.ecstuning.com/b-genuine-bmw-m-performance-parts/f87-m2-bmw-m-performance-steering-wheel/32302413014~dk/'
+  };
+  const result = prepareBmwM3AggregateCapture(capture([
+    record({
+      ...common,
+      publicUsdPrice: 'Starting at $1043.00 USD',
+      section: 'Interior',
+      category: 'BMW M3 Interior Steering Parts',
+      sourceUrl: 'https://www.ecstuning.com/BMW-M3/Interior/Steering/3'
+    }),
+    record({
+      ...common,
+      publicUsdPrice: 'Starting at $1086.99 USD',
+      section: 'Steering',
+      category: 'BMW M3 Steering Wheel Parts & Accessories',
+      sourceUrl: 'https://www.ecstuning.com/BMW-M3/Steering/Wheel/2'
+    })
+  ]), { nowMs });
+
+  assert.equal(result.products.length, 0);
+  assert.deepEqual(result.quarantinedEcsIdentities, ['3170130']);
+  assert.deepEqual(result.audit.quarantine[0].reasons, ['conflicting-same-day-public-price']);
+  assert.deepEqual(result.audit.quarantine[0].sections, ['Interior', 'Steering']);
+});
+
 test('keeps missing prices fail-closed and rejects non-generic or malformed source records', () => {
   const result = prepareBmwM3AggregateCapture(capture([
     record({ publicUsdPrice: null }),

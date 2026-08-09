@@ -157,6 +157,8 @@ The generator also accepts one precombined document whose kind is `bmw-m3-aggreg
 
 Every generated fitment stays at model-level `BMW M3` with `possible` confidence. Year, generation, chassis, engine and drivetrain remain empty because the generic family pages do not establish them. Public USD prices and supplier availability retain their observation dates; availability remains confirmation-required and is never represented as live stock.
 
+Supplier price text is preserved semantically. A positive `Starting at` amount is emitted only as a labelled starting-from reference, remains quote-only, and requires exact-variant confirmation; it is never represented as a fixed unit price or a direct-purchase offer. A `Starting at $0.00` observation is not a publishable price and becomes controlled `Request price` state while the raw dated observation remains in the audit evidence. Conflicting same-day public amounts remain quarantined.
+
 Focused offline test:
 
 ```text

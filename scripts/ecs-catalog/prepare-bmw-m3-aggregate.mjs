@@ -142,13 +142,22 @@ function mediaIndexMap(document) {
 
 function parseUsdPrice(record) {
   const raw = record?.publicUsdPrice ?? record?.priceAmount ?? record?.priceText ?? null;
-  if (raw === null || raw === undefined || clean(raw) === '') return null;
-  if (typeof raw === 'number') return Number.isFinite(raw) && raw >= 0 ? Math.round(raw * 100) / 100 : null;
   const source = clean(raw, 200);
-  if (/\b(?:GBP|EUR|KWD|AED|SAR)\b|[£€]/i.test(source)) return null;
+  const pricePresentation = [source, clean(record?.priceText, 200), clean(record?.priceBlockText, 500)];
+  const startingAt = record?.priceStartingAt === true
+    || pricePresentation.some(value => /^(?:starting\s+at|from)\b/i.test(value));
+  if (raw === null || raw === undefined || source === '') return { amount: null, startingAt };
+  if (typeof raw === 'number') return {
+    amount: Number.isFinite(raw) && raw >= 0 ? Math.round(raw * 100) / 100 : null,
+    startingAt
+  };
+  if (/\b(?:GBP|EUR|KWD|AED|SAR)\b|[£€]/i.test(source)) return { amount: null, startingAt };
   const match = source.replace(/,/g, '').match(/(?:USD\s*|\$\s*)?(\d+(?:\.\d{1,2})?)/i);
   const amount = match ? Number(match[1]) : Number.NaN;
-  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : null;
+  return {
+    amount: Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : null,
+    startingAt
+  };
 }
 
 function recordTimestamp(record, document, nowMs) {
@@ -165,6 +174,7 @@ function normalizeRecord(record, index, document, nowMs) {
   const sourceUrl = canonicalSourceUrl(record?.sourceUrl ?? record?.source?.url ?? record?.source, section);
   const observedAt = recordTimestamp(record, document, nowMs);
   const suppliedBrand = clean(record?.brand, 200);
+  const publicPrice = parseUsdPrice(record);
   const normalized = {
     index,
     title: clean(record?.title, 500),
@@ -174,7 +184,8 @@ function normalizeRecord(record, index, document, nowMs) {
     digits: ecsDigits(record?.ecsPartNumber ?? record?.['ES#'] ?? record?.identifiers?.ecs),
     mpn: clean(record?.manufacturerPartNumber ?? record?.mpn ?? record?.MPN, 200)
       .replace(/\u00ad/g, ''),
-    priceAmount: parseUsdPrice(record),
+    priceAmount: publicPrice.amount,
+    priceStartingAt: publicPrice.startingAt,
     availability: clean(record?.availabilityText ?? record?.availability, 500),
     productUrl,
     imageUrls: imageUrls(record),
@@ -226,7 +237,20 @@ function conflictReasons(records) {
   return reasons;
 }
 
-function priceCopy(amount, observedDate) {
+function priceCopy(amount, observedDate, startingAt = false) {
+  if (startingAt && amount === 0) return {
+    quoteOnly: true,
+    purchaseMode: 'request-price',
+    priceAmount: null,
+    priceCurrency: 'USD',
+    priceStartingAt: false,
+    priceConflict: false,
+    priceType: 'confirmation-required',
+    priceIncludesShipping: false,
+    priceVerifiedAt: observedDate,
+    priceNote: 'The ECS listing showed a $0.00 starting value; it is not treated as a selling price. Select the exact variant and request the current price before order.',
+    priceNoteAr: 'ظهر في إدراج ECS سعر ابتدائي بقيمة 0.00 دولار؛ لا تُعامل هذه القيمة كسعر بيع. يجب اختيار النسخة الدقيقة وطلب السعر الحالي قبل الطلب.'
+  };
   if (amount === null) return {
     quoteOnly: true,
     purchaseMode: 'request-price',
@@ -239,6 +263,20 @@ function priceCopy(amount, observedDate) {
     priceVerifiedAt: observedDate,
     priceNote: 'No publishable public ECS USD price was captured; request the current price before order.',
     priceNoteAr: 'لم يُلتقط سعر عام قابل للنشر من ECS بالدولار الأمريكي؛ يرجى طلب السعر الحالي قبل الطلب.'
+  };
+  if (startingAt) return {
+    quoteOnly: true,
+    purchaseMode: 'variant-confirmation-required',
+    priceAmount: amount,
+    priceCurrency: 'USD',
+    priceStartingAt: true,
+    priceConflict: false,
+    priceType: 'supplier-public-retail-starting-at',
+    projxSellingPrice: null,
+    priceIncludesShipping: false,
+    priceVerifiedAt: observedDate,
+    priceNote: `ECS public USD starting price observed ${observedDate}; this is not a fixed unit price. The exact variant, final selling price, shipping, customs and Kuwait delivery require confirmation before order.`,
+    priceNoteAr: `سعر ابتدائي عام من ECS بالدولار الأمريكي كما ظهر بتاريخ ${observedDate}؛ هذه القيمة ليست سعراً ثابتاً للوحدة. يجب تأكيد النسخة الدقيقة وسعر البيع النهائي والشحن والجمارك والتوصيل في الكويت قبل الطلب.`
   };
   return {
     quoteOnly: false,
@@ -276,6 +314,10 @@ function buildProduct(digits, records, mediaMap) {
   const sorted = [...records].sort(observationComparator);
   const current = sorted[0];
   const withPrice = sorted.filter(record => record.priceAmount !== null).sort(observationComparator)[0] || null;
+  const selectedPriceDay = withPrice?.observedAt.slice(0, 10) || null;
+  const priceStartingAt = Boolean(withPrice && sorted.some(record => record.priceStartingAt
+    && record.priceAmount === withPrice.priceAmount
+    && record.observedAt.slice(0, 10) === selectedPriceDay));
   const descriptions = sorted.filter(record => record.description);
   const description = descriptions[0]?.description || '';
   const observations = [...records].sort((left, right) => left.sourceUrl.localeCompare(right.sourceUrl)
@@ -298,7 +340,7 @@ function buildProduct(digits, records, mediaMap) {
   const primaryCategory = current.category;
   const categorySlug = `bmw-m3-${current.section.key}`;
   const subcategorySlug = `bmw-m3-${current.section.key}-${slugify(primaryCategory)}`;
-  const price = priceCopy(withPrice?.priceAmount ?? null, observedDate);
+  const price = priceCopy(withPrice?.priceAmount ?? null, observedDate, priceStartingAt);
   const ranks = records.map(record => record.relevancePosition).filter(Number.isFinite);
   return {
     catalogType: 'product',
@@ -383,7 +425,8 @@ function buildProduct(digits, records, mediaMap) {
     sourceObservations: observations.map(record => ({
       section: record.section.label, category: record.category, sourceUrl: record.sourceUrl,
       observedAt: record.observedAt, availability: record.availability || null,
-      publicUsdPrice: record.priceAmount
+      publicUsdPrice: record.priceAmount,
+      priceStartingAt: record.priceStartingAt
     })),
     installation: { status: 'confirmation-required', note: 'Professional fitment review is required before order.' },
     shipping: {
@@ -466,6 +509,11 @@ export function prepareBmwM3AggregateCapture(document, options = {}) {
     duplicateObservationCount: valid.length - groups.size,
     publicUsdPriceProductCount: products.filter(product => product.priceAmount !== null).length,
     requestPriceProductCount: products.filter(product => product.priceAmount === null).length,
+    startingPriceProductCount: products.filter(product => product.priceStartingAt
+      && product.priceAmount !== null).length,
+    zeroStartingPriceRequestProductCount: products.filter(product => product.priceAmount === null
+      && product.sourceObservations.some(observation => observation.priceStartingAt
+        && observation.publicUsdPrice === 0)).length,
     supplierImageProductCount: products.filter(product => product.images.length > 0).length,
     localAssetImageProductCount: products.filter(product => product.images.some(image => !/^https:/i.test(image.src))).length,
     blobAssetImageProductCount: products.filter(product => product.images

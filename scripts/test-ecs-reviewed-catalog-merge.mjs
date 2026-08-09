@@ -463,6 +463,39 @@ test('renders quote-only zero-price configurators as Request price and excludes 
   assert.equal(response.meta.stockIndexedProductCount, 0);
 });
 
+test('keeps a positive supplier starting price quote-only while exposing a labelled reference amount', async () => {
+  const [merged] = mergeReviewedEcsProducts(
+    [reviewedProduct({
+      priceAmount: 726, priceVerifiedAt: '2026-08-07', checkedAt: '2026-08-07'
+    })],
+    [generatedProduct({
+      quoteOnly: true,
+      purchaseMode: 'variant-confirmation-required',
+      priceAmount: 726,
+      priceStartingAt: true,
+      priceType: 'supplier-public-retail-starting-at',
+      priceVerifiedAt: '2026-08-08',
+      checkedAt: '2026-08-08'
+    })]
+  );
+  assert.equal(merged.quoteOnly, true);
+  assert.equal(merged.purchaseMode, 'variant-confirmation-required');
+  assert.equal(merged.priceAmount, 726);
+  assert.equal(merged.priceStartingAt, true);
+
+  const response = await reviewedFallbackResponse({
+    request: {
+      mode: 'list', supplier: 'ecs', currency: 'USD', brand: null, partType: null,
+      availability: 'all', pricing: 'all', fitment: 'all', structuredVehicle: false,
+      query: '', page: 1, offset: 0, sort: 'relevance', match: 'any', positionSource: 'page'
+    },
+    req: {}, nowValue: Date.parse('2026-08-08T18:00:00Z'), reason: 'test', products: [merged]
+  });
+  assert.equal(response.items[0].price.min, 726);
+  assert.equal(response.items[0].price.max, 726);
+  assert.equal(response.items[0].price.startingAt, true);
+});
+
 test('explains a conflicting public supplier price without exposing an incorrect amount', async () => {
   const conflict = generatedProduct({
     quoteOnly: true,
