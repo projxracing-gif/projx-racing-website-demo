@@ -253,8 +253,18 @@ const CATALOGUE_SCOPES = Object.freeze({
   })
 });
 
+function repairSupplierEncoding(value) {
+  const repaired = String(value ?? '')
+    .replace(/(\d)(?:\uFFFD|ï¿½|Â°)(?=[CF]\b)/g, '$1°')
+    .replace(/Â°/g, '°');
+  if (repaired.includes('\uFFFD') || repaired.includes('ï¿½')) {
+    throw new Error('Supplier text contains an unresolved replacement character.');
+  }
+  return repaired;
+}
+
 function clean(value, maximum = 2_048) {
-  return String(value ?? '').normalize('NFKC')
+  return repairSupplierEncoding(value).normalize('NFKC')
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
     .replace(/\s+/g, ' ').trim().slice(0, maximum);
 }

@@ -10400,10 +10400,10 @@ export const ECS_G_SERIES_DRIVETRAIN_PRODUCTS = Object.freeze([
     "publicKey": "ecs-es-602",
     "title": "Super DOT4 Brake Fluid - 1 Liter",
     "titleAr": "Super DOT4 Brake Fluid - 1 Liter",
-    "summary": "Boiling Point - Dry 265�C (509�F) / Wet >165�C (329�F)",
-    "summaryAr": "وصف المورد الأصلي: Boiling Point - Dry 265�C (509�F) / Wet >165�C (329�F)",
-    "description": "Boiling Point - Dry 265�C (509�F) / Wet >165�C (329�F)",
-    "descriptionAr": "وصف المورد الأصلي: Boiling Point - Dry 265�C (509�F) / Wet >165�C (329�F)",
+    "summary": "Boiling Point - Dry 265°C (509°F) / Wet >165°C (329°F)",
+    "summaryAr": "وصف المورد الأصلي: Boiling Point - Dry 265°C (509°F) / Wet >165°C (329°F)",
+    "description": "Boiling Point - Dry 265°C (509°F) / Wet >165°C (329°F)",
+    "descriptionAr": "وصف المورد الأصلي: Boiling Point - Dry 265°C (509°F) / Wet >165°C (329°F)",
     "detailedDescriptionAvailable": true,
     "brand": "Pentosin",
     "brandSlug": "pentosin",
@@ -10603,7 +10603,7 @@ export const ECS_G_SERIES_DRIVETRAIN_PRODUCTS = Object.freeze([
     },
     "seo": {
       "pageTitle": "Super DOT4 Brake Fluid - 1 Liter | Projx Racing",
-      "metaDescription": "Boiling Point - Dry 265�C (509�F) / Wet >165�C (329�F)",
+      "metaDescription": "Boiling Point - Dry 265°C (509°F) / Wet >165°C (329°F)",
       "path": "/parts/es-602/"
     },
     "relatedProductSlugs": [

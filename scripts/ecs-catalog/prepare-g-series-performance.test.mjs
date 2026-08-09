@@ -334,6 +334,17 @@ test('removes supplier phone/chat and urgency promotions without removing produc
   assert.equal(product.images[0].alt, 'S58 intake.');
 });
 
+test('repairs known supplier temperature encoding and rejects unresolved replacement characters', () => {
+  const temperatures = structuredClone(source);
+  temperatures.records = [temperatures.records[0]];
+  temperatures.records[0].description = 'Boiling Point - Dry 265�C (509�F) / Wet >165Â°C (329ï¿½F)';
+  const [product] = prepareGSeriesPerformance(temperatures, media);
+  assert.equal(product.description, 'Boiling Point - Dry 265°C (509°F) / Wet >165°C (329°F)');
+
+  temperatures.records[0].description = 'Unresolved supplier text �';
+  assert.throws(() => prepareGSeriesPerformance(temperatures, media), /unresolved replacement character/);
+});
+
 test('keeps zero-value or starting-price configurators quote-only', () => {
   const configurable = structuredClone(source);
   configurable.records = [configurable.records[0]];
