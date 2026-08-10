@@ -256,6 +256,28 @@ assert.match(app, /<h3 dir="auto">\$\{esc\(item\.title\)\}<\/h3>/,
   'Supplier product titles must isolate their own text direction inside Arabic catalogue cards.');
 assert.match(app, /id="tegiwa-detail-title" dir="auto">\$\{esc\(product\.title\)\}<\/h2>/,
   'Supplier product titles must preserve their text direction inside Arabic product details.');
+for (const [size, sku] of [
+  ['s', 'T-TSUKITEAM-TSHIRT-S'],
+  ['m', 'T-TSUKITEAM-TSHIRT-M'],
+  ['l', 'T-TSUKITEAM-TSHIRT-L'],
+  ['xl', 'T-TSUKITEAM-TSHIRT-XL'],
+  ['xxl', 'T-TSUKITEAM-TSHIRT-XXL']
+]) {
+  assert.match(app, new RegExp(`"tegiwa-2026-team-tegiwa-tsuki-t-shirt-${size}"[\\s\\S]{0,180}${sku}`),
+    `The Tsuki T-shirt ${size.toUpperCase()} size must map to its exact supplier SKU.`);
+}
+assert.match(app, /function commerceProduct\(slug\)[\s\S]*policy\?\.sourceHandle[\s\S]*images:\s*\[\{ \.\.\.policy\.image \}\]/,
+  'Approved supplier variants must have a deterministic cart-product fallback for reload persistence.');
+assert.match(app, /function tegiwaVariantDirectCartProductId\(product, variant\)[\s\S]*variant\.available !== true[\s\S]*snapshotStale === true[\s\S]*productCanEnterCart/,
+  'Direct cart mapping must fail closed for unavailable, stale, or unapproved supplier variants.');
+assert.match(app, /data-direct-cart-product-id="\$\{esc\(directCartProductId\)\}"/,
+  'Each supplier option must carry only its server-approved direct-cart product identity.');
+assert.match(app, /data-action="add-cart" \$\{cartButtonAttributes\}>\$\{esc\(commerceText\(\)\.addToCart\)\}/,
+  'The approved Tsuki product must render Add to cart instead of Add to quote.');
+assert.match(app, /data-tegiwa-variant-cart[\s\S]{0,700}cartButton\.disabled = !\(available && productId\)/,
+  'Add to cart must remain disabled until an available approved size is selected.');
+assert.match(app, /policy\?\.sourceHandle \? tegiwaProductUrl\(policy\.sourceHandle\)/,
+  'Persisted supplier variants must link back to the real supplier product modal instead of a nonexistent static route.');
 assert.match(styles, /\.tegiwa-image-placeholder/);
 assert.match(styles, /\.tegiwa-stock-badge[^}]*max-width:\s*calc\(100% - 24px\)[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s,
   'Mobile stock badges must wrap inside their 12px card insets.');

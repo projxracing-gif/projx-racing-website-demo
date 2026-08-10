@@ -98,6 +98,8 @@ function breadcrumbJson(locale, route, title) {
   if (route === '/') return null;
   const labels = T[locale].ui.nav;
   const known = {
+    admin: locale === 'ar' ? '\u0627\u0644\u0625\u062f\u0627\u0631\u0629' : 'Administration',
+    shipping: locale === 'ar' ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0634\u062d\u0646' : 'Shipping administration',
     services: labels.services,
     tuning: labels.tuning,
     'engine-building': labels.engineBuilding,
@@ -328,6 +330,21 @@ add('/checkout', locale => ({
     ? ['متاح للزائر', 'حماية من الإرسال المكرر', 'تأكيد التوافق والسعر قبل أي طلب حقيقي']
     : ['Guest checkout available', 'Duplicate-submission protection', 'Fitment and final price confirmed before a real order'],
   links: [[locale === 'ar' ? 'السلة' : 'Cart', '/cart'], [T[locale].ui.actions.contactWorkshop, '/contact']]
+}));
+
+add('/admin/shipping', locale => ({
+  indexable: false,
+  title: locale === 'ar' ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0634\u062d\u0646 \u0627\u0644\u0645\u062d\u0645\u064a\u0629 | Projx Racing' : 'Protected Shipping Administration | Projx Racing',
+  h1: locale === 'ar' ? '\u0644\u0648\u062d\u0629 \u0639\u0645\u0644\u064a\u0627\u062a \u0627\u0644\u0634\u062d\u0646' : 'Shipping operations dashboard',
+  description: locale === 'ar'
+    ? '\u0648\u0627\u062c\u0647\u0629 \u0625\u062f\u0627\u0631\u064a\u0629 \u0645\u062d\u0645\u064a\u0629 \u0644\u0627 \u062a\u0639\u0631\u0636 \u0623\u064a \u0628\u064a\u0627\u0646\u0627\u062a \u062a\u0634\u063a\u064a\u0644\u064a\u0629 \u0628\u062f\u0648\u0646 \u062a\u062d\u0642\u0642 \u0635\u0644\u0627\u062d\u064a\u0629 \u0627\u0644\u0645\u0648\u0638\u0641 \u0639\u0644\u0649 \u0627\u0644\u062e\u0627\u062f\u0645.'
+    : 'Protected shipping administration shell that displays no operational data without server-verified staff authorisation.',
+  eyebrow: locale === 'ar' ? '\u0625\u062f\u0627\u0631\u0629 \u0645\u062d\u0645\u064a\u0629' : 'Protected administration',
+  hero: 53,
+  details: locale === 'ar'
+    ? ['\u0644\u0627 \u0628\u064a\u0627\u0646\u0627\u062a \u062a\u0634\u063a\u064a\u0644\u064a\u0629 \u0628\u062f\u0648\u0646 \u0635\u0644\u0627\u062d\u064a\u0629', '\u0627\u0644\u062a\u062d\u0643\u0645\u0627\u062a \u0645\u0639\u0637\u0644\u0629', '\u0644\u0627 \u062a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0639\u062a\u0645\u0627\u062f \u0641\u064a \u0627\u0644\u0645\u062a\u0635\u0641\u062d']
+    : ['No operational data without authorisation', 'Controls remain disabled', 'No supplier credentials in the browser'],
+  links: [[locale === 'ar' ? '\u062d\u0633\u0627\u0628 \u0627\u0644\u0639\u0645\u064a\u0644' : 'Customer account', '/account']]
 }));
 
 for (const slug of Object.keys(T.en.legal)) {

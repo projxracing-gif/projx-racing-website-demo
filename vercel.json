@@ -12,6 +12,16 @@
       "includeFiles": "api/data/**"
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/shipping-revalidate",
+      "destination": "/api/shipping-estimate?shippingOperation=revalidate"
+    },
+    {
+      "source": "/api/shipping-revalidate/",
+      "destination": "/api/shipping-estimate?shippingOperation=revalidate"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -35,19 +35,23 @@ test('supplier calculation disclosures are native, bilingual and evidence-qualif
 });
 
 test('shipping money remains fail-closed until a current provider quote is fully verified', () => {
-  assert.match(app, /function shippingGroupHasConfirmedRate\(group\)/);
+  assert.match(app, /function shippingOptionHasConfirmedQuote\(option, group, plan\)/);
+  assert.match(app, /function shippingGroupHasConfirmedRate\(group, plan\)/);
   assert.match(app, /rate: typeof group\?\.rate === "number" && Number\.isFinite\(group\.rate\) && group\.rate >= 0 \? group\.rate : null/);
-  assert.match(app, /const hasRate = typeof group\?\.rate === "number"/);
-  assert.match(app, /group\?\.status === "confirmed"/);
-  assert.match(app, /Number\.isFinite\(amount\)[\s\S]*amount >= 0/);
-  assert.match(app, /Boolean\(cleanText\(group\?\.carrier/);
-  assert.match(app, /Boolean\(cleanText\(group\?\.service/);
-  assert.match(app, /Boolean\(cleanText\(group\?\.quoteId/);
+  assert.match(app, /const hasAmount = safeShippingMinor\(rateMinor\) !== null/);
+  assert.match(app, /status === "confirmed"/);
+  assert.match(app, /Boolean\(currency\)/);
+  assert.match(app, /Boolean\(carrier\)/);
+  assert.match(app, /Boolean\(service\)/);
+  assert.match(app, /Boolean\(quote\.quoteId\)/);
   assert.match(app, /expiry > Date\.now\(\)/);
-  assert.match(app, /const rate = shippingGroupHasConfirmedRate\(group\)/);
+  assert.match(app, /const rate = shippingGroupHasConfirmedRate\(group, safePlan\)/);
   assert.match(app, /No confirmed live shipping rate exists for this shipment/);
   assert.match(app, /No unconfirmed shipping charge is added or collected/);
-  assert.match(app, /shippingGroupHasConfirmedRate\(group\) \? text\.shippingRateConfirmed : text\.shippingNoConfirmedRate/);
+  assert.match(app, /shippingGroupHasConfirmedRate\(group, plan\) \? text\.shippingRateConfirmed : text\.shippingNoConfirmedRate/);
+  assert.match(app, /plan\?\.revalidated === true/);
+  assert.match(app, /plan\?\.revalidationStatus === "server_requoted"/);
+  assert.match(app, /paymentEligible: plan\.paymentEligible === true/);
 });
 
 test('saved-account cart derives each supplier from the approved product policy', () => {

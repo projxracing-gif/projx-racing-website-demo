@@ -11,12 +11,55 @@
   const PARTS_CATALOG_FALLBACK_ENDPOINT = "/api/tegiwa-catalog/";
   const STAGING_ORDER_ENDPOINT = "/api/staging-order/";
   const SHIPPING_ESTIMATE_ENDPOINT = "/api/shipping-estimate/";
+  const SHIPPING_REVALIDATE_ENDPOINT = "/api/shipping-revalidate/";
   const TEGIWA_PRODUCT_QUERY = "product";
   const TEGIWA_PRODUCT_HISTORY_KEY = "projxSupplierProduct";
   const TEGIWA_PRODUCT_HANDLE_LIMIT = 255;
   const CART_STORAGE_KEY = "projxStagingCartV1";
   const CHECKOUT_TOKEN_STORAGE_KEY = "projxStagingCheckoutTokenV1";
   const LAST_ORDER_STORAGE_KEY = "projxLastStagingOrderV1";
+  const GCC_DESTINATIONS = Object.freeze({
+    KW: Object.freeze({ en: "Kuwait", ar: "الكويت", dial: "+965", regions: Object.freeze(["Capital / العاصمة", "Hawalli / حولي", "Farwaniya / الفروانية", "Mubarak Al-Kabeer / مبارك الكبير", "Ahmadi / الأحمدي", "Jahra / الجهراء"]) }),
+    SA: Object.freeze({ en: "Saudi Arabia", ar: "المملكة العربية السعودية", dial: "+966", regions: Object.freeze(["Riyadh / الرياض", "Makkah / مكة المكرمة", "Madinah / المدينة المنورة", "Eastern Province / المنطقة الشرقية", "Qassim / القصيم", "Asir / عسير", "Tabuk / تبوك", "Hail / حائل", "Northern Borders / الحدود الشمالية", "Jazan / جازان", "Najran / نجران", "Al Bahah / الباحة", "Al Jawf / الجوف"]) }),
+    AE: Object.freeze({ en: "United Arab Emirates", ar: "الإمارات العربية المتحدة", dial: "+971", regions: Object.freeze(["Abu Dhabi / أبوظبي", "Dubai / دبي", "Sharjah / الشارقة", "Ajman / عجمان", "Umm Al Quwain / أم القيوين", "Ras Al Khaimah / رأس الخيمة", "Fujairah / الفجيرة"]) }),
+    QA: Object.freeze({ en: "Qatar", ar: "قطر", dial: "+974", regions: Object.freeze(["Doha / الدوحة", "Al Rayyan / الريان", "Al Wakrah / الوكرة", "Umm Salal / أم صلال", "Al Daayen / الظعاين", "Al Khor and Al Thakhira / الخور والذخيرة", "Al Shamal / الشمال", "Al Shahaniya / الشحانية"]) }),
+    BH: Object.freeze({ en: "Bahrain", ar: "البحرين", dial: "+973", regions: Object.freeze(["Capital / العاصمة", "Muharraq / المحرق", "Northern / الشمالية", "Southern / الجنوبية"]) }),
+    OM: Object.freeze({ en: "Oman", ar: "عُمان", dial: "+968", regions: Object.freeze(["Muscat / مسقط", "Dhofar / ظفار", "Musandam / مسندم", "Al Buraimi / البريمي", "Ad Dakhiliyah / الداخلية", "North Al Batinah / شمال الباطنة", "South Al Batinah / جنوب الباطنة", "North Ash Sharqiyah / شمال الشرقية", "South Ash Sharqiyah / جنوب الشرقية", "Ad Dhahirah / الظاهرة", "Al Wusta / الوسطى"]) })
+  });
+  const TEGIWA_GB_SUPPLIER = Object.freeze({
+    slug: "tegiwa",
+    name: "Tegiwa",
+    originCountryCode: "GB",
+    originCountryName: "Great Britain"
+  });
+  const TEGIWA_TSUKI_TSHIRT_IMAGE = Object.freeze({
+    src: "https://cdn.shopify.com/s/files/1/0715/5767/7352/files/Tsuki_Teamwear-2026-2.jpg?v=1769175846",
+    width: 825,
+    height: 825,
+    alt: "2026 Tegiwa Racing Tsuki Team T-Shirt",
+    altAr: "قميص فريق تيجيوا ريسنغ تسوكي 2026"
+  });
+  function tsukiTshirtPolicy(sizeSlug, sizeTitle, sizeTitleAr, sku) {
+    return Object.freeze({
+      productId: `tegiwa-2026-team-tegiwa-tsuki-t-shirt-${sizeSlug}`,
+      sourceHandle: "tegiwa-2026-team-tegiwa-tsuki-t-shirt",
+      title: `2026 Tegiwa Racing Tsuki Team T-Shirt — ${sizeTitle}`,
+      titleAr: `قميص فريق تيجيوا ريسنغ تسوكي 2026 — ${sizeTitleAr}`,
+      variantTitle: sizeTitle,
+      variantId: sku,
+      sku,
+      currency: "GBP",
+      unitAmount: 27.49,
+      priceVerifiedAt: "2026-08-10",
+      maxPriceAgeDays: 7,
+      availabilityVerifiedAt: "2026-08-10",
+      maxAvailabilityAgeDays: 7,
+      fitmentConfirmationRequired: false,
+      purchaseMode: "direct",
+      image: TEGIWA_TSUKI_TSHIRT_IMAGE,
+      supplier: TEGIWA_GB_SUPPLIER
+    });
+  }
   const DIRECT_CART_POLICY = Object.freeze({
     "tegiwa-magnust-gr-yaris-gopro-headrest-mount-lhd": Object.freeze({
       sku: "T-GOPRO-MOUNT-YARISGR-LHD",
@@ -27,13 +70,13 @@
       fitmentConfirmationRequired: true,
       notice: "Left-hand-drive GR Yaris and seat/headrest compatibility must be confirmed before fulfilment.",
       noticeAr: "يجب تأكيد توافق سيارة GR Yaris ذات المقود اليسار والمقعد ومسند الرأس قبل التجهيز.",
-      supplier: Object.freeze({
-        slug: "tegiwa",
-        name: "Tegiwa",
-        originCountryCode: "GB",
-        originCountryName: "Great Britain"
-      })
-    })
+      supplier: TEGIWA_GB_SUPPLIER
+    }),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-s": tsukiTshirtPolicy("s", "Small", "صغير", "T-TSUKITEAM-TSHIRT-S"),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-m": tsukiTshirtPolicy("m", "Medium", "متوسط", "T-TSUKITEAM-TSHIRT-M"),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-l": tsukiTshirtPolicy("l", "Large", "كبير", "T-TSUKITEAM-TSHIRT-L"),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xl": tsukiTshirtPolicy("xl", "X-Large", "كبير جداً", "T-TSUKITEAM-TSHIRT-XL"),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xxl": tsukiTshirtPolicy("xxl", "XX-Large", "كبير جداً جداً", "T-TSUKITEAM-TSHIRT-XXL")
   });
   const main = document.getElementById("main-content");
   const header = document.getElementById("site-header");
@@ -113,7 +156,34 @@
   }
 
   function commerceProduct(slug) {
-    return (DATA.storeProducts || []).find(product => product.slug === slug) || null;
+    const productId = cleanText(slug || "", 180);
+    const reviewedProduct = (DATA.storeProducts || []).find(product => product.slug === productId);
+    if (reviewedProduct) return reviewedProduct;
+    const policy = DIRECT_CART_POLICY[productId];
+    if (!policy?.sourceHandle || !policy?.image?.src || !policy?.sku) return null;
+    return {
+      slug: policy.productId,
+      sourceHandle: policy.sourceHandle,
+      title: policy.title,
+      titleAr: policy.titleAr || policy.title,
+      summary: "Official Tegiwa apparel variant selected from the supplier product listing.",
+      summaryAr: "خيار ملابس رسمي من تيجـيوا تم اختياره من صفحة المنتج لدى المورد.",
+      brand: "Tegiwa",
+      category: "T-Shirts",
+      categoryAr: "قمصان",
+      sku: policy.sku,
+      mpn: policy.sku,
+      quoteOnly: false,
+      priceCurrency: policy.currency,
+      priceAmount: policy.unitAmount,
+      priceVerifiedAt: policy.priceVerifiedAt,
+      stockPolicy: "manual-confirm",
+      checkedAt: policy.availabilityVerifiedAt || policy.priceVerifiedAt,
+      staleAfterDays: policy.maxAvailabilityAgeDays || policy.maxPriceAgeDays,
+      status: "Available from supplier",
+      statusAr: "متوفر لدى المورد",
+      images: [{ ...policy.image }]
+    };
   }
 
   function commercePolicy(product) {
@@ -122,11 +192,31 @@
 
   function commercePriceIsFresh(product, policy = commercePolicy(product), now = Date.now()) {
     if (!product || !policy || product.quoteOnly) return false;
-    const verifiedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(product.priceVerifiedAt || ""))
-      ? Date.parse(`${product.priceVerifiedAt}T23:59:59.999Z`)
+    const verifiedDate = String(product.priceVerifiedAt || "");
+    const verifiedDayStarts = /^\d{4}-\d{2}-\d{2}$/.test(verifiedDate)
+      ? Date.parse(`${verifiedDate}T00:00:00.000Z`)
+      : NaN;
+    const verifiedAt = /^\d{4}-\d{2}-\d{2}$/.test(verifiedDate)
+      ? Date.parse(`${verifiedDate}T23:59:59.999Z`)
       : NaN;
     const maxAgeDays = Math.min(30, Math.max(1, Number(policy.maxPriceAgeDays) || 7));
-    return Number.isFinite(verifiedAt) && now - verifiedAt <= maxAgeDays * 86_400_000;
+    return Number.isFinite(verifiedAt)
+      && Number.isFinite(verifiedDayStarts)
+      && now >= verifiedDayStarts - 5 * 60_000
+      && now - verifiedAt <= maxAgeDays * 86_400_000;
+  }
+
+  function commerceAvailabilityIsFresh(policy, now = Date.now()) {
+    if (!policy?.availabilityVerifiedAt) return true;
+    const verifiedDate = String(policy.availabilityVerifiedAt || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedDate)) return false;
+    const verifiedDayStarts = Date.parse(`${verifiedDate}T00:00:00.000Z`);
+    const verifiedAt = Date.parse(`${verifiedDate}T23:59:59.999Z`);
+    const maxAgeDays = Math.min(30, Math.max(1, Number(policy.maxAvailabilityAgeDays) || 7));
+    return Number.isFinite(verifiedAt)
+      && Number.isFinite(verifiedDayStarts)
+      && now >= verifiedDayStarts - 5 * 60_000
+      && now - verifiedAt <= maxAgeDays * 86_400_000;
   }
 
   function productCanEnterCart(product) {
@@ -134,11 +224,37 @@
     return Boolean(
       policy
       && commercePriceIsFresh(product, policy)
+      && commerceAvailabilityIsFresh(policy)
       && cleanText(product.sku || "", 120) === policy.sku
       && String(product.priceCurrency || "").toUpperCase() === policy.currency
       && Math.abs(Number(product.priceAmount) - policy.unitAmount) < 0.001
       && product.images?.[0]?.src
     );
+  }
+
+  function tegiwaDirectCartPolicy(handle, sku = "") {
+    const safeHandle = tegiwaProductHandle(handle);
+    const safeSku = cleanText(sku || "", 120);
+    return Object.values(DIRECT_CART_POLICY).find(policy => (
+      policy?.sourceHandle === safeHandle
+      && (!safeSku || policy.sku === safeSku)
+    )) || null;
+  }
+
+  function tegiwaHandleSupportsDirectCart(handle) {
+    return Boolean(tegiwaDirectCartPolicy(handle));
+  }
+
+  function tegiwaVariantDirectCartProductId(product, variant) {
+    if (!product || !variant || variant.available !== true || product.availability?.snapshotStale === true) return "";
+    if (cleanText(product.supplier?.slug || "", 80).toLowerCase() !== "tegiwa") return "";
+    const sku = cleanText(variant.sku || "", 120);
+    const policy = tegiwaDirectCartPolicy(product.handle, sku);
+    const amount = Number(variant.price?.amount);
+    const currency = String(variant.price?.currency || "").toUpperCase();
+    if (!policy || !Number.isFinite(amount) || Math.abs(amount - policy.unitAmount) > 0.001 || currency !== policy.currency) return "";
+    const cartProduct = commerceProduct(policy.productId);
+    return productCanEnterCart(cartProduct) ? policy.productId : "";
   }
 
   function canonicalCartItem(product, quantity = 1) {
@@ -191,6 +307,10 @@
     shippingEstimateController: null,
     shippingEstimateTimer: null,
     shippingEstimateRequestId: 0,
+    shippingSelections: Object.create(null),
+    shippingRevalidationStatus: "idle",
+    shippingRevalidationError: "",
+    shippingAdminStatus: "idle",
     mobileOpen: false,
     lightbox: null,
     galleries: Object.create(null),
@@ -404,6 +524,7 @@
       tegiwaVariants: "الخيارات",
       tegiwaSelectedOption: "الخيار المحدد",
       tegiwaChooseVariant: "اختر خياراً لتحديث السعر والتوفر قبل الإضافة لطلب السعر.",
+      tegiwaChooseVariantForCart: "اختر المقاس أولاً لتأكيد رقم المنتج والسعر والتوفر قبل الإضافة إلى السلة.",
       tegiwaOnlinePrice: "سعر المورد بالعملة الأصلية",
       tegiwaChecked: "تم فحص المخزون",
       tegiwaPriceNote: "السعر معروض بعملة المورد الأصلية من دون تحويل تلقائي أو إضافة ضريبة. يؤكد Projx Racing السعر النهائي والشحن ورسوم الكويت قبل الطلب.",
@@ -575,6 +696,7 @@
       tegiwaVariants: "Options",
       tegiwaSelectedOption: "Selected option",
       tegiwaChooseVariant: "Select an option to update its price and availability before adding it to your quote.",
+      tegiwaChooseVariantForCart: "Select a size first so its SKU, price and availability are confirmed before adding it to the cart.",
       tegiwaOnlinePrice: "Supplier price in original currency",
       tegiwaChecked: "Stock checked",
       tegiwaPriceNote: "The price is shown in the supplier's original currency with no automatic conversion or tax addition. Projx Racing confirms the final price, shipping and Kuwait duties before an order.",
@@ -600,6 +722,7 @@
       checkoutIntro: "هذه بيئة اختبار. لن يتم تحصيل أي مبلغ أو حجز أي مخزون.",
       stagingBadge: "اختبار فقط — لا توجد دفعة",
       addToCart: "أضف إلى السلة",
+      selectSizeAndAddToCart: "اختر المقاس ثم أضف إلى السلة",
       addedToCart: "تمت الإضافة إلى سلة الاختبار",
       fitmentRequired: "يتطلب تأكيد التوافق",
       availabilityRequired: "يتم تأكيد توفر المورد قبل اعتماد الطلب.",
@@ -616,6 +739,7 @@
       shippingUnits: "وحدات",
       originGB: "بريطانيا",
       originUS: "الولايات المتحدة",
+      originKW: "الكويت",
       singleSupplierShipment: "شحنة مورد واحدة",
       splitSupplierShipment: "سيتم تقسيم الطلب إلى {count} شحنات",
       splitSupplierNotice: "تُشحن منتجات ECS Tuning من الولايات المتحدة ومنتجات Tegiwa من بريطانيا. تظهر كل شحنة بشكل منفصل.",
@@ -710,6 +834,7 @@
       checkoutIntro: "This is a test environment. No payment is collected and no stock is reserved.",
       stagingBadge: "TEST ONLY — NO PAYMENT",
       addToCart: "Add to cart",
+      selectSizeAndAddToCart: "Select a size and add to cart",
       addedToCart: "Added to staging cart",
       fitmentRequired: "Fitment confirmation required",
       availabilityRequired: "Supplier availability is confirmed before any order is approved.",
@@ -726,6 +851,7 @@
       shippingUnits: "units",
       originGB: "Great Britain",
       originUS: "United States",
+      originKW: "Kuwait",
       singleSupplierShipment: "One supplier shipment",
       splitSupplierShipment: "This order will be split into {count} supplier shipments",
       splitSupplierNotice: "ECS Tuning items ship from the United States and Tegiwa items ship from Great Britain. Each shipment is shown separately.",
@@ -889,6 +1015,194 @@
         not_available: "Verified package data unavailable",
         not_connected: "Authorised rate access not connected"
       }
+    };
+  }
+
+  function shippingCheckoutText() {
+    return state.locale === "ar" ? {
+      countryCode: "دولة التسليم",
+      governorate: "المحافظة / المنطقة",
+      area: "المنطقة / الحي",
+      addressLine1: "الشارع، القطعة، المبنى ورقم الوحدة",
+      addressLine2: "علامة مميزة أو تفاصيل إضافية",
+      postcodeHelp: "مطلوب للشحن إلى العنوان. يظل الاستلام أو التركيب في الورشة خاضعاً للتأكيد اليدوي.",
+      addressHelp: "أدخل عنوان التسليم الفعلي. تؤدي أي تغييرات إلى إلغاء سعر الشحن حتى تتم إعادة التحقق.",
+      phoneHelp: "استخدم رقم هاتف يمكن لشركة النقل التواصل معه، مع مفتاح الدولة.",
+      selectCountry: "اختر دولة من دول الخليج",
+      selectShippingService: "اختر خدمة الشحن",
+      shippingServiceRequired: "اختر خدمة مؤكدة لكل شحنة قبل إعادة التحقق.",
+      confirmedShipment: "سعر مباشر مؤكد",
+      manualShipment: "تأكيد يدوي مطلوب",
+      partialPlan: "تم تأكيد بعض الشحنات فقط",
+      noAutomaticOptions: "لا توجد خدمة تلقائية معتمدة لهذه الشحنة حالياً. ستبقى ضمن طلب سعر الشحن.",
+      dispatchEstimate: "التجهيز المتوقع",
+      transitEstimate: "النقل المتوقع",
+      workingDays: "أيام عمل",
+      quoteExpires: "ينتهي السعر",
+      incoterm: "شروط الرسوم",
+      ddp: "DDP — الرسوم والضرائب مشمولة حسب السعر المؤكد",
+      dap: "DAP / DDU — قد تُدفع الرسوم والتخليص عند الوصول",
+      dutiesUnverified: "غير مؤكد — لا تعتبر الرسوم أو الجمارك مشمولة",
+      pricingAudit: "تفاصيل العملة والرسوم",
+      originalSupplierRate: "السعر الأصلي للشحن",
+      exchangeRate: "سعر الصرف المستخدم",
+      exchangeRateAsOf: "وقت سعر الصرف",
+      convertedShipping: "الشحن المحول إلى الدينار الكويتي",
+      baseShipping: "الشحن الأساسي بعد التحويل",
+      handlingFee: "رسوم المناولة المعلنة",
+      protectionMargin: "هامش حماية سعر الصرف",
+      insuranceFee: "التأمين",
+      fragileFee: "رسوم مناولة المواد القابلة للكسر",
+      oversizeFee: "رسوم الشحنة كبيرة الحجم",
+      forwarderFee: "رسوم وكيل الشحن",
+      localDeliveryFee: "التوصيل المحلي",
+      roundingAdjustment: "تعديل التقريب",
+      otherFees: "رسوم أخرى معلنة",
+      totalPricingAudit: "تدقيق مكونات إجمالي الشحن",
+      commercialRulesStatus: "حالة قواعد التسعير",
+      commercialRulesEnabled: "مفعلة لهذا السعر من الخادم",
+      commercialRulesDisabled: "معطلة لهذا السعر من الخادم",
+      commercialRulesVersion: "مرجع إصدار القواعد",
+      manualReviewStatus: "حالة المراجعة اليدوية",
+      manualReviewRequired: "مطلوبة قبل اعتماد الطلب",
+      manualReviewNotRequired: "غير مطلوبة حسب هذا السعر",
+      manualReviewNotice: "هذا السعر يتطلب مراجعة يدوية قبل اعتماد الطلب. لا يفعّل ذلك الدفع.",
+      breakdownStatus: "مطابقة المكونات للإجمالي",
+      breakdownReconciled: "مطابقة للإجمالي المؤكد",
+      breakdownMismatch: "لا تتطابق مكونات السعر مع الإجمالي؛ تم حجب الإجمالي النهائي ويلزم تأكيد الشحن.",
+      totalShipping: "إجمالي الشحن المؤكد",
+      confirmedShippingPortion: "جزء الشحن المؤكد فقط",
+      shippingTotalPending: "لا يمكن عرض إجمالي نهائي حتى يتم تأكيد جميع الشحنات.",
+      revalidateShipping: "إعادة التحقق من الشحن",
+      revalidatingShipping: "جارٍ إعادة التحقق…",
+      revalidationReady: "تمت إعادة التحقق من السعر المحدد لهذه المحاكاة.",
+      revalidationPending: "يجب إعادة التحقق مباشرة قبل أي دفع حقيقي.",
+      revalidationFailed: "تعذر إعادة التحقق. لم تتم إضافة سعر مجاني ولم يتم تفعيل الدفع.",
+      submitQuoteRequest: "إرسال طلب تأكيد الشحن",
+      noPaymentWithRates: "حتى الأسعار المؤكدة هنا للاختبار فقط. لا توجد بوابة دفع في هذا المسار.",
+      separateDeliveries: "قد يصل هذا الطلب في شحنات منفصلة.",
+      selected: "محدد"
+    } : {
+      countryCode: "Delivery country",
+      governorate: "Governorate / region",
+      area: "Area / district",
+      addressLine1: "Street, block, building and unit",
+      addressLine2: "Landmark or additional address details",
+      postcodeHelp: "Required for courier delivery. Workshop collection or installation remains subject to manual confirmation.",
+      addressHelp: "Enter the actual delivery address. Any change invalidates shipping until it is checked again.",
+      phoneHelp: "Use a carrier-contactable number including the country code.",
+      selectCountry: "Select a GCC country",
+      selectShippingService: "Select a shipping service",
+      shippingServiceRequired: "Select one confirmed service for every shipment before revalidation.",
+      confirmedShipment: "Confirmed live rate",
+      manualShipment: "Manual confirmation required",
+      partialPlan: "Only some shipments are confirmed",
+      noAutomaticOptions: "No authorised automatic service is available for this shipment yet. It remains in the shipping-quotation flow.",
+      dispatchEstimate: "Estimated dispatch",
+      transitEstimate: "Estimated transit",
+      workingDays: "working days",
+      quoteExpires: "Rate expires",
+      incoterm: "Duties terms",
+      ddp: "DDP — duties and taxes included only as stated by the confirmed quote",
+      dap: "DAP / DDU — duties or clearance may be payable on arrival",
+      dutiesUnverified: "Unverified — do not treat duties or customs as included",
+      pricingAudit: "Currency and fee audit",
+      originalSupplierRate: "Original shipping quote",
+      exchangeRate: "Exchange rate used",
+      exchangeRateAsOf: "Exchange-rate timestamp",
+      convertedShipping: "Shipping converted to KWD",
+      baseShipping: "Base converted shipping",
+      handlingFee: "Disclosed handling charge",
+      protectionMargin: "Exchange-rate protection",
+      insuranceFee: "Insurance",
+      fragileFee: "Fragile-item handling",
+      oversizeFee: "Oversize shipment charge",
+      forwarderFee: "Freight-forwarder charge",
+      localDeliveryFee: "Local delivery",
+      roundingAdjustment: "Rounding adjustment",
+      otherFees: "Other disclosed fees",
+      totalPricingAudit: "Shipping-total component audit",
+      commercialRulesStatus: "Pricing-rule status",
+      commercialRulesEnabled: "Enabled for this server quote",
+      commercialRulesDisabled: "Disabled for this server quote",
+      commercialRulesVersion: "Ruleset version reference",
+      manualReviewStatus: "Manual-review status",
+      manualReviewRequired: "Required before order approval",
+      manualReviewNotRequired: "Not required by this quote",
+      manualReviewNotice: "This quote requires manual review before the order can be approved. It does not enable payment.",
+      breakdownStatus: "Component-to-total check",
+      breakdownReconciled: "Matches the confirmed total",
+      breakdownMismatch: "The quoted components do not match the total; the final total is withheld pending shipping confirmation.",
+      totalShipping: "Confirmed total shipping",
+      confirmedShippingPortion: "Confirmed shipping portion only",
+      shippingTotalPending: "A final total cannot be shown until every shipment is confirmed.",
+      revalidateShipping: "Revalidate shipping",
+      revalidatingShipping: "Revalidating shipping…",
+      revalidationReady: "The selected rate was revalidated for this simulation.",
+      revalidationPending: "Shipping must be revalidated immediately before any real payment.",
+      revalidationFailed: "Revalidation failed. No free rate was inserted and payment remains disabled.",
+      submitQuoteRequest: "Submit shipping-confirmation request",
+      noPaymentWithRates: "Even confirmed rates here are staging-only. No payment gateway exists in this flow.",
+      separateDeliveries: "This order may arrive in separate shipments.",
+      selected: "Selected"
+    };
+  }
+
+  function shippingAdminText() {
+    return state.locale === "ar" ? {
+      eyebrow: "إدارة الشحن — وصول محمي",
+      title: "لوحة عمليات الشحن",
+      intro: "واجهة إدارية للقراءة فقط إلى أن يتوفر تحقق صلاحية الموظف وواجهات إدارة محمية على الخادم.",
+      loading: "جارٍ فحص جلسة الدخول الآمنة…",
+      signInRequired: "يلزم تسجيل الدخول",
+      signInText: "سجّل الدخول أولاً. لن تُعرض أي بيانات تشغيلية قبل تحقق صلاحية الإدارة على الخادم.",
+      openAccount: "فتح تسجيل الدخول",
+      notConfigured: "واجهة الإدارة المحمية غير مفعلة",
+      notConfiguredText: "تسجيل الدخول وحده لا يمنح صلاحية الإدارة. يلزم تحقق دور الموظف على الخادم وسجل تدقيق دائم قبل تفعيل أي تحكم.",
+      readOnly: "قراءة فقط",
+      supplierAdapters: "اتصالات الموردين",
+      rateLogs: "سجلات الأسعار",
+      routingRules: "قواعد مسار التنفيذ",
+      commercialRules: "الرسوم والقواعد التجارية",
+      auditLog: "سجل التدقيق",
+      unavailable: "غير متوفر حتى ربط API محمي",
+      noLiveCredentials: "لا توجد بيانات اعتماد مباشرة في المتصفح",
+      countryCoverage: "دول التسليم المدعومة",
+      recalculation: "إعادة حساب طلب",
+      manualApproval: "اعتماد سعر يدوي",
+      paymentLink: "إرسال رابط دفع",
+      supplierOrder: "حالة طلب المورد والتتبع",
+      disabledSecurity: "معطل حتى يتوفر تحقق صلاحية الموظف وAPI محمي ومسجل",
+      refresh: "تحديث الحالة",
+      backToAccount: "العودة إلى الحساب",
+      securityNote: "لا تعرض هذه الصفحة بيانات المورد السرية أو أسعار الجملة أو مفاتيح API أو أرقام الحسابات."
+    } : {
+      eyebrow: "Shipping administration — protected access",
+      title: "Shipping operations dashboard",
+      intro: "A read-only administration shell until server-verified staff roles and protected management APIs are available.",
+      loading: "Checking the secure sign-in session…",
+      signInRequired: "Sign-in required",
+      signInText: "Sign in first. No operational data is displayed before server-side administrator authorisation succeeds.",
+      openAccount: "Open sign-in",
+      notConfigured: "Protected administration API not configured",
+      notConfiguredText: "Signing in alone does not grant administrator access. Server-side staff-role verification and a durable audit log are required before any control can be enabled.",
+      readOnly: "Read only",
+      supplierAdapters: "Supplier adapters",
+      rateLogs: "Rate request logs",
+      routingRules: "Fulfilment routing rules",
+      commercialRules: "Fees and commercial rules",
+      auditLog: "Audit log",
+      unavailable: "Unavailable until a protected API is connected",
+      noLiveCredentials: "No live credentials are exposed to the browser",
+      countryCoverage: "Supported delivery countries",
+      recalculation: "Recalculate an order",
+      manualApproval: "Manually approve a quote",
+      paymentLink: "Send a payment link",
+      supplierOrder: "Supplier order and tracking status",
+      disabledSecurity: "Disabled until staff authorisation and a protected, audited API exist",
+      refresh: "Refresh status",
+      backToAccount: "Back to account",
+      securityNote: "This page does not expose supplier credentials, wholesale rates, API keys or account numbers."
     };
   }
 
@@ -2547,7 +2861,10 @@
     const productLink = handle
       ? `<a class="btn btn-sm" href="${esc(tegiwaProductUrl(handle))}" data-action="view-tegiwa-product" data-handle="${esc(handle)}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`
       : `<a class="btn btn-sm" href="${esc(routeUrl("/parts"))}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`;
-    return `<article class="tegiwa-product-card" data-supplier="${esc(item.supplier?.slug || "tegiwa")}" data-currency="${esc(String(item.price?.currency || "").toUpperCase())}"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span>${fitmentBadge}</div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3 dir="auto">${esc(item.title)}</h3><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(supplier)}</bdi></dd></div>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}${displayedSku || skuOptionsLabel || skuFallbackLabel ? `<div><dt>${esc(labels.skuMpn)}</dt><dd>${displayedSku ? `<bdi dir="ltr">${esc(displayedSku)}</bdi>${skuTotalLabel ? `<small class="tegiwa-sku-count">${esc(skuTotalLabel)}</small>` : ""}` : `<span class="tegiwa-sku-options">${esc(skuOptionsLabel || skuFallbackLabel)}</span>`}</dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}<button class="icon-action" type="button" data-action="add-quote" data-id="${esc(quoteId)}" data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(item.title)}" data-sku="${esc(displayedSku)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button></div></div></article>`;
+    const cardAction = handle && tegiwaHandleSupportsDirectCart(handle)
+      ? `<button class="icon-action is-cart-action" type="button" data-action="view-tegiwa-product" data-handle="${esc(handle)}" aria-label="${esc(`${commerceText().selectSizeAndAddToCart}: ${item.title}`)}">${icons.cart}</button>`
+      : `<button class="icon-action" type="button" data-action="add-quote" data-id="${esc(quoteId)}" data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(item.title)}" data-sku="${esc(displayedSku)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button>`;
+    return `<article class="tegiwa-product-card" data-supplier="${esc(item.supplier?.slug || "tegiwa")}" data-currency="${esc(String(item.price?.currency || "").toUpperCase())}"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span>${fitmentBadge}</div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3 dir="auto">${esc(item.title)}</h3><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(supplier)}</bdi></dd></div>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}${displayedSku || skuOptionsLabel || skuFallbackLabel ? `<div><dt>${esc(labels.skuMpn)}</dt><dd>${displayedSku ? `<bdi dir="ltr">${esc(displayedSku)}</bdi>${skuTotalLabel ? `<small class="tegiwa-sku-count">${esc(skuTotalLabel)}</small>` : ""}` : `<span class="tegiwa-sku-options">${esc(skuOptionsLabel || skuFallbackLabel)}</span>`}</dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}${cardAction}</div></div></article>`;
   }
 
   function tegiwaLoadingCards() {
@@ -3320,6 +3637,16 @@
       availabilityBadge.className = `tegiwa-stock-badge is-${available ? "orderable" : "check"}`;
       availabilityBadge.textContent = availabilityLabel;
     }
+    const cartButton = panel.querySelector("[data-tegiwa-variant-cart]");
+    if (cartButton) {
+      const productId = cleanText(input.dataset.directCartProductId || "", 180);
+      if (available && productId) cartButton.dataset.productId = productId;
+      else delete cartButton.dataset.productId;
+      cartButton.disabled = !(available && productId);
+      const optionTitle = input.dataset.variantTitle || storeText().tegiwaProductDetails;
+      cartButton.setAttribute("aria-label", `${commerceText().addToCart}: ${cartButton.dataset.productTitle} — ${optionTitle}`);
+      return;
+    }
     const addButton = panel.querySelector("[data-tegiwa-variant-quote]");
     if (!addButton) return;
     const optionTitle = input.dataset.variantTitle || storeText().tegiwaProductDetails;
@@ -3383,19 +3710,31 @@
       const details = selectedVariant
         ? tegiwaVariantQuoteDetails(product, selectedVariant, selectedAvailability.label)
         : [baseDetails, `${labels.price}: ${selectedPrice}`, `${labels.availability}: ${selectedAvailability.label}`].filter(Boolean).join(" • ");
+      const directCartSupported = tegiwaHandleSupportsDirectCart(product.handle);
       const variants = variantOptions.map((variant, index) => {
         const title = cleanText(variant.title || labels.tegiwaProductDetails, 200);
         const sku = cleanText(variant.sku || "", 120);
         const price = tegiwaPriceLabel(variant.price || {});
         const variantAvailability = tegiwaVariantAvailability(variant);
+        const directCartProductId = directCartSupported ? tegiwaVariantDirectCartProductId(product, variant) : "";
         const selected = index === selectedVariantIndex;
-        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-sku="${esc(sku)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-allow-product-sku-fallback="${String(variantOptions.length === 1)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title" dir="auto">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong>${sku ? `<small class="tegiwa-variant-sku">${esc(U().common.sku)}: <bdi dir="ltr">${esc(sku)}</bdi></small>` : ""}<small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
+        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-sku="${esc(sku)}" data-direct-cart-product-id="${esc(directCartProductId)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-allow-product-sku-fallback="${String(variantOptions.length === 1)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title" dir="auto">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong>${sku ? `<small class="tegiwa-variant-sku">${esc(U().common.sku)}: <bdi dir="ltr">${esc(sku)}</bdi></small>` : ""}<small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
       }).join("");
       const availabilityText = [selectedAvailability.label, leadTime].filter(Boolean).join(" • ");
+      const selectedDirectCartProductId = selectedVariant && directCartSupported
+        ? tegiwaVariantDirectCartProductId(product, selectedVariant)
+        : "";
       const variantQuoteAttributes = `data-base-id="tegiwa-${esc(product.handle)}" data-base-details="${esc(baseDetails)}" data-product-title="${esc(product.title)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-sku="${esc(selectedSku)}" data-tegiwa-variant-quote`;
       const quoteButtonAttributes = variantOptions.length
         ? `${selectedVariant ? `data-id="tegiwa-${esc(product.handle)}-variant-${selectedVariantIndex + 1}" aria-label="${esc(`${labels.addToQuote}: ${product.title} — ${selectedVariant.title || labels.tegiwaProductDetails}`)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} ${variantQuoteAttributes}`
         : `data-id="tegiwa-${esc(product.handle)}" data-sku="${esc(productSku)}"`;
+      const cartButtonAttributes = variantOptions.length
+        ? `${selectedDirectCartProductId ? `data-product-id="${esc(selectedDirectCartProductId)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} data-product-title="${esc(product.title)}" data-tegiwa-variant-cart`
+        : "disabled";
+      const primaryAction = directCartSupported
+        ? `<button class="btn" type="button" data-action="add-cart" ${cartButtonAttributes}>${esc(commerceText().addToCart)}${icons.cart}</button>`
+        : `<button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>`;
+      const variantInstruction = directCartSupported ? labels.tegiwaChooseVariantForCart : labels.tegiwaChooseVariant;
       const selectedFitmentConfidence = selectedVehicleFitmentConfidence(product);
       const fitmentSummary = selectedFitmentConfidence === "exact" ? labels.exactMatch : selectedFitmentConfidence === "possible" ? labels.possibleMatch : "";
       const fitmentRows = (Array.isArray(product.fitments) ? product.fitments : []).slice(0, 8).map(item => {
@@ -3403,6 +3742,12 @@
         return [years, item.make, item.model, item.generation, item.engine, item.note].filter(Boolean).join(" • ");
       }).filter(Boolean);
       modalRoot.innerHTML = `<div class="modal-backdrop" data-action="close-modal"></div><section class="modal-panel tegiwa-detail-modal" role="dialog" aria-modal="true" aria-labelledby="tegiwa-detail-title"><header class="drawer-head"><div><span class="eyebrow">${esc(labels.tegiwaEyebrow)}</span><h2 id="tegiwa-detail-title" dir="auto">${esc(product.title)}</h2></div><button class="icon-btn" type="button" data-action="close-modal" aria-label="${esc(U().actions.close)}">${icons.close}</button></header><div class="tegiwa-detail-grid"><figure>${tegiwaImageMarkup(product.images?.[0] || product.image, product.title, { eager: true })}</figure><div class="tegiwa-detail-copy"><div class="tegiwa-detail-badges"><span class="tegiwa-stock-badge is-${esc(selectedAvailability.className)}" data-tegiwa-selected-availability>${esc(selectedAvailability.label)}</span>${fitmentSummary ? `<span class="tegiwa-fitment-badge is-${esc(selectedFitmentConfidence)}">${esc(fitmentSummary)}</span>` : ""}</div><p dir="auto">${esc(product.description || labels.tegiwaSourceNote)}</p><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(supplier)}</bdi></dd></div>${product.vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(product.vendor)}</bdi></dd></div>` : ""}<div><dt>${esc(labels.productType)}</dt><dd dir="auto">${esc(product.category || labels.productType)}</dd></div>${productSkus.length ? `<div><dt>${esc(labels.skuMpn)}</dt><dd class="tegiwa-sku-list">${productSkuMarkup}</dd></div>` : ""}<div data-tegiwa-selected-sku-row${showSelectedSku ? "" : " hidden"}><dt>${esc(U().common.selectedSku)}</dt><dd class="tegiwa-sku-list" dir="ltr" data-tegiwa-selected-sku aria-live="polite">${showSelectedSku ? `<bdi dir="ltr">${esc(selectedSku)}</bdi>` : ""}</dd></div><div><dt>${esc(variantOptions.length ? labels.tegiwaOnlinePrice : labels.price)}</dt><dd><bdi data-tegiwa-selected-price aria-live="polite">${esc(selectedPrice)}</bdi></dd></div><div><dt>${esc(labels.availability)}</dt><dd><bdi data-tegiwa-selected-availability-value data-lead-time="${esc(leadTime)}" aria-live="polite">${esc(availabilityText)}</bdi></dd></div>${checked ? `<div><dt>${esc(labels.tegiwaChecked)}</dt><dd><bdi>${esc(checked)}</bdi></dd></div>` : ""}</dl>${fitmentRows.length ? `<div class="tegiwa-fitment-list"><strong>${esc(labels.fitment)}</strong><ul>${fitmentRows.map(item => `<li dir="auto">${esc(item)}</li>`).join("")}</ul></div>` : ""}<small>${esc(labels.tegiwaPriceNote)}</small><div class="store-buy-actions"><button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>${product.sourceUrl ? `<a class="btn btn-outline" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(labels.originalSupplierListing)}${icons.arrow}</a>` : ""}</div></div></div>${variants ? `<section class="tegiwa-variants"><span class="eyebrow" id="tegiwa-variant-heading">${esc(labels.tegiwaVariants)}</span><p class="tegiwa-variant-instruction" id="tegiwa-variant-instruction">${esc(labels.tegiwaChooseVariant)}</p><ul role="radiogroup" aria-labelledby="tegiwa-variant-heading" aria-describedby="tegiwa-variant-instruction">${variants}</ul></section>` : ""}</section>`;
+      if (directCartSupported) {
+        const quoteButton = modalRoot.querySelector('.store-buy-actions [data-action="add-quote"]');
+        if (quoteButton) quoteButton.outerHTML = primaryAction;
+        const instruction = modalRoot.querySelector("#tegiwa-variant-instruction");
+        if (instruction) instruction.textContent = variantInstruction;
+      }
       requestAnimationFrame(() => modalRoot.querySelector('[data-action="close-modal"]')?.focus());
     } catch (error) {
       if (error?.name === "AbortError" || detailController.signal.aborted || state.tegiwaCatalog.detailController !== detailController) return;
@@ -3636,9 +3981,104 @@
     return /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/.test(code) ? code : "";
   }
 
+  function safeShippingId(value, maximum = 160) {
+    const id = cleanText(value || "", maximum);
+    return /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(id) ? id : "";
+  }
+
+  function safeShippingToken(value) {
+    const token = typeof value === "string" ? value.trim() : "";
+    return token.length <= 24_000 && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) ? token : "";
+  }
+
+  function safeShippingMinor(value) {
+    return Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000_000_000 ? value : null;
+  }
+
+  function safeShippingDecimal(value) {
+    if (typeof value !== "string" && typeof value !== "number") return "";
+    const decimal = String(value);
+    if (!/^(?:0|[1-9]\d{0,6})(?:\.\d{1,12})?$/.test(decimal)) return "";
+    const numeric = Number(decimal);
+    return Number.isFinite(numeric) && numeric > 0 && numeric < 1_000_000 ? decimal : "";
+  }
+
+  function safeShippingCurrency(value) {
+    const currency = String(value || "").toUpperCase();
+    return /^[A-Z]{3}$/.test(currency) ? currency : "";
+  }
+
+  function safeShippingDateTime(value) {
+    const timestamp = cleanText(value || "", 40);
+    return timestamp && Number.isFinite(Date.parse(timestamp)) ? timestamp : "";
+  }
+
+  function safeShippingFlag(value) {
+    return typeof value === "boolean" ? value : null;
+  }
+
+  function safeShippingDayRange(value) {
+    if (Number.isInteger(value) && value >= 0 && value <= 365) return { min: value, max: value };
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const min = Number.isInteger(value.min) && value.min >= 0 && value.min <= 365 ? value.min : null;
+    const max = Number.isInteger(value.max) && value.max >= 0 && value.max <= 365 ? value.max : min;
+    return min !== null && max !== null && max >= min ? { min, max } : null;
+  }
+
+  function safeShippingFees(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, 12).map((fee, index) => ({
+      code: safeShippingCode(fee?.code || `fee_${index + 1}`, 80),
+      label: cleanText(fee?.label || "", 120),
+      amountMinor: safeShippingMinor(fee?.amountMinor),
+      currency: safeShippingCurrency(fee?.currency),
+      included: safeShippingFlag(fee?.included)
+    })).filter(fee => fee.code);
+  }
+
+  function safeShippingOption(option, inheritedStatus = "confirmation_required") {
+    if (!option || typeof option !== "object" || Array.isArray(option)) return null;
+    const id = safeShippingId(option.id || option.optionId || option.serviceId);
+    if (!id) return null;
+    const incoterm = String(option.incoterm || "").toUpperCase();
+    return {
+      id,
+      status: option.status === "confirmed" || (!option.status && inheritedStatus === "confirmed") ? "confirmed" : "confirmation_required",
+      carrier: cleanText(option.carrier || "", 120),
+      service: cleanText(option.service || "", 160),
+      rateMinor: safeShippingMinor(option.rateMinor),
+      currency: safeShippingCurrency(option.currency),
+      originalAmountMinor: safeShippingMinor(option.originalAmountMinor),
+      originalCurrency: safeShippingCurrency(option.originalCurrency),
+      convertedRateMinor: safeShippingMinor(option.convertedRateMinor),
+      convertedCurrency: safeShippingCurrency(option.convertedCurrency),
+      conversionStatus: option.conversionStatus === "confirmed" ? "confirmed" : "confirmation_required",
+      conversionReason: safeShippingCode(option.conversionReason, 160),
+      exchangeRate: safeShippingDecimal(option.exchangeRate),
+      exchangeRateAsOf: safeShippingDateTime(option.exchangeRateAsOf),
+      handlingMinor: safeShippingMinor(option.handlingMinor),
+      protectionMarginMinor: safeShippingMinor(option.protectionMarginMinor),
+      insuranceMinor: safeShippingMinor(option.insuranceMinor),
+      localDeliveryMinor: safeShippingMinor(option.localDeliveryMinor),
+      fees: safeShippingFees(option.fees),
+      quoteId: safeShippingId(option.quoteId || option.rateQuoteId),
+      expiresAt: safeShippingDateTime(option.expiresAt || option.quoteExpiresAt || option.rateExpiresAt),
+      revalidationStatus: ["confirmed", "required", "failed", "not_revalidated", "server_requoted"].includes(option.revalidationStatus) ? option.revalidationStatus : "required",
+      revalidatedAt: safeShippingDateTime(option.revalidatedAt),
+      dispatchDays: safeShippingDayRange(option.dispatchDays),
+      transitDays: safeShippingDayRange(option.transitDays),
+      incoterm: ["DDP", "DAP", "DDU"].includes(incoterm) ? incoterm : "",
+      dutiesIncluded: safeShippingFlag(option.dutiesIncluded),
+      taxIncluded: safeShippingFlag(option.taxIncluded),
+      warnings: safeShippingTextList(option.warnings, 12, 240),
+      restrictions: safeShippingTextList(option.restrictions, 12, 240)
+    };
+  }
+
   function safeShippingPlan(plan) {
     if (!plan || typeof plan !== "object" || Array.isArray(plan)) return null;
-    const groups = Array.isArray(plan.groups) ? plan.groups.slice(0, 8).map(group => ({
+    const groups = Array.isArray(plan.groups) ? plan.groups.slice(0, 20).map(group => ({
+      groupId: safeShippingId(group?.groupId || group?.shipmentId || `${group?.supplier || "supplier"}:${group?.originId || group?.originCountryCode || "origin"}`),
       supplier: cleanText(group?.supplier || "", 80),
       supplierName: cleanText(group?.supplierName || "", 120),
       originCountryCode: cleanText(group?.originCountryCode || "", 2).toUpperCase(),
@@ -3649,7 +4089,8 @@
       quantity: Math.max(0, Math.min(999, Number(group?.quantity) || 0)),
       status: group?.status === "confirmed" ? "confirmed" : "confirmation_required",
       rate: typeof group?.rate === "number" && Number.isFinite(group.rate) && group.rate >= 0 ? group.rate : null,
-      currency: /^[A-Z]{3}$/.test(String(group?.currency || "").toUpperCase()) ? String(group.currency).toUpperCase() : "",
+      rateMinor: safeShippingMinor(group?.rateMinor),
+      currency: safeShippingCurrency(group?.currency),
       carrier: cleanText(group?.carrier || "", 120),
       service: cleanText(group?.service || "", 160),
       quoteId: cleanText(group?.quoteId || group?.rateQuoteId || "", 160),
@@ -3666,17 +4107,85 @@
       packageDataStatus: safeShippingCode(group?.packageDataStatus),
       rateAccessStatus: safeShippingCode(group?.rateAccessStatus),
       blockingReasons: safeShippingTextList(group?.blockingReasons, 12, 180),
+      warnings: safeShippingTextList(group?.warnings, 16, 240),
+      packageCount: Math.max(0, Math.min(99, Number(group?.packageCount) || (Array.isArray(group?.packages) ? group.packages.length : 0))),
+      options: Array.isArray(group?.options) ? group.options.slice(0, 24).map(option => safeShippingOption(option, group?.status)).filter(Boolean) : [],
+      selectedOptionId: safeShippingId(group?.selectedOptionId),
+      originalAmountMinor: safeShippingMinor(group?.originalAmountMinor),
+      originalCurrency: safeShippingCurrency(group?.originalCurrency),
+      convertedRateMinor: safeShippingMinor(group?.convertedRateMinor),
+      convertedCurrency: safeShippingCurrency(group?.convertedCurrency),
+      conversionStatus: group?.conversionStatus === "confirmed" ? "confirmed" : "confirmation_required",
+      conversionReason: safeShippingCode(group?.conversionReason, 160),
+      exchangeRate: safeShippingDecimal(group?.exchangeRate),
+      exchangeRateAsOf: safeShippingDateTime(group?.exchangeRateAsOf),
+      handlingMinor: safeShippingMinor(group?.handlingMinor),
+      protectionMarginMinor: safeShippingMinor(group?.protectionMarginMinor),
+      insuranceMinor: safeShippingMinor(group?.insuranceMinor),
+      localDeliveryMinor: safeShippingMinor(group?.localDeliveryMinor),
+      fees: safeShippingFees(group?.fees),
+      dispatchDays: safeShippingDayRange(group?.dispatchDays),
+      transitDays: safeShippingDayRange(group?.transitDays),
+      incoterm: ["DDP", "DAP", "DDU"].includes(String(group?.incoterm || "").toUpperCase()) ? String(group.incoterm).toUpperCase() : "",
+      dutiesIncluded: safeShippingFlag(group?.dutiesIncluded),
+      taxIncluded: safeShippingFlag(group?.taxIncluded),
       evidenceAsOf: /^\d{4}-\d{2}-\d{2}$/.test(String(group?.evidenceAsOf || "")) ? String(group.evidenceAsOf) : ""
-    })).filter(group => group.supplier && ["GB", "US"].includes(group.originCountryCode)) : [];
+    })).filter(group => group.supplier && /^[A-Z]{2}$/.test(group.originCountryCode)) : [];
     if (!groups.length) return null;
     return {
-      status: plan.status === "confirmed" ? "confirmed" : "confirmation_required",
+      schemaVersion: safeShippingCode(plan.schemaVersion, 40),
+      status: ["confirmed", "partial"].includes(plan.status) ? plan.status : "confirmation_required",
+      quoteId: safeShippingId(plan.quoteId),
+      fingerprint: safeShippingId(plan.fingerprint, 200),
+      quotedAt: safeShippingDateTime(plan.quotedAt),
+      expiresAt: safeShippingDateTime(plan.expiresAt || plan.quoteExpiresAt),
+      idempotencyKey: safeShippingId(plan.idempotencyKey, 200),
+      revalidated: plan.revalidated === true,
+      revalidationStatus: ["confirmed", "required", "failed", "unconfigured", "not_revalidated", "server_requoted"].includes(plan.revalidationStatus) ? plan.revalidationStatus : "required",
+      revalidationId: safeShippingId(plan.revalidationId || plan.revalidationToken, 200),
+      revalidationToken: safeShippingToken(plan.revalidationToken),
+      revalidatedFromQuoteId: safeShippingId(plan.revalidatedFromQuoteId),
+      revalidatedAt: safeShippingDateTime(plan.revalidatedAt),
+      revalidationExpiresAt: safeShippingDateTime(plan.revalidationExpiresAt),
       splitShipment: groups.length > 1,
       groupCount: groups.length,
+      totalShippingMinor: safeShippingMinor(plan.totalShippingMinor),
+      confirmedShippingMinor: safeShippingMinor(plan.confirmedShippingMinor),
+      currency: safeShippingCurrency(plan.currency || plan.totalCurrency),
+      originalTotalMinor: safeShippingMinor(plan.originalTotalMinor),
+      originalCurrency: safeShippingCurrency(plan.originalCurrency),
+      baseShippingMinor: safeShippingMinor(plan.baseShippingMinor),
+      exchangeRate: safeShippingDecimal(plan.exchangeRate),
+      exchangeRateAsOf: safeShippingDateTime(plan.exchangeRateAsOf),
+      commercialRulesVersion: safeShippingId(plan.commercialRulesVersion, 80),
+      commercialRulesEnabled: plan.commercialRulesEnabled === true,
+      handlingMinor: safeShippingMinor(plan.handlingMinor),
+      protectionMarginMinor: safeShippingMinor(plan.protectionMarginMinor),
+      insuranceMinor: safeShippingMinor(plan.insuranceMinor),
+      fragileFeeMinor: safeShippingMinor(plan.fragileFeeMinor),
+      oversizeFeeMinor: safeShippingMinor(plan.oversizeFeeMinor),
+      forwarderFeeMinor: safeShippingMinor(plan.forwarderFeeMinor),
+      localDeliveryMinor: safeShippingMinor(plan.localDeliveryMinor),
+      roundingAdjustmentMinor: safeShippingMinor(plan.roundingAdjustmentMinor),
+      manualReviewRequired: plan.manualReviewRequired === true,
+      fees: safeShippingFees(plan.fees),
+      dutiesStatus: safeShippingCode(plan.dutiesStatus, 80),
+      incoterm: ["DDP", "DAP", "DDU"].includes(String(plan.incoterm || "").toUpperCase()) ? String(plan.incoterm).toUpperCase() : "",
+      dutiesIncluded: safeShippingFlag(plan.dutiesIncluded),
+      taxIncluded: safeShippingFlag(plan.taxIncluded),
+      localDeliveryIncluded: safeShippingFlag(plan.localDeliveryIncluded),
+      paymentEligible: plan.paymentEligible === true,
+      warnings: safeShippingTextList(plan.warnings, 20, 240),
       destination: {
+        countryCode: cleanText(plan.destination?.countryCode || "", 2).toUpperCase(),
         country: cleanText(plan.destination?.country || "", 100),
+        governorate: cleanText(plan.destination?.governorate || plan.destination?.region || "", 120),
         city: cleanText(plan.destination?.city || "", 100),
-        postcode: cleanText(plan.destination?.postcode || "", 30)
+        area: cleanText(plan.destination?.area || "", 120),
+        addressLine1: cleanText(plan.destination?.addressLine1 || "", 240),
+        addressLine2: cleanText(plan.destination?.addressLine2 || "", 240),
+        postcode: cleanText(plan.destination?.postcode || "", 30),
+        phone: cleanText(plan.destination?.phone || "", 50)
       },
       groups
     };
@@ -3685,6 +4194,7 @@
   function shippingOriginLabel(group, text) {
     if (group.originCountryCode === "GB") return text.originGB;
     if (group.originCountryCode === "US") return text.originUS;
+    if (group.originCountryCode === "KW") return text.originKW;
     return group.originCountryName || group.originCountryCode;
   }
 
@@ -3756,28 +4266,242 @@
       : safe.replace(/[_-]+/g, " ").replace(/^./, character => character.toUpperCase());
   }
 
-  function shippingGroupHasConfirmedRate(group) {
-    const hasRate = typeof group?.rate === "number";
-    const amount = group?.rate;
-    const currency = String(group?.currency || "").toUpperCase();
-    const expiry = Date.parse(String(group?.quoteExpiresAt || ""));
-    return group?.status === "confirmed"
-      && hasRate
-      && Number.isFinite(amount)
-      && amount >= 0
-      && /^[A-Z]{3}$/.test(currency)
-      && Boolean(cleanText(group?.carrier || "", 120))
-      && Boolean(cleanText(group?.service || "", 160))
-      && Boolean(cleanText(group?.quoteId || "", 160))
+  function shippingMinorDigits(currency) {
+    return ["KWD", "BHD", "OMR", "JOD", "TND", "IQD"].includes(String(currency || "").toUpperCase()) ? 3 : 2;
+  }
+
+  function shippingMoneyMinor(amountMinor, currency) {
+    if (!Number.isSafeInteger(amountMinor) || amountMinor < 0 || !/^[A-Z]{3}$/.test(String(currency || "").toUpperCase())) return "—";
+    const digits = shippingMinorDigits(currency);
+    const amount = amountMinor / (10 ** digits);
+    try {
+      return new Intl.NumberFormat(state.locale === "ar" ? "ar-KW" : "en-KW", {
+        style: "currency",
+        currency: String(currency).toUpperCase(),
+        currencyDisplay: "code",
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }).format(amount);
+    } catch {
+      return `${String(currency).toUpperCase()} ${amount.toFixed(digits)}`;
+    }
+  }
+
+  function shippingPlanCommercialBreakdown(plan) {
+    const currency = safeShippingCurrency(plan?.currency);
+    const totalMinor = safeShippingMinor(plan?.totalShippingMinor);
+    const components = [
+      { key: "baseShippingMinor", amountMinor: safeShippingMinor(plan?.baseShippingMinor) },
+      { key: "handlingMinor", amountMinor: safeShippingMinor(plan?.handlingMinor) },
+      { key: "protectionMarginMinor", amountMinor: safeShippingMinor(plan?.protectionMarginMinor) },
+      { key: "insuranceMinor", amountMinor: safeShippingMinor(plan?.insuranceMinor) },
+      { key: "fragileFeeMinor", amountMinor: safeShippingMinor(plan?.fragileFeeMinor) },
+      { key: "oversizeFeeMinor", amountMinor: safeShippingMinor(plan?.oversizeFeeMinor) },
+      { key: "forwarderFeeMinor", amountMinor: safeShippingMinor(plan?.forwarderFeeMinor) },
+      { key: "localDeliveryMinor", amountMinor: safeShippingMinor(plan?.localDeliveryMinor) },
+      { key: "roundingAdjustmentMinor", amountMinor: safeShippingMinor(plan?.roundingAdjustmentMinor) }
+    ];
+    const complete = Boolean(currency) && totalMinor !== null && components.every(component => component.amountMinor !== null);
+    const componentTotal = complete ? components.reduce((sum, component) => sum + component.amountMinor, 0) : null;
+    return {
+      currency,
+      totalMinor,
+      components,
+      componentTotal,
+      reconciles: complete && Number.isSafeInteger(componentTotal) && componentTotal === totalMinor
+    };
+  }
+
+  function shippingGroupKey(group) {
+    return safeShippingId(group?.groupId || `${group?.supplier || "supplier"}:${group?.originId || group?.originCountryCode || "origin"}`);
+  }
+
+  function shippingSelectedOption(group) {
+    if (!Array.isArray(group?.options) || !group.options.length) return null;
+    const selectedId = state.shippingSelections[shippingGroupKey(group)] || group.selectedOptionId;
+    return group.options.find(option => option.id === selectedId) || null;
+  }
+
+  function shippingCandidateQuote(option, group, plan) {
+    const quoteId = safeShippingId(option?.quoteId || group?.quoteId || plan?.quoteId);
+    const expiresAt = safeShippingDateTime(option?.expiresAt || group?.quoteExpiresAt || plan?.expiresAt);
+    return { quoteId, expiresAt, expiry: Date.parse(expiresAt) };
+  }
+
+  function shippingOptionHasConfirmedQuote(option, group, plan) {
+    const rateMinor = option ? option.rateMinor : group?.rateMinor;
+    const legacyRate = option ? null : group?.rate;
+    const currency = safeShippingCurrency(option?.currency || group?.currency);
+    const carrier = cleanText(option?.carrier || group?.carrier || "", 120);
+    const service = cleanText(option?.service || group?.service || "", 160);
+    const status = option?.status || group?.status;
+    const quote = shippingCandidateQuote(option, group, plan);
+    const hasAmount = safeShippingMinor(rateMinor) !== null
+      || (typeof legacyRate === "number" && Number.isFinite(legacyRate) && legacyRate >= 0);
+    return status === "confirmed"
+      && hasAmount
+      && Boolean(currency)
+      && Boolean(carrier)
+      && Boolean(service)
+      && Boolean(quote.quoteId)
+      && Number.isFinite(quote.expiry)
+      && quote.expiry > Date.now();
+  }
+
+  function shippingGroupHasConfirmedRate(group, plan) {
+    if (group?.options?.length) {
+      const selected = shippingSelectedOption(group);
+      return Boolean(selected && shippingOptionHasConfirmedQuote(selected, group, plan));
+    }
+    return shippingOptionHasConfirmedQuote(null, group, plan);
+  }
+
+  function shippingPlanHasCurrentRevalidation(plan) {
+    const expiry = Date.parse(String(plan?.expiresAt || ""));
+    const optionExpiries = (plan?.groups || []).map(group => {
+      const selected = shippingSelectedOption(group);
+      return Date.parse(String(selected?.expiresAt || group?.quoteExpiresAt || plan?.expiresAt || ""));
+    });
+    return plan?.revalidated === true
+      && plan?.revalidationStatus === "server_requoted"
+      && Boolean(plan?.quoteId)
+      && Boolean(plan?.revalidatedAt)
+      && shippingPlanCommercialBreakdown(plan).reconciles
       && Number.isFinite(expiry)
-      && expiry > Date.now();
+      && expiry > Date.now()
+      && optionExpiries.length > 0
+      && optionExpiries.every(optionExpiry => Number.isFinite(optionExpiry) && optionExpiry > Date.now());
+  }
+
+  function shippingPlanCanRevalidate(plan, groups) {
+    return Boolean(
+      plan?.quoteId
+      && plan?.revalidationToken
+      && Array.isArray(groups)
+      && groups.length
+      && groups.every(group => shippingGroupHasConfirmedRate(group, plan))
+    );
+  }
+
+  function shippingDayRangeLabel(range) {
+    if (!range || !Number.isInteger(range.min) || !Number.isInteger(range.max)) return "—";
+    const days = range.min === range.max ? String(range.min) : `${range.min}–${range.max}`;
+    return `${days} ${shippingCheckoutText().workingDays}`;
+  }
+
+  function shippingIncotermLabel(value, dutiesIncluded = null) {
+    const text = shippingCheckoutText();
+    const incoterm = String(value || "").toUpperCase();
+    if (incoterm === "DDP" && dutiesIncluded === true) return text.ddp;
+    if (["DAP", "DDU"].includes(incoterm) || dutiesIncluded === false) return text.dap;
+    return text.dutiesUnverified;
+  }
+
+  function shippingRateLabel(option, group, plan) {
+    if (!shippingOptionHasConfirmedQuote(option, group, plan)) return commerceText().shippingConfirmationRequired;
+    const rateMinor = option ? option.rateMinor : group.rateMinor;
+    const currency = option?.currency || group.currency;
+    return rateMinor !== null ? shippingMoneyMinor(rateMinor, currency) : commerceMoney(group.rate, currency);
   }
 
   function shippingMetadataList(values) {
     return `<ul>${values.map(value => `<li>${esc(shippingMetadataLabel(value))}</li>`).join("")}</ul>`;
   }
 
-  function shippingCalculationMarkup(sourceGroup) {
+  function shippingPricingAuditMarkup(option, group, plan) {
+    if (!shippingOptionHasConfirmedQuote(option, group, plan)) return "";
+    const text = shippingCheckoutText();
+    const candidate = option || group;
+    const rows = [];
+    const addAmount = (label, amountMinor, currency) => {
+      if (safeShippingMinor(amountMinor) !== null && safeShippingCurrency(currency)) rows.push(`<div><dt>${esc(label)}</dt><dd><bdi>${esc(shippingMoneyMinor(amountMinor, currency))}</bdi></dd></div>`);
+    };
+    addAmount(text.originalSupplierRate, candidate.originalAmountMinor, candidate.originalCurrency);
+    if (candidate.exchangeRate) rows.push(`<div><dt>${esc(text.exchangeRate)}</dt><dd><bdi dir="ltr">${esc(candidate.exchangeRate)}</bdi></dd></div>`);
+    if (candidate.exchangeRateAsOf) rows.push(`<div><dt>${esc(text.exchangeRateAsOf)}</dt><dd><bdi dir="ltr">${esc(candidate.exchangeRateAsOf)}</bdi></dd></div>`);
+    addAmount(text.convertedShipping, candidate.convertedRateMinor, candidate.convertedCurrency);
+    addAmount(text.handlingFee, candidate.handlingMinor, candidate.convertedCurrency || candidate.currency);
+    addAmount(text.protectionMargin, candidate.protectionMarginMinor, candidate.convertedCurrency || candidate.currency);
+    addAmount(text.insuranceFee, candidate.insuranceMinor, candidate.convertedCurrency || candidate.currency);
+    addAmount(text.localDeliveryFee, candidate.localDeliveryMinor, candidate.convertedCurrency || candidate.currency);
+    for (const fee of candidate.fees || []) addAmount(fee.label || text.otherFees, fee.amountMinor, fee.currency);
+    const quote = shippingCandidateQuote(option, group, plan);
+    rows.push(`<div><dt>${esc(text.incoterm)}</dt><dd>${esc(shippingIncotermLabel(candidate.incoterm || group.incoterm || plan?.incoterm, candidate.dutiesIncluded ?? group.dutiesIncluded))}</dd></div>`);
+    if (quote.expiresAt) rows.push(`<div><dt>${esc(text.quoteExpires)}</dt><dd><bdi dir="ltr">${esc(quote.expiresAt)}</bdi></dd></div>`);
+    return `<details class="shipping-pricing-audit"><summary>${esc(text.pricingAudit)}</summary><dl>${rows.join("")}</dl></details>`;
+  }
+
+  function shippingPlanPricingAuditMarkup(plan) {
+    const text = shippingCheckoutText();
+    const breakdown = shippingPlanCommercialBreakdown(plan);
+    if (!breakdown.currency || breakdown.totalMinor === null) return "";
+    const labels = {
+      baseShippingMinor: text.baseShipping,
+      handlingMinor: text.handlingFee,
+      protectionMarginMinor: text.protectionMargin,
+      insuranceMinor: text.insuranceFee,
+      fragileFeeMinor: text.fragileFee,
+      oversizeFeeMinor: text.oversizeFee,
+      forwarderFeeMinor: text.forwarderFee,
+      localDeliveryMinor: text.localDeliveryFee,
+      roundingAdjustmentMinor: text.roundingAdjustment
+    };
+    const componentRows = breakdown.components
+      .filter(component => component.key === "baseShippingMinor" || component.amountMinor > 0)
+      .map(component => `<div><dt>${esc(labels[component.key])}</dt><dd><bdi>${esc(shippingMoneyMinor(component.amountMinor, breakdown.currency))}</bdi></dd></div>`);
+    const rulesState = plan.commercialRulesEnabled ? text.commercialRulesEnabled : text.commercialRulesDisabled;
+    const ruleVersion = plan.commercialRulesVersion
+      ? `<div><dt>${esc(text.commercialRulesVersion)}</dt><dd><bdi dir="ltr">${esc(plan.commercialRulesVersion)}</bdi></dd></div>`
+      : "";
+    const manualState = plan.manualReviewRequired ? text.manualReviewRequired : text.manualReviewNotRequired;
+    const reconciliationState = breakdown.reconciles ? text.breakdownReconciled : text.breakdownMismatch;
+    return `<details class="shipping-pricing-audit shipping-total-audit"><summary>${esc(text.totalPricingAudit)}</summary><dl>${componentRows.join("")}<div class="is-total"><dt>${esc(text.totalShipping)}</dt><dd><bdi>${esc(shippingMoneyMinor(breakdown.totalMinor, breakdown.currency))}</bdi></dd></div><div><dt>${esc(text.commercialRulesStatus)}</dt><dd>${esc(rulesState)}</dd></div>${ruleVersion}<div><dt>${esc(text.manualReviewStatus)}</dt><dd>${esc(manualState)}</dd></div><div class="${breakdown.reconciles ? "is-reconciled" : "is-warning"}"><dt>${esc(text.breakdownStatus)}</dt><dd>${esc(reconciliationState)}</dd></div></dl></details>`;
+  }
+
+  function shippingOptionsMarkup(group, plan) {
+    const text = shippingCheckoutText();
+    const key = shippingGroupKey(group);
+    if (!group.options?.length) {
+      if (!shippingGroupHasConfirmedRate(group, plan)) return `<div class="shipping-manual-notice" role="status"><strong>${esc(text.manualShipment)}</strong><span>${esc(text.noAutomaticOptions)}</span></div>`;
+      return `<article class="shipping-option is-selected is-confirmed"><div><strong><bdi>${esc(group.carrier)}</bdi> · <bdi>${esc(group.service)}</bdi></strong><small>${esc(text.selected)}</small></div><bdi class="shipping-option-price">${esc(shippingRateLabel(null, group, plan))}</bdi>${shippingPricingAuditMarkup(null, group, plan)}</article>`;
+    }
+    const selectedId = state.shippingSelections[key] || group.selectedOptionId;
+    return `<fieldset class="shipping-options"><legend>${esc(text.selectShippingService)}</legend>${group.options.map(option => {
+      const eligible = shippingOptionHasConfirmedQuote(option, group, plan);
+      const checked = eligible && selectedId === option.id;
+      const label = [option.carrier, option.service].filter(Boolean).join(" · ") || text.manualShipment;
+      return `<article class="shipping-option${checked ? " is-selected" : ""}${eligible ? " is-confirmed" : " is-disabled"}"><label><input type="radio" name="shipping-option-${esc(key)}" value="${esc(option.id)}" data-shipping-option data-shipping-group="${esc(key)}"${checked ? " checked" : ""}${eligible ? "" : " disabled"}><span class="shipping-option-main"><strong><bdi>${esc(label)}</bdi></strong><small>${eligible ? esc(text.confirmedShipment) : esc(text.manualShipment)}</small></span><bdi class="shipping-option-price">${esc(eligible ? shippingRateLabel(option, group, plan) : commerceText().shippingConfirmationRequired)}</bdi><span class="shipping-option-timing"><small>${esc(text.dispatchEstimate)}: ${esc(shippingDayRangeLabel(option.dispatchDays || group.dispatchDays))}</small><small>${esc(text.transitEstimate)}: ${esc(shippingDayRangeLabel(option.transitDays || group.transitDays))}</small></span></label>${eligible ? shippingPricingAuditMarkup(option, group, plan) : ""}</article>`;
+    }).join("")}</fieldset>`;
+  }
+
+  function shippingPlanSummaryMarkup(plan, groups) {
+    const text = shippingCheckoutText();
+    const confirmed = groups.filter(group => shippingGroupHasConfirmedRate(group, plan));
+    const fullyConfirmed = groups.length > 0 && confirmed.length === groups.length;
+    const selectionsAligned = fullyConfirmed && groups.every(group => !group.options?.length || shippingSelectedOption(group)?.id === group.selectedOptionId);
+    const commercialBreakdown = shippingPlanCommercialBreakdown(plan);
+    const totalReconciles = selectionsAligned && commercialBreakdown.reconciles;
+    const totalMinor = totalReconciles ? plan?.totalShippingMinor : plan?.status === "partial" ? plan?.confirmedShippingMinor : null;
+    const totalLabel = totalReconciles ? text.totalShipping : plan?.status === "partial" && confirmed.length ? text.confirmedShippingPortion : commerceText().shippingPending;
+    const total = safeShippingMinor(totalMinor) !== null && safeShippingCurrency(plan?.currency)
+      ? `<strong><bdi>${esc(shippingMoneyMinor(totalMinor, plan.currency))}</bdi></strong>`
+      : `<strong>${esc(text.shippingTotalPending)}</strong>`;
+    const revalidated = totalReconciles && shippingPlanHasCurrentRevalidation(plan);
+    const canRevalidate = fullyConfirmed && commercialBreakdown.reconciles && shippingPlanCanRevalidate(plan, groups);
+    const status = state.shippingRevalidationStatus === "loading" ? text.revalidatingShipping
+      : state.shippingRevalidationStatus === "error" ? text.revalidationFailed
+        : revalidated ? text.revalidationReady : text.revalidationPending;
+    const summary = selectionsAligned && !commercialBreakdown.reconciles ? text.breakdownMismatch
+      : selectionsAligned ? text.noPaymentWithRates
+        : plan?.status === "partial" ? text.partialPlan : text.shippingTotalPending;
+    const pricingAudit = selectionsAligned ? shippingPlanPricingAuditMarkup(plan) : "";
+    const manualReview = selectionsAligned && plan?.manualReviewRequired
+      ? `<p class="shipping-manual-notice" role="status"><strong>${esc(text.manualReviewRequired)}</strong><span>${esc(text.manualReviewNotice)}</span></p>`
+      : "";
+    return `<section class="shipping-total-panel" aria-live="polite"><div><span>${esc(totalLabel)}</span>${total}</div>${pricingAudit}${manualReview}<p>${esc(summary)}</p><p>${esc(text.separateDeliveries)}</p><button class="btn btn-sm btn-outline" type="button" data-action="revalidate-shipping"${canRevalidate ? "" : " disabled"}>${esc(text.revalidateShipping)}${icons.arrow}</button><small class="shipping-revalidation-status">${esc(status)}</small></section>`;
+  }
+
+  function shippingCalculationMarkup(sourceGroup, plan = null) {
     const text = commerceText();
     const group = shippingPresentationGroup(sourceGroup);
     const supplier = cleanText(group.supplier || "", 80).toLowerCase();
@@ -3788,7 +4512,7 @@
       : isEcs ? `<p>${esc(text.shippingEcsEvidence)}</p>` : "";
     const readiness = group.blockingReasons.length
       ? shippingMetadataList(group.blockingReasons)
-      : `<p>${esc(shippingGroupHasConfirmedRate(group) ? text.shippingRateConfirmed : text.shippingNoConfirmedRate)}</p>`;
+      : `<p>${esc(shippingGroupHasConfirmedRate(group, plan) ? text.shippingRateConfirmed : text.shippingNoConfirmedRate)}</p>`;
     const observedCarriers = group.observedCarrierFamilies.length ? group.observedCarrierFamilies.join(" / ") : "—";
     return `<details class="shipping-calculation-details">
       <summary><span><strong>${esc(text.shippingHowCalculated)}</strong><small>${esc(text.shippingHowCalculatedHint)}</small></span><span class="shipping-disclosure-icon" aria-hidden="true">+</span></summary>
@@ -3820,7 +4544,8 @@
     const safePlan = safeShippingPlan(plan);
     const groups = safePlan?.groups || cartShipmentGroups();
     const split = groups.length > 1;
-    const allRatesConfirmed = groups.length > 0 && groups.every(shippingGroupHasConfirmedRate);
+    const allRatesConfirmed = groups.length > 0 && groups.every(group => shippingGroupHasConfirmedRate(group, safePlan));
+    const checkoutText = shippingCheckoutText();
     const statusText = state.shippingEstimateStatus === "loading" && live ? text.shippingEstimating
       : state.shippingEstimateStatus === "error" && live ? text.shippingEstimateError
         : allRatesConfirmed ? text.shippingRatesConfirmed
@@ -3828,22 +4553,25 @@
     const destination = safePlan?.destination?.country && safePlan?.destination?.city
       ? `<p class="shipping-planner-destination"><strong>${esc(text.shippingDestination)}:</strong> ${esc(`${safePlan.destination.city}, ${safePlan.destination.country}`)}</p>` : "";
     const cards = groups.map(group => {
-      const rate = shippingGroupHasConfirmedRate(group)
-        ? commerceMoney(group.rate, group.currency) : text.shippingConfirmationRequired;
+      const selectedOption = shippingSelectedOption(group);
+      const rate = shippingGroupHasConfirmedRate(group, safePlan)
+        ? shippingRateLabel(selectedOption, group, safePlan) : text.shippingConfirmationRequired;
       const countLabel = group.itemCount === 1 ? text.item : text.items;
-      return `<article class="shipping-group" data-shipping-supplier="${esc(group.supplier)}">
+      const confirmed = shippingGroupHasConfirmedRate(group, safePlan);
+      return `<article class="shipping-group${confirmed ? " is-confirmed" : " is-manual"}" data-shipping-supplier="${esc(group.supplier)}" data-shipping-group="${esc(shippingGroupKey(group))}">
         <span class="shipping-origin-code" aria-hidden="true"><bdi dir="ltr">${esc(group.originCountryCode)}</bdi></span>
-        <div class="shipping-group-copy"><span>${esc(text.shippingSupplier)}</span><strong>${esc(group.supplierName || group.supplier)}</strong><p>${esc(text.shippingFrom)} ${esc(shippingOriginLabel(group, text))}</p></div>
+        <div class="shipping-group-copy"><span>${esc(text.shippingSupplier)}</span><strong>${esc(group.supplierName || group.supplier)}</strong><p>${esc(text.shippingFrom)} ${esc(shippingOriginLabel(group, text))}</p><small class="shipping-group-state">${esc(confirmed ? checkoutText.confirmedShipment : checkoutText.manualShipment)}</small></div>
         <dl><div><dt>${esc(text.quantity)}</dt><dd>${esc(`${group.itemCount} ${countLabel} / ${group.quantity} ${group.quantity === 1 ? text.shippingUnit : text.shippingUnits}`)}</dd></div><div><dt>${esc(text.shippingRate)}</dt><dd>${esc(rate)}</dd></div></dl>
-        ${shippingCalculationMarkup(group)}
+        ${shippingOptionsMarkup(group, safePlan)}
+        ${shippingCalculationMarkup(group, safePlan)}
       </article>`;
     }).join("");
     const splitNotice = split ? `<div class="shipping-split-notice">${icons.filter}<span>${esc(text.splitSupplierNotice)}</span></div>` : "";
     const rootAttribute = live ? " data-shipping-planner" : "";
     return `<section class="shipping-planner${state.shippingEstimateStatus === "loading" && live ? " is-loading" : ""}"${rootAttribute} aria-live="polite" aria-busy="${state.shippingEstimateStatus === "loading" && live ? "true" : "false"}">
-      <header><div><span class="eyebrow">${esc(text.shippingPlannerTitle)}</span><h3>${esc(split ? text.splitSupplierShipment.replace("{count}", String(groups.length)) : text.singleSupplierShipment)}</h3></div><span class="shipping-plan-status${allRatesConfirmed ? " is-confirmed" : ""}">${esc(allRatesConfirmed ? text.shippingRateConfirmed : text.shippingConfirmationRequired)}</span></header>
+      <header><div><span class="eyebrow">${esc(text.shippingPlannerTitle)}</span><h3>${esc(split ? text.splitSupplierShipment.replace("{count}", String(groups.length)) : text.singleSupplierShipment)}</h3></div><span class="shipping-plan-status${allRatesConfirmed ? " is-confirmed" : safePlan?.status === "partial" ? " is-partial" : ""}">${esc(allRatesConfirmed ? text.shippingRateConfirmed : safePlan?.status === "partial" ? checkoutText.partialPlan : text.shippingConfirmationRequired)}</span></header>
       <p>${esc(text.shippingPlannerIntro)}</p>${destination}${splitNotice}<div class="shipping-groups">${cards}</div>
-      <div class="shipping-plan-message"><strong>${esc(statusText)}</strong><span>${esc(text.shippingDutiesExcluded)} ${esc(text.shippingNotCharged)}</span></div>
+      ${currentPath() === "/checkout" ? shippingPlanSummaryMarkup(safePlan, groups) : ""}<div class="shipping-plan-message"><strong>${esc(statusText)}</strong><span>${esc(text.shippingDutiesExcluded)} ${esc(text.shippingNotCharged)}</span></div>
     </section>`;
   }
 
@@ -3861,9 +4589,10 @@
     const image = local.images?.[0];
     const lineTotal = Number(item.unitAmount) * Number(item.quantity);
     const notice = state.locale === "ar" ? policy?.noticeAr : policy?.notice;
+    const productHref = policy?.sourceHandle ? tegiwaProductUrl(policy.sourceHandle) : routeUrl(`/parts/${product.slug}`);
     return `<article class="commerce-line" data-cart-line="${esc(item.id)}">
-      <a class="commerce-line-media" href="${routeUrl(`/parts/${product.slug}`)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"></a>
-      <div class="commerce-line-copy"><span class="mini-label">${esc(local.brand)}</span><h2><a href="${routeUrl(`/parts/${product.slug}`)}">${esc(local.title)}</a></h2><p><bdi dir="ltr">${esc(item.sku)}</bdi></p>${item.fitmentConfirmationRequired ? `<div class="commerce-line-notice"><strong>${esc(commerceText().fitmentRequired)}</strong><span>${esc(notice || commerceText().availabilityRequired)}</span></div>` : ""}</div>
+      <a class="commerce-line-media" href="${esc(productHref)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"></a>
+      <div class="commerce-line-copy"><span class="mini-label">${esc(local.brand)}</span><h2><a href="${esc(productHref)}">${esc(local.title)}</a></h2><p><bdi dir="ltr">${esc(item.sku)}</bdi></p>${item.fitmentConfirmationRequired ? `<div class="commerce-line-notice"><strong>${esc(commerceText().fitmentRequired)}</strong><span>${esc(notice || commerceText().availabilityRequired)}</span></div>` : ""}</div>
       <div class="commerce-line-price"><small>${esc(commerceText().supplierReferencePrice)}</small><bdi>${esc(commerceMoney(item.unitAmount, item.currency))} ${esc(commerceText().each)}</bdi><strong><bdi>${esc(commerceMoney(lineTotal, item.currency))}</bdi></strong></div>
       ${editable ? `<div class="commerce-line-actions"><div class="quote-quantity" aria-label="${esc(commerceText().quantity)}"><button type="button" data-action="adjust-cart-quantity" data-delta="-1" data-id="${esc(item.id)}" aria-label="${esc(`${storeText().decrease}: ${local.title}`)}">−</button><bdi>${Number(item.quantity)}</bdi><button type="button" data-action="adjust-cart-quantity" data-delta="1" data-id="${esc(item.id)}" aria-label="${esc(`${storeText().increase}: ${local.title}`)}">+</button></div><button class="commerce-remove" type="button" data-action="remove-cart" data-id="${esc(item.id)}">${icons.close}<span>${esc(commerceText().remove)}</span></button></div>` : `<div class="commerce-summary-quantity"><span>${esc(commerceText().quantity)}</span><strong><bdi>${Number(item.quantity)}</bdi></strong></div>`}
     </article>`;
@@ -3896,7 +4625,7 @@
     return `${pageHero({ eyebrow: text.stagingBadge, title, text: description, media: 53, crumbs: [[text.checkout]], meta: statusBadge(text.noPayment), actions: `<a class="btn" href="${routeUrl("/parts")}" data-action="start-new-test-order">${esc(text.startAnother)}${icons.arrow}</a>` })}<section class="section commerce-page"><div class="container narrow"><article class="commerce-receipt"><span>${icons.check}</span><div><p>${esc(text.reference)}</p><h2><bdi dir="ltr">${esc(receipt.ref || "")}</bdi></h2><p>${esc(description)}</p>${simulated ? `<div class="notice notice-info">${icons.check}<span>${esc(text.notificationNone)}</span></div>` : ""}${receipt.duplicate ? `<div class="notice notice-info">${esc(text.duplicate)}</div>` : ""}<dl><div><dt>${esc(text.noPayment)}</dt><dd>${esc(text.paymentNone)}</dd></div><div><dt>${esc(text.subtotal)}</dt><dd>${(receipt.totals || []).map(total => `<bdi>${esc(commerceMoney(total.amount, total.currency))}</bdi>`).join(" ") || "—"}</dd></div></dl>${receipt.shipping ? `<h3 class="receipt-shipping-title">${esc(text.shippingPlannerReceipt)}</h3>${shipmentPlannerMarkup(receipt.shipping, { live: false })}` : ""}</div></article></div></section>`;
   }
 
-  function checkoutPage() {
+  function legacyCheckoutPage() {
     const text = commerceText();
     const receipt = safeParse(storage.get(LAST_ORDER_STORAGE_KEY), null);
     if (receipt?.ref) return checkoutReceiptPage(receipt);
@@ -3905,6 +4634,84 @@
     }
     const vehicle = partsVehicleLabel();
     return `${pageHero({ eyebrow: text.stagingBadge, title: text.checkoutTitle, text: text.checkoutIntro, media: 53, crumbs: [[text.cart, "/cart"], [text.checkout]], meta: statusBadge(text.noPayment) })}<section class="section commerce-page"><div class="container">${stagingNotice()}<div class="checkout-account-option"><div><strong>${esc(text.signInCreate)}</strong><p>${esc(text.accountOptional)}</p></div><a class="btn btn-sm btn-outline" href="${routeUrl("/account")}">${esc(text.signInCreate)}${icons.arrow}</a></div><div class="checkout-layout"><form class="checkout-form" data-staging-checkout><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><header><span class="eyebrow">${esc(text.guestCheckout)}</span><h2>${esc(text.customerDetails)}</h2><p>${esc(text.guestNote)}</p></header><fieldset><legend>${esc(text.customerDetails)}</legend><div class="form-grid"><div class="form-group"><label class="required" for="checkout-name">${esc(text.name)}</label><input class="input" id="checkout-name" name="name" required autocomplete="name" maxlength="160"></div><div class="form-group"><label class="required" for="checkout-email">${esc(text.email)}</label><input class="input ltr-input" id="checkout-email" name="email" type="email" required autocomplete="email" maxlength="254"></div><div class="form-group full"><label class="required" for="checkout-phone">${esc(text.phone)}</label><input class="input ltr-input" id="checkout-phone" name="phone" required inputmode="tel" autocomplete="tel" maxlength="50"></div></div></fieldset><fieldset><legend>${esc(text.deliveryDetails)}</legend><div class="form-grid"><div class="form-group"><label class="required" for="checkout-country">${esc(text.country)}</label><input class="input" id="checkout-country" name="country" required autocomplete="country-name" maxlength="100"></div><div class="form-group"><label class="required" for="checkout-city">${esc(text.city)}</label><input class="input" id="checkout-city" name="city" required autocomplete="address-level2" maxlength="100"></div><div class="form-group full"><label for="checkout-address">${esc(text.address)} <small>${esc(text.optional)}</small></label><input class="input" id="checkout-address" name="addressLine" autocomplete="street-address" maxlength="300"></div><div class="form-group"><label for="checkout-postcode">${esc(text.postcode)} <small>${esc(text.optional)}</small></label><input class="input ltr-input" id="checkout-postcode" name="postcode" autocomplete="postal-code" maxlength="30"></div><div class="form-group"><label for="checkout-fulfilment">${esc(text.fulfilment)}</label><select class="select" id="checkout-fulfilment" name="fulfilment"><option value="courier">${esc(text.courier)}</option><option value="workshop">${esc(text.workshop)}</option></select></div></div></fieldset><fieldset><legend>${esc(text.vehicleDetails)}</legend><div class="form-grid"><div class="form-group full"><label class="required" for="checkout-vehicle">${esc(text.vehicle)}</label><input class="input" id="checkout-vehicle" name="vehicle" value="${esc(vehicle)}" required maxlength="300"></div><div class="form-group full"><label for="checkout-vin">${esc(text.vin)} <small>${esc(text.optional)}</small></label><input class="input ltr-input" id="checkout-vin" name="vin" maxlength="24" autocomplete="off"></div><div class="form-group full"><label for="checkout-notes">${esc(text.notes)} <small>${esc(text.optional)}</small></label><textarea class="textarea" id="checkout-notes" name="notes" maxlength="2000"></textarea></div></div></fieldset><label class="checkbox checkout-confirm"><input type="checkbox" name="acknowledgement" required><span>${esc(text.acknowledgement)}</span></label><label class="checkbox checkout-confirm"><input type="checkbox" name="consent" required><span>${esc(text.consent)}</span></label><button class="btn btn-block" type="submit">${esc(text.submit)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>${commerceSummary({ editable: true })}</div></div></section>`;
+  }
+
+  function checkoutCountryName(code, locale = state.locale) {
+    const country = GCC_DESTINATIONS[String(code || "").toUpperCase()];
+    return country ? country[locale === "ar" ? "ar" : "en"] : "";
+  }
+
+  function checkoutCountryOptions(selected = "KW") {
+    const text = shippingCheckoutText();
+    return `<option value="">${esc(text.selectCountry)}</option>${Object.entries(GCC_DESTINATIONS).map(([code, country]) => `<option value="${esc(code)}"${code === selected ? " selected" : ""}>${esc(country[state.locale === "ar" ? "ar" : "en"])} · ${esc(code)}</option>`).join("")}`;
+  }
+
+  function checkoutRegionOptions(countryCode = "KW") {
+    return (GCC_DESTINATIONS[countryCode]?.regions || []).map(region => `<option value="${esc(region)}"></option>`).join("");
+  }
+
+  function checkoutDestinationFields(text) {
+    const shippingText = shippingCheckoutText();
+    return `<fieldset class="checkout-destination"><legend>${esc(text.deliveryDetails)}</legend><p class="checkout-fieldset-help" id="checkout-address-help">${esc(shippingText.addressHelp)}</p><div class="form-grid">
+      <div class="form-group"><label class="required" for="checkout-country-code">${esc(shippingText.countryCode)}</label><select class="select" id="checkout-country-code" name="countryCode" autocomplete="country" required>${checkoutCountryOptions()}</select></div>
+      <div class="form-group"><label class="required" for="checkout-governorate">${esc(shippingText.governorate)}</label><input class="input" id="checkout-governorate" name="governorate" list="checkout-region-options" required autocomplete="address-level1" maxlength="120"><datalist id="checkout-region-options">${checkoutRegionOptions()}</datalist></div>
+      <div class="form-group"><label class="required" for="checkout-city">${esc(text.city)}</label><input class="input" id="checkout-city" name="city" required autocomplete="address-level2" maxlength="100"></div>
+      <div class="form-group"><label class="required" for="checkout-area">${esc(shippingText.area)}</label><input class="input" id="checkout-area" name="area" required autocomplete="address-level3" maxlength="120"></div>
+      <div class="form-group full"><label class="required" for="checkout-address-line-1">${esc(shippingText.addressLine1)}</label><input class="input" id="checkout-address-line-1" name="addressLine1" required autocomplete="address-line1" maxlength="240" aria-describedby="checkout-address-help"></div>
+      <div class="form-group full"><label for="checkout-address-line-2">${esc(shippingText.addressLine2)} <small>${esc(text.optional)}</small></label><input class="input" id="checkout-address-line-2" name="addressLine2" autocomplete="address-line2" maxlength="240"></div>
+      <div class="form-group"><label class="required" for="checkout-postcode">${esc(text.postcode)}</label><input class="input ltr-input" id="checkout-postcode" name="postcode" required autocomplete="postal-code" maxlength="30" aria-describedby="checkout-postcode-help"><small class="form-help" id="checkout-postcode-help">${esc(shippingText.postcodeHelp)}</small></div>
+      <div class="form-group"><label for="checkout-fulfilment">${esc(text.fulfilment)}</label><select class="select" id="checkout-fulfilment" name="fulfilment"><option value="courier">${esc(text.courier)}</option><option value="workshop">${esc(text.workshop)}</option></select></div>
+    </div></fieldset>`;
+  }
+
+  function checkoutPage() {
+    const text = commerceText();
+    const receipt = safeParse(storage.get(LAST_ORDER_STORAGE_KEY), null);
+    if (receipt?.ref) return checkoutReceiptPage(receipt);
+    if (!state.cart.length) {
+      return `${pageHero({ eyebrow: text.stagingBadge, title: text.checkoutTitle, text: text.checkoutIntro, media: 53, crumbs: [[text.checkout]] })}<section class="section commerce-page"><div class="container narrow">${stagingNotice()}<div class="empty-state commerce-empty"><span>${icons.cart}</span><strong>${esc(text.emptyCart)}</strong><p>${esc(text.emptyCartText)}</p><a class="btn" href="${routeUrl("/parts")}">${esc(text.browseParts)}${icons.arrow}</a></div></div></section>`;
+    }
+    const vehicle = partsVehicleLabel();
+    const shippingText = shippingCheckoutText();
+    return `${pageHero({ eyebrow: text.stagingBadge, title: text.checkoutTitle, text: text.checkoutIntro, media: 53, crumbs: [[text.cart, "/cart"], [text.checkout]], meta: statusBadge(text.noPayment) })}<section class="section commerce-page"><div class="container">${stagingNotice()}<div class="checkout-account-option"><div><strong>${esc(text.signInCreate)}</strong><p>${esc(text.accountOptional)}</p></div><a class="btn btn-sm btn-outline" href="${routeUrl("/account")}">${esc(text.signInCreate)}${icons.arrow}</a></div><div class="checkout-layout"><form class="checkout-form" data-staging-checkout><input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"><input type="hidden" name="startedAt" value="${Date.now()}"><header><span class="eyebrow">${esc(text.guestCheckout)}</span><h2>${esc(text.customerDetails)}</h2><p>${esc(text.guestNote)}</p></header>
+      <fieldset><legend>${esc(text.customerDetails)}</legend><div class="form-grid"><div class="form-group"><label class="required" for="checkout-name">${esc(text.name)}</label><input class="input" id="checkout-name" name="name" required autocomplete="name" maxlength="160"></div><div class="form-group"><label class="required" for="checkout-email">${esc(text.email)}</label><input class="input ltr-input" id="checkout-email" name="email" type="email" required autocomplete="email" maxlength="254"></div><div class="form-group full"><label class="required" for="checkout-phone">${esc(text.phone)}</label><input class="input ltr-input" id="checkout-phone" name="phone" required inputmode="tel" autocomplete="tel" maxlength="50" aria-describedby="checkout-phone-help"><small class="form-help" id="checkout-phone-help">${esc(shippingText.phoneHelp)}</small></div></div></fieldset>
+      ${checkoutDestinationFields(text)}
+      <fieldset><legend>${esc(text.vehicleDetails)}</legend><div class="form-grid"><div class="form-group full"><label class="required" for="checkout-vehicle">${esc(text.vehicle)}</label><input class="input" id="checkout-vehicle" name="vehicle" value="${esc(vehicle)}" required maxlength="300"></div><div class="form-group full"><label for="checkout-vin">${esc(text.vin)} <small>${esc(text.optional)}</small></label><input class="input ltr-input" id="checkout-vin" name="vin" maxlength="24" autocomplete="off"></div><div class="form-group full"><label for="checkout-notes">${esc(text.notes)} <small>${esc(text.optional)}</small></label><textarea class="textarea" id="checkout-notes" name="notes" maxlength="2000"></textarea></div></div></fieldset>
+      <label class="checkbox checkout-confirm"><input type="checkbox" name="acknowledgement" required><span>${esc(text.acknowledgement)}</span></label><label class="checkbox checkout-confirm"><input type="checkbox" name="consent" required><span>${esc(text.consent)}</span></label><button class="btn btn-block" type="submit" data-checkout-submit>${esc(shippingText.submitQuoteRequest)}${icons.arrow}</button><p class="form-status" role="status" aria-live="polite"></p></form>${commerceSummary({ editable: true })}</div></div></section>`;
+  }
+
+  function shippingAdminLockedMarkup({ signedIn = false, loading = false } = {}) {
+    const text = shippingAdminText();
+    if (loading) return `<div class="shipping-admin-status" role="status"><span class="spinner" aria-hidden="true"></span><strong>${esc(text.loading)}</strong></div>`;
+    if (!signedIn) {
+      return `<div class="shipping-admin-status is-locked" role="status"><div><span class="eyebrow">${esc(text.readOnly)}</span><strong>${esc(text.signInRequired)}</strong><p>${esc(text.signInText)}</p></div><a class="btn btn-sm" href="${routeUrl("/account")}">${esc(text.openAccount)}${icons.arrow}</a></div>`;
+    }
+    const cards = [text.supplierAdapters, text.rateLogs, text.routingRules, text.commercialRules, text.auditLog].map(label => `<article class="shipping-admin-card"><span>${esc(text.readOnly)}</span><h2>${esc(label)}</h2><p>${esc(text.unavailable)}</p><strong>${esc(text.noLiveCredentials)}</strong></article>`).join("");
+    const actions = [text.recalculation, text.manualApproval, text.paymentLink, text.supplierOrder].map(label => `<button class="btn btn-sm btn-outline" type="button" disabled title="${esc(text.disabledSecurity)}"><span>${esc(label)}</span>${icons.arrow}</button>`).join("");
+    const countries = Object.keys(GCC_DESTINATIONS).map(code => `<li><bdi dir="ltr">${esc(code)}</bdi> â€” ${esc(checkoutCountryName(code))}</li>`).join("");
+    return `<div class="shipping-admin-shell"><div class="shipping-admin-status is-unconfigured" role="status"><div><span class="eyebrow">${esc(text.readOnly)}</span><strong>${esc(text.notConfigured)}</strong><p>${esc(text.notConfiguredText)}</p></div></div><div class="shipping-admin-grid">${cards}</div><section class="shipping-admin-card"><span>${esc(text.countryCoverage)}</span><ul>${countries}</ul></section><div class="shipping-admin-actions" aria-label="${esc(text.disabledSecurity)}">${actions}</div><p class="shipping-admin-security-note">${icons.check}<span>${esc(text.securityNote)} ${esc(text.disabledSecurity)}</span></p></div>`;
+  }
+
+  function shippingAdminPage() {
+    const text = shippingAdminText();
+    return `${pageHero({ eyebrow: text.eyebrow, title: text.title, text: text.intro, media: 53, crumbs: [[text.title]], meta: statusBadge(text.readOnly), actions: `<a class="btn btn-outline-light" href="${routeUrl("/account")}">${esc(text.backToAccount)}${icons.arrow}</a>` })}<section class="section shipping-admin"><div class="container"><div data-shipping-admin-root>${shippingAdminLockedMarkup({ loading: true })}</div></div></section>`;
+  }
+
+  async function mountShippingAdminDashboard() {
+    const root = document.querySelector("[data-shipping-admin-root]");
+    if (!root) return;
+    state.shippingAdminStatus = "loading";
+    root.innerHTML = shippingAdminLockedMarkup({ loading: true });
+    try {
+      const clerk = await loadClerk();
+      if (!document.body.contains(root)) return;
+      state.shippingAdminStatus = clerk?.isSignedIn ? "unconfigured" : "signed-out";
+      root.innerHTML = shippingAdminLockedMarkup({ signedIn: Boolean(clerk?.isSignedIn) });
+    } catch {
+      if (!document.body.contains(root)) return;
+      state.shippingAdminStatus = "signed-out";
+      root.innerHTML = shippingAdminLockedMarkup({ signedIn: false });
+    }
   }
 
   function accountPage() {
@@ -3976,19 +4783,60 @@
 
   function checkoutShippingPayload(form) {
     const fields = new FormData(form);
+    const countryCode = cleanText(fields.get("countryCode"), 2).toUpperCase();
+    const addressLine1 = cleanText(fields.get("addressLine1"), 240);
+    const addressLine2 = cleanText(fields.get("addressLine2"), 240);
     return {
+      idempotencyKey: checkoutToken(),
       destination: {
-        country: cleanText(fields.get("country"), 100),
+        countryCode,
+        country: checkoutCountryName(countryCode, "en"),
+        governorate: cleanText(fields.get("governorate"), 120),
         city: cleanText(fields.get("city"), 100),
+        area: cleanText(fields.get("area"), 120),
+        addressLine1,
+        addressLine2,
+        addressLine: [addressLine1, addressLine2].filter(Boolean).join(", "),
         postcode: cleanText(fields.get("postcode"), 30),
+        phone: cleanText(fields.get("phone"), 50),
         fulfilment: fields.get("fulfilment") === "workshop" ? "workshop" : "courier"
       },
       items: state.cart.map(item => ({
         productId: item.productId,
         sku: item.sku,
         quantity: item.quantity
-      }))
+      })),
+      selectedOptions: shippingEstimateSelectionSnapshot(state.shippingEstimate)
     };
+  }
+
+  function shippingSelectionSnapshot(plan) {
+    const safePlan = safeShippingPlan(plan);
+    if (!safePlan) return [];
+    return safePlan.groups.map(group => {
+      const option = shippingSelectedOption(group);
+      return option ? { groupId: group.groupId, optionId: option.id } : null;
+    }).filter(Boolean);
+  }
+
+  function shippingEstimateSelectionSnapshot(plan) {
+    const safePlan = safeShippingPlan(plan);
+    if (!safePlan) return [];
+    return safePlan.groups.map(group => {
+      const option = shippingSelectedOption(group);
+      return option ? { supplier: group.supplier, originId: group.originId, optionId: option.id } : null;
+    }).filter(Boolean);
+  }
+
+  function shippingDestinationReady(destination) {
+    if (!destination?.countryCode || !destination?.city) return false;
+    if (destination.fulfilment === "workshop") return true;
+    return Boolean(destination.governorate && destination.area && destination.addressLine1 && destination.phone);
+  }
+
+  function resetShippingRevalidation() {
+    state.shippingRevalidationStatus = "idle";
+    state.shippingRevalidationError = "";
   }
 
   function resetShippingEstimate() {
@@ -3999,6 +4847,8 @@
     state.shippingEstimate = null;
     state.shippingEstimateStatus = "idle";
     state.shippingEstimateError = "";
+    state.shippingSelections = Object.create(null);
+    resetShippingRevalidation();
     state.shippingEstimateRequestId += 1;
     refreshShipmentPlanner();
   }
@@ -4008,7 +4858,7 @@
     window.clearTimeout(state.shippingEstimateTimer);
     state.shippingEstimateTimer = null;
     const payload = checkoutShippingPayload(form);
-    if (!payload.destination.country || !payload.destination.city || !payload.items.length) {
+    if (!shippingDestinationReady(payload.destination) || !payload.items.length) {
       resetShippingEstimate();
       return false;
     }
@@ -4038,6 +4888,11 @@
       state.shippingEstimate = safeShippingPlan(result.estimate);
       state.shippingEstimateStatus = "ready";
       state.shippingEstimateError = "";
+      state.shippingSelections = Object.create(null);
+      for (const group of state.shippingEstimate.groups) {
+        if (group.selectedOptionId) state.shippingSelections[shippingGroupKey(group)] = group.selectedOptionId;
+      }
+      resetShippingRevalidation();
       return true;
     } catch (error) {
       if (error?.name === "AbortError" || requestId !== state.shippingEstimateRequestId) return false;
@@ -4058,8 +4913,10 @@
     state.shippingEstimateController?.abort();
     state.shippingEstimateController = null;
     state.shippingEstimateRequestId += 1;
+    state.shippingSelections = Object.create(null);
+    resetShippingRevalidation();
     const payload = checkoutShippingPayload(form);
-    if (!payload.destination.country || !payload.destination.city) {
+    if (!shippingDestinationReady(payload.destination)) {
       state.shippingEstimate = null;
       state.shippingEstimateStatus = "idle";
       state.shippingEstimateError = "";
@@ -4076,11 +4933,80 @@
     const form = document.querySelector("[data-staging-checkout]");
     if (!form || form.dataset.shippingEstimator === "true") return;
     form.dataset.shippingEstimator = "true";
-    ["country", "city", "postcode"].forEach(name => form.elements[name]?.addEventListener("input", () => scheduleShippingEstimate(form)));
+    ["governorate", "city", "area", "addressLine1", "addressLine2", "postcode", "phone"].forEach(name => form.elements[name]?.addEventListener("input", () => scheduleShippingEstimate(form)));
+    form.elements.countryCode?.addEventListener("change", () => {
+      const code = cleanText(form.elements.countryCode.value, 2).toUpperCase();
+      const regionOptions = form.querySelector("#checkout-region-options");
+      if (regionOptions) regionOptions.innerHTML = checkoutRegionOptions(code);
+      if (form.elements.governorate) form.elements.governorate.value = "";
+      if (form.elements.phone) form.elements.phone.placeholder = `${GCC_DESTINATIONS[code]?.dial || "+"} ...`;
+      scheduleShippingEstimate(form, 0);
+    });
     form.elements.fulfilment?.addEventListener("change", () => scheduleShippingEstimate(form, 0));
+    if (form.elements.phone) form.elements.phone.placeholder = `${GCC_DESTINATIONS[form.elements.countryCode?.value || "KW"]?.dial || "+965"} ...`;
     const payload = checkoutShippingPayload(form);
-    if (payload.destination.country && payload.destination.city) scheduleShippingEstimate(form, 0);
+    if (shippingDestinationReady(payload.destination)) scheduleShippingEstimate(form, 0);
     else refreshShipmentPlanner();
+  }
+
+  function shippingSelectionsMatchPlan(requested, previousPlan, nextPlan) {
+    if (!Array.isArray(requested) || !previousPlan || !nextPlan) return false;
+    const requestedByGroup = new Map(requested.map(item => [item.groupId, item.optionId]));
+    const expected = new Map(previousPlan.groups.map(group => [
+      `${group.supplier}\u0000${group.originId || group.originCountryCode}`,
+      requestedByGroup.get(group.groupId) || ""
+    ]));
+    return nextPlan.groups.every(group => {
+      if (!group.options.length) return true;
+      return Boolean(group.selectedOptionId && expected.get(`${group.supplier}\u0000${group.originId || group.originCountryCode}`) === group.selectedOptionId);
+    });
+  }
+
+  async function requestShippingRevalidation(form) {
+    if (!form || !document.body.contains(form) || state.shippingRevalidationStatus === "loading") return false;
+    const plan = safeShippingPlan(state.shippingEstimate);
+    if (!shippingPlanCanRevalidate(plan, plan?.groups || [])) return false;
+    const shipping = checkoutShippingPayload(form);
+    const requestedOptions = shippingSelectionSnapshot(plan);
+    state.shippingRevalidationStatus = "loading";
+    state.shippingRevalidationError = "";
+    refreshShipmentPlanner();
+    try {
+      const response = await fetch(new URL(SHIPPING_REVALIDATE_ENDPOINT, location.origin).href, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": shipping.idempotencyKey },
+        body: JSON.stringify({
+          quoteId: plan.quoteId,
+          revalidationToken: plan.revalidationToken,
+          destination: shipping.destination,
+          items: shipping.items,
+          selectedOptions: requestedOptions
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      const next = safeShippingPlan(result.estimate);
+      if (next) state.shippingEstimate = next;
+      if (!response.ok || result.accepted !== true || !next
+          || !shippingPlanHasCurrentRevalidation(next)
+          || !shippingSelectionsMatchPlan(requestedOptions, plan, next)) {
+        const error = new Error(result.reason || result.error || "shipping_revalidation_failed");
+        error.code = result.reason || result.error || "shipping_revalidation_failed";
+        throw error;
+      }
+      state.shippingSelections = Object.create(null);
+      for (const group of next.groups) {
+        if (group.selectedOptionId) state.shippingSelections[shippingGroupKey(group)] = group.selectedOptionId;
+      }
+      state.shippingRevalidationStatus = "ready";
+      state.shippingRevalidationError = "";
+      return true;
+    } catch (error) {
+      state.shippingRevalidationStatus = "error";
+      state.shippingRevalidationError = cleanText(error?.code || "shipping_revalidation_failed", 160);
+      return false;
+    } finally {
+      refreshShipmentPlanner();
+    }
   }
 
   let mountedAccountProfile = null;
@@ -4439,10 +5365,10 @@
         supplier,
         productId: item.productId,
         supplierProductId: null,
-        variantId: null,
+        variantId: policy.variantId || policy.sku || null,
         sku: item.sku,
         title: product ? localizedStoreProduct(product).title : item.sku,
-        optionTitle: null,
+        optionTitle: policy.variantTitle || null,
         quantity: item.quantity,
         unitAmount: Math.round(Number(item.unitAmount) * 100),
         currency: item.currency
@@ -4720,6 +5646,7 @@
     else if (path === "/cart") html = cartPage();
     else if (path === "/checkout") html = checkoutPage();
     else if (path === "/account") html = accountPage();
+    else if (path === "/admin/shipping") html = shippingAdminPage();
     else if (path === "/faq") html = faqPage();
     else if (path.startsWith("/legal/")) html = legalPage(path.split("/")[2]);
     else html = notFoundPage();
@@ -4734,6 +5661,7 @@
     setupTuningFinder();
     syncTegiwaProductFromUrl();
     if (path === "/account") mountAccountPortal("sign-in");
+    if (path === "/admin/shipping") mountShippingAdminDashboard();
     if (path === "/checkout") {
       prefillCheckoutAccount();
       setupCheckoutShippingEstimator();
@@ -5020,6 +5948,7 @@
     const status = form.querySelector(".form-status");
     const submit = form.querySelector('button[type="submit"]');
     const fields = new FormData(form);
+    const shippingRequest = checkoutShippingPayload(form);
     const payload = {
       idempotencyKey: checkoutToken(),
       locale: state.locale,
@@ -5031,13 +5960,7 @@
         email: cleanText(fields.get("email"), 254),
         phone: cleanText(fields.get("phone"), 50)
       },
-      destination: {
-        country: cleanText(fields.get("country"), 100),
-        city: cleanText(fields.get("city"), 100),
-        addressLine: cleanText(fields.get("addressLine"), 300),
-        postcode: cleanText(fields.get("postcode"), 30),
-        fulfilment: fields.get("fulfilment") === "workshop" ? "workshop" : "courier"
-      },
+      destination: shippingRequest.destination,
       vehicle: {
         description: cleanText(fields.get("vehicle"), 300),
         vin: cleanText(fields.get("vin"), 24)
@@ -5060,6 +5983,13 @@
     status.textContent = text.submitting;
     try {
       await requestShippingEstimate(form);
+      const currentShipping = safeShippingPlan(state.shippingEstimate);
+      payload.shipping = currentShipping ? {
+        quoteId: currentShipping.quoteId || null,
+        selections: shippingSelectionSnapshot(currentShipping),
+        revalidated: shippingPlanHasCurrentRevalidation(currentShipping),
+        paymentEligible: false
+      } : null;
       const endpoint = new URL(STAGING_ORDER_ENDPOINT, location.origin).href;
       const response = await fetch(endpoint, {
         method: "POST",
@@ -5337,6 +6267,11 @@
       mountAccountPortal(mode);
       return;
     }
+    if (action === "revalidate-shipping") {
+      const form = document.querySelector("[data-staging-checkout]");
+      if (form) requestShippingRevalidation(form);
+      return;
+    }
     if (action === "select-engine-family") {
       const select = document.querySelector('[data-role="engine-family"]');
       if (select) { select.value = target.dataset.engineFamily || select.value; updateEngineFamilyForm(select); }
@@ -5522,6 +6457,20 @@
   });
 
   document.addEventListener("change", event => {
+    const shippingOption = event.target.closest("[data-shipping-option]");
+    if (shippingOption && !shippingOption.disabled) {
+      const plan = safeShippingPlan(state.shippingEstimate);
+      const group = plan?.groups.find(item => shippingGroupKey(item) === shippingOption.dataset.shippingGroup);
+      const option = group?.options.find(item => item.id === shippingOption.value);
+      if (group && option && shippingOptionHasConfirmedQuote(option, group, plan)) {
+        state.shippingSelections[shippingGroupKey(group)] = option.id;
+        resetShippingRevalidation();
+        refreshShipmentPlanner();
+        const form = document.querySelector("[data-staging-checkout]");
+        if (form && shippingDestinationReady(checkoutShippingPayload(form).destination)) requestShippingEstimate(form);
+      }
+      return;
+    }
     const tegiwaFilter = event.target.closest("[data-tegiwa-filter]");
     if (tegiwaFilter) updateTegiwaFilter(tegiwaFilter);
     const tegiwaVariant = event.target.closest("[data-tegiwa-variant]");

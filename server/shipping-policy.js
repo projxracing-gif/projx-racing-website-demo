@@ -90,6 +90,11 @@ const DEFAULT_SHIPPING_METHOD = Object.freeze({
   evidenceAsOf: EVIDENCE_AS_OF
 });
 
+export function supplierShippingEvidence(supplierSlug) {
+  const slug = text(supplierSlug, 80).toLowerCase();
+  return SUPPLIER_SHIPPING_METHODS[slug] || DEFAULT_SHIPPING_METHOD;
+}
+
 function text(value, maximum = 300) {
   return String(value ?? '')
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
@@ -117,6 +122,10 @@ export function canonicalShippingItems(items, now = Date.now()) {
       productId,
       sku: policy.sku,
       quantity,
+      variantId: policy.variantId || null,
+      purchaseMode: policy.purchaseMode || 'fitment-confirmation-required',
+      fitmentConfirmationRequired: policy.fitmentConfirmationRequired === true,
+      packageData: policy.packageData || null,
       supplier: Object.freeze({ ...supplier })
     }));
   }
@@ -146,7 +155,7 @@ export function supplierShipmentGroups(items) {
     grouped.set(key, current);
   }
   return [...grouped.values()].map(group => {
-    const method = SUPPLIER_SHIPPING_METHODS[group.supplier] || DEFAULT_SHIPPING_METHOD;
+    const method = supplierShippingEvidence(group.supplier);
     return Object.freeze({
       ...group,
       items: Object.freeze(group.items),
