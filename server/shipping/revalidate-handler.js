@@ -1,4 +1,4 @@
-import { canonicalShippingItems } from '../shipping-policy.js';
+import { resolveCatalogueCartItems, shippingItemsFromResolvedCart } from '../catalogue-cart.js';
 import { canonicalDestination, ShippingValidationError, shippingAllowedCountryCodes } from './validation.js';
 import { createConfiguredSupplierAdapters, shippingIntegrationReadiness } from './provider-adapters.js';
 import { createDisabledCurrencyConverter } from './money.js';
@@ -94,8 +94,12 @@ export default async function shippingRevalidateHandler(req, res) {
   catch (error) {
     return json(res, error.status || 400, { error: error.code || 'invalid_shipping_option_selection' });
   }
-  const items = canonicalShippingItems(body.items);
-  if (!items) return json(res, 409, { error: 'invalid_or_stale_cart' });
+  let items;
+  try {
+    items = shippingItemsFromResolvedCart(await resolveCatalogueCartItems(body.items, { requireMoney: false }));
+  } catch {
+    return json(res, 409, { error: 'invalid_or_stale_cart' });
+  }
   const previousQuote = {
     quoteId: token.quoteId,
     fingerprint: token.fingerprint,

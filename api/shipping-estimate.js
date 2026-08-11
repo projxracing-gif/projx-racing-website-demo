@@ -1,4 +1,5 @@
-import { canonicalShippingItems, shippingPlan } from '../server/shipping-policy.js';
+import { shippingPlan } from '../server/shipping-policy.js';
+import { resolveCatalogueCartItems, shippingItemsFromResolvedCart } from '../server/catalogue-cart.js';
 import { canonicalDestination, ShippingValidationError, shippingAllowedCountryCodes,
   shippingIdempotencyKey } from '../server/shipping/validation.js';
 import { buildShippingQuote } from '../server/shipping/quote.js';
@@ -66,8 +67,12 @@ export async function shippingEstimateHandler(req, res) {
     if (error instanceof ShippingValidationError) return json(res, error.status, { error: error.code });
     return json(res, 400, { error: 'invalid_destination' });
   }
-  const items = canonicalShippingItems(body.items);
-  if (!items) return json(res, 409, { error: 'invalid_or_stale_cart' });
+  let items;
+  try {
+    items = shippingItemsFromResolvedCart(await resolveCatalogueCartItems(body.items, { requireMoney: false }));
+  } catch {
+    return json(res, 409, { error: 'invalid_or_stale_cart' });
+  }
   try {
     const ttlSeconds = Math.max(60, Math.min(3_600,
       Number(process.env.SUPPLIER_SHIPPING_MAX_QUOTE_AGE_SECONDS) || 900));

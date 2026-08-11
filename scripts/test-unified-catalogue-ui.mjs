@@ -268,14 +268,31 @@ for (const [size, sku] of [
 }
 assert.match(app, /function commerceProduct\(slug\)[\s\S]*policy\?\.sourceHandle[\s\S]*images:\s*\[\{ \.\.\.policy\.image \}\]/,
   'Approved supplier variants must have a deterministic cart-product fallback for reload persistence.');
-assert.match(app, /function tegiwaVariantDirectCartProductId\(product, variant\)[\s\S]*variant\.available !== true[\s\S]*snapshotStale === true[\s\S]*productCanEnterCart/,
-  'Direct cart mapping must fail closed for unavailable, stale, or unapproved supplier variants.');
-assert.match(app, /data-direct-cart-product-id="\$\{esc\(directCartProductId\)\}"/,
-  'Each supplier option must carry only its server-approved direct-cart product identity.');
-assert.match(app, /data-action="add-cart" \$\{cartButtonAttributes\}>\$\{esc\(commerceText\(\)\.addToCart\)\}/,
-  'The approved Tsuki product must render Add to cart instead of Add to quote.');
-assert.match(app, /data-tegiwa-variant-cart[\s\S]{0,700}cartButton\.disabled = !\(available && productId\)/,
-  'Add to cart must remain disabled until an available approved size is selected.');
+assert.match(app, /function liveTegiwaCommerceObservation\(product, now = Date\.now\(\)\)[\s\S]*observation\.source !== "official_tegiwa_product_detail"[\s\S]*observation\.paymentEligible !== false[\s\S]*now >= expiresAt[\s\S]*priceCurrency \|\| ""\)\.toUpperCase\(\) !== "GBP"/,
+  'Live Tegiwa cart observations must be official, non-payment-eligible, unexpired GBP observations.');
+assert.match(app, /function tegiwaCatalogueCartSelection\(product, variant = null, now = Date\.now\(\)\)[\s\S]*const observation = liveTegiwaCommerceObservation\(product, now\)[\s\S]*product\?\.price\?\.startingAt === true[\s\S]*\^tegiwa-live-\[A-Za-z0-9_-\]\{24\}\$/,
+  'Generic Tegiwa cart selections must require a current exact-price observation and canonical live identity.');
+assert.match(app, /data-catalogue-cart-key="\$\{esc\(catalogueCartKey\)\}"/,
+  'Each supplier option must carry only its registered generic catalogue-cart selection key.');
+assert.doesNotMatch(app, /data-direct-cart-product-id=/,
+  'Supplier options must not expose the obsolete direct-cart product-id attribute.');
+assert.match(app, /data-action="add-catalogue-cart" \$\{cartButtonAttributes\}>\$\{esc\(commerceText\(\)\.addToCart\)\}/,
+  'Eligible supplier products must render the generic catalogue Add to cart action.');
+assert.match(app, /const selection = state\.catalogueCartSelections\.get\(selectionKey\)[\s\S]{0,250}cartButton\.disabled = !selection/,
+  'Add to cart must remain disabled until the selected variant has a registered canonical selection.');
+assert.match(app, /if \(action === "add-catalogue-cart"\)[\s\S]{0,500}querySelector\("\[data-tegiwa-variant\]:checked"\)[\s\S]{0,300}addCatalogueCart\(selectionKey \|\| "", quantity\)/,
+  'The generic cart action must resolve the currently checked variant selection instead of trusting a stale button value.');
+assert.match(app, /const supplierProductHandle = supplierItem\?\.supplier\?\.slug === "tegiwa"[\s\S]{0,180}tegiwaProductHandle\(`tegiwa-\$\{supplierItem\.sourceHandle\}`\)[\s\S]{0,250}\? tegiwaProductUrl\(supplierProductHandle\)/,
+  'Dynamic Tegiwa cart links must add exactly one public namespace prefix without changing ECS or direct-policy links.');
+assert.match(app, /const MAX_CART_LINES = 20/);
+assert.match(app, /state\.cart\.length >= MAX_CART_LINES[\s\S]{0,160}cartLimitReached/,
+  'The client cart must enforce the same 20-line bound as shipping and checkout.');
+assert.match(app, /if \(ecsItem\) \{[\s\S]{0,220}value\.quoteExpiresAt[\s\S]{0,220}now > expiresAt/,
+  'Persisted ECS lines must use the exact server-issued expiry instead of an earlier midnight approximation.');
+assert.match(app, /function cartLineIdentity\(item\)[\s\S]{0,260}tegiwaProductHandle\(item\?\.sourceHandle \|\| item\?\.productId\)[\s\S]{0,180}toUpperCase\(\)/,
+  'Cart lines must deduplicate by the exact raw supplier handle and SKU without collapsing real tegiwa-* handles.');
+assert.doesNotMatch(app, /function cartLineIdentity\(item\)[\s\S]{0,320}rawHandle\.startsWith\("tegiwa-"\)/,
+  'Raw supplier handles must never be mistaken for the separate public-route namespace.');
 assert.match(app, /policy\?\.sourceHandle \? tegiwaProductUrl\(policy\.sourceHandle\)/,
   'Persisted supplier variants must link back to the real supplier product modal instead of a nonexistent static route.');
 assert.match(styles, /\.tegiwa-image-placeholder/);

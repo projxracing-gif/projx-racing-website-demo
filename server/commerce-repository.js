@@ -33,10 +33,14 @@ function address(row) {
 }
 
 function cartItem(row) {
+  const snapshot = row?.product_snapshot && typeof row.product_snapshot === 'object' && !Array.isArray(row.product_snapshot)
+    ? row.product_snapshot
+    : {};
   return {
     id: row.id,
     supplier: row.supplier_slug,
     productId: row.product_public_key,
+    sourceHandle: typeof snapshot.sourceHandle === 'string' ? snapshot.sourceHandle : null,
     supplierProductId: row.supplier_product_key,
     variantId: row.supplier_variant_key,
     sku: row.sku,

@@ -6,6 +6,11 @@ import {
   verifyTegiwaPublicManifestSignature
 } from '../server/tegiwa-public-manifest.js';
 import { tegiwaSkuMappingFingerprint } from '../server/tegiwa-sku-mapping.js';
+import {
+  TegiwaLiveCommerceError,
+  decorateTegiwaLiveCatalogueProduct,
+  fetchOfficialTegiwaProductPayload
+} from '../server/tegiwa-live-commerce.js';
 
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
 const PAGE_SIZE = 100;
@@ -1869,22 +1874,25 @@ function detailImages(product, title) {
 function detailVariants(product) {
   if (!Array.isArray(product.variants)) return [];
   if (product.variants.length > MAX_DETAIL_VARIANTS) throw new UpstreamError('upstream_response_too_large');
-  return product.variants.map(variant => {
+  const variants = product.variants.map(variant => {
     if (!variant || typeof variant !== 'object') return null;
     const amount = parseShopifyPence(variant.price);
     if (amount === null) return null;
+    const sku = safePartNumber(variant.sku);
     return {
       title: safeText(variant.title, 200) || 'Default',
-      sku: safePartNumber(variant.sku),
+      sku,
       mpn: safePartNumber(variant.mpn),
-      available: Boolean(variant.available),
-      price: { currency: 'GBP', amount }
+      available: variant.available === true,
+      price: { currency: 'GBP', amount },
+      cartProductId: null
     };
   }).filter(Boolean);
+  return variants;
 }
 
-async function detailCatalog(fetchImpl, index, handle) {
-  const payload = await fetchJson(fetchImpl, `${officialProductUrl(handle)}.js?country=KW`, { maxBytes: 2_000_000 });
+async function detailCatalog(fetchImpl, index, handle, nowValue) {
+  const payload = await fetchOfficialTegiwaProductPayload(handle, { fetchImpl });
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new UpstreamError('upstream_invalid_response');
   const officialHandle = productHandle(payload.handle) || handle;
   if (officialHandle !== handle) throw new UpstreamError('upstream_invalid_response');
@@ -1922,14 +1930,21 @@ async function detailCatalog(fetchImpl, index, handle) {
     officialMpns,
     includeAllPartNumbers: true
   }, index);
+  const product = {
+    ...card,
+    description: safeText(payload.description || payload.content || payload.body_html, 5_000),
+    images,
+    variants
+  };
+  let decoratedProduct = product;
+  try {
+    decoratedProduct = decorateTegiwaLiveCatalogueProduct(product, payload, handle, { now: nowValue });
+  } catch (error) {
+    if (!(error instanceof TegiwaLiveCommerceError)) throw error;
+  }
   return {
     mode: 'detail',
-    product: {
-      ...card,
-      description: safeText(payload.description || payload.content || payload.body_html, 5_000),
-      images,
-      variants
-    },
+    product: decoratedProduct,
     meta: metaFor(index, 1)
   };
 }
@@ -2026,7 +2041,7 @@ export function createTegiwaCatalogHandler({
           ? await filterCatalog(localProvider, requestIndex, summary, request, catalogLoader)
           : await suggestCatalog(localProvider, requestIndex, summary, request.query, catalogLoader);
       }
-      else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle);
+      else if (request.mode === 'detail') body = await detailCatalog(fetchImpl, requestIndex, request.handle, Number(now()));
       else {
         const position = request.page === undefined
           ? { sitemapIndex: request.sitemapIndex, offset: request.offset }
@@ -2037,6 +2052,12 @@ export function createTegiwaCatalogHandler({
       return sendJson(res, 200, body, true);
     } catch (error) {
       if (error instanceof PublicApiError) return sendError(res, error.status, error.code, error.message);
+      if (error instanceof TegiwaLiveCommerceError) {
+        logger?.warn?.('Tegiwa official product request failed', { code: error.code, status: error.status });
+        if (error.status === 404) return sendError(res, 404, 'product_not_found', 'The requested Tegiwa product was not found.');
+        if (error.status === 504) return sendError(res, 504, 'upstream_timeout', 'The official Tegiwa catalog took too long to respond.');
+        return sendError(res, 502, 'upstream_unavailable', 'The official Tegiwa catalog is temporarily unavailable.');
+      }
       if (error instanceof UpstreamError) {
         logger?.warn?.('Tegiwa upstream request failed', { code: error.code, status: error.upstreamStatus || 0 });
         if (error.upstreamStatus === 404) return sendError(res, 404, 'product_not_found', 'The requested Tegiwa product was not found.');

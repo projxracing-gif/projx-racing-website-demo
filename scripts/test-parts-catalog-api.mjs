@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
 import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 import { cataloguePartTypeMatches } from '../server/catalog-taxonomy.js';
+import { canonicalTegiwaLiveProductId } from '../server/tegiwa-live-commerce.js';
 
 const FIXED_NOW = Date.parse('2026-08-09T09:30:00Z');
 const REVIEWED_SHARD_INDEX = JSON.parse(await readFile(
@@ -1101,6 +1102,46 @@ assert.equal(snapshotDetail.body.product.variants.length, 0);
 assert.equal(snapshotDetail.body.meta.detailSnapshotOnly, true);
 assert.equal(snapshotDetail.body.meta.detailFallbackReason, 'upstream_unavailable');
 
+const prefixedRawHandle = 'tegiwa-raw-prefix-product';
+const prefixedPublicHandle = `tegiwa-${prefixedRawHandle}`;
+const prefixedLegacyRequests = [];
+async function prefixedLegacyHandler(req, res) {
+  prefixedLegacyRequests.push({ ...(req.query || {}) });
+  const item = {
+    handle: prefixedRawHandle,
+    title: 'Raw handle already starts with Tegiwa',
+    sku: 'PREFIX-001',
+    skuCount: 1,
+    skuState: 'exact',
+    price: { currency: 'GBP', min: 10, max: 10 },
+    availability: { code: 'supplier_stock', checkedAt: '2026-08-05', snapshotStale: false },
+    image: { src: 'https://cdn.shopify.com/s/files/1/0000/prefix.jpg', alt: 'Prefix fixture' }
+  };
+  res.statusCode = 200;
+  if (req.query?.handle) {
+    if (req.query.handle !== prefixedRawHandle) {
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ error: { code: 'product_not_found', message: 'Missing' } }));
+    }
+    return res.end(JSON.stringify({ mode: 'detail', product: { ...item, images: [item.image], variants: [] }, meta: { count: 1 } }));
+  }
+  return res.end(JSON.stringify({
+    mode: 'browse', items: [item],
+    meta: { count: 1, page: 1, pageSize: 100, totalResults: 1, totalPages: 1, catalogProductCount: 1 }
+  }));
+}
+const prefixedMergedFallback = createPartsCatalogHandler({
+  databaseUrl: '', legacyHandler: prefixedLegacyHandler, now: () => FIXED_NOW
+});
+const prefixedMergedBrowse = await invoke(prefixedMergedFallback, { query: { supplier: 'tegiwa' } });
+assert.equal(prefixedMergedBrowse.status, 200);
+assert.equal(prefixedMergedBrowse.body.items[0].handle, prefixedPublicHandle);
+const prefixedDetail = await invoke(prefixedMergedFallback, { query: { handle: prefixedPublicHandle, supplier: 'tegiwa' } });
+assert.equal(prefixedDetail.status, 200);
+assert.equal(prefixedDetail.body.product.handle, prefixedPublicHandle);
+assert.ok(prefixedLegacyRequests.some(request => request.handle === prefixedRawHandle));
+assert.equal(prefixedLegacyRequests.some(request => request.handle === prefixedPublicHandle), false);
+
 const incompleteDatabaseEcs = createPartsCatalogHandler({
   query: async (text, values) => {
     if (text.includes('parts-catalog:stats')) {
@@ -1390,6 +1431,96 @@ assert.equal(detail.body.product.variants[0].price.amount, 499.99);
 assert.equal(detail.body.product.fitments[0].confidence, 'exact');
 assert.equal(detail.body.product.fitments[0].engine, 'S58');
 assert.equal(detail.body.product.images.length, 1);
+
+const dbTegiwaSourceHandle = 'database-live-product';
+const dbTegiwaPrivateKey = `tegiwa:${dbTegiwaSourceHandle}`;
+const dbTegiwaPublicKey = `tegiwa-${dbTegiwaSourceHandle}`;
+const dbTegiwaSku = 'DB-LIVE-001';
+const dbTegiwaStatements = [];
+let dbTegiwaRawAvailable = true;
+let dbTegiwaFetches = 0;
+const dbTegiwaRow = row(0, {
+  public_key: dbTegiwaPrivateKey,
+  source_handle: dbTegiwaSourceHandle,
+  title: 'Database snapshot title',
+  supplier_slug: 'tegiwa',
+  supplier_name: 'Tegiwa',
+  source_url: `https://www.tegiwa.com/products/${dbTegiwaSourceHandle}`,
+  image_url: 'https://cdn.shopify.com/s/files/1/0000/database-live-product.jpg',
+  images: [{
+    src: 'https://cdn.shopify.com/s/files/1/0000/database-live-product.jpg',
+    width: 1_200,
+    height: 900,
+    alt: 'Database live product'
+  }],
+  skus: [dbTegiwaSku],
+  mpns: ['DB-MPN-001'],
+  variants: [{
+    title: 'Default', sku: dbTegiwaSku, mpn: 'DB-MPN-001', available: true,
+    availabilityCode: 'supplier_stock', price: { currency: 'GBP', amount: 2749 }
+  }],
+  price_min: 2749,
+  price_max: 2749,
+  currency: 'GBP'
+});
+const dbTegiwaHandler = createPartsCatalogHandler({
+  query: async (text, values) => {
+    dbTegiwaStatements.push({ text, values });
+    if (text.includes('parts-catalog:stats')) return [stats];
+    if (text.includes('parts-catalog:count')) return [{ total_results: 1 }];
+    if (text.includes('parts-catalog:detail') || text.includes('parts-catalog:list')) return [dbTegiwaRow];
+    throw new Error('unexpected_statement');
+  },
+  tegiwaFetchImpl: async (url, options) => {
+    dbTegiwaFetches += 1;
+    assert.equal(url, `https://www.tegiwa.com/products/${dbTegiwaSourceHandle}.js?country=KW`);
+    assert.equal(options.method, 'GET');
+    assert.equal(options.cache, 'no-store');
+    assert.equal(options.redirect, 'error');
+    assert.ok(options.signal instanceof AbortSignal);
+    return new Response(JSON.stringify({
+      handle: dbTegiwaSourceHandle,
+      title: 'Official Database Live Product',
+      featured_image: 'https://cdn.shopify.com/s/files/1/0000/database-live-product.jpg',
+      variants: [{ title: 'Default', sku: dbTegiwaSku, price: 2749, available: dbTegiwaRawAvailable }]
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  },
+  now: () => FIXED_NOW,
+  logger: { warn() {}, error() {} }
+});
+const dbTegiwaBrowse = await invoke(dbTegiwaHandler);
+assert.equal(dbTegiwaBrowse.status, 200);
+assert.equal(dbTegiwaBrowse.body.items[0].handle, dbTegiwaPublicKey);
+assert.equal(dbTegiwaBrowse.body.items[0].publicKey, dbTegiwaPublicKey);
+assert.equal(JSON.stringify(dbTegiwaBrowse.body).includes(dbTegiwaPrivateKey), false);
+
+const dbTegiwaDetail = await invoke(dbTegiwaHandler, { query: { handle: dbTegiwaPublicKey, supplier: 'tegiwa' } });
+assert.equal(dbTegiwaDetail.status, 200);
+assert.equal(dbTegiwaFetches, 1);
+assert.equal(dbTegiwaDetail.body.product.handle, dbTegiwaPublicKey);
+assert.equal(dbTegiwaDetail.body.product.publicKey, dbTegiwaPublicKey);
+assert.equal(dbTegiwaDetail.body.product.title, 'Official Database Live Product');
+assert.equal(dbTegiwaDetail.body.product.variants[0].cartProductId,
+  canonicalTegiwaLiveProductId(dbTegiwaSourceHandle, dbTegiwaSku));
+assert.deepEqual(dbTegiwaDetail.body.product.commerceObservation, {
+  source: 'official_tegiwa_product_detail',
+  observedAt: new Date(FIXED_NOW).toISOString(),
+  expiresAt: new Date(FIXED_NOW + 5 * 60_000).toISOString(),
+  priceCurrency: 'GBP',
+  availabilityMode: 'supplier_variant_boolean',
+  paymentEligible: false
+});
+assert.equal(JSON.stringify(dbTegiwaDetail.body).includes(dbTegiwaPrivateKey), false);
+const dbDetailStatement = dbTegiwaStatements.find(statement => statement.text.includes('parts-catalog:detail'));
+assert.ok(dbDetailStatement.values.includes(dbTegiwaPrivateKey));
+assert.equal(dbDetailStatement.values.includes(dbTegiwaPublicKey), false);
+
+dbTegiwaRawAvailable = 'true';
+const invalidDbTegiwaDetail = await invoke(dbTegiwaHandler, { query: { handle: dbTegiwaPublicKey, supplier: 'tegiwa' } });
+assert.equal(invalidDbTegiwaDetail.status, 200);
+assert.equal(dbTegiwaFetches, 2);
+assert.equal(invalidDbTegiwaDetail.body.product.variants[0].cartProductId, undefined);
+assert.equal(Object.hasOwn(invalidDbTegiwaDetail.body.product, 'commerceObservation'), false);
 
 const missingDetail = createPartsCatalogHandler({ query: async text => text.includes('stats') ? [stats] : [], now: () => FIXED_NOW });
 assert.equal((await invoke(missingDetail, { query: { handle: 'ecs-missing' } })).body.error.code, 'product_not_found');

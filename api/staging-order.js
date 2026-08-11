@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import enquiryHandler from './enquiry.js';
-import { STAGING_COMMERCE_MODE, directCartProduct, policyPriceIsFresh } from '../server/commerce-policy.js';
-import { canonicalShippingItems, shippingPlan } from '../server/shipping-policy.js';
+import { STAGING_COMMERCE_MODE } from '../server/commerce-policy.js';
+import { shippingPlan } from '../server/shipping-policy.js';
+import { resolveCatalogueCartItems, shippingItemsFromResolvedCart } from '../server/catalogue-cart.js';
 
 const MAX_BODY_BYTES = 24_000;
 const completedRequests = new Map();
@@ -48,33 +49,9 @@ function orderReference(idempotencyKey) {
   return `PRX-TEST-${digest}`;
 }
 
-function validateItems(items, now = Date.now()) {
-  if (!Array.isArray(items) || items.length < 1 || items.length > 20) return null;
-  const seen = new Set();
-  const normalized = [];
-  for (const submitted of items) {
-    if (!submitted || typeof submitted !== 'object' || Array.isArray(submitted)) return null;
-    const productId = clean(submitted.productId, 180);
-    const policy = directCartProduct(productId);
-    const quantity = Number(submitted.quantity);
-    const amount = Number(submitted.unitAmount);
-    const currency = clean(submitted.currency, 3).toUpperCase();
-    const sku = clean(submitted.sku, 120);
-    if (!policy || seen.has(productId) || !policyPriceIsFresh(policy, now)) return null;
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) return null;
-    if (sku !== policy.sku || currency !== policy.currency || !Number.isFinite(amount) || Math.abs(amount - policy.unitAmount) > 0.001) return null;
-    seen.add(productId);
-    normalized.push({
-      productId,
-      title: policy.title,
-      sku: policy.sku,
-      quantity,
-      unitAmount: policy.unitAmount,
-      currency: policy.currency,
-      fitmentConfirmationRequired: policy.fitmentConfirmationRequired
-    });
-  }
-  return normalized;
+async function validateItems(items, now = Date.now()) {
+  try { return await resolveCatalogueCartItems(items, { now }); }
+  catch { return null; }
 }
 
 function totalsFor(items) {
@@ -193,14 +170,15 @@ export default async function handler(req, res) {
   const vehicle = body.vehicle && typeof body.vehicle === 'object' && !Array.isArray(body.vehicle) ? {
     description: clean(body.vehicle.description, 300), vin: clean(body.vehicle.vin, 24)
   } : null;
-  const items = validateItems(body.items);
+  const items = await validateItems(body.items);
   if (!customer || !destination || !vehicle || !customer.name || !customer.phone || !validEmail(customer.email)
       || !destination.country || !destination.city || !vehicle.description || body.acknowledgement !== true || body.consent !== true) {
     return json(res, 400, { error: 'missing_or_invalid_required_fields' });
   }
   if (!items) return json(res, 409, { error: 'invalid_or_stale_cart' });
-  const shippingItems = canonicalShippingItems(items);
-  if (!shippingItems) return json(res, 409, { error: 'invalid_or_stale_cart' });
+  let shippingItems;
+  try { shippingItems = shippingItemsFromResolvedCart(items); }
+  catch { return json(res, 409, { error: 'invalid_or_stale_cart' }); }
 
   const emailDeliveryEnabled = process.env.STAGING_ORDER_EMAIL_DELIVERY_ENABLED === 'true';
   const durableAntiAbuseReady = process.env.PUBLIC_FORM_ANTI_ABUSE_READY === 'true';

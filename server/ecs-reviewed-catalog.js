@@ -27,6 +27,7 @@ import {
   catalogueParentPartTypeFacets,
   cataloguePartTypeMatches
 } from './catalog-taxonomy.js';
+import { decorateEcsConfirmationCartProduct } from './ecs-confirmation-cart-index.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -927,7 +928,7 @@ function image(product) {
 
 function card(product, request, nowValue) {
   const hasVehicleContext = Boolean(request.structuredVehicle || request.fitment !== 'all');
-  return {
+  return decorateEcsConfirmationCartProduct({
     handle: product.publicKey,
     publicKey: product.publicKey,
     title: text(product.title, 300),
@@ -946,7 +947,7 @@ function card(product, request, nowValue) {
     sourceUrl: text(product.originalUrl, 2_048) || null,
     supplier: { slug: 'ecs', name: 'ECS Tuning' },
     fitmentConfidence: hasVehicleContext ? 'possible' : null
-  };
+  }, { nowValue });
 }
 
 export function reviewedEcsProductCard(product, request, nowValue) {
@@ -1038,7 +1039,7 @@ async function invokeLegacy(handler, originalRequest, parameters) {
 
 function tegiwaHandle(value) {
   const source = text(value, 255);
-  return source.startsWith('tegiwa-') ? source : `tegiwa-${source}`;
+  return source ? `tegiwa-${source}` : '';
 }
 
 function normalizedLegacyCard(value, request) {

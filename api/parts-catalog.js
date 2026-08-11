@@ -18,6 +18,13 @@ import {
   createConfiguredReviewedShardCatalogueProvider,
   ReviewedShardProviderError
 } from '../server/ecs-reviewed-shard-catalog.js';
+import { decorateEcsConfirmationCartProduct } from '../server/ecs-confirmation-cart-index.js';
+import {
+  TegiwaLiveCommerceError,
+  decorateTegiwaLiveCatalogueProduct,
+  fetchOfficialTegiwaProductPayload,
+  isCanonicalTegiwaLiveHandle
+} from '../server/tegiwa-live-commerce.js';
 
 const PAGE_SIZE = 100;
 const SUGGESTION_LIMIT = 8;
@@ -495,7 +502,7 @@ function buildListQuery(request, limit = PAGE_SIZE) {
     text: `/* parts-catalog:list */
       WITH ${filters.exactCte}
       SELECT
-        p.id, p.public_key, p.title, p.description, p.source_url,
+        p.id, p.public_key, p.source_handle, p.title, p.description, p.source_url,
         s.slug AS supplier_slug, s.display_name AS supplier_name, s.default_currency AS supplier_currency,
         b.name AS brand_name, pt.name_en AS part_type_name,
         image.url AS image_url, image.width AS image_width, image.height AS image_height,
@@ -625,14 +632,20 @@ function buildStatsQuery() {
 
 function buildDetailQuery(request) {
   const binder = makeBinder();
-  const handle = binder.add(request.handle);
+  const tegiwaSourceHandle = request.handle.startsWith('tegiwa-')
+    ? request.handle.slice('tegiwa-'.length)
+    : '';
+  const databaseHandle = isCanonicalTegiwaLiveHandle(tegiwaSourceHandle)
+    ? `tegiwa:${tegiwaSourceHandle}`
+    : request.handle;
+  const handle = binder.add(databaseHandle);
   const supplier = request.supplier ? `AND s.slug = ${binder.add(request.supplier)}` : '';
   const offer = offerJoin(binder, request.currency);
   const variantCurrency = request.currency ? binder.add(request.currency) : 's.default_currency';
   return {
     text: `/* parts-catalog:detail */
       SELECT
-        p.id, p.public_key, p.title, p.description, p.source_url,
+        p.id, p.public_key, p.source_handle, p.title, p.description, p.source_url,
         s.slug AS supplier_slug, s.display_name AS supplier_name, s.default_currency AS supplier_currency,
         b.name AS brand_name, pt.name_en AS part_type_name,
         first_image.url AS image_url, first_image.width AS image_width,
@@ -799,12 +812,16 @@ function imageObject(row) {
 }
 
 function cardFromRow(row, nowValue) {
-  const handle = safeOutputText(row.public_key, 255);
+  const rawHandle = safeOutputText(row.public_key, 255);
+  const supplierSlug = safeOutputText(row.supplier_slug, 100);
+  const sourceHandle = safeOutputText(row.source_handle, 255);
+  const handle = supplierSlug === 'tegiwa' && isCanonicalTegiwaLiveHandle(sourceHandle)
+    ? `tegiwa-${sourceHandle}`
+    : rawHandle;
   if (!/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/.test(handle)) throw new Error('invalid_public_product_key');
   const skus = parseArray(row.skus).map(value => safeOutputText(value, 120)).filter(Boolean);
   const mpns = parseArray(row.mpns).map(value => safeOutputText(value, 120)).filter(Boolean);
-  const supplierSlug = safeOutputText(row.supplier_slug, 100);
-  return {
+  const card = {
     handle,
     publicKey: handle,
     title: safeOutputText(row.title, 300),
@@ -822,6 +839,7 @@ function cardFromRow(row, nowValue) {
     supplier: { slug: supplierSlug, name: safeOutputText(row.supplier_name, 160) },
     fitmentConfidence: ['exact', 'possible'].includes(row.fitment_confidence) ? row.fitment_confidence : null
   };
+  return supplierSlug === 'ecs' ? decorateEcsConfirmationCartProduct(card, { nowValue }) : card;
 }
 
 function statsFromRow(row = {}) {
@@ -927,6 +945,7 @@ export function createPartsCatalogHandler({
   reviewedShardProvider = undefined,
   legacyHandler,
   legacyHandlerLoader = loadDefaultLegacyHandler,
+  tegiwaFetchImpl = globalThis.fetch,
   logger = console
 } = {}) {
   if (query !== null && typeof query !== 'function') throw new TypeError('The query adapter must be a function.');
@@ -942,6 +961,7 @@ export function createPartsCatalogHandler({
     throw new TypeError('The legacy catalog handler must be a function, null or false.');
   }
   if (typeof legacyHandlerLoader !== 'function') throw new TypeError('The legacy catalog loader must be a function.');
+  if (typeof tegiwaFetchImpl !== 'function') throw new TypeError('A Tegiwa fetch implementation is required.');
   let adapter = query;
   let adapterPromise = null;
   let loadedLegacyHandler = typeof legacyHandler === 'function' ? legacyHandler : null;
@@ -1087,7 +1107,7 @@ export function createPartsCatalogHandler({
         if (!rows.length) return sendError(res, 404, 'product_not_found', 'The requested product was not found.');
         if (rows.length > 1) return sendError(res, 409, 'ambiguous_product', 'Select a supplier to identify this product.');
         const row = rows[0];
-        const product = {
+        let product = {
           ...cardFromRow(row, nowValue),
           description: safeOutputText(row.description, 5_000),
           images: parseArray(row.images, 16).map(image => ({
@@ -1118,6 +1138,16 @@ export function createPartsCatalogHandler({
             note: safeOutputText(fitment?.note, 300) || null
           }))
         };
+        if (safeOutputText(row.supplier_slug, 100).toLowerCase() === 'tegiwa') {
+          const sourceHandle = safeOutputText(row.source_handle, 255);
+          try {
+            const livePayload = await fetchOfficialTegiwaProductPayload(sourceHandle, { fetchImpl: tegiwaFetchImpl });
+            product = decorateTegiwaLiveCatalogueProduct(product, livePayload, sourceHandle, { now: nowValue });
+          } catch (error) {
+            if (!(error instanceof TegiwaLiveCommerceError)) throw error;
+            logger?.warn?.('Tegiwa database detail withheld live cart data', { code: error.code });
+          }
+        }
         return sendJson(res, 200, { mode: 'detail', product, meta: { count: 1, ...stats } }, true);
       }
 

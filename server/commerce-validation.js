@@ -4,6 +4,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const COUNTRY_PATTERN = /^[A-Z]{2}$/;
 const SIMPLE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/;
+const SOURCE_HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function rejectUnknown(value, allowed) {
@@ -99,7 +100,7 @@ function safeCurrency(value, amount) {
 function validateItem(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ApiError(400, 'invalid_item');
   rejectUnknown(value, new Set([
-    'supplier', 'productId', 'supplierProductId', 'variantId', 'sku', 'title', 'optionTitle',
+    'supplier', 'productId', 'sourceHandle', 'supplierProductId', 'variantId', 'sku', 'title', 'optionTitle',
     'quantity', 'unitAmount', 'currency'
   ]));
   if (!Number.isInteger(value.quantity) || value.quantity < 1 || value.quantity > 1000) {
@@ -107,11 +108,14 @@ function validateItem(value) {
   }
   const supplier = text(value.supplier, 100, { required: true }).toLowerCase();
   const productId = text(value.productId, 255, { required: true });
-  if (!SIMPLE_KEY_PATTERN.test(supplier) || !SIMPLE_KEY_PATTERN.test(productId)) throw new ApiError(400, 'invalid_product_identity');
+  const sourceHandle = text(value.sourceHandle, 255);
+  if (!SIMPLE_KEY_PATTERN.test(supplier) || !SIMPLE_KEY_PATTERN.test(productId)
+      || (sourceHandle && !SOURCE_HANDLE_PATTERN.test(sourceHandle))) throw new ApiError(400, 'invalid_product_identity');
   const unitAmount = safeAmount(value.unitAmount);
   return {
     supplier,
     productId,
+    sourceHandle,
     supplierProductId: text(value.supplierProductId, 255),
     variantId: text(value.variantId, 255),
     sku: text(value.sku, 255),

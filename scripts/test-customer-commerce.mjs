@@ -207,6 +207,16 @@ test('cart and quote validation rejects unbounded or malformed money and identit
     { supplier: 'tegiwa', productId: 'part-1', title: 'Part', quantity: 1 },
     { supplier: 'tegiwa', productId: 'part-1', title: 'Part', quantity: 2 }
   ]), error => error.code === 'duplicate_item');
+  const [catalogueItem] = validateItems([{
+    supplier: 'tegiwa', productId: 'tegiwa-live-abcdefghijklmnopqrstuvwx',
+    sourceHandle: '2026-team-tegiwa-tsuki-t-shirt', sku: 'T-TSUKITEAM-TSHIRT-S',
+    title: 'Tsuki Team T-Shirt', quantity: 1, unitAmount: 2749, currency: 'GBP'
+  }]);
+  assert.equal(catalogueItem.sourceHandle, '2026-team-tegiwa-tsuki-t-shirt');
+  assert.throws(() => validateItems([{
+    supplier: 'tegiwa', productId: 'tegiwa-live-abcdefghijklmnopqrstuvwx',
+    sourceHandle: 'https://example.com/unsafe', title: 'Part', quantity: 1
+  }]), error => error.code === 'invalid_product_identity');
   const quote = validateQuoteRequest({
     idempotencyKey: 'quote-test-123456789', locale: 'ar',
     customer: { name: 'Customer', phone: '+965 0000 0000', email: 'customer@example.com' },

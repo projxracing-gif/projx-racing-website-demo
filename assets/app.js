@@ -18,6 +18,7 @@
   const CART_STORAGE_KEY = "projxStagingCartV1";
   const CHECKOUT_TOKEN_STORAGE_KEY = "projxStagingCheckoutTokenV1";
   const LAST_ORDER_STORAGE_KEY = "projxLastStagingOrderV1";
+  const MAX_CART_LINES = 20;
   const GCC_DESTINATIONS = Object.freeze({
     KW: Object.freeze({ en: "Kuwait", ar: "الكويت", dial: "+965", regions: Object.freeze(["Capital / العاصمة", "Hawalli / حولي", "Farwaniya / الفروانية", "Mubarak Al-Kabeer / مبارك الكبير", "Ahmadi / الأحمدي", "Jahra / الجهراء"]) }),
     SA: Object.freeze({ en: "Saudi Arabia", ar: "المملكة العربية السعودية", dial: "+966", regions: Object.freeze(["Riyadh / الرياض", "Makkah / مكة المكرمة", "Madinah / المدينة المنورة", "Eastern Province / المنطقة الشرقية", "Qassim / القصيم", "Asir / عسير", "Tabuk / تبوك", "Hail / حائل", "Northern Borders / الحدود الشمالية", "Jazan / جازان", "Najran / نجران", "Al Bahah / الباحة", "Al Jawf / الجوف"]) }),
@@ -31,6 +32,13 @@
     name: "Tegiwa",
     originCountryCode: "GB",
     originCountryName: "Great Britain"
+  });
+  const ECS_US_SUPPLIER = Object.freeze({
+    slug: "ecs",
+    name: "ECS Tuning",
+    originId: "ecs-us",
+    originCountryCode: "US",
+    originCountryName: "United States"
   });
   const TEGIWA_TSUKI_TSHIRT_IMAGE = Object.freeze({
     src: "https://cdn.shopify.com/s/files/1/0715/5767/7352/files/Tsuki_Teamwear-2026-2.jpg?v=1769175846",
@@ -232,29 +240,205 @@
     );
   }
 
-  function tegiwaDirectCartPolicy(handle, sku = "") {
-    const safeHandle = tegiwaProductHandle(handle);
-    const safeSku = cleanText(sku || "", 120);
-    return Object.values(DIRECT_CART_POLICY).find(policy => (
-      policy?.sourceHandle === safeHandle
-      && (!safeSku || policy.sku === safeSku)
-    )) || null;
+  function tegiwaSourceHandle(product) {
+    const publicHandle = tegiwaProductHandle(product?.handle);
+    if (!publicHandle?.startsWith("tegiwa-")) return "";
+    return tegiwaProductHandle(publicHandle.slice("tegiwa-".length));
   }
 
-  function tegiwaHandleSupportsDirectCart(handle) {
-    return Boolean(tegiwaDirectCartPolicy(handle));
+  function liveTegiwaCommerceObservation(product, now = Date.now()) {
+    const observation = product?.commerceObservation;
+    if (!observation || observation.source !== "official_tegiwa_product_detail" || observation.paymentEligible !== false) return null;
+    const observedAt = Date.parse(String(observation.observedAt || ""));
+    const expiresAt = Date.parse(String(observation.expiresAt || ""));
+    if (!Number.isFinite(observedAt) || !Number.isFinite(expiresAt) || expiresAt <= observedAt) return null;
+    if (now < observedAt - 5 * 60_000 || now >= expiresAt) return null;
+    if (String(observation.priceCurrency || "").toUpperCase() !== "GBP") return null;
+    return { observedAt: new Date(observedAt).toISOString(), expiresAt: new Date(expiresAt).toISOString() };
   }
 
-  function tegiwaVariantDirectCartProductId(product, variant) {
-    if (!product || !variant || variant.available !== true || product.availability?.snapshotStale === true) return "";
-    if (cleanText(product.supplier?.slug || "", 80).toLowerCase() !== "tegiwa") return "";
-    const sku = cleanText(variant.sku || "", 120);
-    const policy = tegiwaDirectCartPolicy(product.handle, sku);
-    const amount = Number(variant.price?.amount);
-    const currency = String(variant.price?.currency || "").toUpperCase();
-    if (!policy || !Number.isFinite(amount) || Math.abs(amount - policy.unitAmount) > 0.001 || currency !== policy.currency) return "";
-    const cartProduct = commerceProduct(policy.productId);
-    return productCanEnterCart(cartProduct) ? policy.productId : "";
+  function supplierCartImage(image, fallbackTitle = "") {
+    const source = cleanText(image?.src || image?.url || "", 1_000);
+    if (!source) return null;
+    let safeSource = "";
+    if (/^\/?assets\/products\/[a-z0-9/_~.-]+(?:\?[a-z0-9=&._-]+)?$/i.test(source)) safeSource = source.replace(/^\//, "");
+    else {
+      try {
+        const url = new URL(source);
+        if (url.protocol === "https:" && !url.username && !url.password
+            && ["cdn.shopify.com", "www.tegiwa.com", "tegiwa.com", "assets.ecstuning.com"].includes(url.hostname)) {
+          safeSource = url.href;
+        }
+      } catch { /* Invalid supplier media is rejected. */ }
+    }
+    if (!safeSource) return null;
+    return {
+      src: safeSource,
+      width: Math.max(1, Math.min(4_000, Number(image?.width) || 900)),
+      height: Math.max(1, Math.min(4_000, Number(image?.height) || 900)),
+      alt: cleanText(image?.alt || fallbackTitle, 220),
+      altAr: cleanText(image?.altAr || "", 220)
+    };
+  }
+
+  function tegiwaCatalogueCartSelection(product, variant = null, now = Date.now()) {
+    const observation = liveTegiwaCommerceObservation(product, now);
+    const sourceHandle = tegiwaSourceHandle(product);
+    if (!observation || !sourceHandle || cleanText(product?.supplier?.slug || "", 80).toLowerCase() !== "tegiwa") return null;
+    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+    if (hasVariants && !variant) return null;
+    const sku = cleanText(variant?.sku || (!hasVariants ? product.sku : "") || "", 120);
+    const currency = String(variant?.price?.currency || product?.price?.currency || "").toUpperCase();
+    const minimum = Number(variant ? variant?.price?.amount : product?.price?.min);
+    const maximum = Number(variant ? variant?.price?.amount : product?.price?.max);
+    const image = supplierCartImage(product?.images?.[0] || product?.image, product?.title);
+    if (!sku || currency !== "GBP" || !Number.isFinite(minimum) || minimum <= 0 || minimum > 10_000_000) return null;
+    if (!Number.isFinite(maximum) || Math.abs(maximum - minimum) > 0.001 || product?.price?.startingAt === true || !image) return null;
+    const optionTitle = cleanText(variant?.title || (!hasVariants ? "" : storeText().tegiwaProductDetails), 200);
+    const category = cleanText(product?.category || "", 160);
+    const fitmentConfirmationRequired = !/^(?:t-shirts?|clothing|apparel|merchandise)$/i.test(category);
+    const productId = cleanText(variant?.cartProductId || "", 100);
+    if (!/^tegiwa-live-[A-Za-z0-9_-]{24}$/.test(productId)) return null;
+    return {
+      kind: "supplier_catalogue",
+      id: `catalogue:tegiwa:${sourceHandle}:${sku}`,
+      productId,
+      sourceHandle,
+      supplier: { ...TEGIWA_GB_SUPPLIER },
+      sku,
+      variantId: sku,
+      title: cleanText(product?.title || sku, 300),
+      titleAr: cleanText(product?.titleAr || "", 300),
+      optionTitle,
+      brand: cleanText(product?.vendor || product?.supplier?.name || "Tegiwa", 160),
+      category,
+      image,
+      quantity: 1,
+      unitAmount: Math.round(minimum * 100) / 100,
+      currency,
+      observedAt: observation.observedAt,
+      quoteExpiresAt: observation.expiresAt,
+      availabilityObserved: variant ? variant.available === true : product?.availability?.code !== "out_of_stock",
+      availabilityConfirmationRequired: true,
+      fitmentConfirmationRequired,
+      purchaseMode: "availability-confirmation-required",
+      paymentEligible: false
+    };
+  }
+
+  function ecsCatalogueCartSelection(product, now = Date.now()) {
+    const commerce = product?.commerce;
+    const supplier = cleanText(product?.supplier?.slug || "", 80).toLowerCase();
+    const productId = cleanText(commerce?.productId || "", 180);
+    const sourceHandle = tegiwaProductHandle(product?.handle);
+    const sku = cleanText(commerce?.sku || "", 40);
+    const expiresAt = Date.parse(String(commerce?.expiresAt || ""));
+    const observedAtSource = String(commerce?.availability?.observedAt || "");
+    const observedAt = Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(observedAtSource)
+      ? `${observedAtSource}T00:00:00.000Z` : observedAtSource);
+    const amount = Number(commerce?.price?.amount);
+    const image = supplierCartImage(commerce?.image || product?.images?.[0] || product?.image, product?.title);
+    if (supplier !== "ecs" || commerce?.eligible !== true || commerce?.mode !== "confirmation-cart"
+        || commerce?.paymentAllowed !== false || !productId || !sourceHandle || productId !== sourceHandle
+        || !/^ES#\d{3,12}$/.test(sku) || String(commerce?.price?.currency || "") !== "USD"
+        || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(observedAt)
+        || !Number.isFinite(expiresAt) || now < observedAt - 5 * 60_000 || now > expiresAt || !image) return null;
+    return {
+      kind: "supplier_catalogue",
+      id: `catalogue:ecs:${productId}:${sku}`,
+      productId,
+      sourceHandle,
+      supplier: { ...ECS_US_SUPPLIER },
+      sku,
+      variantId: sku,
+      title: cleanText(commerce.title || product?.title || sku, 300),
+      titleAr: cleanText(product?.titleAr || "", 300),
+      optionTitle: "",
+      brand: cleanText(product?.vendor || "ECS Tuning", 160),
+      category: cleanText(product?.category || "", 160),
+      image,
+      quantity: 1,
+      unitAmount: Math.round(amount * 100) / 100,
+      currency: "USD",
+      observedAt: new Date(observedAt).toISOString(),
+      quoteExpiresAt: new Date(expiresAt).toISOString(),
+      availabilityObserved: true,
+      availabilityConfirmationRequired: true,
+      fitmentConfirmationRequired: true,
+      purchaseMode: "fitment-confirmation-required",
+      paymentEligible: false
+    };
+  }
+
+  function supplierCatalogueCartSelection(product, variant = null, now = Date.now()) {
+    const supplier = cleanText(product?.supplier?.slug || "", 80).toLowerCase();
+    if (supplier === "tegiwa") return tegiwaCatalogueCartSelection(product, variant, now);
+    if (supplier === "ecs" && !variant) return ecsCatalogueCartSelection(product, now);
+    return null;
+  }
+
+  function catalogueSourceHandle(product) {
+    return cleanText(product?.supplier?.slug || "", 80).toLowerCase() === "tegiwa"
+      ? tegiwaSourceHandle(product)
+      : tegiwaProductHandle(product?.handle);
+  }
+
+  function normalizeSupplierCatalogueCartItem(value, quantity = value?.quantity, now = Date.now()) {
+    if (!value || value.kind !== "supplier_catalogue") return null;
+    const supplierSlug = cleanText(value.supplier?.slug || "", 80).toLowerCase();
+    const sourceHandle = tegiwaProductHandle(value.sourceHandle);
+    const productId = cleanText(value.productId || "", 280);
+    const sku = cleanText(value.sku || "", 120);
+    const observedAt = Date.parse(String(value.observedAt || ""));
+    const unitAmount = Number(value.unitAmount);
+    const image = supplierCartImage(value.image, value.title);
+    const tegiwaItem = supplierSlug === "tegiwa" && /^tegiwa-live-[A-Za-z0-9_-]{24}$/.test(productId);
+    const ecsItem = supplierSlug === "ecs" && productId === sourceHandle && /^ecs-[a-z0-9_-]+$/.test(productId) && /^ES#\d{3,12}$/.test(sku);
+    if ((!tegiwaItem && !ecsItem) || !sourceHandle || !sku || !image) return null;
+    if (!Number.isFinite(observedAt) || now < observedAt - 5 * 60_000) return null;
+    if (ecsItem) {
+      const expiresAt = Date.parse(String(value.quoteExpiresAt || ""));
+      if (!Number.isFinite(expiresAt) || expiresAt < observedAt || now > expiresAt) return null;
+    } else if (now - observedAt > 7 * 86_400_000) return null;
+    const currency = String(value.currency || "").toUpperCase();
+    if (currency !== (tegiwaItem ? "GBP" : "USD") || !Number.isFinite(unitAmount) || unitAmount <= 0 || unitAmount > 10_000_000) return null;
+    const normalizedQuantity = Math.min(99, Math.max(1, Number.parseInt(quantity, 10) || 1));
+    return {
+      kind: "supplier_catalogue",
+      id: `catalogue:${supplierSlug}:${sourceHandle}:${sku}`,
+      productId,
+      sourceHandle,
+      supplier: { ...(tegiwaItem ? TEGIWA_GB_SUPPLIER : ECS_US_SUPPLIER) },
+      sku,
+      variantId: cleanText(value.variantId || sku, 120) || sku,
+      title: cleanText(value.title || sku, 300),
+      titleAr: cleanText(value.titleAr || "", 300),
+      optionTitle: cleanText(value.optionTitle || "", 200),
+      brand: cleanText(value.brand || "Tegiwa", 160),
+      category: cleanText(value.category || "", 160),
+      image,
+      quantity: normalizedQuantity,
+      unitAmount: Math.round(unitAmount * 100) / 100,
+      currency,
+      observedAt: new Date(observedAt).toISOString(),
+      quoteExpiresAt: cleanText(value.quoteExpiresAt || "", 40),
+      availabilityObserved: value.availabilityObserved === true,
+      availabilityConfirmationRequired: true,
+      fitmentConfirmationRequired: value.fitmentConfirmationRequired === true,
+      purchaseMode: ecsItem ? "fitment-confirmation-required" : "availability-confirmation-required",
+      paymentEligible: false
+    };
+  }
+
+  function registerCatalogueCartSelection(selection) {
+    const normalized = normalizeSupplierCatalogueCartItem(selection);
+    if (!normalized) return "";
+    state.catalogueCartSelections.delete(normalized.id);
+    state.catalogueCartSelections.set(normalized.id, normalized);
+    while (state.catalogueCartSelections.size > 100) {
+      state.catalogueCartSelections.delete(state.catalogueCartSelections.keys().next().value);
+    }
+    return normalized.id;
   }
 
   function canonicalCartItem(product, quantity = 1) {
@@ -263,7 +447,9 @@
     return {
       id: `product-${product.slug}`,
       productId: product.slug,
+      sourceHandle: policy.sourceHandle || product.slug,
       sku: policy.sku,
+      variantId: policy.variantId || policy.sku,
       quantity: Math.min(99, Math.max(1, Number.parseInt(quantity, 10) || 1)),
       unitAmount: policy.unitAmount,
       currency: policy.currency,
@@ -273,17 +459,36 @@
     };
   }
 
+  function cartLineIdentity(item) {
+    const supplier = cleanText(item?.supplier?.slug || "", 80).toLowerCase();
+    const handle = tegiwaProductHandle(item?.sourceHandle || item?.productId);
+    const sku = cleanText(item?.sku || "", 120).toUpperCase();
+    return supplier && handle && sku ? `${supplier}\u0000${handle}\u0000${sku}` : cleanText(item?.id || "", 600);
+  }
+
   function normalizeCart(items) {
     if (!Array.isArray(items)) return [];
     const normalized = new Map();
     for (const item of items) {
       if (!item || typeof item !== "object") continue;
+      const supplierCatalogueItem = normalizeSupplierCatalogueCartItem(item);
+      if (supplierCatalogueItem) {
+        const identity = cartLineIdentity(supplierCatalogueItem);
+        const previous = normalized.get(identity);
+        if (previous) normalized.set(identity, {
+          ...supplierCatalogueItem,
+          quantity: Math.min(99, previous.quantity + supplierCatalogueItem.quantity)
+        });
+        else if (normalized.size < MAX_CART_LINES) normalized.set(identity, supplierCatalogueItem);
+        continue;
+      }
       const product = commerceProduct(cleanText(item.productId || "", 180));
       const canonical = canonicalCartItem(product, item.quantity);
       if (!canonical) continue;
-      const previous = normalized.get(canonical.id);
+      const identity = cartLineIdentity(canonical);
+      const previous = normalized.get(identity);
       if (previous) previous.quantity = Math.min(99, previous.quantity + canonical.quantity);
-      else normalized.set(canonical.id, canonical);
+      else if (normalized.size < MAX_CART_LINES) normalized.set(identity, canonical);
     }
     return [...normalized.values()];
   }
@@ -311,6 +516,7 @@
     shippingRevalidationStatus: "idle",
     shippingRevalidationError: "",
     shippingAdminStatus: "idle",
+    catalogueCartSelections: new Map(),
     mobileOpen: false,
     lightbox: null,
     galleries: Object.create(null),
@@ -524,7 +730,7 @@
       tegiwaVariants: "الخيارات",
       tegiwaSelectedOption: "الخيار المحدد",
       tegiwaChooseVariant: "اختر خياراً لتحديث السعر والتوفر قبل الإضافة لطلب السعر.",
-      tegiwaChooseVariantForCart: "اختر المقاس أولاً لتأكيد رقم المنتج والسعر والتوفر قبل الإضافة إلى السلة.",
+      tegiwaChooseVariantForCart: "اختر الخيار أولاً لتأكيد رقم المنتج والسعر والتوفر قبل الإضافة إلى السلة.",
       tegiwaOnlinePrice: "سعر المورد بالعملة الأصلية",
       tegiwaChecked: "تم فحص المخزون",
       tegiwaPriceNote: "السعر معروض بعملة المورد الأصلية من دون تحويل تلقائي أو إضافة ضريبة. يؤكد Projx Racing السعر النهائي والشحن ورسوم الكويت قبل الطلب.",
@@ -696,7 +902,7 @@
       tegiwaVariants: "Options",
       tegiwaSelectedOption: "Selected option",
       tegiwaChooseVariant: "Select an option to update its price and availability before adding it to your quote.",
-      tegiwaChooseVariantForCart: "Select a size first so its SKU, price and availability are confirmed before adding it to the cart.",
+      tegiwaChooseVariantForCart: "Select an option first so its SKU, price and availability are checked before adding it to the cart.",
       tegiwaOnlinePrice: "Supplier price in original currency",
       tegiwaChecked: "Stock checked",
       tegiwaPriceNote: "The price is shown in the supplier's original currency with no automatic conversion or tax addition. Projx Racing confirms the final price, shipping and Kuwait duties before an order.",
@@ -722,8 +928,9 @@
       checkoutIntro: "هذه بيئة اختبار. لن يتم تحصيل أي مبلغ أو حجز أي مخزون.",
       stagingBadge: "اختبار فقط — لا توجد دفعة",
       addToCart: "أضف إلى السلة",
-      selectSizeAndAddToCart: "اختر المقاس ثم أضف إلى السلة",
+      selectSizeAndAddToCart: "اختر الخيارات ثم أضف إلى السلة",
       addedToCart: "تمت الإضافة إلى سلة الاختبار",
+      cartLimitReached: "يمكن أن تحتوي سلة الاختبار على 20 قطعة مختلفة كحد أقصى. أزل قطعة قبل إضافة قطعة أخرى.",
       fitmentRequired: "يتطلب تأكيد التوافق",
       availabilityRequired: "يتم تأكيد توفر المورد قبل اعتماد الطلب.",
       supplierReferencePrice: "سعر مرجعي من المورد",
@@ -834,8 +1041,9 @@
       checkoutIntro: "This is a test environment. No payment is collected and no stock is reserved.",
       stagingBadge: "TEST ONLY — NO PAYMENT",
       addToCart: "Add to cart",
-      selectSizeAndAddToCart: "Select a size and add to cart",
+      selectSizeAndAddToCart: "Choose options and add to cart",
       addedToCart: "Added to staging cart",
+      cartLimitReached: "The staging cart can contain up to 20 different items. Remove one before adding another.",
       fitmentRequired: "Fitment confirmation required",
       availabilityRequired: "Supplier availability is confirmed before any order is approved.",
       supplierReferencePrice: "Supplier reference price",
@@ -2833,6 +3041,19 @@
     };
   }
 
+  function catalogueProductMayEnterCart(item) {
+    const supplier = cleanText(item?.supplier?.slug || "", 80).toLowerCase();
+    const mode = cleanText(item?.commerce?.mode || "", 80).toLowerCase();
+    if (item?.commerce?.eligible === true && ["direct", "confirmation-cart", "availability-confirmation-required"].includes(mode)) return true;
+    if (supplier !== "tegiwa" || !tegiwaProductHandle(item?.handle)) return false;
+    const minimum = Number(item?.price?.min);
+    const maximum = Number(item?.price?.max);
+    return String(item?.price?.currency || "").toUpperCase() === "GBP"
+      && Number.isFinite(minimum) && minimum > 0
+      && Number.isFinite(maximum) && maximum >= minimum
+      && Boolean(item?.image?.src);
+  }
+
   function tegiwaProductCard(item) {
     item = localizedCatalogueProduct(item);
     const labels = storeText();
@@ -2861,7 +3082,7 @@
     const productLink = handle
       ? `<a class="btn btn-sm" href="${esc(tegiwaProductUrl(handle))}" data-action="view-tegiwa-product" data-handle="${esc(handle)}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`
       : `<a class="btn btn-sm" href="${esc(routeUrl("/parts"))}">${esc(labels.tegiwaViewProduct)}${icons.arrow}</a>`;
-    const cardAction = handle && tegiwaHandleSupportsDirectCart(handle)
+    const cardAction = handle && catalogueProductMayEnterCart(item)
       ? `<button class="icon-action is-cart-action" type="button" data-action="view-tegiwa-product" data-handle="${esc(handle)}" aria-label="${esc(`${commerceText().selectSizeAndAddToCart}: ${item.title}`)}">${icons.cart}</button>`
       : `<button class="icon-action" type="button" data-action="add-quote" data-id="${esc(quoteId)}" data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(item.title)}" data-sku="${esc(displayedSku)}" data-details="${esc(detail)}" aria-label="${esc(`${labels.addToQuote}: ${item.title}`)}">${icons.quote}</button>`;
     return `<article class="tegiwa-product-card" data-supplier="${esc(item.supplier?.slug || "tegiwa")}" data-currency="${esc(String(item.price?.currency || "").toUpperCase())}"><div class="tegiwa-product-media">${tegiwaImageMarkup(item.image, item.title)}<span class="tegiwa-stock-badge is-${esc(availability.className)}">${esc(availability.label)}</span>${fitmentBadge}</div><div class="tegiwa-product-body"><span class="mini-label">${esc(cardLabel)}</span><h3 dir="auto">${esc(item.title)}</h3><dl><div><dt>${esc(labels.supplier)}</dt><dd><bdi>${esc(supplier)}</bdi></dd></div>${vendor ? `<div><dt>${esc(U().common.brand)}</dt><dd><bdi>${esc(vendor)}</bdi></dd></div>` : ""}${displayedSku || skuOptionsLabel || skuFallbackLabel ? `<div><dt>${esc(labels.skuMpn)}</dt><dd>${displayedSku ? `<bdi dir="ltr">${esc(displayedSku)}</bdi>${skuTotalLabel ? `<small class="tegiwa-sku-count">${esc(skuTotalLabel)}</small>` : ""}` : `<span class="tegiwa-sku-options">${esc(skuOptionsLabel || skuFallbackLabel)}</span>`}</dd></div>` : ""}<div><dt>${esc(labels.price)}</dt><dd><bdi>${esc(tegiwaPriceLabel(item.price))}</bdi></dd></div>${item.availability?.leadTime ? `<div><dt>${esc(labels.availability)}</dt><dd><bdi>${esc(item.availability.leadTime)}</bdi></dd></div>` : ""}</dl>${checked ? `<small class="tegiwa-checked">${esc(labels.tegiwaChecked)}: <bdi>${esc(checked)}</bdi></small>` : ""}<div class="card-footer">${productLink}${cardAction}</div></div></article>`;
@@ -3639,10 +3860,11 @@
     }
     const cartButton = panel.querySelector("[data-tegiwa-variant-cart]");
     if (cartButton) {
-      const productId = cleanText(input.dataset.directCartProductId || "", 180);
-      if (available && productId) cartButton.dataset.productId = productId;
-      else delete cartButton.dataset.productId;
-      cartButton.disabled = !(available && productId);
+      const selectionKey = cleanText(input.dataset.catalogueCartKey || "", 600);
+      const selection = state.catalogueCartSelections.get(selectionKey);
+      if (selection) cartButton.dataset.catalogueCartKey = selectionKey;
+      else delete cartButton.dataset.catalogueCartKey;
+      cartButton.disabled = !selection;
       const optionTitle = input.dataset.variantTitle || storeText().tegiwaProductDetails;
       cartButton.setAttribute("aria-label", `${commerceText().addToCart}: ${cartButton.dataset.productTitle} — ${optionTitle}`);
       return;
@@ -3685,7 +3907,8 @@
       if (!payload.product) throw new Error("product_unavailable");
       if (state.tegiwaCatalog.detailController !== detailController || detailController.signal.aborted) return;
       applyCatalogueSource(result);
-      const product = localizedCatalogueProduct(payload.product);
+      const sourceProduct = payload.product;
+      const product = localizedCatalogueProduct(sourceProduct);
       const availability = tegiwaAvailability(product.availability);
       const checked = tegiwaCheckedLabel(product.availability?.checkedAt);
       const variantOptions = Array.isArray(product.variants) ? product.variants : [];
@@ -3710,29 +3933,37 @@
       const details = selectedVariant
         ? tegiwaVariantQuoteDetails(product, selectedVariant, selectedAvailability.label)
         : [baseDetails, `${labels.price}: ${selectedPrice}`, `${labels.availability}: ${selectedAvailability.label}`].filter(Boolean).join(" • ");
-      const directCartSupported = tegiwaHandleSupportsDirectCart(product.handle);
+      const sourceHandle = catalogueSourceHandle(sourceProduct);
+      for (const [key, selection] of state.catalogueCartSelections) {
+        if (selection?.sourceHandle === sourceHandle) state.catalogueCartSelections.delete(key);
+      }
+      const variantSelections = variantOptions.map(variant => supplierCatalogueCartSelection(sourceProduct, variant));
+      const productSelection = variantOptions.length ? null : supplierCatalogueCartSelection(sourceProduct);
+      const directCartSupported = variantOptions.length
+        ? variantSelections.some(Boolean)
+        : Boolean(productSelection);
       const variants = variantOptions.map((variant, index) => {
         const title = cleanText(variant.title || labels.tegiwaProductDetails, 200);
         const sku = cleanText(variant.sku || "", 120);
         const price = tegiwaPriceLabel(variant.price || {});
         const variantAvailability = tegiwaVariantAvailability(variant);
-        const directCartProductId = directCartSupported ? tegiwaVariantDirectCartProductId(product, variant) : "";
+        const catalogueCartKey = variantSelections[index] ? registerCatalogueCartSelection(variantSelections[index]) : "";
         const selected = index === selectedVariantIndex;
-        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-sku="${esc(sku)}" data-direct-cart-product-id="${esc(directCartProductId)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-allow-product-sku-fallback="${String(variantOptions.length === 1)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title" dir="auto">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong>${sku ? `<small class="tegiwa-variant-sku">${esc(U().common.sku)}: <bdi dir="ltr">${esc(sku)}</bdi></small>` : ""}<small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
+        return `<li><label class="tegiwa-variant-option${selected ? " is-selected" : ""}"><input class="sr-only" type="radio" name="tegiwa-variant-${esc(product.handle)}" value="${index + 1}" data-tegiwa-variant data-variant-key="${index + 1}" data-variant-title="${esc(title)}" data-variant-sku="${esc(sku)}" data-catalogue-cart-key="${esc(catalogueCartKey)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-allow-product-sku-fallback="${String(variantOptions.length === 1)}" data-variant-price="${esc(price)}" data-variant-availability="${esc(variantAvailability.label)}" data-variant-available="${String(Boolean(variant.available))}"${selected ? " checked" : ""}><span class="tegiwa-variant-title" dir="auto">${esc(title)}</span><strong><bdi>${esc(price)}</bdi></strong>${sku ? `<small class="tegiwa-variant-sku">${esc(U().common.sku)}: <bdi dir="ltr">${esc(sku)}</bdi></small>` : ""}<small class="${variant.available ? "is-available" : ""}">${esc(variantAvailability.label)}</small><span class="tegiwa-variant-check" aria-hidden="true">${icons.check}</span></label></li>`;
       }).join("");
       const availabilityText = [selectedAvailability.label, leadTime].filter(Boolean).join(" • ");
-      const selectedDirectCartProductId = selectedVariant && directCartSupported
-        ? tegiwaVariantDirectCartProductId(product, selectedVariant)
-        : "";
+      const selectedCatalogueCartKey = selectedVariant && variantSelections[selectedVariantIndex]
+        ? registerCatalogueCartSelection(variantSelections[selectedVariantIndex])
+        : (productSelection ? registerCatalogueCartSelection(productSelection) : "");
       const variantQuoteAttributes = `data-base-id="tegiwa-${esc(product.handle)}" data-base-details="${esc(baseDetails)}" data-product-title="${esc(product.title)}" data-product-sku="${esc(variantOptions.length === 1 ? productSku : "")}" data-sku="${esc(selectedSku)}" data-tegiwa-variant-quote`;
       const quoteButtonAttributes = variantOptions.length
         ? `${selectedVariant ? `data-id="tegiwa-${esc(product.handle)}-variant-${selectedVariantIndex + 1}" aria-label="${esc(`${labels.addToQuote}: ${product.title} — ${selectedVariant.title || labels.tegiwaProductDetails}`)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} ${variantQuoteAttributes}`
         : `data-id="tegiwa-${esc(product.handle)}" data-sku="${esc(productSku)}"`;
       const cartButtonAttributes = variantOptions.length
-        ? `${selectedDirectCartProductId ? `data-product-id="${esc(selectedDirectCartProductId)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} data-product-title="${esc(product.title)}" data-tegiwa-variant-cart`
-        : "disabled";
+        ? `${selectedCatalogueCartKey ? `data-catalogue-cart-key="${esc(selectedCatalogueCartKey)}"` : 'aria-describedby="tegiwa-variant-instruction" disabled'} data-product-title="${esc(product.title)}" data-tegiwa-variant-cart`
+        : `${selectedCatalogueCartKey ? `data-catalogue-cart-key="${esc(selectedCatalogueCartKey)}"` : "disabled"} data-product-title="${esc(product.title)}"`;
       const primaryAction = directCartSupported
-        ? `<button class="btn" type="button" data-action="add-cart" ${cartButtonAttributes}>${esc(commerceText().addToCart)}${icons.cart}</button>`
+        ? `<button class="btn" type="button" data-action="add-catalogue-cart" ${cartButtonAttributes}>${esc(commerceText().addToCart)}${icons.cart}</button>`
         : `<button class="btn" type="button" data-action="add-quote" ${quoteButtonAttributes} data-kind="${esc(`${supplier} Parts Product`)}" data-title="${esc(product.title)}" data-details="${esc(details)}">${esc(labels.addToQuote)}${icons.quote}</button>`;
       const variantInstruction = directCartSupported ? labels.tegiwaChooseVariantForCart : labels.tegiwaChooseVariant;
       const selectedFitmentConfidence = selectedVehicleFitmentConfidence(product);
@@ -4583,16 +4814,28 @@
 
   function cartItemMarkup(item, { editable = true } = {}) {
     const product = commerceProduct(item.productId);
-    if (!product) return "";
-    const local = localizedStoreProduct(product);
+    const supplierItem = product ? null : normalizeSupplierCatalogueCartItem(item);
+    if (!product && !supplierItem) return "";
+    const local = product ? localizedStoreProduct(product) : {
+      title: state.locale === "ar" && supplierItem.titleAr ? supplierItem.titleAr : supplierItem.title,
+      brand: supplierItem.brand || supplierItem.supplier.name,
+      images: [supplierItem.image]
+    };
     const policy = commercePolicy(product);
     const image = local.images?.[0];
     const lineTotal = Number(item.unitAmount) * Number(item.quantity);
     const notice = state.locale === "ar" ? policy?.noticeAr : policy?.notice;
-    const productHref = policy?.sourceHandle ? tegiwaProductUrl(policy.sourceHandle) : routeUrl(`/parts/${product.slug}`);
+    const supplierProductHandle = supplierItem?.supplier?.slug === "tegiwa"
+      ? tegiwaProductHandle(`tegiwa-${supplierItem.sourceHandle}`)
+      : tegiwaProductHandle(supplierItem?.sourceHandle);
+    const productHref = supplierItem
+      ? tegiwaProductUrl(supplierProductHandle)
+      : (policy?.sourceHandle ? tegiwaProductUrl(policy.sourceHandle) : routeUrl(`/parts/${product.slug}`));
+    const optionTitle = supplierItem?.optionTitle ? ` — ${supplierItem.optionTitle}` : "";
+    const confirmationRequired = item.fitmentConfirmationRequired || item.availabilityConfirmationRequired;
     return `<article class="commerce-line" data-cart-line="${esc(item.id)}">
       <a class="commerce-line-media" href="${esc(productHref)}"><img src="${esc(versionedAsset(image?.src || ""))}" width="${Number(image?.width) || 1}" height="${Number(image?.height) || 1}" alt="${esc(image?.alt || local.title)}" loading="lazy" decoding="async"></a>
-      <div class="commerce-line-copy"><span class="mini-label">${esc(local.brand)}</span><h2><a href="${esc(productHref)}">${esc(local.title)}</a></h2><p><bdi dir="ltr">${esc(item.sku)}</bdi></p>${item.fitmentConfirmationRequired ? `<div class="commerce-line-notice"><strong>${esc(commerceText().fitmentRequired)}</strong><span>${esc(notice || commerceText().availabilityRequired)}</span></div>` : ""}</div>
+      <div class="commerce-line-copy"><span class="mini-label">${esc(local.brand)}</span><h2><a href="${esc(productHref)}">${esc(`${local.title}${optionTitle}`)}</a></h2><p><bdi dir="ltr">${esc(item.sku)}</bdi></p>${confirmationRequired ? `<div class="commerce-line-notice"><strong>${esc(item.fitmentConfirmationRequired ? commerceText().fitmentRequired : commerceText().availabilityRequired)}</strong><span>${esc(notice || commerceText().availabilityRequired)}</span></div>` : ""}</div>
       <div class="commerce-line-price"><small>${esc(commerceText().supplierReferencePrice)}</small><bdi>${esc(commerceMoney(item.unitAmount, item.currency))} ${esc(commerceText().each)}</bdi><strong><bdi>${esc(commerceMoney(lineTotal, item.currency))}</bdi></strong></div>
       ${editable ? `<div class="commerce-line-actions"><div class="quote-quantity" aria-label="${esc(commerceText().quantity)}"><button type="button" data-action="adjust-cart-quantity" data-delta="-1" data-id="${esc(item.id)}" aria-label="${esc(`${storeText().decrease}: ${local.title}`)}">−</button><bdi>${Number(item.quantity)}</bdi><button type="button" data-action="adjust-cart-quantity" data-delta="1" data-id="${esc(item.id)}" aria-label="${esc(`${storeText().increase}: ${local.title}`)}">+</button></div><button class="commerce-remove" type="button" data-action="remove-cart" data-id="${esc(item.id)}">${icons.close}<span>${esc(commerceText().remove)}</span></button></div>` : `<div class="commerce-summary-quantity"><span>${esc(commerceText().quantity)}</span><strong><bdi>${Number(item.quantity)}</bdi></strong></div>`}
     </article>`;
@@ -4802,9 +5045,13 @@
         fulfilment: fields.get("fulfilment") === "workshop" ? "workshop" : "courier"
       },
       items: state.cart.map(item => ({
+        supplier: cleanText(item.supplier?.slug || "", 80).toLowerCase(),
         productId: item.productId,
+        sourceHandle: cleanText(item.sourceHandle || "", 255) || null,
         sku: item.sku,
-        quantity: item.quantity
+        quantity: item.quantity,
+        unitAmount: item.unitAmount,
+        currency: item.currency
       })),
       selectedOptions: shippingEstimateSelectionSnapshot(state.shippingEstimate)
     };
@@ -5355,8 +5602,72 @@
     window.setTimeout(() => form.elements.label.focus(), motionDelay());
   }
 
+  async function restoreSavedSupplierCatalogueItem(item, productCache, now = Date.now()) {
+    const supplier = cleanText(item?.supplier || "", 80).toLowerCase();
+    const sourceHandle = tegiwaProductHandle(item?.sourceHandle);
+    const productId = cleanText(item?.productId || "", 280);
+    const sku = cleanText(item?.sku || "", 120);
+    if (!sourceHandle || !productId || !sku || !["tegiwa", "ecs"].includes(supplier)) return null;
+    const requestHandle = supplier === "tegiwa"
+      ? `tegiwa-${sourceHandle}`
+      : sourceHandle;
+    const cacheKey = `${supplier}\u0000${requestHandle}`;
+    if (!productCache.has(cacheKey)) {
+      productCache.set(cacheKey, (async () => {
+        const result = await fetchPartsCatalogue(partsCatalogueParams({ handle: requestHandle }));
+        return result?.payload?.product || null;
+      })());
+    }
+    const product = await productCache.get(cacheKey);
+    if (!product || cleanText(product?.supplier?.slug || "", 80).toLowerCase() !== supplier) return null;
+    let variant = null;
+    if (supplier === "tegiwa") {
+      const variants = Array.isArray(product.variants) ? product.variants : [];
+      variant = variants.find(option => cleanText(option?.sku || "", 120) === sku) || null;
+      if (variants.length && !variant) return null;
+    }
+    const selection = supplierCatalogueCartSelection(product, variant, now);
+    const savedMinor = Number(item.unitAmount);
+    if (!selection || selection.productId !== productId || selection.sku !== sku
+        || selection.currency !== String(item.currency || "").toUpperCase()
+        || !Number.isSafeInteger(savedMinor) || savedMinor !== Math.round(selection.unitAmount * 100)) return null;
+    return normalizeSupplierCatalogueCartItem({ ...selection, quantity: item.quantity }, item.quantity, now);
+  }
+
+  async function restoreSavedAccountCartItems(savedItems) {
+    if (!Array.isArray(savedItems)) return [];
+    const restored = [];
+    const productCache = new Map();
+    for (const item of savedItems.slice(0, MAX_CART_LINES)) {
+      const direct = normalizeCart([{ productId: item?.productId, quantity: item?.quantity }])[0];
+      if (direct) {
+        restored.push(direct);
+        continue;
+      }
+      try {
+        const supplierItem = await restoreSavedSupplierCatalogueItem(item, productCache);
+        if (supplierItem) restored.push(supplierItem);
+      } catch { /* A supplier item is restored only after a current canonical catalogue check succeeds. */ }
+    }
+    return normalizeCart(restored);
+  }
+
   function accountCartItemsForApi() {
     return state.cart.map(item => {
+      const supplierItem = normalizeSupplierCatalogueCartItem(item);
+      if (supplierItem) return {
+        supplier: supplierItem.supplier.slug,
+        productId: supplierItem.productId,
+        sourceHandle: supplierItem.sourceHandle,
+        supplierProductId: null,
+        variantId: supplierItem.variantId,
+        sku: supplierItem.sku,
+        title: supplierItem.title,
+        optionTitle: supplierItem.optionTitle || null,
+        quantity: supplierItem.quantity,
+        unitAmount: Math.round(supplierItem.unitAmount * 100),
+        currency: supplierItem.currency
+      };
       const product = commerceProduct(item.productId);
       const policy = commercePolicy(product);
       const supplier = cleanText(policy?.supplier?.slug || "", 80).toLowerCase();
@@ -5364,6 +5675,7 @@
       return {
         supplier,
         productId: item.productId,
+        sourceHandle: cleanText(item.sourceHandle || "", 255) || null,
         supplierProductId: null,
         variantId: policy.variantId || policy.sku || null,
         sku: item.sku,
@@ -5483,9 +5795,11 @@
       if (restoreCartButton) {
         const status = root.querySelector(".account-cart-status");
         const savedItems = accountDashboardCache.cart?.cart?.items || [];
-        const restored = normalizeCart(savedItems.map(item => ({ productId: item.productId, quantity: item.quantity })));
+        restoreCartButton.disabled = true;
+        const restored = await restoreSavedAccountCartItems(savedItems);
         if (!restored.length) {
           setAccountActionStatus(status, text.cartRestoreError, true);
+          if (document.body.contains(restoreCartButton)) restoreCartButton.disabled = false;
           return;
         }
         state.cart = restored;
@@ -5494,6 +5808,7 @@
         showToast(text.cartRestored);
         const localCount = root.querySelector(".account-local-cart strong");
         if (localCount) localCount.textContent = `${cartCount()} ${cartCount() === 1 ? commerceText().item : commerceText().items}`;
+        if (document.body.contains(restoreCartButton)) restoreCartButton.disabled = false;
       }
     });
     root.addEventListener("submit", async event => {
@@ -5919,11 +6234,36 @@
       showToast(commerceText().priceExpired, product ? localizedStoreProduct(product).title : "");
       return;
     }
-    const existing = state.cart.find(entry => entry.id === item.id);
-    if (existing) existing.quantity = Math.min(99, Number(existing.quantity) + item.quantity);
+    const identity = cartLineIdentity(item);
+    const existing = state.cart.find(entry => cartLineIdentity(entry) === identity);
+    if (!existing && state.cart.length >= MAX_CART_LINES) {
+      showToast(commerceText().cartLimitReached, "");
+      return;
+    }
+    if (existing) Object.assign(existing, item, { quantity: Math.min(99, Number(existing.quantity) + item.quantity) });
     else state.cart.push(item);
     saveCart();
     showToast(commerceText().addedToCart, localizedStoreProduct(product).title);
+  }
+
+  function addCatalogueCart(selectionKey, quantity = 1) {
+    const selection = state.catalogueCartSelections.get(cleanText(selectionKey || "", 600));
+    const item = normalizeSupplierCatalogueCartItem(selection, quantity);
+    if (!item) {
+      showToast(commerceText().priceExpired, "");
+      return;
+    }
+    const identity = cartLineIdentity(item);
+    const existing = state.cart.find(entry => cartLineIdentity(entry) === identity);
+    if (!existing && state.cart.length >= MAX_CART_LINES) {
+      showToast(commerceText().cartLimitReached, "");
+      return;
+    }
+    if (existing) Object.assign(existing, item, { quantity: Math.min(99, Number(existing.quantity) + item.quantity) });
+    else state.cart.push(item);
+    saveCart();
+    const option = item.optionTitle ? ` — ${item.optionTitle}` : "";
+    showToast(commerceText().addedToCart, `${item.title}${option}`);
   }
 
   function randomCheckoutToken() {
@@ -5969,7 +6309,9 @@
       acknowledgement: fields.get("acknowledgement") === "on",
       consent: fields.get("consent") === "on",
       items: state.cart.map(item => ({
+        supplier: cleanText(item.supplier?.slug || "", 80).toLowerCase(),
         productId: item.productId,
+        sourceHandle: cleanText(item.sourceHandle || "", 255) || null,
         sku: item.sku,
         quantity: item.quantity,
         unitAmount: item.unitAmount,
@@ -6375,6 +6717,15 @@
     if (action === "add-cart") {
       const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-item-quantity]")?.value, 10) || 1;
       addCart(target.dataset.productId || "", quantity);
+      return;
+    }
+    if (action === "add-catalogue-cart") {
+      const quantity = Number.parseInt(target.closest(".store-detail-buy")?.querySelector("[data-item-quantity]")?.value, 10) || 1;
+      const selectedOption = target.closest(".tegiwa-detail-modal")?.querySelector("[data-tegiwa-variant]:checked");
+      const selectionKey = selectedOption
+        ? selectedOption.dataset.catalogueCartKey
+        : target.dataset.catalogueCartKey;
+      addCatalogueCart(selectionKey || "", quantity);
       return;
     }
     if (action === "adjust-cart-quantity") {

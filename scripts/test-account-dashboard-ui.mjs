@@ -36,7 +36,15 @@ test('address UI covers create, edit and delete with native validation', () => {
 test('saved-cart UI explicitly saves canonical items and restores only eligible products', () => {
   assert.match(app, /data-account-save-cart/);
   assert.match(app, /accountApi\("cart", \{ method: "PUT", body: \{ items \} \}\)/);
-  assert.match(app, /normalizeCart\(savedItems\.map/);
+  assert.match(app, /sourceHandle: supplierItem\.sourceHandle/);
+  assert.match(app, /restoreSavedAccountCartItems\(savedItems\)/);
+  assert.match(app, /supplierCatalogueCartSelection\(product, variant, now\)/);
+  assert.match(app, /savedMinor !== Math\.round\(selection\.unitAmount \* 100\)/);
+  assert.match(app, /const requestHandle = supplier === "tegiwa"\s*\? `tegiwa-\$\{sourceHandle\}`\s*:\s*sourceHandle/,
+    'Account restore must always add the public Tegiwa namespace to a raw saved source handle.');
+  const rawSupplierHandle = 'tegiwa-raw-prefix-product';
+  assert.equal(`tegiwa-${rawSupplierHandle}`, 'tegiwa-tegiwa-raw-prefix-product',
+    'A real raw handle that starts with tegiwa- still requires a separate public namespace prefix.');
   assert.match(app, /Wishlist sync is not enabled in this testing build/);
 });
 

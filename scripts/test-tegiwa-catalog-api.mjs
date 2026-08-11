@@ -753,14 +753,16 @@ assert.equal(detail.body.product.mpn, 'MFG-RACE-KIT');
 assert.equal(detail.body.product.mpnCount, 1);
 assert.deepEqual(detail.body.product.mpns, ['MFG-RACE-KIT']);
 assert.deepEqual(detail.body.product.variants, [
-  { title: 'Black', sku: 'RACE-BLK-01', mpn: null, available: true, price: { currency: 'GBP', amount: 125 } },
-  { title: 'No identifier', sku: null, mpn: null, available: false, price: { currency: 'GBP', amount: 125 } },
-  { title: 'Red', sku: 'RACE-RED-02', mpn: null, available: true, price: { currency: 'GBP', amount: 125 } },
-  { title: 'Unsafe', sku: null, mpn: null, available: true, price: { currency: 'GBP', amount: 125 } }
+  { title: 'Black', sku: 'RACE-BLK-01', mpn: null, available: true, price: { currency: 'GBP', amount: 125 }, cartProductId: null },
+  { title: 'No identifier', sku: null, mpn: null, available: false, price: { currency: 'GBP', amount: 125 }, cartProductId: null },
+  { title: 'Red', sku: 'RACE-RED-02', mpn: null, available: true, price: { currency: 'GBP', amount: 125 }, cartProductId: null },
+  { title: 'Unsafe', sku: null, mpn: null, available: true, price: { currency: 'GBP', amount: 125 }, cartProductId: null }
 ]);
 assert.deepEqual(detail.body.product.price, {
   currency: 'GBP', min: 125, max: 125, note: 'Tegiwa online price excluding UK VAT'
 });
+assert.equal(Object.hasOwn(detail.body.product, 'commerceObservation'), false,
+  'Sanitized titles, invalid SKUs, or non-canonical media must never receive live cart provenance.');
 assert.equal(detail.body.meta.catalogProductCount, 4_218);
 
 const serializedDetail = JSON.stringify(detail.body).toLowerCase();
@@ -792,8 +794,11 @@ const consistentPriceHandler = createTegiwaCatalogHandler({
     'https://cdn.shopify.com/s/files/1/0000/haltech-tps.jpg'
   ]],
   now: () => FIXED_NOW,
-  fetchImpl: async url => {
+  fetchImpl: async (url, options) => {
     assert.equal(url, `https://www.tegiwa.com/products/${consistentPriceHandle}.js?country=KW`);
+    assert.equal(options.cache, 'no-store');
+    assert.equal(options.redirect, 'error');
+    assert.ok(options.signal instanceof AbortSignal);
     return jsonResponse({
       handle: consistentPriceHandle,
       title: consistentPriceTitle,
@@ -811,15 +816,101 @@ assert.equal(consistentPriceBrowse.body.items.length, 1);
 assert.deepEqual(consistentPriceBrowse.body.items[0].price, consistentPrice);
 const consistentPriceDetail = await invoke(consistentPriceHandler, { query: { handle: consistentPriceHandle } });
 assert.equal(consistentPriceDetail.status, 200);
-assert.deepEqual(consistentPriceDetail.body.product.price, consistentPrice);
+assert.deepEqual(consistentPriceDetail.body.product.price, {
+  ...consistentPrice,
+  note: 'Tegiwa online price excluding UK VAT'
+});
 assert.deepEqual(consistentPriceDetail.body.product.variants, [{
   title: 'Default',
   sku: 'HT-011-012',
   mpn: null,
   available: true,
-  price: { currency: 'GBP', amount: 112.5 }
+  price: { currency: 'GBP', amount: 112.5 },
+  cartProductId: 'tegiwa-live-ImmKCZE_OV7268opZyPVB4nb'
 }]);
+assert.deepEqual(consistentPriceDetail.body.product.commerceObservation, {
+  source: 'official_tegiwa_product_detail',
+  observedAt: new Date(FIXED_NOW).toISOString(),
+  expiresAt: new Date(FIXED_NOW + 5 * 60_000).toISOString(),
+  priceCurrency: 'GBP',
+  availabilityMode: 'supplier_variant_boolean',
+  paymentEligible: false
+});
 assert.equal(consistentPriceBrowse.body.items[0].price.min, consistentPriceDetail.body.product.variants[0].price.amount);
+
+const duplicateVariantHandler = createTegiwaCatalogHandler({
+  stockIndex: {
+    version: 2,
+    checkedAt: '2026-08-03',
+    productCount: 1,
+    skuProductCount: 1,
+    availableProductCount: 1,
+    leadTimes: [''],
+    products: { [stockKeyForTitle('Duplicate Variant Product')]: [1000, 1000, 1, 0, ['DUP-SKU'], 1] }
+  },
+  sitemapManifest: ['https://www.tegiwa.com/sitemap_products_1.xml?from=1&to=1'],
+  catalogSummary: { version: 1, shardCount: 1, shardProductCounts: [1], productCount: 1 },
+  catalogLoader: async () => [['duplicate-variant-product', 'Duplicate Variant Product', '']],
+  fetchImpl: async () => jsonResponse({
+    handle: 'duplicate-variant-product',
+    title: 'Duplicate Variant Product',
+    vendor: 'Tegiwa',
+    type: 'Test',
+    featured_image: 'https://cdn.shopify.com/s/files/1/0000/duplicate.jpg',
+    variants: [
+      { title: 'First', available: true, price: 1000, sku: 'DUP-SKU' },
+      { title: 'Second', available: true, price: 1000, sku: 'DUP-SKU' }
+    ]
+  })
+});
+const duplicateVariantDetail = await invoke(duplicateVariantHandler, { query: { handle: 'duplicate-variant-product' } });
+assert.equal(duplicateVariantDetail.status, 200);
+assert.deepEqual(duplicateVariantDetail.body.product.variants.map(item => item.cartProductId), [null, null]);
+assert.equal(Object.hasOwn(duplicateVariantDetail.body.product, 'commerceObservation'), false);
+
+function cartGateDetailHandler(handle, payload) {
+  return createTegiwaCatalogHandler({
+    stockIndex: { ...stockIndex, products: {} },
+    now: () => FIXED_NOW,
+    fetchImpl: async () => jsonResponse({
+      handle,
+      title: 'Cart Gate Fixture',
+      featured_image: 'https://cdn.shopify.com/s/files/1/0000/cart-gate.jpg',
+      ...payload
+    })
+  });
+}
+
+const nonBooleanAvailabilityDetail = await invoke(cartGateDetailHandler('non-boolean-availability', {
+  variants: [{ title: 'Default', sku: 'BOOL-001', price: 1000, available: 'true' }]
+}), { query: { handle: 'non-boolean-availability' } });
+assert.equal(nonBooleanAvailabilityDetail.status, 200);
+assert.equal(nonBooleanAvailabilityDetail.body.product.variants[0].cartProductId, null);
+assert.equal(Object.hasOwn(nonBooleanAvailabilityDetail.body.product, 'commerceObservation'), false);
+
+for (const variantCount of [101, 513]) {
+  const handle = `variant-cap-${variantCount}`;
+  const cappedDetail = await invoke(cartGateDetailHandler(handle, {
+    variants: Array.from({ length: variantCount }, (_, index) => ({
+      title: `Option ${index + 1}`,
+      sku: `CAP-${variantCount}-${String(index + 1).padStart(3, '0')}`,
+      price: 1000 + index,
+      available: true
+    }))
+  }), { query: { handle } });
+  assert.equal(cappedDetail.status, 200);
+  assert.equal(cappedDetail.body.product.variants.length, variantCount);
+  assert.ok(cappedDetail.body.product.variants.every(variant => variant.cartProductId === null));
+  assert.equal(Object.hasOwn(cappedDetail.body.product, 'commerceObservation'), false);
+}
+
+const nonCanonicalCartImageDetail = await invoke(cartGateDetailHandler('non-canonical-cart-image', {
+  featured_image: 'https://www.tegiwa.com/cdn/non-canonical-cart-image.jpg',
+  variants: [{ title: 'Default', sku: 'IMAGE-001', price: 1000, available: true }]
+}), { query: { handle: 'non-canonical-cart-image' } });
+assert.equal(nonCanonicalCartImageDetail.status, 200);
+assert.equal(nonCanonicalCartImageDetail.body.product.variants[0].cartProductId, null);
+assert.equal(Object.hasOwn(nonCanonicalCartImageDetail.body.product, 'commerceObservation'), false);
 
 const staleSupplierFreshOfficialHandler = createTegiwaCatalogHandler({
   stockIndex: {
@@ -893,6 +984,16 @@ assert.deepEqual(upstreamFailure.body, {
   }
 });
 assert.equal(upstreamFailure.headers['cache-control'], 'no-store');
+
+const missingOfficialHandler = createTegiwaCatalogHandler({
+  stockIndex,
+  now: () => FIXED_NOW,
+  logger: { warn() {} },
+  fetchImpl: async () => new Response('Not found', { status: 404 })
+});
+const missingOfficial = await invoke(missingOfficialHandler, { query: { handle: 'missing-official-product' } });
+assert.equal(missingOfficial.status, 404);
+assert.equal(missingOfficial.body.error.code, 'product_not_found');
 
 const remoteStockTitle = 'Remote Stock Product';
 const remoteStockHandle = 'remote-stock-product';
