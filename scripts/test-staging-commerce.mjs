@@ -70,7 +70,7 @@ const tests = [
     && directProduct?.priceAmount === DIRECT_CART_PRODUCTS[directProduct.slug]?.unitAmount],
   ['approves all five and only the intended Tsuki size identities', tsukiPolicies.every(Boolean)
     && tsukiVariants.every((variant, index) => tsukiPolicies[index]?.productId === variant.productId
-      && tsukiPolicies[index]?.sourceHandle === 'tegiwa-2026-team-tegiwa-tsuki-t-shirt'
+      && tsukiPolicies[index]?.sourceHandle === '2026-team-tegiwa-tsuki-t-shirt'
       && tsukiPolicies[index]?.variantTitle === variant.variantTitle
       && tsukiPolicies[index]?.variantId === variant.sku
       && tsukiPolicies[index]?.sku === variant.sku)

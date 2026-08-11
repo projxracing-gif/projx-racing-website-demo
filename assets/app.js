@@ -50,7 +50,7 @@
   function tsukiTshirtPolicy(sizeSlug, sizeTitle, sizeTitleAr, sku) {
     return Object.freeze({
       productId: `tegiwa-2026-team-tegiwa-tsuki-t-shirt-${sizeSlug}`,
-      sourceHandle: "tegiwa-2026-team-tegiwa-tsuki-t-shirt",
+      sourceHandle: "2026-team-tegiwa-tsuki-t-shirt",
       title: `2026 Tegiwa Racing Tsuki Team T-Shirt — ${sizeTitle}`,
       titleAr: `قميص فريق تيجيوا ريسنغ تسوكي 2026 — ${sizeTitleAr}`,
       variantTitle: sizeTitle,
@@ -4828,9 +4828,12 @@
     const supplierProductHandle = supplierItem?.supplier?.slug === "tegiwa"
       ? tegiwaProductHandle(`tegiwa-${supplierItem.sourceHandle}`)
       : tegiwaProductHandle(supplierItem?.sourceHandle);
+    const directSupplierProductHandle = policy?.sourceHandle
+      ? tegiwaProductHandle(`tegiwa-${policy.sourceHandle}`)
+      : "";
     const productHref = supplierItem
       ? tegiwaProductUrl(supplierProductHandle)
-      : (policy?.sourceHandle ? tegiwaProductUrl(policy.sourceHandle) : routeUrl(`/parts/${product.slug}`));
+      : (directSupplierProductHandle ? tegiwaProductUrl(directSupplierProductHandle) : routeUrl(`/parts/${product.slug}`));
     const optionTitle = supplierItem?.optionTitle ? ` — ${supplierItem.optionTitle}` : "";
     const confirmationRequired = item.fitmentConfirmationRequired || item.availabilityConfirmationRequired;
     return `<article class="commerce-line" data-cart-line="${esc(item.id)}">

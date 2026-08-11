@@ -10,7 +10,7 @@ const TEGIWA_GB_SUPPLIER = Object.freeze({
 function tsukiTshirtPolicy(sizeSlug, sizeTitle, sku) {
   return Object.freeze({
     productId: `tegiwa-2026-team-tegiwa-tsuki-t-shirt-${sizeSlug}`,
-    sourceHandle: 'tegiwa-2026-team-tegiwa-tsuki-t-shirt',
+    sourceHandle: '2026-team-tegiwa-tsuki-t-shirt',
     title: `2026 Tegiwa Racing Tsuki Team T-Shirt — ${sizeTitle}`,
     variantTitle: sizeTitle,
     variantId: sku,

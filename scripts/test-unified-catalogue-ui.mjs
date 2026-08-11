@@ -266,6 +266,10 @@ for (const [size, sku] of [
   assert.match(app, new RegExp(`"tegiwa-2026-team-tegiwa-tsuki-t-shirt-${size}"[\\s\\S]{0,180}${sku}`),
     `The Tsuki T-shirt ${size.toUpperCase()} size must map to its exact supplier SKU.`);
 }
+assert.match(app, /sourceHandle: "2026-team-tegiwa-tsuki-t-shirt"/,
+  'Direct Tsuki policies must retain the exact raw supplier handle so live and legacy cart identities deduplicate.');
+assert.doesNotMatch(app, /sourceHandle: "tegiwa-2026-team-tegiwa-tsuki-t-shirt"/,
+  'The public Tegiwa route namespace must not be stored as the supplier source handle.');
 assert.match(app, /function commerceProduct\(slug\)[\s\S]*policy\?\.sourceHandle[\s\S]*images:\s*\[\{ \.\.\.policy\.image \}\]/,
   'Approved supplier variants must have a deterministic cart-product fallback for reload persistence.');
 assert.match(app, /function liveTegiwaCommerceObservation\(product, now = Date\.now\(\)\)[\s\S]*observation\.source !== "official_tegiwa_product_detail"[\s\S]*observation\.paymentEligible !== false[\s\S]*now >= expiresAt[\s\S]*priceCurrency \|\| ""\)\.toUpperCase\(\) !== "GBP"/,
@@ -284,6 +288,8 @@ assert.match(app, /if \(action === "add-catalogue-cart"\)[\s\S]{0,500}querySelec
   'The generic cart action must resolve the currently checked variant selection instead of trusting a stale button value.');
 assert.match(app, /const supplierProductHandle = supplierItem\?\.supplier\?\.slug === "tegiwa"[\s\S]{0,180}tegiwaProductHandle\(`tegiwa-\$\{supplierItem\.sourceHandle\}`\)[\s\S]{0,250}\? tegiwaProductUrl\(supplierProductHandle\)/,
   'Dynamic Tegiwa cart links must add exactly one public namespace prefix without changing ECS or direct-policy links.');
+assert.match(app, /const directSupplierProductHandle = policy\?\.sourceHandle[\s\S]{0,120}tegiwaProductHandle\(`tegiwa-\$\{policy\.sourceHandle\}`\)[\s\S]{0,220}tegiwaProductUrl\(directSupplierProductHandle\)/,
+  'Direct-policy Tegiwa cart links must namespace the exact raw supplier handle only when building the public route.');
 assert.match(app, /const MAX_CART_LINES = 20/);
 assert.match(app, /state\.cart\.length >= MAX_CART_LINES[\s\S]{0,160}cartLimitReached/,
   'The client cart must enforce the same 20-line bound as shipping and checkout.');
@@ -293,8 +299,6 @@ assert.match(app, /function cartLineIdentity\(item\)[\s\S]{0,260}tegiwaProductHa
   'Cart lines must deduplicate by the exact raw supplier handle and SKU without collapsing real tegiwa-* handles.');
 assert.doesNotMatch(app, /function cartLineIdentity\(item\)[\s\S]{0,320}rawHandle\.startsWith\("tegiwa-"\)/,
   'Raw supplier handles must never be mistaken for the separate public-route namespace.');
-assert.match(app, /policy\?\.sourceHandle \? tegiwaProductUrl\(policy\.sourceHandle\)/,
-  'Persisted supplier variants must link back to the real supplier product modal instead of a nonexistent static route.');
 assert.match(styles, /\.tegiwa-image-placeholder/);
 assert.match(styles, /\.tegiwa-stock-badge[^}]*max-width:\s*calc\(100% - 24px\)[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s,
   'Mobile stock badges must wrap inside their 12px card insets.');
