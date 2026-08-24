@@ -52,6 +52,9 @@ const directProduct = data.storeProducts.find(product => product.slug === static
 const ecsProducts = data.storeProducts.filter(product => product.provider === 'ECS Tuning');
 const quotePackages = data.parts.filter(product => product.catalogType === 'quote-package');
 const excludedReviewedProducts = data.storeProducts.filter(product => !policyIds.includes(product.slug));
+const refreshedStaticTegiwa = new Map(data.storeProducts
+  .filter(product => ['T-B58-SERVICE-KIT', 'T-GOPRO-MOUNT-YARISGR-LHD', 'T-4077023'].includes(product.sku))
+  .map(product => [product.sku, product]));
 const tsukiVariants = Object.freeze([
   { productId: 'tegiwa-2026-team-tegiwa-tsuki-t-shirt-s', variantTitle: 'Small', sku: 'T-TSUKITEAM-TSHIRT-S' },
   { productId: 'tegiwa-2026-team-tegiwa-tsuki-t-shirt-m', variantTitle: 'Medium', sku: 'T-TSUKITEAM-TSHIRT-M' },
@@ -68,6 +71,14 @@ const tests = [
   ['existing reviewed SKU and price still match its approved policy', directProduct?.sku === DIRECT_CART_PRODUCTS[directProduct.slug]?.sku
     && directProduct?.priceCurrency === DIRECT_CART_PRODUCTS[directProduct.slug]?.currency
     && directProduct?.priceAmount === DIRECT_CART_PRODUCTS[directProduct.slug]?.unitAmount],
+  ['reviewed Tegiwa products use the current dealer-feed price basis and evidence date',
+    refreshedStaticTegiwa.size === 3
+    && refreshedStaticTegiwa.get('T-B58-SERVICE-KIT')?.priceAmount === 98.30
+    && refreshedStaticTegiwa.get('T-GOPRO-MOUNT-YARISGR-LHD')?.priceAmount === 25.99
+    && refreshedStaticTegiwa.get('T-4077023')?.priceAmount === 120.83
+    && [...refreshedStaticTegiwa.values()].every(product => product.checkedAt === '2026-08-18'
+      && product.priceVerifiedAt === '2026-08-18'
+      && product.priceNote.includes('excluding UK VAT'))],
   ['approves all five and only the intended Tsuki size identities', tsukiPolicies.every(Boolean)
     && tsukiVariants.every((variant, index) => tsukiPolicies[index]?.productId === variant.productId
       && tsukiPolicies[index]?.sourceHandle === '2026-team-tegiwa-tsuki-t-shirt'
@@ -77,17 +88,18 @@ const tests = [
     && new Set(tsukiPolicies.map(item => item.productId)).size === 5
     && new Set(tsukiPolicies.map(item => item.sku)).size === 5],
   ['every approved Tsuki size uses the exact verified GBP 27.49 price', tsukiPolicies.every(item => item.currency === 'GBP'
-    && item.unitAmount === 27.49 && item.priceVerifiedAt === '2026-08-10' && item.maxPriceAgeDays === 7)],
-  ['approved Tsuki price evidence is fresh on 2026-08-10', tsukiPolicies.every(item => policyPriceIsFresh(item, Date.parse('2026-08-10T12:00:00.000Z')))],
-  ['approved Tsuki price evidence becomes stale after its bounded review window', tsukiPolicies.every(item => !policyPriceIsFresh(item, Date.parse('2026-08-18T00:00:00.000Z')))],
+    && item.unitAmount === 27.49 && item.priceVerifiedAt === '2026-08-18' && item.maxPriceAgeDays === 7)],
+  ['approved Tsuki price evidence is fresh on 2026-08-18', tsukiPolicies.every(item => policyPriceIsFresh(item, Date.parse('2026-08-18T12:00:00.000Z')))],
+  ['approved Tsuki price evidence becomes stale after its bounded review window', tsukiPolicies.every(item => !policyPriceIsFresh(item, Date.parse('2026-08-26T00:00:00.000Z')))],
   ['approved Tsuki sizes are direct purchases without a fitment gate', tsukiPolicies.every(item => item.purchaseMode === 'direct'
     && item.fitmentConfirmationRequired === false)],
+  ['approved Tsuki sizes preserve current variant-level stock evidence', tsukiPolicies.map(item => item.supplierAvailable).join(',') === 'true,false,true,true,true'],
   ['approved cart product has a verified supplier fulfilment profile', policy.supplier?.slug === 'tegiwa' && policy.supplier?.originCountryCode === 'GB'],
   ['client cart policy carries the same supplier origin profile', clientSource.includes('originCountryCode: "GB"') && clientSource.includes('originCountryName: "Great Britain"')],
   ['checkout requests a destination-aware shipping plan', clientSource.includes('const SHIPPING_ESTIMATE_ENDPOINT = "/api/shipping-estimate/"') && clientSource.includes('async function requestShippingEstimate(form)')],
   ['checkout receipt preserves the server shipping snapshot', clientSource.includes('shipping: safeShippingPlan(result.shipping)')],
   ['supplier shipment cards have responsive presentation styles', commerceStyles.includes('.shipping-planner') && commerceStyles.includes('.shipping-group') && commerceStyles.includes('.shipping-split-notice')],
-  ['keeps every ECS item in quotation flow', ecsProducts.length > 0 && ecsProducts.every(product => !policyIds.includes(product.slug))],
+  ['keeps ECS products out of the separate static direct-cart policy', ecsProducts.length > 0 && ecsProducts.every(product => !policyIds.includes(product.slug))],
   ['keeps every configured package in quotation flow', quotePackages.length > 0 && quotePackages.every(product => !policyIds.includes(product.slug))],
   ['keeps all non-approved reviewed products in quotation flow', excludedReviewedProducts.length === data.storeProducts.length - staticPolicyIds.length]
 ];
@@ -110,6 +122,26 @@ const basePayload = {
 const shippingPayload = {
   destination: { ...basePayload.destination, governorate: 'Al Asimah', area: 'Shuwaikh', phone: '+965 5555 0000' },
   items: basePayload.items.map(({ productId, sku, quantity }) => ({ productId, sku, quantity }))
+};
+const f8xNow = Date.parse('2026-08-21T12:00:00.000Z');
+const f8xCartItem = {
+  supplier: 'ecs',
+  productId: 'ecs-mad-s55-catted-downpipes',
+  sourceHandle: 'ecs-mad-s55-catted-downpipes',
+  sku: 'ES#4630139',
+  quantity: 1,
+  unitAmount: 569,
+  currency: 'USD'
+};
+const f8xShippingPayload = {
+  destination: shippingPayload.destination,
+  items: [{
+    supplier: f8xCartItem.supplier,
+    productId: f8xCartItem.productId,
+    sourceHandle: f8xCartItem.sourceHandle,
+    sku: f8xCartItem.sku,
+    quantity: f8xCartItem.quantity
+  }]
 };
 
 tests.push(['shipping estimator rejects non-POST methods', (await invokeShipping({ method: 'GET' })).status === 405]);
@@ -161,6 +193,39 @@ tests.push(['Tegiwa metadata exposes required calculation inputs without a propr
   && tegiwaShippingGroup?.requiredInputs?.includes('destination_postcode')
   && tegiwaShippingGroup?.consolidationPolicy === 'supplier_checkout_confirmation_required'
   && tegiwaShippingGroup?.dutiesMode === 'not_proven_included_confirm_exact_quote']);
+let f8xShippingEstimate;
+const shippingClock = Date.now;
+try {
+  Date.now = () => f8xNow;
+  f8xShippingEstimate = await invokeShipping({ body: f8xShippingPayload });
+} finally {
+  Date.now = shippingClock;
+}
+const f8xShippingGroup = f8xShippingEstimate.body.estimate?.groups?.[0];
+tests.push(['shipping accepts an indexed F8X cart action through the shared resolver', f8xShippingEstimate.status === 200
+  && f8xShippingEstimate.body.accepted === true
+  && f8xShippingGroup?.supplier === 'ecs'
+  && f8xShippingGroup?.originCountryCode === 'US'
+  && f8xShippingGroup?.items?.[0]?.productId === f8xCartItem.productId
+  && f8xShippingGroup?.items?.[0]?.sku === f8xCartItem.sku]);
+tests.push(['F8X shipping remains confirmation-only without verified package data or a live rate', f8xShippingEstimate.body.estimate?.status === 'confirmation_required'
+  && f8xShippingGroup?.rate === null
+  && f8xShippingGroup?.packageDataStatus === 'not_available'
+  && f8xShippingGroup?.blockingReasons?.includes('verified_package_data_required')]);
+let rejectedF8xShipping;
+try {
+  Date.now = () => f8xNow;
+  rejectedF8xShipping = await invokeShipping({
+    body: {
+      ...f8xShippingPayload,
+      items: [{ ...f8xShippingPayload.items[0], productId: 'ecs-es-129081', sourceHandle: 'ecs-es-129081', sku: 'ES#129081' }]
+    }
+  });
+} finally {
+  Date.now = shippingClock;
+}
+tests.push(['shipping rejects an F8X quarantine tombstone', rejectedF8xShipping.status === 409
+  && rejectedF8xShipping.body.error === 'invalid_or_stale_cart']);
 const mixedPlan = shippingPlan([
   { productId: 'tegiwa-test', sku: 'TEG-1', quantity: 1, supplier: { slug: 'tegiwa', name: 'Tegiwa', originCountryCode: 'GB', originCountryName: 'Great Britain' } },
   { productId: 'ecs-test', sku: 'ECS-1', quantity: 2, supplier: { slug: 'ecs', name: 'ECS Tuning', originCountryCode: 'US', originCountryName: 'United States' } }
@@ -218,7 +283,7 @@ tests.push(['rejects duplicate checkout lines for the same selected Tsuki size',
 const originalNow = Date.now;
 let staleCart;
 try {
-  const staleNow = Date.parse('2026-08-18T00:00:00.000Z');
+  const staleNow = Date.parse('2026-08-26T00:00:00.000Z');
   Date.now = () => staleNow;
   staleCart = await invoke({ body: { ...basePayload, idempotencyKey: 'i'.repeat(48), startedAt: staleNow - 5000 } });
 } finally {
@@ -243,6 +308,32 @@ tests.push(['defaults to a no-send simulated completion', simulated.status === 2
 tests.push(['staging order snapshots supplier shipping groups without inventing charges', simulated.body.shipping?.status === 'confirmation_required'
   && simulated.body.shipping?.groups?.[0]?.originCountryCode === 'GB'
   && simulated.body.shipping?.groups?.[0]?.rate === null]);
+let f8xSimulated;
+try {
+  Date.now = () => f8xNow;
+  f8xSimulated = await invoke({
+    body: {
+      ...basePayload,
+      idempotencyKey: 'j'.repeat(48),
+      startedAt: f8xNow - 5000,
+      vehicle: { description: '2020 BMW F82 M4', vin: '' },
+      items: [f8xCartItem]
+    }
+  });
+} finally {
+  Date.now = originalNow;
+}
+tests.push(['staging accepts the same authoritative F8X selection without enabling payment', f8xSimulated.status === 200
+  && f8xSimulated.body.accepted === true
+  && f8xSimulated.body.simulated === true
+  && f8xSimulated.body.paymentStatus === 'not_collected'
+  && f8xSimulated.body.stockReserved === false
+  && f8xSimulated.body.totals?.[0]?.currency === 'USD'
+  && f8xSimulated.body.totals?.[0]?.amount === 569]);
+tests.push(['staging gives the F8X item a truthful US confirmation-only shipping group', f8xSimulated.body.shipping?.status === 'confirmation_required'
+  && f8xSimulated.body.shipping?.groups?.[0]?.supplier === 'ecs'
+  && f8xSimulated.body.shipping?.groups?.[0]?.originCountryCode === 'US'
+  && f8xSimulated.body.shipping?.groups?.[0]?.rate === null]);
 
 process.env.STAGING_ORDER_EMAIL_DELIVERY_ENABLED = 'true';
 const blockedWithoutAntiAbuse = await invoke({ body: { ...basePayload, idempotencyKey: 'f'.repeat(48) } });

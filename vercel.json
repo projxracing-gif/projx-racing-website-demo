@@ -9,7 +9,8 @@
       "includeFiles": "api/data/**"
     },
     "api/parts-catalog.js": {
-      "includeFiles": "api/data/**"
+      "includeFiles": "api/data/**",
+      "memory": 2048
     }
   },
   "rewrites": [

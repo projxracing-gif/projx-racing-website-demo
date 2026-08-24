@@ -2,10 +2,16 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { selectReviewedEcsProducts } from './ecs-reviewed-catalog.js';
+import { mergeReviewedEcsProducts, selectReviewedEcsProducts } from './ecs-reviewed-catalog.js';
+import {
+  ECS_F8X_OVERLAY_SCOPE,
+  validateCanonicalEcsF8xOverlayProduct
+} from './ecs-f8x-overlay-contract.js';
 
 export const ECS_REVIEWED_SHARD_CURRENT_URL_ENV = 'ECS_REVIEWED_SHARD_CURRENT_URL';
 export const ECS_REVIEWED_SHARD_MANIFEST_SECRET_ENV = 'ECS_REVIEWED_SHARD_MANIFEST_SECRET';
+export const ECS_REVIEWED_F8X_OVERLAY_CURRENT_URL_ENV = 'ECS_REVIEWED_F8X_OVERLAY_CURRENT_URL';
+export const ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET_ENV = 'ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET';
 export const ECS_REVIEWED_SHARD_LOCAL_MANIFEST = fileURLToPath(
   new URL('../api/data/ecs-bmw-m3-reviewed/manifest.json', import.meta.url)
 );
@@ -14,6 +20,10 @@ const SCHEMA_VERSION = 1;
 const MANIFEST_KIND = 'ecs-reviewed-product-shard-manifest';
 const INDEX_KIND = 'ecs-reviewed-product-routing-index';
 const SHARD_KIND = 'ecs-reviewed-product-shard';
+export const ECS_REVIEWED_F8X_OVERLAY_MANIFEST_KIND = 'ecs-reviewed-f8x-overlay-shard-manifest';
+export const ECS_REVIEWED_F8X_OVERLAY_INDEX_KIND = 'ecs-reviewed-f8x-overlay-routing-index';
+export const ECS_REVIEWED_F8X_OVERLAY_SHARD_KIND = 'ecs-reviewed-f8x-overlay-product-shard';
+export const ECS_REVIEWED_F8X_OVERLAY_SCOPE = ECS_F8X_OVERLAY_SCOPE;
 const SHA256 = /^[a-f0-9]{64}$/;
 const RELEASE_ID = /^\d{8}T\d{9}Z-[a-f0-9]{16}$/;
 const SAFE_FILE = /^(?:index|shard-\d{5})\.json$/;
@@ -44,9 +54,55 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function stableJson(value) {
+  const seen = new Set();
+  function normalize(item) {
+    if (item === null || typeof item === 'string' || typeof item === 'boolean') return item;
+    if (typeof item === 'number') {
+      if (!Number.isFinite(item)) fail(503, 'invalid_reviewed_shard_release', 'Reviewed shard data contains a non-finite number.');
+      return item;
+    }
+    if (Array.isArray(item)) return item.map(entry => normalize(entry === undefined ? null : entry));
+    if (plainObject(item)) {
+      if (seen.has(item)) fail(503, 'invalid_reviewed_shard_release', 'Reviewed shard data contains a circular value.');
+      seen.add(item);
+      const result = {};
+      for (const key of Object.keys(item).sort()) {
+        const entry = item[key];
+        if (entry !== undefined && typeof entry !== 'function' && typeof entry !== 'symbol') {
+          result[key] = normalize(entry);
+        }
+      }
+      seen.delete(item);
+      return result;
+    }
+    fail(503, 'invalid_reviewed_shard_release', 'Reviewed shard data is not JSON-compatible.');
+  }
+  return JSON.stringify(normalize(value));
+}
+
+function dataSha256(value) {
+  return sha256(Buffer.from(stableJson(value), 'utf8'));
+}
+
 function plainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
     && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function immutableSnapshot(value, seen = new Map()) {
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return seen.get(value);
+  if (Array.isArray(value)) {
+    const result = [];
+    seen.set(value, result);
+    value.forEach(entry => result.push(immutableSnapshot(entry, seen)));
+    return Object.freeze(result);
+  }
+  const result = {};
+  seen.set(value, result);
+  for (const [key, entry] of Object.entries(value)) result[key] = immutableSnapshot(entry, seen);
+  return Object.freeze(result);
 }
 
 function exactKeys(value, expected) {
@@ -269,7 +325,7 @@ function validateIndex(index, manifest) {
     const position = `${route?.shardSequence}:${route?.shardProductIndex}`;
     const routeSections = new Set([
       ...(route?.filters?.categories || []), ...(route?.filters?.subcategories || [])
-    ].map(value => String(value).match(/^bmw-m3-(braking|engine|exterior|interior|performance|suspension|steering)(?:-|$)/)?.[1])
+    ].map(value => String(value).match(/^bmw-(?:m3|f8x|f80|f82|f83)-(braking|engine|exterior|interior|performance|suspension|steering)(?:-|$)/)?.[1])
       .filter(Boolean));
     if (!plainObject(route) || route.shardedRoute !== true || !/^ecs-es-\d{3,12}$/.test(route.publicKey)
       || !/^es-\d{3,12}$/.test(route.slug) || !safeInteger(route.shardSequence, 1, manifest.shards.length)
@@ -313,6 +369,204 @@ function validateShard(document, descriptor, manifest) {
   return Object.freeze(document.products.map(product => Object.freeze(product)));
 }
 
+function artifactFilename(value) {
+  try {
+    return new URL(value).pathname.split('/').at(-1) || '';
+  } catch {
+    return '';
+  }
+}
+
+function validateF8xOverlayScope(scope) {
+  if (!exactKeys(scope, ['kind', 'profiles', 'chassis', 'sections', 'complete'])
+    || scope.kind !== ECS_REVIEWED_F8X_OVERLAY_SCOPE.kind
+    || scope.complete !== true
+    || JSON.stringify(scope.profiles) !== JSON.stringify(ECS_REVIEWED_F8X_OVERLAY_SCOPE.profiles)
+    || JSON.stringify(scope.chassis) !== JSON.stringify(ECS_REVIEWED_F8X_OVERLAY_SCOPE.chassis)
+    || JSON.stringify(scope.sections) !== JSON.stringify(ECS_REVIEWED_F8X_OVERLAY_SCOPE.sections)) {
+    fail(503, 'invalid_f8x_overlay_manifest', 'The reviewed F8X overlay scope is invalid or incomplete.');
+  }
+}
+
+function validateF8xOverlayManifest(manifest, { remote, secret, nowValue }) {
+  const expectedKeys = [
+    'schemaVersion', 'supplier', 'kind', 'releaseId', 'generatedAt', 'publicationMode', 'complete',
+    'overlayScope', 'baseRelease', 'finalAudit', 'projectedQuarantine', 'counts', 'index', 'shards',
+    'contentSetSha256', ...(remote ? ['publishedAt', 'expiresAt', 'signature'] : [])
+  ];
+  const baseKeys = [
+    'releaseId', 'manifestSha256', 'contentSetSha256', 'artifactSetSha256',
+    'productCount', 'routeCount', 'shardCount', 'quarantinedIdentityCount', 'productsSha256'
+  ];
+  if (!exactKeys(manifest, expectedKeys) || manifest.schemaVersion !== SCHEMA_VERSION
+    || manifest.supplier !== 'ECS Tuning' || manifest.kind !== ECS_REVIEWED_F8X_OVERLAY_MANIFEST_KIND
+    || !RELEASE_ID.test(manifest.releaseId || '') || !canonicalTimestamp(manifest.generatedAt)
+    || manifest.publicationMode !== 'complete' || manifest.complete !== true
+    || !exactKeys(manifest.baseRelease, baseKeys)
+    || !RELEASE_ID.test(manifest.baseRelease.releaseId || '')
+    || !['manifestSha256', 'contentSetSha256', 'artifactSetSha256', 'productsSha256']
+      .every(field => SHA256.test(manifest.baseRelease[field] || ''))
+    || !safeInteger(manifest.baseRelease.productCount, 1, MAX_PRODUCTS)
+    || manifest.baseRelease.routeCount !== manifest.baseRelease.productCount
+    || !safeInteger(manifest.baseRelease.shardCount, 1, MAX_SHARDS)
+    || !safeInteger(manifest.baseRelease.quarantinedIdentityCount, 0, MAX_PRODUCTS)
+    || !exactKeys(manifest.finalAudit, ['kind', 'inputSetSha256', 'aggregateModuleSha256'])
+    || manifest.finalAudit.kind !== 'ecs-f8x-final-release-audit-verification'
+    || !SHA256.test(manifest.finalAudit.inputSetSha256 || '')
+    || !SHA256.test(manifest.finalAudit.aggregateModuleSha256 || '')
+    || !exactKeys(manifest.projectedQuarantine, ['identities', 'identityCount', 'identitiesSha256'])
+    || !Array.isArray(manifest.projectedQuarantine.identities)
+    || !safeInteger(manifest.projectedQuarantine.identityCount, 0, MAX_PRODUCTS)
+    || !SHA256.test(manifest.projectedQuarantine.identitiesSha256 || '')
+    || !exactKeys(manifest.counts, ['productCount', 'routeCount', 'shardCount', 'quarantinedIdentityCount'])
+    || !safeInteger(manifest.counts.productCount, 1, MAX_PRODUCTS)
+    || manifest.counts.routeCount !== manifest.counts.productCount
+    || !safeInteger(manifest.counts.shardCount, 1, MAX_SHARDS)
+    || manifest.counts.quarantinedIdentityCount !== manifest.projectedQuarantine.identityCount
+    || manifest.projectedQuarantine.identityCount < manifest.baseRelease.quarantinedIdentityCount
+    || !Array.isArray(manifest.shards) || manifest.shards.length !== manifest.counts.shardCount
+    || !SHA256.test(manifest.contentSetSha256 || '')) {
+    fail(503, 'invalid_f8x_overlay_manifest', 'The reviewed F8X overlay manifest has an invalid schema or binding.');
+  }
+  const quarantineIdentities = manifest.projectedQuarantine.identities;
+  if (quarantineIdentities.length !== manifest.projectedQuarantine.identityCount
+    || quarantineIdentities.some(value => typeof value !== 'string' || !/^\d{3,12}$/.test(value))
+    || new Set(quarantineIdentities).size !== quarantineIdentities.length
+    || JSON.stringify(quarantineIdentities) !== JSON.stringify([...quarantineIdentities].sort())
+    || dataSha256(quarantineIdentities) !== manifest.projectedQuarantine.identitiesSha256) {
+    fail(503, 'invalid_f8x_overlay_quarantine', 'The reviewed F8X overlay projected quarantine is stale or invalid.');
+  }
+  validateF8xOverlayScope(manifest.overlayScope);
+  if (remote) {
+    const publishedAt = Date.parse(canonicalTimestamp(manifest.publishedAt) || '');
+    const expiresAt = Date.parse(canonicalTimestamp(manifest.expiresAt) || '');
+    if (!verifyReviewedShardManifestSignature(manifest, secret) || !Number.isFinite(publishedAt)
+      || !Number.isFinite(expiresAt) || expiresAt <= publishedAt
+      || expiresAt - publishedAt > MAX_RELEASE_LIFETIME_MS || publishedAt > nowValue + MAX_FUTURE_SKEW_MS
+      || expiresAt <= nowValue) {
+      fail(503, 'invalid_f8x_overlay_manifest', 'The remote reviewed F8X overlay manifest is unsigned, expired or invalid.');
+    }
+  }
+  const expectedIndex = remote ? ['url', 'bytes', 'sha256'] : ['file', 'bytes', 'sha256'];
+  const expectedDescriptor = remote
+    ? ['sequence', 'url', 'productCount', 'bytes', 'sha256', 'firstKey', 'lastKey']
+    : ['sequence', 'file', 'productCount', 'bytes', 'sha256', 'firstKey', 'lastKey'];
+  const indexFile = remote ? artifactFilename(manifest.index?.url) : manifest.index?.file;
+  const hostname = remote ? safeRemoteUrl(manifest.index?.url)?.hostname.toLowerCase() : null;
+  if (!exactKeys(manifest.index, expectedIndex) || indexFile !== 'index.json'
+    || !safeInteger(manifest.index.bytes, 1, MAX_INDEX_BYTES) || !SHA256.test(manifest.index.sha256 || '')
+    || (remote ? !safeRemoteUrl(manifest.index.url) : manifest.index.file !== 'index.json')) {
+    fail(503, 'invalid_f8x_overlay_manifest', 'The reviewed F8X overlay routing-index descriptor is invalid.');
+  }
+  const filenames = new Set(['index.json']);
+  let productCount = 0;
+  manifest.shards.forEach((descriptor, index) => {
+    const filename = remote ? artifactFilename(descriptor?.url) : descriptor?.file;
+    if (!exactKeys(descriptor, expectedDescriptor) || descriptor.sequence !== index + 1
+      || !safeInteger(descriptor.productCount, 1, 250) || !safeInteger(descriptor.bytes, 1, MAX_SHARD_BYTES)
+      || !SHA256.test(descriptor.sha256 || '') || !/^ecs-es-\d{3,12}$/.test(descriptor.firstKey || '')
+      || !/^ecs-es-\d{3,12}$/.test(descriptor.lastKey || '') || !SAFE_FILE.test(filename)
+      || filenames.has(filename)
+      || (remote ? !safeRemoteUrl(descriptor.url, hostname) : descriptor.file !== filename)) {
+      fail(503, 'invalid_f8x_overlay_manifest', `Reviewed F8X overlay shard ${index + 1} has an invalid descriptor.`);
+    }
+    filenames.add(filename);
+    productCount += descriptor.productCount;
+  });
+  if (productCount !== manifest.counts.productCount) {
+    fail(503, 'invalid_f8x_overlay_manifest', 'Reviewed F8X overlay product counts do not reconcile.');
+  }
+  const contentSetSha256 = sha256(Buffer.from([
+    `index.json\0${manifest.index.bytes}\0${manifest.index.sha256}`,
+    ...manifest.shards.map(descriptor => {
+      const filename = remote ? artifactFilename(descriptor.url) : descriptor.file;
+      return `${filename}\0${descriptor.bytes}\0${descriptor.sha256}`;
+    })
+  ].join('\n'), 'utf8'));
+  if (contentSetSha256 !== manifest.contentSetSha256) {
+    fail(503, 'invalid_f8x_overlay_manifest', 'The reviewed F8X overlay artifact-set checksum is invalid.');
+  }
+  return manifest;
+}
+
+function validateF8xOverlayProductEvidence(product, label, { compact = false } = {}) {
+  try {
+    return validateCanonicalEcsF8xOverlayProduct(product, { compact, label });
+  } catch (error) {
+    fail(
+      503,
+      'invalid_f8x_overlay_scope',
+      error instanceof Error
+        ? error.message
+        : `${label} contains invalid canonical F8X overlay evidence.`
+    );
+  }
+}
+
+function validateF8xOverlayIndex(index, manifest) {
+  if (!exactKeys(index, ['schemaVersion', 'supplier', 'kind', 'releaseId', 'routeCount', 'routes'])
+    || index.schemaVersion !== SCHEMA_VERSION || index.supplier !== 'ECS Tuning'
+    || index.kind !== ECS_REVIEWED_F8X_OVERLAY_INDEX_KIND || index.releaseId !== manifest.releaseId
+    || index.routeCount !== manifest.counts.routeCount || !Array.isArray(index.routes)
+    || index.routes.length !== index.routeCount) {
+    fail(503, 'invalid_f8x_overlay_index', 'The reviewed F8X overlay routing index is invalid.');
+  }
+  const identities = new Set();
+  const positions = new Set();
+  const positionCounts = new Map();
+  for (const route of index.routes) {
+    const { identity } = validateF8xOverlayProductEvidence(
+      route,
+      'The reviewed F8X overlay route',
+      { compact: true }
+    );
+    const position = `${route?.shardSequence}:${route?.shardProductIndex}`;
+    if (route.shardedRoute !== true || identities.has(identity)
+      || route.publicKey !== `ecs-es-${identity}` || route.slug !== `es-${identity}`
+      || !safeInteger(route.shardSequence, 1, manifest.shards.length)
+      || !safeInteger(route.shardProductIndex, 0, 249) || positions.has(position)
+      || route.shardProductIndex >= manifest.shards[route.shardSequence - 1].productCount) {
+      fail(503, 'invalid_f8x_overlay_index', 'The reviewed F8X overlay index contains an invalid or duplicate route.');
+    }
+    identities.add(identity);
+    positions.add(position);
+    positionCounts.set(route.shardSequence, (positionCounts.get(route.shardSequence) || 0) + 1);
+  }
+  for (const descriptor of manifest.shards) {
+    if (positionCounts.get(descriptor.sequence) !== descriptor.productCount) {
+      fail(503, 'invalid_f8x_overlay_index', `The reviewed F8X overlay routes for shard ${descriptor.sequence} do not reconcile.`);
+    }
+  }
+  return Object.freeze(index.routes.map(route => Object.freeze(route)));
+}
+
+function validateF8xOverlayShard(document, descriptor, manifest) {
+  if (!exactKeys(document, ['schemaVersion', 'supplier', 'kind', 'releaseId', 'sequence', 'productCount', 'products'])
+    || document.schemaVersion !== SCHEMA_VERSION || document.supplier !== 'ECS Tuning'
+    || document.kind !== ECS_REVIEWED_F8X_OVERLAY_SHARD_KIND || document.releaseId !== manifest.releaseId
+    || document.sequence !== descriptor.sequence || document.productCount !== descriptor.productCount
+    || !Array.isArray(document.products) || document.products.length !== descriptor.productCount) {
+    fail(503, 'invalid_f8x_overlay_shard', `Reviewed F8X overlay shard ${descriptor.sequence} is invalid.`);
+  }
+  const identities = new Set();
+  for (const product of document.products) {
+    const { identity } = validateF8xOverlayProductEvidence(
+      product,
+      `Reviewed F8X overlay shard ${descriptor.sequence}`
+    );
+    if (identities.has(identity)
+      || product.publicKey !== `ecs-es-${identity}` || product.slug !== `es-${identity}`) {
+      fail(503, 'invalid_f8x_overlay_shard', `Reviewed F8X overlay shard ${descriptor.sequence} contains an invalid product.`);
+    }
+    identities.add(identity);
+  }
+  if (document.products[0].publicKey !== descriptor.firstKey
+    || document.products.at(-1).publicKey !== descriptor.lastKey) {
+    fail(503, 'invalid_f8x_overlay_shard', `Reviewed F8X overlay shard ${descriptor.sequence} does not match its key bounds.`);
+  }
+  return Object.freeze(document.products.map(product => Object.freeze(product)));
+}
+
 function selectionRequest(request) {
   if (request.mode !== 'suggest') return request;
   return {
@@ -322,10 +576,143 @@ function selectionRequest(request) {
   };
 }
 
+function hasStructuredFitmentEvidence(fitment) {
+  return Boolean(fitment?.generation || fitment?.yearFrom || fitment?.yearTo
+    || fitment?.chassis?.length || fitment?.engines?.length || fitment?.drivetrains?.length);
+}
+
+function overlayEvidence(existing, addition) {
+  const overlay = { ...addition };
+  for (const field of [
+    'category', 'categoryAr', 'categorySlug',
+    'subcategory', 'subcategoryAr', 'subcategorySlug'
+  ]) {
+    if (Object.hasOwn(existing || {}, field)) overlay[field] = existing[field];
+  }
+  if (Array.isArray(addition?.fitments)) {
+    // The old model-wide shards contain intentionally broad BMW M3 placeholders.
+    // They were never added to overlapping curated records. Preserve that legacy
+    // behavior while allowing a new overlay's chassis/engine/year evidence through.
+    overlay.fitments = addition.fitments.filter(hasStructuredFitmentEvidence);
+  }
+  return overlay;
+}
+
+const F8X_FITMENT_CONFIRMATION_NOTE = 'Fitment confirmation required before order.';
+const F8X_FITMENT_CONFIRMATION_NOTE_AR = '\u064a\u062c\u0628 \u062a\u0623\u0643\u064a\u062f \u062a\u0648\u0627\u0641\u0642 \u0627\u0644\u0642\u0637\u0639\u0629 \u0645\u0639 \u0627\u0644\u0633\u064a\u0627\u0631\u0629 \u0642\u0628\u0644 \u0627\u0644\u0637\u0644\u0628.';
+
+function sameF8xProfileFitment(fitment, canonicalFitment) {
+  if (!fitment || !canonicalFitment) return false;
+  if (fitment.generation === canonicalFitment.generation) return true;
+  const chassis = new Set(Array.isArray(canonicalFitment.chassis) ? canonicalFitment.chassis : []);
+  return Array.isArray(fitment.chassis) && fitment.chassis.some(value => chassis.has(value));
+}
+
+function canonicalPossibleF8xFitment(fitment) {
+  return {
+    make: fitment.make,
+    model: fitment.model,
+    models: [...fitment.models],
+    trim: null,
+    generation: fitment.generation,
+    chassis: [...fitment.chassis],
+    yearFrom: null,
+    yearTo: null,
+    engines: [...fitment.engines],
+    drivetrains: [],
+    options: [],
+    confidence: 'possible',
+    evidence: 'ecs-exact-f8x-vehicle-category',
+    note: F8X_FITMENT_CONFIRMATION_NOTE,
+    noteAr: F8X_FITMENT_CONFIRMATION_NOTE_AR
+  };
+}
+
+function scrubAvailabilityObservations(observations) {
+  if (!Array.isArray(observations)) return observations;
+  return observations.map(observation => {
+    if (!plainObject(observation)) return observation;
+    const result = { ...observation };
+    for (const field of ['availability', 'availabilityText', 'observedAvailability', 'stockStatus']) {
+      delete result[field];
+    }
+    return result;
+  });
+}
+
+function enforceF8xManualConfirmation(product, canonicalProduct = product) {
+  const result = { ...product };
+  result.fitmentStatus = 'supplier-vehicle-category-confirm';
+  result.fitmentConfidence = 'possible';
+  result.stockPolicy = 'manual-confirm';
+  result.availabilityCode = 'check_availability';
+  result.purchaseMode = 'fitment-confirmation-required';
+  result.status = 'Supplier status \u2014 confirmation required';
+  result.statusAr = '\u062d\u0627\u0644\u0629 \u0627\u0644\u0645\u0648\u0631\u062f \u2014 \u064a\u0644\u0632\u0645 \u0627\u0644\u062a\u0623\u0643\u064a\u062f';
+  result.observedAvailability = null;
+  result.observedAvailabilityAr = null;
+  result.availabilityNote = 'Availability confirmation required. No live stock promise is published.';
+  result.availabilityNoteAr = '\u064a\u0644\u0632\u0645 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062a\u0648\u0641\u0631. \u0644\u0627 \u064a\u0648\u062c\u062f \u0648\u0639\u062f \u0645\u0646\u0634\u0648\u0631 \u0628\u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u0627\u0644\u0645\u0628\u0627\u0634\u0631.';
+  result.stockNote = result.availabilityNote;
+  result.stockNoteAr = result.availabilityNoteAr;
+  for (const field of ['availabilityText', 'stockStatus', 'stockQuantity', 'availableQuantity', 'inStock']) {
+    delete result[field];
+  }
+  result.sourceObservations = scrubAvailabilityObservations(result.sourceObservations);
+  result.filters = {
+    ...(plainObject(result.filters) ? result.filters : {}),
+    availability: ['confirmation-required'],
+    fitment: ['possible']
+  };
+  const canonicalFitments = Array.isArray(canonicalProduct?.fitments)
+    ? canonicalProduct.fitments
+    : [];
+  if (Array.isArray(result.fitments)) {
+    const unrelated = result.fitments.filter(fitment => !canonicalFitments.some(canonicalFitment => (
+      sameF8xProfileFitment(fitment, canonicalFitment)
+    ))).map(fitment => ({
+      ...fitment,
+      confidence: 'possible',
+      note: F8X_FITMENT_CONFIRMATION_NOTE,
+      noteAr: F8X_FITMENT_CONFIRMATION_NOTE_AR
+    }));
+    result.fitments = [
+      ...unrelated,
+      ...canonicalFitments.map(canonicalPossibleF8xFitment)
+    ];
+  }
+  return result;
+}
+
+function f8xManualConfirmationEvidence(existing, addition) {
+  return enforceF8xManualConfirmation(overlayEvidence(existing, addition), addition);
+}
+
+function localManifestBufferForBinding(manifest, manifestBuffer, remote) {
+  if (!remote) return manifestBuffer;
+  const { publishedAt, expiresAt, signature, ...local } = manifest;
+  local.index = {
+    file: artifactFilename(manifest.index.url),
+    bytes: manifest.index.bytes,
+    sha256: manifest.index.sha256
+  };
+  local.shards = manifest.shards.map(descriptor => ({
+    sequence: descriptor.sequence,
+    file: artifactFilename(descriptor.url),
+    productCount: descriptor.productCount,
+    bytes: descriptor.bytes,
+    sha256: descriptor.sha256,
+    firstKey: descriptor.firstKey,
+    lastKey: descriptor.lastKey
+  }));
+  return Buffer.from(`${JSON.stringify(local, null, 2)}\n`, 'utf8');
+}
+
 export function createReviewedShardCatalogueProvider({
   localManifestPath = null,
   currentUrl = null,
   manifestSecret = null,
+  f8xOverlay = null,
   allowIncompleteLocal = true,
   fetchImpl = globalThis.fetch,
   readFileImpl = readFile,
@@ -345,12 +732,71 @@ export function createReviewedShardCatalogueProvider({
     || !safeInteger(shardCacheEntries, 1, 64)) {
     fail(500, 'invalid_reviewed_shard_configuration', 'The reviewed shard provider options are invalid.');
   }
+  if (f8xOverlay !== null && !plainObject(f8xOverlay)) {
+    fail(500, 'invalid_f8x_overlay_configuration', 'The reviewed F8X overlay configuration is invalid.');
+  }
+  const overlayCurrentUrlValue = f8xOverlay?.currentUrl || null;
+  const overlayLocalManifestPath = f8xOverlay?.localManifestPath || null;
+  const overlayManifestSecret = f8xOverlay?.manifestSecret || null;
+  const overlayRemoteUrl = overlayCurrentUrlValue ? safeRemoteUrl(overlayCurrentUrlValue) : null;
+  const overlayConfigured = Boolean(overlayCurrentUrlValue || overlayLocalManifestPath);
+  if ((f8xOverlay
+      && (!overlayConfigured || Boolean(overlayCurrentUrlValue) === Boolean(overlayLocalManifestPath)))
+    || (overlayCurrentUrlValue && (!overlayRemoteUrl || !validSecret(overlayManifestSecret)))) {
+    fail(500, 'invalid_f8x_overlay_configuration', 'The reviewed F8X overlay requires exactly one valid local or signed remote manifest.');
+  }
   const remote = Boolean(remoteUrl);
   const localRoot = localManifestPath ? path.dirname(path.resolve(localManifestPath)) : null;
+  const overlayRemote = Boolean(overlayRemoteUrl);
+  const overlayLocalRoot = overlayLocalManifestPath
+    ? path.dirname(path.resolve(overlayLocalManifestPath)) : null;
   let releasePromise = null;
+  let releaseExpiresAt = null;
+  let baseBindingPromise = null;
+  let overlayReleasePromise = null;
+  let overlayReleaseExpiresAt = null;
+  let routePlanCache = new WeakMap();
+  let f8xRuntimePlanCache = new WeakMap();
   const shardCache = new Map();
   const shardPromises = new Map();
+  const overlayShardCache = new Map();
+  const overlayShardPromises = new Map();
   let shardReadCount = 0;
+  let overlayShardReadCount = 0;
+
+  function currentTime(code, label) {
+    const value = Number(now());
+    if (!Number.isFinite(value)) fail(500, code, `${label} clock is invalid.`);
+    return value;
+  }
+
+  function resetOverlayReleaseCache(expectedPromise = null) {
+    if (expectedPromise && overlayReleasePromise !== expectedPromise) return;
+    overlayReleasePromise = null;
+    overlayReleaseExpiresAt = null;
+    f8xRuntimePlanCache = new WeakMap();
+    overlayShardCache.clear();
+    overlayShardPromises.clear();
+  }
+
+  function resetBaseBindingCache(expectedPromise = null) {
+    if (expectedPromise && baseBindingPromise !== expectedPromise) return;
+    baseBindingPromise = null;
+    f8xRuntimePlanCache = new WeakMap();
+    resetOverlayReleaseCache();
+  }
+
+  function resetBaseReleaseCache(expectedPromise = null) {
+    if (expectedPromise && releasePromise !== expectedPromise) return;
+    releasePromise = null;
+    releaseExpiresAt = null;
+    baseBindingPromise = null;
+    routePlanCache = new WeakMap();
+    f8xRuntimePlanCache = new WeakMap();
+    shardCache.clear();
+    shardPromises.clear();
+    resetOverlayReleaseCache();
+  }
 
   async function artifactBuffer(descriptor, maximumBytes, label) {
     const buffer = remote
@@ -363,26 +809,51 @@ export function createReviewedShardCatalogueProvider({
   }
 
   async function loadRelease() {
+    const requestedAt = currentTime(
+      'invalid_reviewed_shard_configuration',
+      'The reviewed shard'
+    );
+    if (remote && releaseExpiresAt !== null && releaseExpiresAt <= requestedAt) {
+      resetBaseReleaseCache();
+    }
     if (!releasePromise) {
-      releasePromise = (async () => {
-        const nowValue = Number(now());
-        if (!Number.isFinite(nowValue)) fail(500, 'invalid_reviewed_shard_configuration', 'The reviewed shard clock is invalid.');
+      const promise = (async () => {
         const manifestBuffer = remote
           ? await readRemoteBounded(fetchImpl, remoteUrl, MAX_MANIFEST_BYTES, timeoutMs, 'The reviewed shard manifest')
           : await readLocalBounded(path.resolve(localManifestPath), MAX_MANIFEST_BYTES, readFileImpl);
+        const nowValue = remote
+          ? currentTime('invalid_reviewed_shard_configuration', 'The reviewed shard')
+          : requestedAt;
         const manifest = validateManifest(
           parseJson(manifestBuffer, 'invalid_reviewed_shard_manifest', 'The reviewed shard manifest'),
           { remote, secret: manifestSecret, nowValue, allowIncomplete: remote ? false : allowIncompleteLocal }
         );
+        releaseExpiresAt = remote ? Date.parse(manifest.expiresAt) : null;
         const indexBuffer = await artifactBuffer(manifest.index, MAX_INDEX_BYTES, 'The reviewed product routing index');
         const routes = validateIndex(
           parseJson(indexBuffer, 'invalid_reviewed_shard_index', 'The reviewed product routing index'),
           manifest
         );
-        return Object.freeze({ manifest: Object.freeze(manifest), routes });
+        return Object.freeze({
+          manifest: Object.freeze(manifest),
+          routes,
+          manifestBuffer,
+          bindingManifestBuffer: localManifestBufferForBinding(manifest, manifestBuffer, remote)
+        });
       })();
+      releasePromise = promise;
+      promise.catch(() => resetBaseReleaseCache(promise));
     }
-    return releasePromise;
+    const promise = releasePromise;
+    const release = await promise;
+    if (remote && Date.parse(release.manifest.expiresAt) <= currentTime(
+      'invalid_reviewed_shard_configuration',
+      'The reviewed shard'
+    )) {
+      resetBaseReleaseCache(promise);
+      fail(503, 'invalid_reviewed_shard_manifest', 'The remote reviewed shard manifest is expired.');
+    }
+    return release;
   }
 
   function rememberShard(key, products) {
@@ -416,19 +887,179 @@ export function createReviewedShardCatalogueProvider({
     return shardPromises.get(key);
   }
 
-  function statusFor(release, baseProducts, extraRoutes) {
+  async function loadBaseBinding(release) {
+    if (!baseBindingPromise) {
+      const promise = (async () => {
+        const productsByShard = await Promise.all(release.manifest.shards.map(descriptor => (
+          loadShard(release, descriptor.sequence)
+        )));
+        const products = productsByShard.flat();
+        for (const route of release.routes) {
+          const product = productsByShard[route.shardSequence - 1]?.[route.shardProductIndex];
+          if (!product || product.publicKey !== route.publicKey || product.slug !== route.slug) {
+            fail(503, 'invalid_reviewed_product_shard', 'A reviewed base product does not match its public route.');
+          }
+        }
+        const descriptors = [
+          {
+            file: 'manifest.json',
+            bytes: release.bindingManifestBuffer.length,
+            sha256: sha256(release.bindingManifestBuffer)
+          },
+          { file: 'index.json', bytes: release.manifest.index.bytes, sha256: release.manifest.index.sha256 },
+          ...release.manifest.shards.map(descriptor => ({
+            file: remote ? artifactFilename(descriptor.url) : descriptor.file,
+            bytes: descriptor.bytes,
+            sha256: descriptor.sha256
+          }))
+        ].sort((left, right) => left.file.localeCompare(right.file, 'en'));
+        const binding = Object.freeze({
+          releaseId: release.manifest.releaseId,
+          manifestSha256: sha256(release.bindingManifestBuffer),
+          contentSetSha256: release.manifest.contentSetSha256,
+          artifactSetSha256: dataSha256(descriptors),
+          productCount: products.length,
+          routeCount: release.manifest.counts.routeCount,
+          shardCount: release.manifest.counts.shardCount,
+          quarantinedIdentityCount: release.manifest.counts.quarantinedIdentityCount,
+          productsSha256: dataSha256(products)
+        });
+        return Object.freeze({ binding, products: Object.freeze(products) });
+      })();
+      baseBindingPromise = promise;
+      promise.catch(() => resetBaseBindingCache(promise));
+    }
+    return baseBindingPromise;
+  }
+
+  async function overlayArtifactBuffer(descriptor, maximumBytes, label) {
+    const buffer = overlayRemote
+      ? await readRemoteBounded(fetchImpl, descriptor.url, maximumBytes, timeoutMs, label)
+      : await readLocalBounded(path.join(overlayLocalRoot, descriptor.file), maximumBytes, readFileImpl);
+    if (buffer.length !== descriptor.bytes || sha256(buffer) !== descriptor.sha256) {
+      fail(503, 'f8x_overlay_checksum_mismatch', `${label} failed checksum validation.`);
+    }
+    return buffer;
+  }
+
+  async function loadOverlayShard(release, sequence) {
+    const descriptor = release.manifest.shards[sequence - 1];
+    if (!descriptor) fail(503, 'invalid_f8x_overlay_index', 'A reviewed F8X overlay route points outside its release.');
+    const key = `${release.manifest.releaseId}:${sequence}:${descriptor.sha256}`;
+    if (overlayShardCache.has(key)) return overlayShardCache.get(key);
+    if (!overlayShardPromises.has(key)) {
+      overlayShardPromises.set(key, (async () => {
+        overlayShardReadCount += 1;
+        const buffer = await overlayArtifactBuffer(
+          descriptor,
+          MAX_SHARD_BYTES,
+          `Reviewed F8X overlay shard ${sequence}`
+        );
+        const products = validateF8xOverlayShard(
+          parseJson(buffer, 'invalid_f8x_overlay_shard', `Reviewed F8X overlay shard ${sequence}`),
+          descriptor,
+          release.manifest
+        );
+        overlayShardCache.set(key, products);
+        return products;
+      })().finally(() => overlayShardPromises.delete(key)));
+    }
+    return overlayShardPromises.get(key);
+  }
+
+  async function loadOverlayRelease(baseRelease) {
+    if (!overlayConfigured) return null;
+    const requestedAt = currentTime(
+      'invalid_f8x_overlay_configuration',
+      'The reviewed F8X overlay'
+    );
+    if (overlayRemote && overlayReleaseExpiresAt !== null
+      && overlayReleaseExpiresAt <= requestedAt) {
+      resetOverlayReleaseCache();
+    }
+    if (!overlayReleasePromise) {
+      const promise = (async () => {
+        const manifestBuffer = overlayRemote
+          ? await readRemoteBounded(
+            fetchImpl,
+            overlayRemoteUrl,
+            MAX_MANIFEST_BYTES,
+            timeoutMs,
+            'The reviewed F8X overlay manifest'
+          )
+          : await readLocalBounded(
+            path.resolve(overlayLocalManifestPath),
+            MAX_MANIFEST_BYTES,
+            readFileImpl
+          );
+        const nowValue = overlayRemote
+          ? currentTime('invalid_f8x_overlay_configuration', 'The reviewed F8X overlay')
+          : requestedAt;
+        const manifest = validateF8xOverlayManifest(
+          parseJson(manifestBuffer, 'invalid_f8x_overlay_manifest', 'The reviewed F8X overlay manifest'),
+          { remote: overlayRemote, secret: overlayManifestSecret, nowValue }
+        );
+        overlayReleaseExpiresAt = overlayRemote ? Date.parse(manifest.expiresAt) : null;
+        const base = await loadBaseBinding(baseRelease);
+        if (stableJson(manifest.baseRelease) !== stableJson(base.binding)) {
+          fail(503, 'f8x_overlay_base_release_mismatch', 'The reviewed F8X overlay is not bound to the active base shard release.');
+        }
+        const indexBuffer = await overlayArtifactBuffer(
+          manifest.index,
+          MAX_INDEX_BYTES,
+          'The reviewed F8X overlay routing index'
+        );
+        const routes = validateF8xOverlayIndex(
+          parseJson(indexBuffer, 'invalid_f8x_overlay_index', 'The reviewed F8X overlay routing index'),
+          manifest
+        );
+        const productsByShard = await Promise.all(manifest.shards.map(descriptor => (
+          loadOverlayShard({ manifest }, descriptor.sequence)
+        )));
+        const products = productsByShard.flat();
+        for (const route of routes) {
+          const product = productsByShard[route.shardSequence - 1]?.[route.shardProductIndex];
+          if (!product || product.publicKey !== route.publicKey || product.slug !== route.slug) {
+            fail(503, 'invalid_f8x_overlay_shard', 'A reviewed F8X overlay product does not match its public route.');
+          }
+        }
+        return Object.freeze({
+          manifest: Object.freeze(manifest),
+          routes,
+          products: Object.freeze(products),
+          baseProducts: base.products
+        });
+      })();
+      overlayReleasePromise = promise;
+      promise.catch(() => resetOverlayReleaseCache(promise));
+    }
+    const promise = overlayReleasePromise;
+    const release = await promise;
+    if (overlayRemote && Date.parse(release.manifest.expiresAt) <= currentTime(
+      'invalid_f8x_overlay_configuration',
+      'The reviewed F8X overlay'
+    )) {
+      resetOverlayReleaseCache(promise);
+      fail(503, 'invalid_f8x_overlay_manifest', 'The remote reviewed F8X overlay manifest is expired.');
+    }
+    return release;
+  }
+
+  function statusFor(release, baseProducts, plan) {
     return Object.freeze({
       schemaVersion: 2,
       sourceRecordCounts: Object.freeze({
         staticReviewed: baseProducts.length,
         bmwM3Sharded: release.manifest.counts.productCount,
-        bmwM3ShardedUnique: extraRoutes.length
+        bmwM3ShardedUnique: plan.newRoutes.length,
+        bmwM3ShardedOverlay: plan.overlayRoutes.length
       }),
       sourceRecordCount: baseProducts.length + release.manifest.counts.productCount,
-      preQuarantineUniqueProductCount: baseProducts.length + extraRoutes.length,
+      preQuarantineUniqueProductCount: plan.combined.length,
       quarantinedIdentityCount: release.manifest.counts.quarantinedIdentityCount,
-      publishedProductCount: baseProducts.length + extraRoutes.length,
-      bmwM3AggregateNewUniqueProductCount: extraRoutes.length,
+      publishedProductCount: plan.combined.length,
+      bmwM3AggregateNewUniqueProductCount: plan.newRoutes.length,
+      bmwM3AggregateOverlayProductCount: plan.overlayRoutes.length,
       bmwM3AggregateCaptureStatus: Object.freeze({
         stage: release.manifest.complete ? 'complete' : 'staging-progress',
         complete: release.manifest.complete,
@@ -448,13 +1079,213 @@ export function createReviewedShardCatalogueProvider({
     });
   }
 
-  function uniqueRoutes(release, baseProducts) {
-    const identities = new Set(baseProducts.flatMap(product => [product?.publicKey, product?.slug]).filter(Boolean));
-    const ecsIdentities = new Set(baseProducts.flatMap(product => [product?.ecsPartNumber, product?.sku])
-      .map(value => String(value || '').match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i)?.[1]).filter(Boolean));
-    return release.routes.filter(route => {
-      const digits = String(route.ecsPartNumber || route.sku || '').match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i)?.[1];
-      return !identities.has(route.publicKey) && !identities.has(route.slug) && (!digits || !ecsIdentities.has(digits));
+  function ecsIdentity(product) {
+    for (const value of [product?.ecsPartNumber, product?.identifiers?.ecs, product?.sku]) {
+      const match = String(value ?? '').trim().match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i);
+      if (match) return match[1];
+    }
+    return String(product?.publicKey ?? '').trim().match(/^ecs-es-(\d{3,12})$/i)?.[1] || null;
+  }
+
+  function allEcsIdentityCarriers(product) {
+    const identities = new Set();
+    for (const value of [
+      product?.ecsPartNumber,
+      product?.sku,
+      product?.identifiers?.ecs,
+      product?.identifiers?.sku
+    ]) {
+      const match = String(value ?? '').trim().match(/^(?:ES\s*#?\s*)?(\d{3,12})$/i);
+      if (match) identities.add(match[1]);
+    }
+    for (const [value, pattern] of [
+      [product?.publicKey, /^ecs-es-(\d{3,12})$/i],
+      [product?.slug, /^es-(\d{3,12})$/i]
+    ]) {
+      const match = String(value ?? '').trim().match(pattern);
+      if (match) identities.add(match[1]);
+    }
+    return identities;
+  }
+
+  function routePlan(release, baseProducts) {
+    const cached = routePlanCache.get(baseProducts);
+    if (cached?.releaseId === release.manifest.releaseId) return cached.plan;
+    const baseByIdentity = new Map();
+    for (const product of baseProducts) {
+      const key = ecsIdentity(product);
+      if (!key) continue;
+      if (baseByIdentity.has(key)) {
+        fail(503, 'reviewed_shard_identity_conflict', `The static reviewed catalogue contains duplicate ES#${key}.`);
+      }
+      baseByIdentity.set(key, product);
+    }
+    const routeByIdentity = new Map();
+    for (const route of release.routes) {
+      const key = ecsIdentity(route);
+      if (!key || routeByIdentity.has(key)) {
+        fail(503, 'invalid_reviewed_shard_index', 'The reviewed product routing index contains a duplicate ECS identity.');
+      }
+      routeByIdentity.set(key, route);
+    }
+    let combined;
+    try {
+      const mergeRoutes = release.routes.map(route => {
+        const existing = baseByIdentity.get(ecsIdentity(route));
+        return existing ? overlayEvidence(existing, route) : route;
+      });
+      combined = mergeReviewedEcsProducts(baseProducts, mergeRoutes);
+    } catch {
+      fail(503, 'reviewed_shard_identity_conflict', 'The reviewed shard release conflicts with a static public product identity.');
+    }
+    const overlayRoutes = release.routes.filter(route => baseByIdentity.has(ecsIdentity(route)));
+    const newRoutes = release.routes.filter(route => !baseByIdentity.has(ecsIdentity(route)));
+    const plan = Object.freeze({ baseByIdentity, routeByIdentity, overlayRoutes, newRoutes, combined });
+    routePlanCache.set(baseProducts, Object.freeze({ releaseId: release.manifest.releaseId, plan }));
+    return plan;
+  }
+
+  function mergeFullBaseRuntime(staticProducts, shardProducts) {
+    const staticByIdentity = new Map();
+    for (const product of staticProducts) {
+      const identity = ecsIdentity(product);
+      if (!identity) continue;
+      if (staticByIdentity.has(identity)) {
+        fail(503, 'reviewed_shard_identity_conflict', `The static reviewed catalogue contains duplicate ES#${identity}.`);
+      }
+      staticByIdentity.set(identity, product);
+    }
+    try {
+      return mergeReviewedEcsProducts(staticProducts, shardProducts.map(product => {
+        const existing = staticByIdentity.get(ecsIdentity(product));
+        return existing ? overlayEvidence(existing, product) : product;
+      }));
+    } catch (error) {
+      fail(
+        503,
+        'reviewed_shard_identity_conflict',
+        `The full reviewed base release conflicts with the static catalogue: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  function mergeF8xRuntimeOverlay(currentRuntime, overlayProducts, projectedQuarantine) {
+    const quarantined = new Set(projectedQuarantine.identities);
+    const carriesQuarantinedIdentity = product => (
+      [...allEcsIdentityCarriers(product)].some(identity => quarantined.has(identity))
+    );
+    const quarantinedHandles = new Set(projectedQuarantine.identities.flatMap(identity => [
+      `ecs-es-${identity}`, `es-${identity}`
+    ]));
+    currentRuntime.filter(carriesQuarantinedIdentity)
+      .forEach(product => {
+        if (product?.publicKey) quarantinedHandles.add(product.publicKey);
+        if (product?.slug) quarantinedHandles.add(product.slug);
+      });
+    const currentFiltered = currentRuntime.filter(product => !carriesQuarantinedIdentity(product));
+    const overlayFiltered = overlayProducts.filter(product => !carriesQuarantinedIdentity(product));
+    if (overlayFiltered.length !== overlayProducts.length) {
+      fail(503, 'f8x_overlay_quarantine_overlap', 'A projected-quarantine identity remains in the F8X overlay release.');
+    }
+    const currentHandles = new Map(currentFiltered.map(product => [
+      ecsIdentity(product),
+      [product.publicKey, product.slug]
+    ]).filter(([identity]) => identity));
+    let combined;
+    try {
+      const currentByIdentity = new Map(currentFiltered.map(product => [ecsIdentity(product), product]));
+      combined = mergeReviewedEcsProducts(currentFiltered, overlayFiltered.map(product => (
+        f8xManualConfirmationEvidence(currentByIdentity.get(ecsIdentity(product)), product)
+      )));
+    } catch (error) {
+      fail(
+        503,
+        'f8x_overlay_identity_conflict',
+        `The reviewed F8X overlay conflicts with the static-plus-base runtime union: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    const combinedByIdentity = new Map(combined.map(product => [ecsIdentity(product), product]));
+    for (const [identity, [publicKey, slug]] of currentHandles) {
+      const product = combinedByIdentity.get(identity);
+      if (!product || product.publicKey !== publicKey || product.slug !== slug) {
+        fail(503, 'f8x_overlay_identity_conflict', `The reviewed F8X overlay changes the stable handle for ES#${identity}.`);
+      }
+    }
+    if (combined.some(carriesQuarantinedIdentity)) {
+      fail(503, 'f8x_overlay_quarantine_overlap', 'A projected-quarantine identity survived the reviewed runtime merge.');
+    }
+    const overlayByIdentity = new Map(overlayFiltered.map(product => [ecsIdentity(product), product]));
+    const normalized = combined.map(product => {
+      const canonicalOverlayProduct = overlayByIdentity.get(ecsIdentity(product));
+      const enforced = canonicalOverlayProduct
+        ? enforceF8xManualConfirmation(product, canonicalOverlayProduct)
+        : { ...product };
+      enforced.relatedProductSlugs = (enforced.relatedProductSlugs || [])
+        .filter(value => !quarantinedHandles.has(value));
+      return enforced;
+    });
+    return immutableSnapshot(normalized);
+  }
+
+  async function f8xRuntimePlan(release, staticProducts) {
+    const overlayRelease = await loadOverlayRelease(release);
+    if (!f8xRuntimePlanCache.has(staticProducts)) {
+      const cache = f8xRuntimePlanCache;
+      const planPromise = (async () => {
+        const currentRuntime = mergeFullBaseRuntime(staticProducts, overlayRelease.baseProducts);
+        const combined = mergeF8xRuntimeOverlay(
+          currentRuntime,
+          overlayRelease.products,
+          overlayRelease.manifest.projectedQuarantine
+        );
+        const currentIdentities = new Set(currentRuntime.map(ecsIdentity).filter(Boolean));
+        const overlayIdentities = new Set(overlayRelease.products.map(ecsIdentity).filter(Boolean));
+        const overlayCount = [...overlayIdentities].filter(identity => currentIdentities.has(identity)).length;
+        return Object.freeze({
+          overlayRelease,
+          currentRuntime,
+          combined,
+          overlayCount,
+          newCount: overlayIdentities.size - overlayCount
+        });
+      })();
+      cache.set(staticProducts, planPromise);
+      planPromise.catch(() => {
+        if (cache.get(staticProducts) === planPromise) cache.delete(staticProducts);
+      });
+    }
+    return f8xRuntimePlanCache.get(staticProducts);
+  }
+
+  function f8xStatusFor(release, staticProducts, basePlan, plan) {
+    const baseStatus = statusFor(release, staticProducts, basePlan);
+    const manifest = plan.overlayRelease.manifest;
+    return Object.freeze({
+      ...baseStatus,
+      schemaVersion: 3,
+      sourceRecordCounts: Object.freeze({
+        ...baseStatus.sourceRecordCounts,
+        f8xOverlay: manifest.counts.productCount,
+        f8xOverlayUnique: plan.newCount,
+        f8xOverlayExisting: plan.overlayCount
+      }),
+      sourceRecordCount: baseStatus.sourceRecordCount + manifest.counts.productCount,
+      preQuarantineUniqueProductCount: plan.currentRuntime.length + plan.newCount,
+      quarantinedIdentityCount: manifest.projectedQuarantine.identityCount,
+      publishedProductCount: plan.combined.length,
+      f8xOverlayNewUniqueProductCount: plan.newCount,
+      f8xOverlayExistingProductCount: plan.overlayCount,
+      f8xOverlayRelease: Object.freeze({
+        releaseId: manifest.releaseId,
+        source: overlayRemote ? 'signed-vercel-blob' : 'bundled-complete-overlay',
+        complete: true,
+        shardCount: manifest.counts.shardCount,
+        routeCount: manifest.counts.routeCount,
+        baseReleaseId: manifest.baseRelease.releaseId,
+        finalAuditKind: manifest.finalAudit.kind,
+        finalAuditInputSetSha256: manifest.finalAudit.inputSetSha256,
+        scope: ECS_REVIEWED_F8X_OVERLAY_SCOPE
+      })
     });
   }
 
@@ -482,48 +1313,85 @@ export function createReviewedShardCatalogueProvider({
   async function prepareProducts({ request, baseProducts, nowValue }) {
     if (!Array.isArray(baseProducts)) throw new TypeError('Reviewed shard baseProducts must be an array.');
     const release = await loadRelease();
-    const extraRoutes = uniqueRoutes(release, baseProducts);
-    const combined = [...baseProducts, ...extraRoutes];
+    const plan = routePlan(release, baseProducts);
+    if (overlayConfigured) {
+      const f8xPlan = await f8xRuntimePlan(release, baseProducts);
+      return Object.freeze({
+        products: Object.freeze(f8xPlan.combined),
+        status: f8xStatusFor(release, baseProducts, plan, f8xPlan),
+        loadedShardCount: release.manifest.counts.shardCount,
+        loadedOverlayShardCount: f8xPlan.overlayRelease.manifest.counts.shardCount
+      });
+    }
+    const { combined } = plan;
     let selectedRoutes = [];
     if (request.mode === 'detail') {
-      const route = extraRoutes.find(item => item.publicKey === request.handle || item.slug === request.handle);
+      const selected = combined.find(item => item.publicKey === request.handle || item.slug === request.handle);
+      const route = selected ? plan.routeByIdentity.get(ecsIdentity(selected)) : null;
       if (route) selectedRoutes = [route];
     } else {
       const selected = selectReviewedEcsProducts(combined, selectionRequest(request), nowValue);
       const limit = request.mode === 'suggest' ? 8 : 100;
       const offset = request.mode === 'suggest' ? 0 : request.offset;
-      selectedRoutes = selected.slice(offset, offset + limit).filter(product => product.shardedRoute === true);
+      selectedRoutes = selected.slice(offset, offset + limit)
+        .map(product => plan.routeByIdentity.get(ecsIdentity(product)))
+        .filter(Boolean);
     }
     const hydrated = await hydrateRoutes(release, selectedRoutes);
     if (request.mode === 'detail' && hydrated.size) {
       const related = [...hydrated.values()].flatMap(product => product.relatedProductSlugs || []);
-      const relatedRoutes = extraRoutes.filter(route => related.includes(route.slug) || related.includes(route.publicKey));
+      const relatedRoutes = release.routes.filter(route => related.includes(route.slug) || related.includes(route.publicKey));
       const relatedHydrated = await hydrateRoutes(release, relatedRoutes);
       relatedHydrated.forEach((product, key) => hydrated.set(key, product));
     }
-    const products = [...baseProducts, ...extraRoutes.map(route => hydrated.get(route.publicKey) || route)];
+    const products = combined.map(product => {
+      const route = plan.routeByIdentity.get(ecsIdentity(product));
+      const fullProduct = route ? hydrated.get(route.publicKey) : null;
+      if (!fullProduct) return product;
+      try {
+        const merged = mergeReviewedEcsProducts([product], [overlayEvidence(product, fullProduct)])[0];
+        delete merged.shardedRoute;
+        delete merged.shardSequence;
+        delete merged.shardProductIndex;
+        delete merged.searchDocument;
+        return merged;
+      } catch {
+        fail(503, 'reviewed_shard_identity_conflict', 'A hydrated reviewed shard product conflicts with its public route.');
+      }
+    });
     return Object.freeze({
       products: Object.freeze(products),
-      status: statusFor(release, baseProducts, extraRoutes),
+      status: statusFor(release, baseProducts, plan),
       loadedShardCount: new Set(selectedRoutes.map(route => route.shardSequence)).size
     });
   }
 
   async function getStatus(baseProducts = []) {
     const release = await loadRelease();
-    const extraRoutes = uniqueRoutes(release, baseProducts);
-    return statusFor(release, baseProducts, extraRoutes);
+    const plan = routePlan(release, baseProducts);
+    if (overlayConfigured) {
+      const f8xPlan = await f8xRuntimePlan(release, baseProducts);
+      return f8xStatusFor(release, baseProducts, plan, f8xPlan);
+    }
+    return statusFor(release, baseProducts, plan);
   }
 
   function diagnostics() {
-    return Object.freeze({ shardReadCount, cachedShardCount: shardCache.size, remote });
+    return Object.freeze({
+      shardReadCount,
+      cachedShardCount: shardCache.size,
+      remote,
+      f8xOverlayConfigured: overlayConfigured,
+      overlayShardReadCount,
+      cachedOverlayShardCount: overlayShardCache.size,
+      overlayRemote
+    });
   }
 
   function clearCache() {
-    releasePromise = null;
-    shardCache.clear();
-    shardPromises.clear();
+    resetBaseReleaseCache();
     shardReadCount = 0;
+    overlayShardReadCount = 0;
   }
 
   return Object.freeze({ prepareProducts, getStatus, diagnostics, clearCache });
@@ -532,10 +1400,17 @@ export function createReviewedShardCatalogueProvider({
 export function createConfiguredReviewedShardCatalogueProvider({ env = process.env, ...options } = {}) {
   const currentUrl = env?.[ECS_REVIEWED_SHARD_CURRENT_URL_ENV] || null;
   const manifestSecret = env?.[ECS_REVIEWED_SHARD_MANIFEST_SECRET_ENV] || null;
+  const overlayCurrentUrl = env?.[ECS_REVIEWED_F8X_OVERLAY_CURRENT_URL_ENV] || null;
+  const overlayManifestSecret = env?.[ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET_ENV] || null;
+  const overlayEnvConfigured = Boolean(overlayCurrentUrl || overlayManifestSecret);
   return createReviewedShardCatalogueProvider({
     currentUrl,
     manifestSecret,
     localManifestPath: currentUrl ? null : ECS_REVIEWED_SHARD_LOCAL_MANIFEST,
+    f8xOverlay: overlayEnvConfigured ? {
+      currentUrl: overlayCurrentUrl,
+      manifestSecret: overlayManifestSecret
+    } : null,
     allowIncompleteLocal: true,
     ...options
   });

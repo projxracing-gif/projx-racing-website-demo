@@ -511,6 +511,69 @@ assert.ok(reviewedF8xDetail.body.product.fitments.every(fitment => fitment.engin
 assert.ok(reviewedF8xDetail.body.product.titleAr);
 assert.ok(reviewedF8xDetail.body.product.images.every(image => image.altAr));
 
+const f8xCommerceFitments = [
+  { confidence: 'possible', yearFrom: 2014, yearTo: 2020, make: 'BMW', model: 'M3', models: ['M3'], generation: 'F80', chassis: ['F80'], engines: ['S55'], note: 'Confirm fitment.' },
+  { confidence: 'possible', yearFrom: 2014, yearTo: 2020, make: 'BMW', model: 'M4', models: ['M4'], generation: 'F82', chassis: ['F82'], engines: ['S55'], note: 'Confirm fitment.' },
+  { confidence: 'possible', yearFrom: 2014, yearTo: 2020, make: 'BMW', model: 'M4', models: ['M4'], generation: 'F83', chassis: ['F83'], engines: ['S55'], note: 'Confirm fitment.' }
+];
+const f8xCommerceFixture = {
+  ...structuredClone(REVIEWED_ECS_PRODUCTS[0]),
+  publicKey: 'ecs-mad-s55-catted-downpipes',
+  slug: 'mad-s55-catted-downpipes',
+  ecsPartNumber: 'ES#4630139',
+  sku: 'ES#4630139',
+  mpn: 'MAD-029',
+  title: 'MAD S55 Catted Downpipes M2C/M3/M4 With Flex Section',
+  titleAr: 'أنابيب داون بايب MAD لمحرك S55',
+  fitments: f8xCommerceFitments,
+  relatedProductSlugs: []
+};
+const f8xQuoteOnlyFixture = {
+  ...structuredClone(f8xCommerceFixture),
+  publicKey: 'ecs-es-4709083',
+  slug: 'es-4709083',
+  ecsPartNumber: 'ES#4709083',
+  sku: 'ES#4709083',
+  title: 'F8X request-price fixture'
+};
+const f8xCommerceApi = createPartsCatalogHandler({
+  databaseUrl: '',
+  legacyHandler: false,
+  reviewedProducts: [f8xCommerceFixture, f8xQuoteOnlyFixture],
+  reviewedShardProvider: false,
+  now: () => Date.parse('2026-08-21T12:00:00.000Z')
+});
+for (const vehicle of [
+  { model: 'M3', generation: 'F80', year: '2017' },
+  { model: 'M4', generation: 'F82', year: '2018' },
+  { model: 'M4', generation: 'F83', year: '2019' }
+]) {
+  const response = await invoke(f8xCommerceApi, {
+    query: { fitment: 'possible', make: 'BMW', engine: 'S55', ...vehicle }
+  });
+  const item = response.body.items.find(product => product.handle === f8xCommerceFixture.publicKey);
+  assert.equal(response.status, 200);
+  assert.equal(item?.commerce?.action, 'add-to-cart', `${vehicle.generation} list commerce`);
+  assert.equal(item?.commerce?.sku, 'ES#4630139');
+  assert.equal(item?.commerce?.price?.amount, 569);
+  assert.equal(item?.commerce?.paymentAllowed, false);
+}
+const f8xCommerceDetail = await invoke(f8xCommerceApi, {
+  query: { handle: f8xCommerceFixture.publicKey, supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(f8xCommerceDetail.status, 200);
+assert.equal(f8xCommerceDetail.body.product.commerce.action, 'add-to-cart');
+assert.equal(f8xCommerceDetail.body.product.commerce.productId, f8xCommerceFixture.publicKey);
+assert.equal(f8xCommerceDetail.body.product.commerce.fitmentConfirmationRequired, true);
+assert.equal(f8xCommerceDetail.body.product.commerce.availabilityConfirmationRequired, true);
+assert.equal(f8xCommerceDetail.body.product.commerce.shippingQuoteRequired, true);
+assert.equal(f8xCommerceDetail.body.product.commerce.paymentAllowed, false);
+const f8xQuoteOnlyDetail = await invoke(f8xCommerceApi, {
+  query: { handle: f8xQuoteOnlyFixture.publicKey, supplier: 'ecs', currency: 'USD' }
+});
+assert.equal(f8xQuoteOnlyDetail.status, 200);
+assert.equal(Object.hasOwn(f8xQuoteOnlyDetail.body.product, 'commerce'), false);
+
 const reviewedG8xSearch = await invoke(reviewedOnly, { query: { q: 'EVE-G8XMV2-CF-IN', supplier: 'ecs' } });
 assert.equal(reviewedG8xSearch.status, 200);
 assert.equal(reviewedG8xSearch.body.items.length, 1);
@@ -1331,11 +1394,11 @@ const genericBrakingRequest = __test.parseRequest({
 });
 const genericBrakingSql = __test.buildListQuery(genericBrakingRequest);
 for (const slug of [
-  'braking', 'g-series-braking', 'bmw-m3-braking', 'performance-brake-parts-upgrades'
+  'braking', 'g-series-braking', 'bmw-m3-braking', 'bmw-f8x-braking', 'performance-brake-parts-upgrades'
 ]) {
   assert.ok(genericBrakingSql.values.includes(slug), `Expected the universal Brakes SQL scope to include ${slug}.`);
 }
-assert.match(genericBrakingSql.text, /pt\.slug IN \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
+assert.match(genericBrakingSql.text, /pt\.slug IN \(\$\d+, \$\d+, \$\d+, \$\d+, \$\d+\)/);
 const scopedGSeriesBrakingRequest = __test.parseRequest({
   query: { partType: 'g-series-braking' }, url: '/api/parts-catalog', headers: {}
 });

@@ -63,7 +63,7 @@ function directPolicyCartItem(submitted, now, requireMoney) {
     unitAmount: policy.unitAmount,
     currency: policy.currency,
     image: policy.image ? { ...policy.image } : null,
-    supplierAvailable: null,
+    supplierAvailable: typeof policy.supplierAvailable === 'boolean' ? policy.supplierAvailable : null,
     availabilityConfirmationRequired: true,
     fitmentConfirmationRequired: policy.fitmentConfirmationRequired === true,
     purchaseMode: policy.purchaseMode || 'availability-confirmation-required',

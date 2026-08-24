@@ -39,6 +39,8 @@ test('saved-cart UI explicitly saves canonical items and restores only eligible 
   assert.match(app, /sourceHandle: supplierItem\.sourceHandle/);
   assert.match(app, /restoreSavedAccountCartItems\(savedItems\)/);
   assert.match(app, /supplierCatalogueCartSelection\(product, variant, now\)/);
+  assert.match(app, /const requestHandle = supplier === "tegiwa"[\s\S]*:\s*sourceHandle[\s\S]*fetchPartsCatalogue\(partsCatalogueParams\(\{ handle: requestHandle \}\)\)[\s\S]*supplierCatalogueCartSelection\(product, variant, now\)/,
+    'Saved ECS lines must be restored only after the product API returns the current shared commerce decision.');
   assert.match(app, /savedMinor !== Math\.round\(selection\.unitAmount \* 100\)/);
   assert.match(app, /const requestHandle = supplier === "tegiwa"\s*\? `tegiwa-\$\{sourceHandle\}`\s*:\s*sourceHandle/,
     'Account restore must always add the public Tegiwa namespace to a raw saved source handle.');

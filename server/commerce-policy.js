@@ -7,7 +7,7 @@ const TEGIWA_GB_SUPPLIER = Object.freeze({
   originCountryName: 'Great Britain'
 });
 
-function tsukiTshirtPolicy(sizeSlug, sizeTitle, sku) {
+function tsukiTshirtPolicy(sizeSlug, sizeTitle, sku, supplierAvailable) {
   return Object.freeze({
     productId: `tegiwa-2026-team-tegiwa-tsuki-t-shirt-${sizeSlug}`,
     sourceHandle: '2026-team-tegiwa-tsuki-t-shirt',
@@ -17,10 +17,11 @@ function tsukiTshirtPolicy(sizeSlug, sizeTitle, sku) {
     sku,
     currency: 'GBP',
     unitAmount: 27.49,
-    priceVerifiedAt: '2026-08-10',
+    priceVerifiedAt: '2026-08-18',
     maxPriceAgeDays: 7,
-    availabilityVerifiedAt: '2026-08-10',
+    availabilityVerifiedAt: '2026-08-18',
     maxAvailabilityAgeDays: 7,
+    supplierAvailable,
     fitmentConfirmationRequired: false,
     purchaseMode: 'direct',
     supplier: TEGIWA_GB_SUPPLIER
@@ -33,17 +34,20 @@ export const DIRECT_CART_PRODUCTS = Object.freeze({
     title: 'Tegiwa × MagnusT GoPro Headrest Mount — LHD',
     sku: 'T-GOPRO-MOUNT-YARISGR-LHD',
     currency: 'GBP',
-    unitAmount: 31.19,
-    priceVerifiedAt: '2026-08-03',
+    unitAmount: 25.99,
+    priceVerifiedAt: '2026-08-18',
     maxPriceAgeDays: 7,
+    availabilityVerifiedAt: '2026-08-18',
+    maxAvailabilityAgeDays: 7,
+    supplierAvailable: true,
     fitmentConfirmationRequired: true,
     supplier: TEGIWA_GB_SUPPLIER
   }),
-  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-s': tsukiTshirtPolicy('s', 'Small', 'T-TSUKITEAM-TSHIRT-S'),
-  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-m': tsukiTshirtPolicy('m', 'Medium', 'T-TSUKITEAM-TSHIRT-M'),
-  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-l': tsukiTshirtPolicy('l', 'Large', 'T-TSUKITEAM-TSHIRT-L'),
-  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-xl': tsukiTshirtPolicy('xl', 'X-Large', 'T-TSUKITEAM-TSHIRT-XL'),
-  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-xxl': tsukiTshirtPolicy('xxl', 'XX-Large', 'T-TSUKITEAM-TSHIRT-XXL')
+  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-s': tsukiTshirtPolicy('s', 'Small', 'T-TSUKITEAM-TSHIRT-S', true),
+  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-m': tsukiTshirtPolicy('m', 'Medium', 'T-TSUKITEAM-TSHIRT-M', false),
+  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-l': tsukiTshirtPolicy('l', 'Large', 'T-TSUKITEAM-TSHIRT-L', true),
+  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-xl': tsukiTshirtPolicy('xl', 'X-Large', 'T-TSUKITEAM-TSHIRT-XL', true),
+  'tegiwa-2026-team-tegiwa-tsuki-t-shirt-xxl': tsukiTshirtPolicy('xxl', 'XX-Large', 'T-TSUKITEAM-TSHIRT-XXL', true)
 });
 
 export function directCartProduct(productId) {

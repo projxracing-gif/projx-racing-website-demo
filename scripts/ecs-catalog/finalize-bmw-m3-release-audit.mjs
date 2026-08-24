@@ -12,9 +12,24 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const PRIVATE_IMPORTS = path.join(REPO, 'private-imports');
 const TRUSTED_CURRENT_REVIEWED_MODULE = path.join(REPO, 'server', 'ecs-reviewed-catalog.js');
+const TRUSTED_NODE_IMPORTS = Object.freeze({
+  [path.join(REPO, 'server', 'ecs-confirmation-cart-index.js')]: Object.freeze(new Set([
+    'node:fs',
+    'node:url',
+  ])),
+  [path.join(REPO, 'server', 'ecs-confirmation-cart-sellability.js')]: Object.freeze(new Set([
+    'node:crypto',
+  ])),
+});
 const SHA256 = /^[a-f0-9]{64}$/;
 const ECS_IDENTITY = /^(?:ES\s*#?\s*)?(\d{3,12})$/i;
 const CANONICAL_ECS_IDENTITY = /^\d{3,12}$/;
+const REVIEWED_SHARD_RELEASE_ID = /^\d{8}T\d{9}Z-[a-f0-9]{16}$/;
+const REVIEWED_SHARD_FILE = /^shard-\d{5}\.json$/;
+const REVIEWED_SHARD_MAX_PRODUCTS = 50_000;
+const REVIEWED_SHARD_MAX_COUNT = 1_000;
+const REVIEWED_SHARD_MAX_BYTES = 4 * 1024 * 1024;
+const REVIEWED_INDEX_MAX_BYTES = 64 * 1024 * 1024;
 const ECS_LISTING_PAGE_SIZE = 16;
 const AGGREGATE_MODULE_HEADER = '// Generated offline from a validated, dated ECS BMW M3 model-level category capture.\n';
 const AGGREGATE_QUARANTINE_PREFIX = 'export const BMW_M3_AGGREGATE_QUARANTINED_ECS_IDENTITIES = Object.freeze(';
@@ -481,6 +496,7 @@ export function finalizeBmwM3ReleaseAudit({
   aggregateProducts,
   aggregateQuarantinedEcsIdentities,
   currentReviewedProducts,
+  currentReviewedShardProducts = null,
   inputChecksums = null,
   inputSetSha256 = null,
 }) {
@@ -502,6 +518,12 @@ export function finalizeBmwM3ReleaseAudit({
     aggregateQuarantinedEcsIdentities,
   );
   const currentIdentities = uniqueIdentities(currentReviewedProducts, 'Current reviewed ECS input');
+  const currentShardIdentities = currentReviewedShardProducts === null
+    ? new Set()
+    : uniqueIdentities(currentReviewedShardProducts, 'Current reviewed shard input', {
+      requireCanonicalHandles: true,
+    });
+  const currentRuntimeIdentities = new Set([...currentIdentities, ...currentShardIdentities]);
   const latestReportTimestamp = SECTION_KEYS.map(key => summaries[key].generatedAt).sort().at(-1);
   if (latestReportTimestamp !== importerAudit.generatedAt) {
     fail('stale_importer_audit', 'The importer audit timestamp does not match the latest reconciliation report.');
@@ -533,17 +555,40 @@ export function finalizeBmwM3ReleaseAudit({
     || observedRecords !== importerAudit.validatedRecordCount) {
     fail('stale_aggregate_counts', 'Seven-section placement totals do not match the importer record counts.');
   }
-  const overlap = [...productIdentities].filter(identity => currentIdentities.has(identity)).length;
-  const currentReviewedRemovedByIncomingQuarantineCount = moduleQuarantine
-    .filter(identity => currentIdentities.has(identity)).length;
+  const staticOverlap = [...productIdentities].filter(identity => currentIdentities.has(identity)).length;
+  const overlap = [...productIdentities].filter(identity => currentRuntimeIdentities.has(identity)).length;
+  const currentRuntimeQuarantineOverlap = moduleQuarantine
+    .filter(identity => currentRuntimeIdentities.has(identity));
+  if (currentRuntimeQuarantineOverlap.length) {
+    fail(
+      'current_reviewed_quarantine_overlap',
+      `The incoming quarantine would remove ${currentRuntimeQuarantineOverlap.length} currently published reviewed ECS product(s).`
+    );
+  }
+  const projectedIdentities = new Set([...currentRuntimeIdentities, ...productIdentities]);
+  for (const identity of moduleQuarantine) projectedIdentities.delete(identity);
+  const unintendedCurrentReviewedRemovals = [...currentRuntimeIdentities]
+    .filter(identity => !projectedIdentities.has(identity));
+  if (unintendedCurrentReviewedRemovals.length) {
+    fail(
+      'unintended_current_reviewed_removal',
+      `The candidate release would remove ${unintendedCurrentReviewedRemovals.length} currently published reviewed ECS product(s).`
+    );
+  }
   const publicationMergeAudit = {
     staticReviewedProductCount: currentReviewedProducts.length,
+    currentReviewedShardProductCount: currentReviewedShardProducts?.length || 0,
+    currentReviewedShardUniqueProductCount: currentShardIdentities.size,
+    currentRuntimeReviewedProductCount: currentRuntimeIdentities.size,
     generatedProductCount: aggregateProducts.length,
     overlapWithPreviouslyReviewedEcsCount: overlap,
+    overlapWithStaticReviewedEcsCount: staticOverlap,
+    overlapWithCurrentRuntimeReviewedEcsCount: overlap,
     newUniqueProductCount: aggregateProducts.length - overlap,
-    currentReviewedRemovedByIncomingQuarantineCount,
-    projectedPublishedReviewedEcsCount: currentReviewedProducts.length + aggregateProducts.length
-      - overlap - currentReviewedRemovedByIncomingQuarantineCount,
+    currentReviewedRemovedByIncomingQuarantineCount: 0,
+    currentRuntimeQuarantineOverlapCount: 0,
+    unintendedCurrentReviewedRemovalCount: 0,
+    projectedPublishedReviewedEcsCount: projectedIdentities.size,
   };
   const sections = Object.fromEntries(SECTION_KEYS.map(key => [key, {
     label: summaries[key].label,
@@ -660,6 +705,134 @@ async function fileSnapshot(filename, roots) {
   return { path: resolved, bytes: bytes.length, sha256: sha256(bytes), buffer: bytes };
 }
 
+async function reviewedShardReleaseSnapshot(directory, roots) {
+  let root;
+  try {
+    root = await realpath(path.resolve(directory));
+    if (!(await stat(root)).isDirectory()) throw new Error();
+  } catch {
+    fail('invalid_current_reviewed_shard_release', `Current reviewed shard directory is missing or invalid: ${directory}`);
+  }
+  if (!rootFor(root, roots.inputRoots)) {
+    fail('input_path_escape', 'The current reviewed shard directory escapes the repository/designated work directory.');
+  }
+  async function artifact(filename) {
+    const snapshot = await fileSnapshot(path.join(root, filename), roots);
+    if (!inside(root, snapshot.path)) {
+      fail('input_path_escape', `A current reviewed shard artifact escapes its release directory: ${filename}`);
+    }
+    return snapshot;
+  }
+
+  const manifestSnapshot = await artifact('manifest.json');
+  const manifest = parseJsonSnapshot(manifestSnapshot, 'The current reviewed shard manifest');
+  if (manifest.schemaVersion !== 1 || manifest.supplier !== 'ECS Tuning'
+    || manifest.kind !== 'ecs-reviewed-product-shard-manifest'
+    || !REVIEWED_SHARD_RELEASE_ID.test(manifest.releaseId || '')
+    || !plainObject(manifest.counts)
+    || !integer(manifest.counts.productCount, 1)
+    || manifest.counts.productCount > REVIEWED_SHARD_MAX_PRODUCTS
+    || !integer(manifest.counts.routeCount, 1)
+    || manifest.counts.routeCount !== manifest.counts.productCount
+    || !integer(manifest.counts.shardCount, 1)
+    || manifest.counts.shardCount > REVIEWED_SHARD_MAX_COUNT
+    || !Array.isArray(manifest.shards)
+    || manifest.shards.length !== manifest.counts.shardCount
+    || !plainObject(manifest.index)
+    || manifest.index.file !== 'index.json'
+    || !integer(manifest.index.bytes, 1)
+    || manifest.index.bytes > REVIEWED_INDEX_MAX_BYTES
+    || !SHA256.test(manifest.index.sha256 || '')) {
+    fail('invalid_current_reviewed_shard_release', 'The current reviewed shard manifest is invalid.');
+  }
+
+  const indexSnapshot = await artifact('index.json');
+  if (indexSnapshot.bytes !== manifest.index.bytes || indexSnapshot.sha256 !== manifest.index.sha256) {
+    fail('current_reviewed_shard_checksum_mismatch', 'The current reviewed routing index failed checksum validation.');
+  }
+  const index = parseJsonSnapshot(indexSnapshot, 'The current reviewed shard routing index');
+  if (index.schemaVersion !== 1 || index.supplier !== 'ECS Tuning'
+    || index.kind !== 'ecs-reviewed-product-routing-index'
+    || index.releaseId !== manifest.releaseId || index.routeCount !== manifest.counts.routeCount
+    || !Array.isArray(index.routes) || index.routes.length !== index.routeCount) {
+    fail('invalid_current_reviewed_shard_release', 'The current reviewed shard routing index is invalid.');
+  }
+
+  const shardSnapshots = [];
+  const products = [];
+  const productsByPosition = new Map();
+  const artifactNames = new Set(['index.json']);
+  let descriptorProductCount = 0;
+  for (const [descriptorIndex, descriptor] of manifest.shards.entries()) {
+    if (!plainObject(descriptor) || descriptor.sequence !== descriptorIndex + 1
+      || !REVIEWED_SHARD_FILE.test(descriptor.file || '') || artifactNames.has(descriptor.file)
+      || !integer(descriptor.productCount, 1) || descriptor.productCount > 250
+      || !integer(descriptor.bytes, 1) || descriptor.bytes > REVIEWED_SHARD_MAX_BYTES
+      || !SHA256.test(descriptor.sha256 || '')
+      || !/^ecs-es-\d{3,12}$/.test(descriptor.firstKey || '')
+      || !/^ecs-es-\d{3,12}$/.test(descriptor.lastKey || '')) {
+      fail('invalid_current_reviewed_shard_release', `Current reviewed shard descriptor ${descriptorIndex + 1} is invalid.`);
+    }
+    artifactNames.add(descriptor.file);
+    descriptorProductCount += descriptor.productCount;
+    const snapshot = await artifact(descriptor.file);
+    if (snapshot.bytes !== descriptor.bytes || snapshot.sha256 !== descriptor.sha256) {
+      fail('current_reviewed_shard_checksum_mismatch', `${descriptor.file} failed checksum validation.`);
+    }
+    const document = parseJsonSnapshot(snapshot, `Current reviewed ${descriptor.file}`);
+    if (document.schemaVersion !== 1 || document.supplier !== 'ECS Tuning'
+      || document.kind !== 'ecs-reviewed-product-shard' || document.releaseId !== manifest.releaseId
+      || document.sequence !== descriptor.sequence || document.productCount !== descriptor.productCount
+      || !Array.isArray(document.products) || document.products.length !== descriptor.productCount
+      || document.products[0]?.publicKey !== descriptor.firstKey
+      || document.products.at(-1)?.publicKey !== descriptor.lastKey) {
+      fail('invalid_current_reviewed_shard_release', `${descriptor.file} is not a valid current reviewed product shard.`);
+    }
+    document.products.forEach((product, productIndex) => {
+      products.push(product);
+      productsByPosition.set(`${descriptor.sequence}:${productIndex}`, product);
+    });
+    shardSnapshots.push(snapshot);
+  }
+  if (descriptorProductCount !== manifest.counts.productCount || products.length !== manifest.counts.productCount) {
+    fail('invalid_current_reviewed_shard_release', 'The current reviewed shard product counts do not reconcile.');
+  }
+  uniqueIdentities(products, 'Current reviewed shard input', { requireCanonicalHandles: true });
+
+  const routeKeys = new Set();
+  const routePositions = new Set();
+  for (const route of index.routes) {
+    const position = `${route?.shardSequence}:${route?.shardProductIndex}`;
+    const product = productsByPosition.get(position);
+    if (!plainObject(route) || route.shardedRoute !== true
+      || routeKeys.has(route.publicKey) || routePositions.has(position)
+      || product?.publicKey !== route.publicKey || product?.slug !== route.slug) {
+      fail('invalid_current_reviewed_shard_release', 'The current reviewed routing index does not match its product shards.');
+    }
+    routeKeys.add(route.publicKey);
+    routePositions.add(position);
+  }
+
+  const expectedContentSet = sha256(Buffer.from([
+    `index.json\0${manifest.index.bytes}\0${manifest.index.sha256}`,
+    ...manifest.shards.map(descriptor => `${descriptor.file}\0${descriptor.bytes}\0${descriptor.sha256}`),
+  ].join('\n'), 'utf8'));
+  if (!SHA256.test(manifest.contentSetSha256 || '') || manifest.contentSetSha256 !== expectedContentSet) {
+    fail('current_reviewed_shard_checksum_mismatch', 'The current reviewed shard artifact-set checksum is invalid.');
+  }
+  const snapshots = [manifestSnapshot, indexSnapshot, ...shardSnapshots];
+  const descriptors = snapshots.map(snapshot => ({
+    label: sourceLabel(snapshot.path, roots), bytes: snapshot.bytes, sha256: snapshot.sha256,
+  })).sort((left, right) => left.label.localeCompare(right.label, 'en'));
+  return {
+    manifest,
+    products,
+    snapshots,
+    descriptors,
+    sha256: canonicalDataSha256(descriptors),
+  };
+}
+
 async function aggregateModuleSnapshot(filename, roots) {
   const snapshot = await fileSnapshot(filename, roots);
   if (!/\.(?:m?js)$/i.test(snapshot.path)) {
@@ -762,6 +935,7 @@ function trustedModuleSpecifier(specifier) {
 }
 
 async function resolveModuleSpecifier(parent, specifier, allowedRoot) {
+  if (specifier.startsWith('node:') && TRUSTED_NODE_IMPORTS[parent]?.has(specifier)) return null;
   trustedModuleSpecifier(specifier);
   const base = path.resolve(path.dirname(parent), specifier);
   for (const candidate of [base, `${base}.js`, `${base}.mjs`, `${base}.json`, path.join(base, 'index.js')]) {
@@ -855,7 +1029,16 @@ function parseJsonSnapshot(snapshot, label) {
   }
 }
 
-function checksumSummary({ auditSnapshot, reportEntries, aggregateGraph, currentGraph, products, quarantine, currentProducts }) {
+function checksumSummary({
+  auditSnapshot,
+  reportEntries,
+  aggregateGraph,
+  currentGraph,
+  currentShardRelease,
+  products,
+  quarantine,
+  currentProducts,
+}) {
   const reports = Object.fromEntries(reportEntries.map(({ key, snapshot }) => [key, {
     bytes: snapshot.bytes,
     sha256: snapshot.sha256,
@@ -874,6 +1057,14 @@ function checksumSummary({ auditSnapshot, reportEntries, aggregateGraph, current
     aggregateProducts: { count: products.length, sha256: canonicalDataSha256(products) },
     aggregateQuarantine: { count: quarantine.length, sha256: canonicalDataSha256(quarantine.map(String).sort()) },
     currentReviewedProducts: { count: currentProducts.length, sha256: canonicalDataSha256(currentProducts) },
+    ...(currentShardRelease ? {
+      currentReviewedShardRelease: {
+        releaseId: currentShardRelease.manifest.releaseId,
+        fileCount: currentShardRelease.descriptors.length,
+        productCount: currentShardRelease.products.length,
+        sha256: currentShardRelease.sha256,
+      },
+    } : {}),
   };
 }
 
@@ -881,6 +1072,7 @@ export async function verifyBmwM3ReleaseAuditFiles({
   auditPath,
   aggregateModulePath,
   currentReviewedModulePath,
+  currentReviewedShardDirectory = null,
   reconciliationPaths,
   workDirectory = null,
   expectedInputSetSha256 = null,
@@ -901,12 +1093,15 @@ export async function verifyBmwM3ReleaseAuditFiles({
   }
   reportEntries.sort((left, right) => SECTION_KEYS.indexOf(left.key) - SECTION_KEYS.indexOf(right.key));
   const trustedCurrentEntry = await confinedInput(TRUSTED_CURRENT_REVIEWED_MODULE, roots);
-  const [aggregateGraph, currentGraph] = await Promise.all([
+  const [aggregateGraph, currentGraph, currentShardRelease] = await Promise.all([
     aggregateModuleSnapshot(aggregateModulePath, roots),
     moduleGraph(currentReviewedModulePath, roots, {
       trustedEntry: trustedCurrentEntry,
       allowedRoot: roots.repo,
     }),
+    currentReviewedShardDirectory
+      ? reviewedShardReleaseSnapshot(currentReviewedShardDirectory, roots)
+      : null,
   ]);
   const currentModule = await importGraph(currentGraph);
   const products = aggregateGraph.products;
@@ -920,6 +1115,7 @@ export async function verifyBmwM3ReleaseAuditFiles({
     reportEntries,
     aggregateGraph,
     currentGraph,
+    currentShardRelease,
     products,
     quarantine,
     currentProducts,
@@ -935,12 +1131,14 @@ export async function verifyBmwM3ReleaseAuditFiles({
     aggregateProducts: products,
     aggregateQuarantinedEcsIdentities: quarantine,
     currentReviewedProducts: currentProducts,
+    currentReviewedShardProducts: currentShardRelease?.products || null,
     inputChecksums: checksums,
     inputSetSha256: inputSet,
   });
   const snapshots = snapshotMap(
     [auditSnapshot, ...reportSnapshots, aggregateGraph.snapshot],
     [...currentGraph.files.values()],
+    currentShardRelease?.snapshots || [],
   );
   await assertSnapshotsUnchanged(snapshots);
   return { finalizedAudit, inputSetSha256: inputSet, checksums, roots };
@@ -964,7 +1162,7 @@ export async function writeFinalReleaseAuditCreateOnly(outputPath, finalizedAudi
 
 function parseArguments(argv) {
   const valued = new Set([
-    '--audit', '--aggregate-module', '--current-reviewed-module', '--reconciliation',
+    '--audit', '--aggregate-module', '--current-reviewed-module', '--current-reviewed-shards', '--reconciliation',
     '--output', '--work-dir', '--expect-input-set-sha256',
   ]);
   const result = { reconciliationPaths: [], verifyOnly: false };
@@ -991,6 +1189,7 @@ function parseArguments(argv) {
       '--audit': 'auditPath',
       '--aggregate-module': 'aggregateModulePath',
       '--current-reviewed-module': 'currentReviewedModulePath',
+      '--current-reviewed-shards': 'currentReviewedShardDirectory',
       '--output': 'outputPath',
       '--work-dir': 'workDirectory',
       '--expect-input-set-sha256': 'expectedInputSetSha256',

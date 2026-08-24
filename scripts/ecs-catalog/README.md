@@ -46,14 +46,15 @@ The runner:
 - discovers the requested section and every direct child category from visible existing ECS anchors;
 - requires the supplier-rendered count for every child and never constructs a child slug;
 - follows only visible paginator anchors and never constructs a page URL; when resuming, it may reopen only an exact validated checkpoint URL, or capture the exact next uncaptured category/page already open in the persistent tab after validating it against the stored category order and page count;
-- keeps one atomic raw-page checkpoint per leaf, so a later call resumes rather than replacing evidence;
-- waits 1.2 seconds after navigation by default and supports `pageBudget` for bounded resumable batches;
+- keeps one atomic, create-only raw-page checkpoint per leaf, so a later call resumes rather than replacing evidence even when two writers race;
+- records a separate create-only terminal-pagination proof for every child category, including a reported zero-count category; each proof binds the exact terminal URL and rendered-card count and rejects any visible higher numeric page or `rel=next` link;
+- waits 1.2 seconds after navigation by default and supports independent `pageBudget` and `terminalProofBudget` limits for bounded resumable batches;
 - provides opt-in `reloadBeforePagination` recovery for stubborn ECS overlays: it reloads only the exact current checkpoint, proves the URL and rendered-card count are unchanged, then re-reads and clicks the visible paginator;
 - after all exact-locator retries fail, may use the browser's visible-DOM click capability only when exactly one parsed visible anchor has a raw href identical to an already-observed link; it then verifies the canonical destination and challenge state;
 - retries transient incomplete card rendering three times without refreshing or changing routes;
 - stops immediately if ECS presents an interactive access challenge;
 - writes an aggregate capture, exact manifest and reconciliation report after every new page; and
-- refuses to mark a scope complete when page counts, required public listing fields, supplier identities or placement uniqueness do not reconcile.
+- refuses to mark a scope complete when any category lacks a validated terminal proof, or when page counts, required public listing fields, supplier identities or placement uniqueness do not reconcile.
 
 Browser-runner usage:
 
@@ -73,12 +74,49 @@ const result = await captureModule.captureEcsBmwM3Section(
 );
 ```
 
-Re-run the same call and output directory to continue. The runner accepts three exact persistent-tab positions: the section root, the highest contiguous validated checkpoint page, or the next uncaptured page in the first incomplete stored category. For the last case, page 1 must equal that category's stored child href; a later page must be the exact next numeric page under the same stored category path. The runner validates the page state and expected rendered-card count before writing its checkpoint. Any other child page fails closed. A completed child category is skipped. If the visible root category manifest changes, the runner stops and requires a new output directory instead of mixing observations. The output directory contains `section-root.json`, `raw-pages/*.json`, `bmw-m3-<section>-records.json`, `bmw-m3-<section>-manifest.json` and `bmw-m3-<section>-reconciliation-report.json`. These are private capture inputs only; this runner does not merge or publish product data.
+Re-run the same call and output directory to continue. The runner accepts the section root, a validated checkpoint/terminal page, or the exact next uncaptured page in the first incomplete stored category. For the last case, page 1 must equal that category's stored child href; a later page must be the exact next numeric page under the same stored category path. The runner validates the page state and expected rendered-card count before writing its checkpoint. Any other child page fails closed. A completed child category is skipped, but an older completed capture without terminal proofs can be safely augmented with `pageBudget: 0`; root and raw-page checkpoints remain unchanged. Use `terminalProofBudget` to bound that evidence-only resume. If the visible root category manifest changes, the runner stops and requires a new output directory instead of mixing observations. The output directory contains `section-root.json`, create-only `raw-pages/*.json`, create-only `terminal-proofs/*.json`, `bmw-m3-<section>-records.json`, `bmw-m3-<section>-manifest.json` and `bmw-m3-<section>-reconciliation-report.json`. These are private capture inputs only; this runner does not merge or publish product data.
 
 The deterministic offline tests do not contact ECS:
 
 ```text
 node --test scripts/ecs-catalog/capture-bmw-m3-section.test.mjs
+```
+
+### Exact F8X M3/M4 section capture
+
+`capture-f8x-section.mjs` reuses the same fail-closed runner with three isolated, frozen vehicle profiles:
+
+- `f80-m3` — `https://www.ecstuning.com/BMW-F80-M3-S55_3.0L/`
+- `f82-m4` — `https://www.ecstuning.com/BMW-F82-M4-S55_3.0L/`
+- `f83-m4` — `https://www.ecstuning.com/BMW-F83-M4-S55_3.0L/`
+
+Each profile accepts only the same seven documented sections. Open the exact vehicle root or requested visible section in one persistent Codex Chrome tab, then run a bounded batch:
+
+```js
+const f8xCapture = await import('file:///ABSOLUTE/REPOSITORY/scripts/ecs-catalog/capture-f8x-section.mjs');
+const result = await f8xCapture.captureEcsF8xSection(
+  f8xCapture.createCodexTabEcsCaptureAdapter(f8xChromeTab),
+  {
+    vehicleKey: 'f80-m3',
+    section: 'Braking',
+    privateRoot: 'ABSOLUTE/WORKSPACE/private-imports',
+    pageBudget: 25,
+    navigationDelayMs: 5000,
+    paginationSettleDelayMs: 5000,
+    reloadBeforePagination: true,
+    reloadSettleDelayMs: 2500,
+  },
+);
+```
+
+Re-run the same call with the tab on one of the accepted resume positions to continue. A relative private root is accepted only as the repository's canonical `private-imports`; an external work root must be an explicit absolute, existing directory also named `private-imports`. The wrapper rejects linked/junction-backed roots, descendants and capture artifacts, and requires the exact section path `private-imports/ecs-f8x-m3-m4-20260820/<vehicle-key>/<section-key>/`; an optional explicit `outputDir` is accepted only when it resolves to that same path. Files are isolated by vehicle, for example `bmw-f80-m3-braking-records.json`, `bmw-f82-m4-engine-manifest.json` and `bmw-f83-m4-steering-reconciliation-report.json`; raw checkpoint and terminal-proof kinds also carry the exact vehicle prefix. Never reuse one vehicle's section directory for another profile.
+
+For a completed legacy F80 Braking capture that has raw pages but no terminal proofs, open the exact F80 Braking section in the approved persistent browser tab and rerun with `pageBudget: 0` and a bounded `terminalProofBudget`. This adds only missing create-only proof files; it does not replace `section-root.json` or any raw page. Review the resulting report and require both `completeness.complete: true` and `safeguards.nextUncheckpointPageValidated: true` before normalization.
+
+The focused offline compatibility tests do not contact ECS:
+
+```text
+node --test scripts/ecs-catalog/capture-bmw-m3-section.test.mjs scripts/ecs-catalog/capture-f8x-section.test.mjs
 ```
 
 ### BMW M3 product-media materialization

@@ -203,7 +203,39 @@ function canonicalProductUrl(value) {
   }
 }
 
+const VERIFIED_ECS_PRODUCT_URL_REDIRECTS = Object.freeze({
+  5388610: Object.freeze({
+    manufacturerPartNumber: '201-0200',
+    previousUrl: 'https://www.ecstuning.com/b-precision-parts/fuel-line-check-valve-an6-male-to-an6-male/201-0200~prc/',
+    currentUrl: 'https://www.ecstuning.com/b-precision-raceworks-parts/fuel-line-check-valve-an6-male-to-an6-male/201-0200~prc/'
+  }),
+  5456347: Object.freeze({
+    manufacturerPartNumber: '008731KT',
+    previousUrl: 'https://www.ecstuning.com/b-assembled-by-ecs-parts/n54-n55-low-temp-oil-thermostat-kit-70c/008731kt/',
+    currentUrl: 'https://www.ecstuning.com/b-turner-motorsport-parts/n54-n55-low-temp-oil-thermostat-kit-70c/008731kt/'
+  })
+});
+
+function verifiedRedirectCurrentUrl(existing, addition) {
+  const identity = ecsIdentity(existing);
+  if (!identity || ecsIdentity(addition) !== identity) return null;
+  const redirect = VERIFIED_ECS_PRODUCT_URL_REDIRECTS[identity];
+  if (!redirect) return null;
+  const existingMpn = String(existing?.mpn || existing?.identifiers?.mpn || '').trim();
+  const additionMpn = String(addition?.mpn || addition?.identifiers?.mpn || '').trim();
+  if (existingMpn !== redirect.manufacturerPartNumber
+    || additionMpn !== redirect.manufacturerPartNumber) return null;
+  const urls = new Set([
+    String(existing?.originalUrl ?? '').trim(),
+    String(addition?.originalUrl ?? '').trim()
+  ]);
+  return urls.size === 2 && urls.has(redirect.previousUrl) && urls.has(redirect.currentUrl)
+    ? redirect.currentUrl
+    : null;
+}
+
 function assertCompatibleSupplierIdentity(existing, addition) {
+  let resolvedProductUrl = null;
   const identifiers = [
     ['manufacturer part number', existing?.mpn || existing?.identifiers?.mpn,
       addition?.mpn || addition?.identifiers?.mpn, normalizedIdentifier],
@@ -212,9 +244,14 @@ function assertCompatibleSupplierIdentity(existing, addition) {
   for (const [label, leftValue, rightValue, normalize] of identifiers) {
     if (!meaningful(leftValue) || !meaningful(rightValue)) continue;
     if (normalize(leftValue) !== normalize(rightValue)) {
+      if (label === 'canonical product URL') {
+        resolvedProductUrl = verifiedRedirectCurrentUrl(existing, addition);
+        if (resolvedProductUrl) continue;
+      }
       throw new Error(`Conflicting ECS ${label} for ES#${ecsIdentity(existing)}.`);
     }
   }
+  return resolvedProductUrl;
 }
 
 function sameObservationDay(left, right) {
@@ -245,8 +282,9 @@ function enforcePriceConflict(target) {
 }
 
 function mergeReviewedPair(existing, addition) {
-  assertCompatibleSupplierIdentity(existing, addition);
+  const resolvedProductUrl = assertCompatibleSupplierIdentity(existing, addition);
   const merged = mergeMeaningfulObjects(existing, addition);
+  if (resolvedProductUrl) merged.originalUrl = resolvedProductUrl;
   // A price conflict is a fail-closed state. Once any reviewed scope has found
   // incompatible current prices, a later scope must not restore one of those
   // amounts simply because its observation is newer.

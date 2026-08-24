@@ -1,4 +1,6 @@
-import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import {
+  access, link, mkdir, open, readFile, unlink, writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 
 export const BMW_M3_ROOT_URL = 'https://www.ecstuning.com/BMW-M3/';
@@ -13,6 +15,16 @@ export const SUPPORTED_BMW_M3_SECTIONS = Object.freeze([
   'Suspension',
   'Steering',
 ]);
+
+export const BMW_M3_CAPTURE_PROFILE = Object.freeze({
+  artifactPrefix: 'bmw-m3',
+  defaultOutputDirectory: path.join('private-imports', 'ecs-bmw-m3-capture'),
+  rootSnapshotKind: 'bmw-m3-section-root-snapshot',
+  rootUrl: BMW_M3_ROOT_URL,
+  sections: SUPPORTED_BMW_M3_SECTIONS,
+  vehicle: BMW_M3_VEHICLE,
+  vehicleKey: 'bmw-m3',
+});
 
 export const REQUIRED_ECS_LISTING_FIELDS = Object.freeze([
   'availabilityText',
@@ -37,6 +49,7 @@ const ECS_HOST = 'www.ecstuning.com';
 const PRODUCT_PATH = /^\/b-[^/?#]+\/[^/?#]+\/[^/?#]+\/$/i;
 const CHALLENGE_TITLE = /^(?:just a moment|attention required|access denied)/i;
 const CHALLENGE_TEXT = /(?:verify you are human|performing security verification|cloudflare ray id)/i;
+const MAX_CATEGORY_KEY_LENGTH = 180;
 
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
@@ -90,17 +103,37 @@ export function slugifyCaptureLabel(value) {
     .replace(/^-+|-+$/g, '');
 }
 
-export function normalizeBmwM3Section(value) {
+function safeCategoryKey(value) {
+  const key = clean(value);
+  return key.length > 0 && key.length <= MAX_CATEGORY_KEY_LENGTH
+    && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key)
+    && slugifyCaptureLabel(key) === key;
+}
+
+function containedFilename(directory, filename) {
+  const parent = path.resolve(directory);
+  const target = path.resolve(parent, filename);
+  if (path.dirname(target) !== parent) {
+    throw new Error(`Unsafe ECS capture artifact path: ${target}.`);
+  }
+  return target;
+}
+
+export function normalizeEcsVehicleSection(value, profile = BMW_M3_CAPTURE_PROFILE) {
   const requested = clean(value).toLocaleLowerCase('en-US');
-  const supported = SUPPORTED_BMW_M3_SECTIONS.find(
+  const supported = profile.sections.find(
     (section) => section.toLocaleLowerCase('en-US') === requested,
   );
   if (!supported) {
     throw new Error(
-      `Unsupported BMW M3 section ${JSON.stringify(value)}. Choose one of: ${SUPPORTED_BMW_M3_SECTIONS.join(', ')}.`,
+      `Unsupported ${profile.vehicle} section ${JSON.stringify(value)}. Choose one of: ${profile.sections.join(', ')}.`,
     );
   }
   return supported;
+}
+
+export function normalizeBmwM3Section(value) {
+  return normalizeEcsVehicleSection(value, BMW_M3_CAPTURE_PROFILE);
 }
 
 function canonicalEcsUrl(value, { product = false } = {}) {
@@ -114,6 +147,25 @@ function canonicalEcsUrl(value, { product = false } = {}) {
   } catch {
     return null;
   }
+}
+
+function validatedCaptureProfile(profile) {
+  const rootUrl = canonicalEcsUrl(profile?.rootUrl);
+  const artifactPrefix = clean(profile?.artifactPrefix);
+  const vehicleKey = clean(profile?.vehicleKey);
+  const vehicle = clean(profile?.vehicle);
+  const rootSnapshotKind = clean(profile?.rootSnapshotKind);
+  const sections = Array.isArray(profile?.sections) ? profile.sections.map(clean) : [];
+  if (!rootUrl || rootUrl !== profile.rootUrl || !rootUrl.endsWith('/')
+    || !vehicle || !artifactPrefix || slugifyCaptureLabel(artifactPrefix) !== artifactPrefix
+    || !vehicleKey || slugifyCaptureLabel(vehicleKey) !== vehicleKey
+    || rootSnapshotKind !== `${artifactPrefix}-section-root-snapshot`
+    || !clean(profile?.defaultOutputDirectory) || path.isAbsolute(profile.defaultOutputDirectory)
+    || !sections.length || sections.some((section) => !section)
+    || new Set(sections.map((section) => section.toLocaleLowerCase('en-US'))).size !== sections.length) {
+    throw new Error('The ECS vehicle capture profile is invalid.');
+  }
+  return profile;
 }
 
 function exactTimestamp(value) {
@@ -206,13 +258,18 @@ function normalizedVisibleLink(link) {
   };
 }
 
-export function discoverBmwM3SectionLink(visibleLinks, requestedSection) {
-  const section = normalizeBmwM3Section(requestedSection);
+export function discoverEcsVehicleSectionLink(
+  visibleLinks,
+  requestedSection,
+  profile = BMW_M3_CAPTURE_PROFILE,
+) {
+  validatedCaptureProfile(profile);
+  const section = normalizeEcsVehicleSection(requestedSection, profile);
   const requested = section.toLocaleLowerCase('en-US');
   const candidates = visibleLinks
     .map(normalizedVisibleLink)
     .filter(Boolean)
-    .map((link, order) => ({ link, order, segments: rootRelativeSegments(BMW_M3_ROOT_URL, link.href) }))
+    .map((link, order) => ({ link, order, segments: rootRelativeSegments(profile.rootUrl, link.href) }))
     .filter(({ segments }) => segments?.length === 1)
     .map(({ link, order, segments }) => {
       const labels = [labelWithoutCount(link.text), labelWithoutCount(link.ariaLabel)].filter(Boolean);
@@ -226,7 +283,7 @@ export function discoverBmwM3SectionLink(visibleLinks, requestedSection) {
       || Number(right.textContains) - Number(left.textContains)
       || left.order - right.order);
   if (!candidates.length) {
-    throw new Error(`No visible existing ECS link for the ${section} section was found on ${BMW_M3_ROOT_URL}.`);
+    throw new Error(`No visible existing ECS link for the ${section} section was found on ${profile.rootUrl}.`);
   }
   const selected = candidates[0].link;
   return {
@@ -238,7 +295,11 @@ export function discoverBmwM3SectionLink(visibleLinks, requestedSection) {
   };
 }
 
-export function discoverBmwM3ChildCategories(visibleLinks, sectionLink) {
+export function discoverBmwM3SectionLink(visibleLinks, requestedSection) {
+  return discoverEcsVehicleSectionLink(visibleLinks, requestedSection, BMW_M3_CAPTURE_PROFILE);
+}
+
+export function discoverEcsVehicleChildCategories(visibleLinks, sectionLink) {
   const byHref = new Map();
   for (const rawLink of visibleLinks) {
     const link = normalizedVisibleLink(rawLink);
@@ -266,7 +327,9 @@ export function discoverBmwM3ChildCategories(visibleLinks, sectionLink) {
   return [...byHref.values()].map(({ link, label, countDetails }) => {
     let key = slugifyCaptureLabel(label);
     if (!key || usedKeys.has(key)) key = `${sectionLink.key}-${slugifyCaptureLabel(new URL(link.href).pathname)}`;
-    if (!key || usedKeys.has(key)) throw new Error(`ECS category key collision for ${label}.`);
+    if (!safeCategoryKey(key) || usedKeys.has(key)) {
+      throw new Error(`ECS category key collision or unsafe key for ${label}.`);
+    }
     usedKeys.add(key);
     return {
       key,
@@ -278,17 +341,22 @@ export function discoverBmwM3ChildCategories(visibleLinks, sectionLink) {
   });
 }
 
+export function discoverBmwM3ChildCategories(visibleLinks, sectionLink) {
+  return discoverEcsVehicleChildCategories(visibleLinks, sectionLink);
+}
+
 function assertBrowser(browser, { reloadBeforePagination = false } = {}) {
   const required = [
     'clickVisibleHref',
     'getCurrentUrl',
     'getListingRecords',
     'getPageState',
+    'getRenderedListingCount',
     'getVisibleLinks',
     'gotoCheckpointUrl',
     'wait',
   ];
-  if (reloadBeforePagination) required.push('getRenderedListingCount', 'reloadCurrentPage');
+  if (reloadBeforePagination) required.push('reloadCurrentPage');
   const missing = required.filter((method) => typeof browser?.[method] !== 'function');
   if (missing.length) throw new Error(`Browser adapter is missing: ${missing.join(', ')}.`);
 }
@@ -357,13 +425,16 @@ function stableRootSnapshot(snapshot) {
   };
 }
 
-function validateStoredRootSnapshot(snapshot, section) {
+function validateStoredRootSnapshot(snapshot, section, profile) {
   const sectionKey = slugifyCaptureLabel(section);
   const sectionHref = canonicalEcsUrl(snapshot?.section?.href);
-  const sectionSegments = sectionHref ? rootRelativeSegments(BMW_M3_ROOT_URL, sectionHref) : null;
+  const sectionSegments = sectionHref ? rootRelativeSegments(profile.rootUrl, sectionHref) : null;
   if (snapshot?.schemaVersion !== 1 || snapshot?.supplier !== 'ECS Tuning'
-    || snapshot?.accessClass !== 'public-retail' || snapshot?.kind !== 'bmw-m3-section-root-snapshot'
-    || snapshot?.rootUrl !== BMW_M3_ROOT_URL || !exactTimestamp(snapshot?.discoveredAt)
+    || snapshot?.accessClass !== 'public-retail' || snapshot?.kind !== profile.rootSnapshotKind
+    || snapshot?.rootUrl !== profile.rootUrl
+    || (snapshot?.vehicle !== profile.vehicle
+      && !(profile === BMW_M3_CAPTURE_PROFILE && snapshot?.vehicle === undefined))
+    || !exactTimestamp(snapshot?.discoveredAt)
     || snapshot?.section?.section !== section || snapshot?.section?.key !== sectionKey
     || sectionSegments?.length !== 1
     || decodeURIComponent(sectionSegments[0]).toLocaleLowerCase('en-US')
@@ -376,7 +447,7 @@ function validateStoredRootSnapshot(snapshot, section) {
   for (const category of snapshot.categories) {
     const href = canonicalEcsUrl(category?.href);
     const segments = href ? rootRelativeSegments(sectionHref, href) : null;
-    if (!clean(category?.key) || !clean(category?.name)
+    if (!safeCategoryKey(category?.key) || !clean(category?.name)
       || !Number.isSafeInteger(category?.count) || category.count < 0
       || !clean(category?.countEvidence) || segments?.length !== 1
       || /^\d+$/.test(segments[0]) || keys.has(category.key) || hrefs.has(href)) {
@@ -413,8 +484,7 @@ function findOpenCaptureResume(currentUrl, categories, pages, pageSize) {
   const current = canonicalEcsUrl(currentUrl);
   if (!current) throw new Error('The open ECS capture page URL is unsafe.');
   const progress = firstIncomplete || lastCompletedProgress;
-  if (!progress) throw new Error('No validated ECS capture position exists for the currently open page.');
-  const lastCheckpoint = progress.completed.at(-1) || lastCompletedProgress?.completed.at(-1) || null;
+  const lastCheckpoint = progress?.completed.at(-1) || lastCompletedProgress?.completed.at(-1) || null;
   if (lastCheckpoint && current === canonicalEcsUrl(lastCheckpoint.sourceUrl)
     && checkpointPageMatchesCategory(lastCheckpoint.categoryUrl, current, lastCheckpoint.page)) {
     return {
@@ -426,8 +496,35 @@ function findOpenCaptureResume(currentUrl, categories, pages, pageSize) {
     };
   }
   if (!firstIncomplete) {
-    throw new Error('The open ECS page is not the exact highest contiguous validated checkpoint.');
+    for (const [categoryIndex, category] of categories.entries()) {
+      const expectedPages = Math.ceil(category.count / pageSize);
+      if (expectedPages === 0 && current === canonicalEcsUrl(category.href)) {
+        return {
+          mode: 'terminal',
+          categoryKey: category.key,
+          categoryIndex,
+          page: 1,
+          sourceUrl: category.href,
+        };
+      }
+      const terminalCheckpoint = pages.find((item) => (
+        item.categoryKey === category.key && item.page === expectedPages
+      ));
+      if (terminalCheckpoint
+        && current === canonicalEcsUrl(terminalCheckpoint.sourceUrl)
+        && checkpointPageMatchesCategory(category.href, current, expectedPages)) {
+        return {
+          mode: 'terminal',
+          categoryKey: category.key,
+          categoryIndex,
+          page: expectedPages,
+          sourceUrl: terminalCheckpoint.sourceUrl,
+        };
+      }
+    }
+    throw new Error('The open ECS page is not an exact validated terminal checkpoint.');
   }
+  if (!progress) throw new Error('No validated ECS capture position exists for the currently open page.');
   const nextPage = firstIncomplete.completed.length + 1;
   const nextMatches = nextPage === 1
     ? current === canonicalEcsUrl(firstIncomplete.category.href)
@@ -454,40 +551,71 @@ async function fileExists(filename) {
   }
 }
 
-async function writeJson(filename, value, { exclusive = false } = {}) {
+export async function writeEcsCaptureJsonCreateOnly(filename, value) {
   await mkdir(path.dirname(filename), { recursive: true });
-  if (!exclusive) {
-    await writeFile(filename, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-    return;
-  }
-  const temporary = `${filename}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+  const temporaryNonce = globalThis.crypto?.randomUUID?.()
+    || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const temporary = `${filename}.${temporaryNonce}.tmp`;
+  let handle;
   try {
-    await rename(temporary, filename);
+    handle = await open(temporary, 'wx');
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await link(temporary, filename);
   } catch (error) {
-    if (error?.code === 'EEXIST' || error?.code === 'EPERM') {
+    if (error?.code === 'EEXIST') {
       throw new Error(`Checkpoint already exists and was not overwritten: ${filename}.`);
     }
     throw error;
+  } finally {
+    await handle?.close();
+    try {
+      await unlink(temporary);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
   }
 }
 
-function checkpointFilename(outputDir, sectionKey, categoryKey, page) {
-  return path.join(outputDir, 'raw-pages', `${sectionKey}-${categoryKey}-p${page}.json`);
+async function writeJson(filename, value, { exclusive = false } = {}) {
+  if (exclusive) {
+    await writeEcsCaptureJsonCreateOnly(filename, value);
+    return;
+  }
+  await mkdir(path.dirname(filename), { recursive: true });
+  await writeFile(filename, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-export function validateBmwM3PageCheckpoint(pageRecord, category, {
+function checkpointFilename(outputDir, sectionKey, categoryKey, page) {
+  if (!safeCategoryKey(sectionKey) || !safeCategoryKey(categoryKey)
+    || !Number.isSafeInteger(page) || page < 1) {
+    throw new Error('Unsafe ECS page-checkpoint identity.');
+  }
+  return containedFilename(
+    path.join(outputDir, 'raw-pages'),
+    `${sectionKey}-${categoryKey}-p${page}.json`,
+  );
+}
+
+export function validateEcsVehiclePageCheckpoint(pageRecord, category, {
   section,
   page,
   pageSize = ECS_LISTING_PAGE_SIZE,
+  profile = BMW_M3_CAPTURE_PROFILE,
   sourceUrl = null,
 } = {}) {
+  validatedCaptureProfile(profile);
+  if (!safeCategoryKey(category?.key)) {
+    throw new Error(`${section || '<unknown>'} page checkpoint has an unsafe category key.`);
+  }
   const expected = Math.min(pageSize, Math.max(0, category.count - ((page - 1) * pageSize)));
   const canonicalSource = canonicalEcsUrl(pageRecord?.sourceUrl);
   if (pageRecord?.schemaVersion !== 1 || pageRecord?.supplier !== 'ECS Tuning'
     || pageRecord?.accessClass !== 'public-retail'
-    || pageRecord?.kind !== 'bmw-m3-section-listing-page'
-    || pageRecord?.vehicle !== BMW_M3_VEHICLE || pageRecord?.section !== section
+    || pageRecord?.kind !== `${profile.artifactPrefix}-section-listing-page`
+    || pageRecord?.vehicle !== profile.vehicle || pageRecord?.section !== section
     || pageRecord?.categoryKey !== category.key || pageRecord?.category !== category.name
     || pageRecord?.categoryUrl !== category.href || pageRecord?.page !== page
     || pageRecord?.basePosition !== ((page - 1) * pageSize) + 1
@@ -506,7 +634,7 @@ export function validateBmwM3PageCheckpoint(pageRecord, category, {
     const expectedPosition = pageRecord.basePosition + index;
     if (missing.length || !digits || !productUrl || record?.sourceUrl !== canonicalSource
       || record?.category !== category.name || record?.categoryKey !== category.key
-      || record?.section !== section || record?.vehicle !== BMW_M3_VEHICLE
+      || record?.section !== section || record?.vehicle !== profile.vehicle
       || record?.relevancePosition !== expectedPosition || !exactTimestamp(record?.observedAt)) {
       throw new Error(
         `${section} / ${category.name} page ${page} record ${index + 1} is invalid${missing.length ? `; missing ${missing.join(', ')}` : ''}.`,
@@ -520,7 +648,208 @@ export function validateBmwM3PageCheckpoint(pageRecord, category, {
   return pageRecord;
 }
 
-function categorySummaries(categories, pages, pageSize) {
+export function validateBmwM3PageCheckpoint(pageRecord, category, options = {}) {
+  return validateEcsVehiclePageCheckpoint(pageRecord, category, {
+    ...options,
+    profile: BMW_M3_CAPTURE_PROFILE,
+  });
+}
+
+function terminalProofFilename(outputDir, sectionKey, categoryKey) {
+  if (!safeCategoryKey(sectionKey) || !safeCategoryKey(categoryKey)) {
+    throw new Error('Unsafe ECS terminal-proof identity.');
+  }
+  return containedFilename(
+    path.join(outputDir, 'terminal-proofs'),
+    `${sectionKey}-${categoryKey}-terminal.json`,
+  );
+}
+
+function terminalExpectation(category, pageSize) {
+  const expectedPages = Math.ceil(category.count / pageSize);
+  const terminalPage = Math.max(1, expectedPages);
+  const expectedRenderedCount = expectedPages === 0
+    ? 0
+    : Math.min(pageSize, category.count - ((terminalPage - 1) * pageSize));
+  return { expectedPages, terminalPage, expectedRenderedCount };
+}
+
+function paginationPage(categoryUrl, candidateUrl) {
+  const category = canonicalEcsUrl(categoryUrl);
+  const candidate = canonicalEcsUrl(candidateUrl);
+  if (!category || !candidate) return null;
+  if (candidate === category) return 1;
+  const segments = rootRelativeSegments(category, candidate);
+  return segments?.length === 1 && /^\d+$/.test(segments[0])
+    ? Number(segments[0]) : null;
+}
+
+function terminalPaginationObservation(visibleLinks, category, terminalPage) {
+  const links = visibleLinks.map(normalizedVisibleLink).filter(Boolean);
+  const paginationLinks = links.flatMap((link) => {
+    const page = paginationPage(category.href, link.href);
+    const relNext = link.rel.split(/\s+/).filter(Boolean).includes('next');
+    return page !== null || relNext ? [{ href: link.href, page, rel: link.rel }] : [];
+  });
+  const blockers = paginationLinks.filter((link) => (
+    link.rel.split(/\s+/).filter(Boolean).includes('next')
+      || (Number.isSafeInteger(link.page) && link.page > terminalPage)
+  ));
+  return {
+    blockers,
+    observedPaginationLinks: paginationLinks,
+    observedVisibleLinkCount: links.length,
+  };
+}
+
+export function validateEcsVehicleTerminalProof(proof, category, {
+  pageSize = ECS_LISTING_PAGE_SIZE,
+  profile = BMW_M3_CAPTURE_PROFILE,
+  section,
+} = {}) {
+  validatedCaptureProfile(profile);
+  if (!safeCategoryKey(category?.key)) {
+    throw new Error(`${section || '<unknown>'} terminal proof has an unsafe category key.`);
+  }
+  const expectation = terminalExpectation(category, pageSize);
+  const terminalUrl = canonicalEcsUrl(proof?.terminalUrl);
+  const observedLinks = Array.isArray(proof?.observedPaginationLinks)
+    ? proof.observedPaginationLinks : null;
+  if (proof?.schemaVersion !== 1 || proof?.supplier !== 'ECS Tuning'
+    || proof?.accessClass !== 'public-retail'
+    || proof?.kind !== `${profile.artifactPrefix}-section-terminal-pagination-proof`
+    || proof?.vehicle !== profile.vehicle || proof?.section !== section
+    || proof?.categoryKey !== category.key || proof?.category !== category.name
+    || proof?.categoryUrl !== category.href || proof?.expectedPages !== expectation.expectedPages
+    || proof?.terminalPage !== expectation.terminalPage
+    || proof?.expectedRenderedCount !== expectation.expectedRenderedCount
+    || proof?.renderedCount !== expectation.expectedRenderedCount
+    || !terminalUrl || proof.terminalUrl !== terminalUrl
+    || !checkpointPageMatchesCategory(category.href, terminalUrl, expectation.terminalPage)
+    || !exactTimestamp(proof?.observedAt) || proof?.nextPageAbsent !== true
+    || !Number.isSafeInteger(proof?.observedVisibleLinkCount)
+    || proof.observedVisibleLinkCount < 0 || !observedLinks
+    || proof.observedVisibleLinkCount < observedLinks.length) {
+    throw new Error(`${section} / ${category.name} terminal-pagination proof is invalid.`);
+  }
+  const normalizedLinks = observedLinks.map((link) => ({
+    href: canonicalEcsUrl(link?.href),
+    page: link?.page,
+    rel: clean(link?.rel).toLocaleLowerCase('en-US'),
+  }));
+  if (normalizedLinks.some((link, index) => !link.href
+    || link.href !== observedLinks[index]?.href
+    || paginationPage(category.href, link.href) !== link.page
+    || (!Number.isSafeInteger(link.page) && !link.rel.split(/\s+/).includes('next'))
+    || link.rel.split(/\s+/).includes('next')
+    || (Number.isSafeInteger(link.page) && link.page > expectation.terminalPage))) {
+    throw new Error(`${section} / ${category.name} terminal-pagination proof contains a next page.`);
+  }
+  return proof;
+}
+
+async function loadTerminalProofs(outputDir, categories, section, sectionKey, pageSize, profile) {
+  const proofs = new Map();
+  for (const category of categories) {
+    const filename = terminalProofFilename(outputDir, sectionKey, category.key);
+    if (!(await fileExists(filename))) continue;
+    const proof = JSON.parse(await readFile(filename, 'utf8'));
+    proofs.set(category.key, validateEcsVehicleTerminalProof(proof, category, {
+      pageSize, profile, section,
+    }));
+  }
+  return proofs;
+}
+
+async function observeTerminalProof(browser, category, {
+  now,
+  pageSize,
+  profile,
+  section,
+} = {}) {
+  const expectation = terminalExpectation(category, pageSize);
+  const terminalUrl = canonicalEcsUrl(await browser.getCurrentUrl());
+  if (!terminalUrl
+    || !checkpointPageMatchesCategory(category.href, terminalUrl, expectation.terminalPage)) {
+    throw new Error(`${section} / ${category.name} is not open on its exact terminal page.`);
+  }
+  const assertStillOnTerminalPage = async (state = null) => {
+    const stateUrl = state ? canonicalEcsUrl(state.url) : terminalUrl;
+    const current = canonicalEcsUrl(await browser.getCurrentUrl());
+    if (stateUrl !== terminalUrl || current !== terminalUrl) {
+      throw new Error(`${section} / ${category.name} changed URL during terminal-pagination proof.`);
+    }
+  };
+  let renderedCount = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const state = await browser.getPageState();
+    await assertStillOnTerminalPage(state);
+    if (CHALLENGE_TITLE.test(clean(state?.title)) || CHALLENGE_TEXT.test(clean(state?.bodyText))) {
+      throw new Error('ECS presented an interactive access challenge. Capture stopped; no bypass was attempted.');
+    }
+    renderedCount = await browser.getRenderedListingCount();
+    await assertStillOnTerminalPage();
+    if (renderedCount === expectation.expectedRenderedCount) break;
+    if (attempt < 3) await browser.wait(750 * attempt);
+  }
+  if (renderedCount !== expectation.expectedRenderedCount) {
+    throw new Error(
+      `${section} / ${category.name} terminal page expected ${expectation.expectedRenderedCount} rendered product cards but observed ${renderedCount ?? 'an invalid result'}.`,
+    );
+  }
+  const terminalLinks = await browser.getVisibleLinks();
+  await assertStillOnTerminalPage();
+  const pagination = terminalPaginationObservation(terminalLinks, category, expectation.terminalPage);
+  if (pagination.blockers.length) {
+    throw new Error(
+      `${section} / ${category.name} has a visible next or higher pagination link after its expected terminal page: ${pagination.blockers.map((link) => link.href).join(', ')}.`,
+    );
+  }
+  const observedAt = now().toISOString();
+  if (!exactTimestamp(observedAt)) throw new Error('Capture clock returned an invalid ISO timestamp.');
+  return {
+    schemaVersion: 1,
+    supplier: 'ECS Tuning',
+    accessClass: 'public-retail',
+    kind: `${profile.artifactPrefix}-section-terminal-pagination-proof`,
+    vehicle: profile.vehicle,
+    section,
+    categoryKey: category.key,
+    category: category.name,
+    categoryUrl: category.href,
+    expectedPages: expectation.expectedPages,
+    terminalPage: expectation.terminalPage,
+    terminalUrl,
+    expectedRenderedCount: expectation.expectedRenderedCount,
+    renderedCount,
+    observedAt,
+    observedVisibleLinkCount: pagination.observedVisibleLinkCount,
+    observedPaginationLinks: pagination.observedPaginationLinks,
+    nextPageAbsent: true,
+  };
+}
+
+function terminalProofSummary(proof, category, { pageSize, profile, section }) {
+  if (!proof) return null;
+  validateEcsVehicleTerminalProof(proof, category, { pageSize, profile, section });
+  return {
+    kind: proof.kind,
+    observedAt: proof.observedAt,
+    terminalPage: proof.terminalPage,
+    terminalUrl: proof.terminalUrl,
+    expectedRenderedCount: proof.expectedRenderedCount,
+    renderedCount: proof.renderedCount,
+    observedVisibleLinkCount: proof.observedVisibleLinkCount,
+    observedPaginationLinks: proof.observedPaginationLinks,
+    nextPageAbsent: proof.nextPageAbsent,
+    validated: true,
+  };
+}
+
+function categorySummaries(categories, pages, pageSize, terminalProofs = new Map(), {
+  profile = BMW_M3_CAPTURE_PROFILE,
+  section,
+} = {}) {
   return categories.map((category) => {
     const categoryPages = pages
       .filter((page) => page.categoryKey === category.key)
@@ -537,28 +866,36 @@ function categorySummaries(categories, pages, pageSize) {
       pageCounts: categoryPages.map((page) => page.records.length),
       pageUrls: categoryPages.map((page) => page.sourceUrl),
       positionsContiguous: records.every((record, index) => record.relevancePosition === index + 1),
+      terminalProof: terminalProofSummary(terminalProofs.get(category.key), category, {
+        pageSize, profile, section,
+      }),
     };
   });
 }
 
-export function buildBmwM3ReconciliationReport({
+export function buildEcsVehicleReconciliationReport({
   captureStartedAt,
   categories,
   generatedAt,
   pages,
+  profile = BMW_M3_CAPTURE_PROFILE,
   rootSnapshot,
   section,
   sectionKey,
+  terminalProofs = new Map(),
   pageSize = ECS_LISTING_PAGE_SIZE,
 }) {
-  const categoryAudit = categorySummaries(categories, pages, pageSize).map((category) => ({
+  validatedCaptureProfile(profile);
+  const categoryAudit = categorySummaries(categories, pages, pageSize, terminalProofs, {
+    profile, section,
+  }).map((category) => ({
     ...category,
     observedCount: pages
       .filter((page) => page.categoryKey === category.key)
       .reduce((total, page) => total + page.records.length, 0),
     exact: category.pages === category.expectedPages
       && category.pageCounts.reduce((total, count) => total + count, 0) === category.count
-      && category.positionsContiguous,
+      && category.positionsContiguous && category.terminalProof?.validated === true,
   }));
   const records = pages.flatMap((page) => page.records);
   const byEcs = new Map();
@@ -596,7 +933,9 @@ export function buildBmwM3ReconciliationReport({
   const duplicatePlacements = [...placementKeys]
     .filter(([, count]) => count > 1)
     .map(([key, count]) => ({ key, count }));
-  const complete = categoryAudit.every((category) => category.exact)
+  const terminalProofsValidated = categoryAudit.length === categories.length
+    && categoryAudit.every((category) => category.terminalProof?.validated === true);
+  const complete = terminalProofsValidated && categoryAudit.every((category) => category.exact)
     && Object.values(requiredMissing).every((count) => count === 0)
     && identityConflicts.length === 0
     && duplicatePlacements.length === 0;
@@ -604,7 +943,7 @@ export function buildBmwM3ReconciliationReport({
     schemaVersion: 1,
     supplier: 'ECS Tuning',
     accessClass: 'public-retail',
-    kind: `bmw-m3-${sectionKey}-reconciliation-report`,
+    kind: `${profile.artifactPrefix}-${sectionKey}-reconciliation-report`,
     captureStartedAt,
     generatedAt,
     source: {
@@ -613,13 +952,14 @@ export function buildBmwM3ReconciliationReport({
       discoveryRule: 'Sections, categories and forward pagination use visible existing ECS links only. Resume may reopen an exact validated ECS page URL retained in a local raw-page checkpoint, or continue from the exact next uncaptured child/page already open in the persistent tab; no URL is synthesized.',
     },
     scope: {
-      vehicle: BMW_M3_VEHICLE,
+      vehicle: profile.vehicle,
       section,
       categories: categories.length,
       expectedPages: categoryAudit.reduce((total, category) => total + category.expectedPages, 0),
       capturedPages: pages.length,
       expectedPlacements: categories.reduce((total, category) => total + category.count, 0),
       capturedPlacements: records.length,
+      terminalProofs: categoryAudit.filter((category) => category.terminalProof?.validated).length,
       uniqueEcsProducts: byEcs.size,
       crossCategoryRepeatPlacements: records.length - byEcs.size,
     },
@@ -639,10 +979,17 @@ export function buildBmwM3ReconciliationReport({
       guessedCategoryRoutes: false,
       guessedPaginationRoutes: false,
       checkpointResumeUrlsValidated: true,
-      nextUncheckpointPageValidated: true,
+      nextUncheckpointPageValidated: terminalProofsValidated,
       liveStockClaim: false,
     },
   };
+}
+
+export function buildBmwM3ReconciliationReport(options) {
+  return buildEcsVehicleReconciliationReport({
+    ...options,
+    profile: BMW_M3_CAPTURE_PROFILE,
+  });
 }
 
 async function writeCurrentArtifacts({
@@ -650,13 +997,17 @@ async function writeCurrentArtifacts({
   categories,
   outputDir,
   pages,
+  profile,
   rootSnapshot,
   section,
   sectionKey,
+  terminalProofs,
   generatedAt,
   pageSize,
 }) {
-  const summaries = categorySummaries(categories, pages, pageSize);
+  const summaries = categorySummaries(categories, pages, pageSize, terminalProofs, {
+    profile, section,
+  });
   const records = pages
     .slice()
     .sort((left, right) => categories.findIndex((category) => category.key === left.categoryKey)
@@ -666,48 +1017,56 @@ async function writeCurrentArtifacts({
     schemaVersion: 1,
     supplier: 'ECS Tuning',
     accessClass: 'public-retail',
-    kind: `bmw-m3-${sectionKey}-listing-capture`,
+    kind: `${profile.artifactPrefix}-${sectionKey}-listing-capture`,
     captureStartedAt,
     generatedAt,
-    vehicle: BMW_M3_VEHICLE,
+    vehicle: profile.vehicle,
     section,
     sectionUrl: rootSnapshot.section.href,
     categories: summaries,
+    terminalProofs: Object.fromEntries(summaries.map((category) => [
+      category.key, category.terminalProof,
+    ])),
     records,
   };
-  const report = buildBmwM3ReconciliationReport({
+  const report = buildEcsVehicleReconciliationReport({
     captureStartedAt,
     categories,
     generatedAt,
     pages,
+    profile,
     rootSnapshot,
     section,
     sectionKey,
+    terminalProofs,
     pageSize,
   });
   const manifest = {
     schemaVersion: 1,
     supplier: 'ECS Tuning',
     accessClass: 'public-retail',
-    kind: `bmw-m3-${sectionKey}-capture-manifest`,
+    kind: `${profile.artifactPrefix}-${sectionKey}-capture-manifest`,
     captureStartedAt,
     generatedAt,
     rootUrl: rootSnapshot.rootUrl,
     section: rootSnapshot.section,
     pageSize,
     categories: Object.fromEntries(summaries.map((category) => [category.key, category])),
+    terminalProofs: Object.fromEntries(summaries.map((category) => [
+      category.key, category.terminalProof,
+    ])),
     totals: report.scope,
     complete: report.completeness.complete,
   };
   await Promise.all([
-    writeJson(path.join(outputDir, `bmw-m3-${sectionKey}-records.json`), aggregate),
-    writeJson(path.join(outputDir, `bmw-m3-${sectionKey}-manifest.json`), manifest),
-    writeJson(path.join(outputDir, `bmw-m3-${sectionKey}-reconciliation-report.json`), report),
+    writeJson(path.join(outputDir, `${profile.artifactPrefix}-${sectionKey}-records.json`), aggregate),
+    writeJson(path.join(outputDir, `${profile.artifactPrefix}-${sectionKey}-manifest.json`), manifest),
+    writeJson(path.join(outputDir, `${profile.artifactPrefix}-${sectionKey}-reconciliation-report.json`), report),
   ]);
   return { aggregate, manifest, report };
 }
 
-async function loadPageCheckpoints(outputDir, section, sectionKey, categories, pageSize) {
+async function loadPageCheckpoints(outputDir, section, sectionKey, categories, pageSize, profile) {
   const pages = [];
   for (const category of categories) {
     const expectedPages = Math.ceil(category.count / pageSize);
@@ -715,7 +1074,9 @@ async function loadPageCheckpoints(outputDir, section, sectionKey, categories, p
       const filename = checkpointFilename(outputDir, sectionKey, category.key, page);
       if (!(await fileExists(filename))) continue;
       const pageRecord = JSON.parse(await readFile(filename, 'utf8'));
-      pages.push(validateBmwM3PageCheckpoint(pageRecord, category, { section, page, pageSize }));
+      pages.push(validateEcsVehiclePageCheckpoint(pageRecord, category, {
+        section, page, pageSize, profile,
+      }));
     }
   }
   return pages;
@@ -749,12 +1110,14 @@ async function captureListingRecordsWithRetries(browser, capture, expected, atte
 }
 
 async function reloadValidatedPaginationCheckpoint(browser, checkpoint, category, {
+  profile,
   reloadSettleDelayMs,
   section,
   pageSize,
   attempts = 3,
 }) {
-  validateBmwM3PageCheckpoint(checkpoint, category, {
+  validateEcsVehiclePageCheckpoint(checkpoint, category, {
+    profile,
     section,
     page: checkpoint.page,
     pageSize,
@@ -798,7 +1161,8 @@ async function reloadValidatedPaginationCheckpoint(browser, checkpoint, category
   );
 }
 
-export async function captureEcsBmwM3Section(browser, {
+export async function captureEcsVehicleSection(browser, {
+  profile = BMW_M3_CAPTURE_PROFILE,
   section: requestedSection,
   outputDir = null,
   now = () => new Date(),
@@ -808,9 +1172,11 @@ export async function captureEcsBmwM3Section(browser, {
   reloadBeforePagination = false,
   reloadSettleDelayMs = 2_500,
   pageBudget = Number.POSITIVE_INFINITY,
+  terminalProofBudget = Number.POSITIVE_INFINITY,
 } = {}) {
   assertBrowser(browser);
-  const section = normalizeBmwM3Section(requestedSection);
+  validatedCaptureProfile(profile);
+  const section = normalizeEcsVehicleSection(requestedSection, profile);
   const sectionKey = slugifyCaptureLabel(section);
   if (pageSize !== ECS_LISTING_PAGE_SIZE) {
     throw new Error(`ECS listing page size must remain ${ECS_LISTING_PAGE_SIZE} for capture reconciliation.`);
@@ -834,15 +1200,22 @@ export async function captureEcsBmwM3Section(browser, {
     && (!Number.isSafeInteger(pageBudget) || pageBudget < 0)) {
     throw new Error('pageBudget must be a non-negative integer or Number.POSITIVE_INFINITY.');
   }
-  const resolvedOutput = path.resolve(outputDir || path.join('private-imports', 'ecs-bmw-m3-capture', sectionKey));
-  await mkdir(path.join(resolvedOutput, 'raw-pages'), { recursive: true });
+  if (terminalProofBudget !== Number.POSITIVE_INFINITY
+    && (!Number.isSafeInteger(terminalProofBudget) || terminalProofBudget < 0)) {
+    throw new Error('terminalProofBudget must be a non-negative integer or Number.POSITIVE_INFINITY.');
+  }
+  const resolvedOutput = path.resolve(outputDir || path.join(profile.defaultOutputDirectory, sectionKey));
+  await Promise.all([
+    mkdir(path.join(resolvedOutput, 'raw-pages'), { recursive: true }),
+    mkdir(path.join(resolvedOutput, 'terminal-proofs'), { recursive: true }),
+  ]);
 
   const discoveredAt = now().toISOString();
   if (!exactTimestamp(discoveredAt)) throw new Error('Capture clock returned an invalid ISO timestamp.');
   const rootSnapshotPath = path.join(resolvedOutput, 'section-root.json');
   const hasStoredRoot = await fileExists(rootSnapshotPath);
   const storedRoot = hasStoredRoot
-    ? validateStoredRootSnapshot(JSON.parse(await readFile(rootSnapshotPath, 'utf8')), section)
+    ? validateStoredRootSnapshot(JSON.parse(await readFile(rootSnapshotPath, 'utf8')), section, profile)
     : null;
   const currentUrl = canonicalEcsUrl(await browser.getCurrentUrl());
   let sectionLink;
@@ -850,13 +1223,13 @@ export async function captureEcsBmwM3Section(browser, {
   let rootSnapshot;
   let captureStartedAt = discoveredAt;
   let startedFromCheckpoint = false;
-  if (currentUrl === BMW_M3_ROOT_URL) {
-    await waitForExpectedPage(browser, BMW_M3_ROOT_URL);
+  if (currentUrl === profile.rootUrl) {
+    await waitForExpectedPage(browser, profile.rootUrl);
     const rootLinks = await browser.getVisibleLinks();
-    sectionLink = discoverBmwM3SectionLink(rootLinks, section);
+    sectionLink = discoverEcsVehicleSectionLink(rootLinks, section, profile);
     await clickObservedLink(browser, rootLinks, sectionLink.href, navigationDelayMs);
   } else if (currentUrl) {
-    const segments = currentUrl ? rootRelativeSegments(BMW_M3_ROOT_URL, currentUrl) : null;
+    const segments = currentUrl ? rootRelativeSegments(profile.rootUrl, currentUrl) : null;
     const currentSection = segments?.length === 1 ? decodeURIComponent(segments[0]) : '';
     if (currentSection.toLocaleLowerCase('en-US') === section.toLocaleLowerCase('en-US')) {
       await waitForExpectedPage(browser, currentUrl);
@@ -870,7 +1243,7 @@ export async function captureEcsBmwM3Section(browser, {
       await waitForExpectedPage(browser, currentUrl);
     } else {
       throw new Error(
-        `Open ${BMW_M3_ROOT_URL} or its visible ${section} section link before the first capture. Current page has no matching stored checkpoint manifest: ${currentUrl}.`,
+        `Open ${profile.rootUrl} or its visible ${section} section link before the first capture. Current page has no matching stored checkpoint manifest: ${currentUrl}.`,
       );
     }
   } else {
@@ -879,14 +1252,15 @@ export async function captureEcsBmwM3Section(browser, {
 
   if (!startedFromCheckpoint) {
     const sectionLinks = await browser.getVisibleLinks();
-    categories = discoverBmwM3ChildCategories(sectionLinks, sectionLink);
+    categories = discoverEcsVehicleChildCategories(sectionLinks, sectionLink);
     rootSnapshot = {
       schemaVersion: 1,
       supplier: 'ECS Tuning',
       accessClass: 'public-retail',
-      kind: 'bmw-m3-section-root-snapshot',
+      kind: profile.rootSnapshotKind,
       discoveredAt,
-      rootUrl: BMW_M3_ROOT_URL,
+      rootUrl: profile.rootUrl,
+      ...(profile === BMW_M3_CAPTURE_PROFILE ? {} : { vehicle: profile.vehicle }),
       section: sectionLink,
       categories,
     };
@@ -903,7 +1277,12 @@ export async function captureEcsBmwM3Section(browser, {
     throw new Error(`ECS ${section} capture state could not be initialized safely.`);
   }
 
-  const pages = await loadPageCheckpoints(resolvedOutput, section, sectionKey, categories, pageSize);
+  const pages = await loadPageCheckpoints(
+    resolvedOutput, section, sectionKey, categories, pageSize, profile,
+  );
+  const terminalProofs = await loadTerminalProofs(
+    resolvedOutput, categories, section, sectionKey, pageSize, profile,
+  );
   const openCaptureResume = startedFromCheckpoint
     ? findOpenCaptureResume(currentUrl, categories, pages, pageSize)
     : null;
@@ -916,15 +1295,49 @@ export async function captureEcsBmwM3Section(browser, {
     categories,
     outputDir: resolvedOutput,
     pages,
+    profile,
     rootSnapshot,
     section,
     sectionKey,
+    terminalProofs,
     generatedAt: discoveredAt,
     pageSize,
   });
 
   let capturedPagesThisRun = 0;
+  let terminalProofsThisRun = 0;
   let budgetExhausted = false;
+  const persistOpenTerminalProof = async (category) => {
+    if (terminalProofs.has(category.key)) return true;
+    if (terminalProofsThisRun >= terminalProofBudget) return false;
+    const proof = await observeTerminalProof(browser, category, {
+      now, pageSize, profile, section,
+    });
+    validateEcsVehicleTerminalProof(proof, category, {
+      pageSize, profile, section,
+    });
+    await writeJson(
+      terminalProofFilename(resolvedOutput, sectionKey, category.key),
+      proof,
+      { exclusive: true },
+    );
+    terminalProofs.set(category.key, proof);
+    terminalProofsThisRun += 1;
+    await writeCurrentArtifacts({
+      captureStartedAt,
+      categories,
+      outputDir: resolvedOutput,
+      pages,
+      profile,
+      rootSnapshot,
+      section,
+      sectionKey,
+      terminalProofs,
+      generatedAt: proof.observedAt,
+      pageSize,
+    });
+    return true;
+  };
   captureLoop: for (const category of categories) {
     const expectedPages = Math.ceil(category.count / pageSize);
     if (!expectedPages) continue;
@@ -957,6 +1370,7 @@ export async function captureEcsBmwM3Section(browser, {
         if (navigationDelayMs > 0) await browser.wait(navigationDelayMs);
         if (reloadBeforePagination) {
           await reloadValidatedPaginationCheckpoint(browser, lastCheckpoint, category, {
+            profile,
             reloadSettleDelayMs,
             section,
             pageSize,
@@ -982,7 +1396,9 @@ export async function captureEcsBmwM3Section(browser, {
       if (!sourceUrl) throw new Error(`${section} / ${category.name} page ${page} has an unsafe source URL.`);
       const existing = findCheckpoint(pages, category.key, page);
       if (existing) {
-        validateBmwM3PageCheckpoint(existing, category, { section, page, pageSize, sourceUrl });
+        validateEcsVehiclePageCheckpoint(existing, category, {
+          section, page, pageSize, profile, sourceUrl,
+        });
       } else {
         if (capturedPagesThisRun >= pageBudget) {
           budgetExhausted = true;
@@ -998,14 +1414,14 @@ export async function captureEcsBmwM3Section(browser, {
           categoryName: category.name,
           observedAt,
           section,
-          vehicle: BMW_M3_VEHICLE,
+          vehicle: profile.vehicle,
         }, expected);
         const pageRecord = {
           schemaVersion: 1,
           supplier: 'ECS Tuning',
           accessClass: 'public-retail',
-          kind: 'bmw-m3-section-listing-page',
-          vehicle: BMW_M3_VEHICLE,
+          kind: `${profile.artifactPrefix}-section-listing-page`,
+          vehicle: profile.vehicle,
           section,
           categoryKey: category.key,
           category: category.name,
@@ -1017,7 +1433,9 @@ export async function captureEcsBmwM3Section(browser, {
           observedAt,
           records,
         };
-        validateBmwM3PageCheckpoint(pageRecord, category, { section, page, pageSize, sourceUrl });
+        validateEcsVehiclePageCheckpoint(pageRecord, category, {
+          section, page, pageSize, profile, sourceUrl,
+        });
         await writeJson(
           checkpointFilename(resolvedOutput, sectionKey, category.key, page),
           pageRecord,
@@ -1030,12 +1448,23 @@ export async function captureEcsBmwM3Section(browser, {
           categories,
           outputDir: resolvedOutput,
           pages,
+          profile,
           rootSnapshot,
           section,
           sectionKey,
+          terminalProofs,
           generatedAt: observedAt,
           pageSize,
         });
+      }
+
+      if (page === expectedPages && !terminalProofs.has(category.key)) {
+        if (terminalProofsThisRun >= terminalProofBudget) {
+          budgetExhausted = true;
+        } else {
+          if (paginationSettleDelayMs > 0) await browser.wait(paginationSettleDelayMs);
+          await persistOpenTerminalProof(category);
+        }
       }
 
       if (page < expectedPages) {
@@ -1049,6 +1478,7 @@ export async function captureEcsBmwM3Section(browser, {
             throw new Error(`${section} / ${category.name} page ${page} has no checkpoint to reload.`);
           }
           await reloadValidatedPaginationCheckpoint(browser, currentCheckpoint, category, {
+            profile,
             reloadSettleDelayMs,
             section,
             pageSize,
@@ -1062,21 +1492,53 @@ export async function captureEcsBmwM3Section(browser, {
     }
   }
 
+  for (const category of categories) {
+    if (terminalProofs.has(category.key)) continue;
+    const expectation = terminalExpectation(category, pageSize);
+    const categoryPages = pages
+      .filter((item) => item.categoryKey === category.key)
+      .sort((left, right) => left.page - right.page);
+    if (categoryPages.length !== expectation.expectedPages) continue;
+    if (terminalProofsThisRun >= terminalProofBudget) {
+      budgetExhausted = true;
+      break;
+    }
+    const targetUrl = expectation.expectedPages
+      ? categoryPages.at(-1)?.sourceUrl : category.href;
+    if (!targetUrl) {
+      throw new Error(`${section} / ${category.name} has no exact terminal URL to validate.`);
+    }
+    if (canonicalEcsUrl(await browser.getCurrentUrl()) !== canonicalEcsUrl(targetUrl)) {
+      await browser.gotoCheckpointUrl(targetUrl, category.href);
+      await waitForExpectedPage(browser, targetUrl);
+      if (navigationDelayMs > 0) await browser.wait(navigationDelayMs);
+    } else {
+      await waitForExpectedPage(browser, targetUrl);
+    }
+    if (paginationSettleDelayMs > 0) await browser.wait(paginationSettleDelayMs);
+    if (!(await persistOpenTerminalProof(category))) {
+      budgetExhausted = true;
+      break;
+    }
+  }
+
   const generatedAt = now().toISOString();
   const artifacts = await writeCurrentArtifacts({
     captureStartedAt,
     categories,
     outputDir: resolvedOutput,
     pages,
+    profile,
     rootSnapshot,
     section,
     sectionKey,
+    terminalProofs,
     generatedAt,
     pageSize,
   });
   if (!artifacts.report.completeness.complete && !budgetExhausted) {
     throw new Error(
-      `${section} capture finished navigation but failed reconciliation. Review ${path.join(resolvedOutput, `bmw-m3-${sectionKey}-reconciliation-report.json`)}.`,
+      `${section} capture finished navigation but failed reconciliation. Review ${path.join(resolvedOutput, `${profile.artifactPrefix}-${sectionKey}-reconciliation-report.json`)}.`,
     );
   }
   return {
@@ -1086,9 +1548,17 @@ export async function captureEcsBmwM3Section(browser, {
     complete: artifacts.report.completeness.complete,
     budgetExhausted,
     capturedPagesThisRun,
+    terminalProofsThisRun,
     ...artifacts.report.scope,
-    report: path.join(resolvedOutput, `bmw-m3-${sectionKey}-reconciliation-report.json`),
+    report: path.join(resolvedOutput, `${profile.artifactPrefix}-${sectionKey}-reconciliation-report.json`),
   };
+}
+
+export async function captureEcsBmwM3Section(browser, options = {}) {
+  return captureEcsVehicleSection(browser, {
+    ...options,
+    profile: BMW_M3_CAPTURE_PROFILE,
+  });
 }
 
 export function createCodexTabEcsCaptureAdapter(tab, {

@@ -9,7 +9,8 @@ import {
 import { DIRECT_CART_PRODUCTS } from '../server/commerce-policy.js';
 import { canonicalTegiwaLiveProductId } from '../server/tegiwa-live-commerce.js';
 
-const NOW = Date.parse('2026-08-11T12:00:00.000Z');
+const NOW = Date.parse('2026-08-18T12:00:00.000Z');
+const ECS_NOW = Date.parse('2026-08-21T12:00:00.000Z');
 const HANDLE = 'network-free-catalogue-cart-fixture';
 const IMAGE = 'https://cdn.shopify.com/s/files/1/0715/5767/7352/files/catalogue-cart-fixture.jpg?v=1';
 const BLUE_SKU = 'LIVE-FIXTURE-BLUE';
@@ -63,6 +64,19 @@ function directItem(overrides = {}) {
   };
 }
 
+function ecsItem(overrides = {}) {
+  return {
+    supplier: 'ecs',
+    productId: 'ecs-mad-s55-catted-downpipes',
+    sourceHandle: 'ecs-mad-s55-catted-downpipes',
+    sku: 'ES#4630139',
+    quantity: 1,
+    unitAmount: 569,
+    currency: 'USD',
+    ...overrides
+  };
+}
+
 async function rejectsCatalogue(operation, expectedCode = 'invalid_or_stale_cart') {
   await assert.rejects(operation, error => {
     assert.ok(error instanceof CatalogueCartError);
@@ -101,10 +115,11 @@ test('mixed direct and live variants resolve canonically in submitted order with
   assert.equal(resolved[0].stockReserved, false);
   assert.equal(resolved[1].supplier.slug, 'tegiwa', 'direct policy must replace the submitted supplier');
   assert.equal(resolved[1].supplier.originCountryCode, 'GB');
+  assert.equal(resolved[1].supplierAvailable, false, 'current dealer evidence marks Medium for confirmation');
   assert.equal(resolved[2].supplierAvailable, true);
   assert.equal(resolved[2].sourceHandle, HANDLE);
-  assert.equal(resolved[2].observedAt, '2026-08-11T12:00:00.000Z');
-  assert.equal(resolved[2].expiresAt, '2026-08-11T12:05:00.000Z');
+  assert.equal(resolved[2].observedAt, '2026-08-18T12:00:00.000Z');
+  assert.equal(resolved[2].expiresAt, '2026-08-18T12:05:00.000Z');
   assert.deepEqual(resolved[2].supplier, {
     slug: 'tegiwa',
     name: 'Tegiwa',
@@ -249,4 +264,70 @@ test('a changed live price is rejected against the submitted supplier observatio
     now: NOW,
     fetchImpl: fixtureFetch(changed)
   }));
+});
+
+test('an authoritative F8X selection resolves through the shared server index without supplier fetches', async () => {
+  let calls = 0;
+  const [resolved] = await resolveCatalogueCartItems([ecsItem()], {
+    now: ECS_NOW,
+    fetchImpl: async () => { calls += 1; throw new Error('ECS confirmation-cart must remain offline'); }
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(resolved.source, 'ecs_confirmation_cart_index');
+  assert.equal(resolved.productId, 'ecs-mad-s55-catted-downpipes');
+  assert.equal(resolved.sku, 'ES#4630139');
+  assert.equal(resolved.title, 'MAD S55 Catted Downpipes M2C/M3/M4 With Flex Section');
+  assert.equal(resolved.unitAmount, 569);
+  assert.equal(resolved.currency, 'USD');
+  assert.equal(resolved.purchaseMode, 'fitment-confirmation-required');
+  assert.equal(resolved.fitmentConfirmationRequired, true);
+  assert.equal(resolved.availabilityConfirmationRequired, true);
+  assert.equal(resolved.paymentAllowed, false);
+  assert.equal(resolved.paymentStatus, 'not_collected');
+  assert.equal(resolved.stockReserved, false);
+  assert.equal(resolved.supplier.originCountryCode, 'US');
+
+  assert.deepEqual(shippingItemsFromResolvedCart([resolved]), [{
+    productId: 'ecs-mad-s55-catted-downpipes',
+    sku: 'ES#4630139',
+    quantity: 1,
+    variantId: 'ES#4630139',
+    purchaseMode: 'fitment-confirmation-required',
+    fitmentConfirmationRequired: true,
+    packageData: null,
+    supplier: {
+      slug: 'ecs',
+      name: 'ECS Tuning',
+      originId: 'ecs-us',
+      originCountryCode: 'US',
+      originCountryName: 'United States'
+    }
+  }]);
+});
+
+test('F8X amount, identity, SKU, expiry, quarantine, and quote-only tampering fail closed', async () => {
+  for (const item of [
+    ecsItem({ unitAmount: 1 }),
+    ecsItem({ currency: 'GBP' }),
+    ecsItem({ sku: 'ES#4630140' }),
+    ecsItem({ sourceHandle: 'ecs-es-4630139' }),
+    ecsItem({ productId: 'ecs-es-129081', sourceHandle: 'ecs-es-129081', sku: 'ES#129081' }),
+    ecsItem({ productId: 'ecs-es-4709083', sourceHandle: 'ecs-es-4709083', sku: 'ES#4709083' })
+  ]) {
+    await rejectsCatalogue(resolveCatalogueCartItems([item], { now: ECS_NOW }));
+  }
+  await rejectsCatalogue(resolveCatalogueCartItems([ecsItem()], {
+    now: Date.parse('2026-09-21T00:00:00.000Z')
+  }));
+
+  const shippingOnly = { ...ecsItem() };
+  delete shippingOnly.unitAmount;
+  delete shippingOnly.currency;
+  const [resolved] = await resolveCatalogueCartItems([shippingOnly], {
+    now: ECS_NOW,
+    requireMoney: false
+  });
+  assert.equal(resolved.unitAmount, 569);
+  assert.equal(resolved.paymentAllowed, false);
 });

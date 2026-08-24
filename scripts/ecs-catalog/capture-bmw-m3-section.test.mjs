@@ -1,16 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import {
+  mkdir, mkdtemp, readFile, readdir, rm, writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
   BMW_M3_ROOT_URL,
+  buildBmwM3ReconciliationReport,
   captureEcsBmwM3Section,
   createCodexTabEcsCaptureAdapter,
   discoverBmwM3ChildCategories,
   discoverBmwM3SectionLink,
   normalizeBmwM3Section,
   validateBmwM3PageCheckpoint,
+  writeEcsCaptureJsonCreateOnly,
 } from './capture-bmw-m3-section.mjs';
 
 const SECTION_URL = 'https://www.ecstuning.com/BMW-M3/Engine/';
@@ -282,6 +286,25 @@ test('captures in bounded chunks, accepts the exact next open page and emits exa
   assert.deepEqual(report.completeness.duplicatePlacements, []);
   assert.equal(report.safeguards.guessedCategoryRoutes, false);
   assert.equal(report.safeguards.challengeBypassUsed, false);
+  assert.equal(report.safeguards.nextUncheckpointPageValidated, true);
+  assert.equal(report.scope.terminalProofs, 2);
+
+  const performanceProof = JSON.parse(await readFile(path.join(
+    outputDir,
+    'terminal-proofs',
+    'engine-performance-engine-parts-terminal.json',
+  ), 'utf8'));
+  const toolsProof = JSON.parse(await readFile(path.join(
+    outputDir,
+    'terminal-proofs',
+    'engine-engine-tools-terminal.json',
+  ), 'utf8'));
+  assert.equal(performanceProof.terminalPage, 2);
+  assert.equal(performanceProof.expectedRenderedCount, 1);
+  assert.equal(performanceProof.nextPageAbsent, true);
+  assert.equal(toolsProof.terminalPage, 1);
+  assert.equal(toolsProof.expectedRenderedCount, 1);
+  assert.equal(toolsProof.nextPageAbsent, true);
 
   const completedBrowser = new FixtureBrowser(SECTION_URL);
   const completed = await captureEcsBmwM3Section(completedBrowser, {
@@ -359,7 +382,8 @@ test('optionally reloads and revalidates the exact checkpoint before reading pag
   });
   assert.equal(result.complete, true);
   assert.deepEqual(browser.reloadCalls, [PERFORMANCE_URL]);
-  assert.equal(browser.renderedCountChecks, 1);
+  assert.equal(browser.renderedCountChecks, 3,
+    'one reload check plus two terminal-page rendered-count proofs are required');
 });
 
 test('reload recovery stops before pagination when the checkpoint card count changes', async () => {
@@ -381,6 +405,275 @@ test('reload recovery stops before pagination when the checkpoint card count cha
   assert.deepEqual(browser.reloadCalls, [PERFORMANCE_URL]);
   assert.equal(browser.renderedCountChecks, 3);
   assert.equal(browser.currentUrl, PERFORMANCE_URL, 'no paginator was clicked after failed validation');
+});
+
+test('fails closed when a visible higher page disproves an underreported category count', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-undercount-'));
+  const browser = new FixtureBrowser();
+  browser.pages.get(SECTION_URL).links = [
+    visibleLink(PERFORMANCE_URL, 'Performance Engine Parts', { dataCount: '16' }),
+    visibleLink(TOOLS_URL, 'Engine Tools', { countText: '1 product' }),
+  ];
+
+  await assert.rejects(captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    now: () => new Date(observedAt),
+  }), /visible next or higher pagination link/);
+
+  const report = JSON.parse(await readFile(
+    path.join(outputDir, 'bmw-m3-engine-reconciliation-report.json'),
+    'utf8',
+  ));
+  assert.equal(report.completeness.complete, false);
+  assert.equal(report.safeguards.nextUncheckpointPageValidated, false);
+  assert.equal(report.scope.terminalProofs, 0);
+});
+
+test('requires terminal proof even for a supplier category that reports zero products', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-zero-'));
+  const browser = new FixtureBrowser();
+  browser.pages.get(SECTION_URL).links = [
+    visibleLink(TOOLS_URL, 'Engine Tools', { dataCount: '0' }),
+  ];
+  browser.pages.get(TOOLS_URL).records = [];
+
+  const result = await captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    now: () => new Date(observedAt),
+  });
+  assert.equal(result.complete, true);
+  assert.equal(result.capturedPagesThisRun, 0);
+  assert.equal(result.terminalProofsThisRun, 1);
+
+  const proof = JSON.parse(await readFile(path.join(
+    outputDir,
+    'terminal-proofs',
+    'engine-engine-tools-terminal.json',
+  ), 'utf8'));
+  assert.equal(proof.expectedPages, 0);
+  assert.equal(proof.terminalPage, 1);
+  assert.equal(proof.expectedRenderedCount, 0);
+  assert.equal(proof.renderedCount, 0);
+  assert.equal(proof.nextPageAbsent, true);
+
+  await rm(path.join(outputDir, 'terminal-proofs'), { recursive: true });
+  await mkdir(path.join(outputDir, 'terminal-proofs'), { recursive: true });
+  const resumed = await captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    terminalProofBudget: 1,
+    now: () => new Date(observedAt),
+  });
+  assert.equal(resumed.complete, true,
+    'a proof-only resume accepts the same open zero-count category route');
+});
+
+test('rejects a zero-count category when its route renders a product card', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-false-zero-'));
+  const browser = new FixtureBrowser();
+  browser.pages.get(SECTION_URL).links = [
+    visibleLink(TOOLS_URL, 'Engine Tools', { dataCount: '0' }),
+  ];
+
+  await assert.rejects(captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    now: () => new Date(observedAt),
+  }), /expected 0 rendered product cards but observed 1/);
+});
+
+test('create-only JSON writes never replace an existing target and have one race winner', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-create-only-'));
+  const existing = path.join(outputDir, 'existing.json');
+  await writeFile(existing, '{"owner":"original"}\n', 'utf8');
+  await assert.rejects(
+    writeEcsCaptureJsonCreateOnly(existing, { owner: 'replacement' }),
+    /already exists and was not overwritten/,
+  );
+  assert.equal(await readFile(existing, 'utf8'), '{"owner":"original"}\n');
+
+  const raced = path.join(outputDir, 'raced.json');
+  const outcomes = await Promise.allSettled([
+    writeEcsCaptureJsonCreateOnly(raced, { writer: 'left' }),
+    writeEcsCaptureJsonCreateOnly(raced, { writer: 'right' }),
+  ]);
+  assert.equal(outcomes.filter((outcome) => outcome.status === 'fulfilled').length, 1);
+  assert.equal(outcomes.filter((outcome) => outcome.status === 'rejected').length, 1);
+  assert.match(outcomes.find((outcome) => outcome.status === 'rejected').reason.message,
+    /already exists and was not overwritten/);
+  assert.ok(['left', 'right'].includes(JSON.parse(await readFile(raced, 'utf8')).writer));
+  assert.deepEqual((await readdir(outputDir)).filter((name) => name.endsWith('.tmp')), []);
+});
+
+test('adds missing terminal proofs in bounded resumes without rewriting root or page checkpoints', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-proof-resume-'));
+  await captureEcsBmwM3Section(new FixtureBrowser(), {
+    section: 'Engine', outputDir, navigationDelayMs: 0, now: () => new Date(observedAt),
+  });
+  const rootPath = path.join(outputDir, 'section-root.json');
+  const pagePath = path.join(outputDir, 'raw-pages', 'engine-performance-engine-parts-p1.json');
+  const originalRoot = await readFile(rootPath, 'utf8');
+  const originalPage = await readFile(pagePath, 'utf8');
+  await rm(path.join(outputDir, 'terminal-proofs'), { recursive: true });
+  await mkdir(path.join(outputDir, 'terminal-proofs'), { recursive: true });
+
+  const proofResumeBrowser = new FixtureBrowser(SECTION_URL);
+  const firstResume = await captureEcsBmwM3Section(proofResumeBrowser, {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    terminalProofBudget: 1,
+    now: () => new Date(observedAt),
+  });
+  assert.equal(firstResume.complete, false);
+  assert.equal(firstResume.budgetExhausted, true);
+  assert.equal(firstResume.capturedPagesThisRun, 0);
+  assert.equal(firstResume.terminalProofsThisRun, 1);
+  assert.equal(proofResumeBrowser.currentUrl, PERFORMANCE_PAGE_2,
+    'the bounded proof batch remains on the earlier category terminal page');
+
+  const secondResume = await captureEcsBmwM3Section(proofResumeBrowser, {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    terminalProofBudget: 1,
+    now: () => new Date(observedAt),
+  });
+  assert.equal(secondResume.complete, true);
+  assert.equal(secondResume.terminalProofsThisRun, 1);
+  assert.equal(await readFile(rootPath, 'utf8'), originalRoot);
+  assert.equal(await readFile(pagePath, 'utf8'), originalPage);
+});
+
+test('rejects an unsafe category key in a stored root before resolving checkpoint paths', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-unsafe-key-'));
+  await captureEcsBmwM3Section(new FixtureBrowser(), {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    terminalProofBudget: 0,
+    now: () => new Date(observedAt),
+  });
+  const rootPath = path.join(outputDir, 'section-root.json');
+  const root = JSON.parse(await readFile(rootPath, 'utf8'));
+  root.categories[0].key = 'safe/../../../../../../tracked';
+  await writeFile(rootPath, `${JSON.stringify(root, null, 2)}\n`, 'utf8');
+
+  await assert.rejects(captureEcsBmwM3Section(new FixtureBrowser(PERFORMANCE_URL), {
+    section: 'Engine',
+    outputDir,
+    navigationDelayMs: 0,
+    pageBudget: 0,
+    terminalProofBudget: 0,
+    now: () => new Date(observedAt),
+  }), /child-category manifest is invalid/);
+});
+
+test('reconciliation refuses a truthy but unvalidated terminal-proof object', async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-forged-proof-'));
+  await captureEcsBmwM3Section(new FixtureBrowser(), {
+    section: 'Engine', outputDir, navigationDelayMs: 0, now: () => new Date(observedAt),
+  });
+  const rootSnapshot = JSON.parse(await readFile(path.join(outputDir, 'section-root.json'), 'utf8'));
+  const pages = await Promise.all((await readdir(path.join(outputDir, 'raw-pages')))
+    .filter((name) => name.endsWith('.json'))
+    .map(async (name) => JSON.parse(await readFile(path.join(outputDir, 'raw-pages', name), 'utf8'))));
+  const forgedProofs = new Map(rootSnapshot.categories.map((category) => [category.key, {}]));
+
+  assert.throws(() => buildBmwM3ReconciliationReport({
+    captureStartedAt: rootSnapshot.discoveredAt,
+    categories: rootSnapshot.categories,
+    generatedAt: observedAt,
+    pages,
+    rootSnapshot,
+    section: 'Engine',
+    sectionKey: 'engine',
+    terminalProofs: forgedProofs,
+  }), /terminal-pagination proof is invalid/);
+});
+
+test('requires rendered-card counting for terminal proof on every browser adapter', async () => {
+  const browser = new FixtureBrowser();
+  browser.getRenderedListingCount = undefined;
+  await assert.rejects(captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir: await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-adapter-')),
+    navigationDelayMs: 0,
+    now: () => new Date(observedAt),
+  }), /Browser adapter is missing: getRenderedListingCount/);
+});
+
+test('rejects navigation away from the terminal page during proof observation', async () => {
+  const browser = new FixtureBrowser();
+  browser.pages.get(SECTION_URL).links = [
+    visibleLink(TOOLS_URL, 'Engine Tools', { dataCount: '1' }),
+  ];
+  browser.getRenderedListingCount = async () => {
+    const count = browser.page().records.length;
+    browser.currentUrl = SECTION_URL;
+    return count;
+  };
+
+  await assert.rejects(captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir: await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-proof-navigation-')),
+    navigationDelayMs: 0,
+    now: () => new Date(observedAt),
+  }), /changed URL during terminal-pagination proof/);
+});
+
+test('settles a freshly captured terminal page before checking for late pagination', async () => {
+  const browser = new FixtureBrowser();
+  browser.pages.get(SECTION_URL).links = [
+    visibleLink(TOOLS_URL, 'Engine Tools', { dataCount: '1' }),
+  ];
+  let terminalSettled = false;
+  browser.wait = async (milliseconds) => {
+    if (browser.currentUrl === TOOLS_URL && milliseconds === 25) terminalSettled = true;
+  };
+  browser.getVisibleLinks = async () => {
+    const links = browser.page().links;
+    return terminalSettled && browser.currentUrl === TOOLS_URL
+      ? [...links, visibleLink(`${TOOLS_URL}2`, '2')]
+      : links;
+  };
+
+  await assert.rejects(captureEcsBmwM3Section(browser, {
+    section: 'Engine',
+    outputDir: await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-late-pagination-')),
+    navigationDelayMs: 0,
+    paginationSettleDelayMs: 25,
+    now: () => new Date(observedAt),
+  }), /visible next or higher pagination link/);
+  assert.equal(terminalSettled, true);
+});
+
+test('terminal-proof budget does not prevent capture of remaining immutable pages', async () => {
+  const result = await captureEcsBmwM3Section(new FixtureBrowser(), {
+    section: 'Engine',
+    outputDir: await mkdtemp(path.join(os.tmpdir(), 'projx-ecs-m3-proof-budget-')),
+    navigationDelayMs: 0,
+    terminalProofBudget: 0,
+    now: () => new Date(observedAt),
+  });
+  assert.equal(result.complete, false);
+  assert.equal(result.budgetExhausted, true);
+  assert.equal(result.capturedPagesThisRun, 3);
+  assert.equal(result.capturedPlacements, 18);
+  assert.equal(result.terminalProofsThisRun, 0);
+  assert.equal(result.terminalProofs, 0);
 });
 
 test('rejects a page checkpoint with an incomplete required listing record', () => {

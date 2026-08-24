@@ -7,6 +7,20 @@
   const TEGIWA_VEHICLE_DIRECTORY = window.PROJX_TEGIWA_VEHICLE_DIRECTORY || { makes: [], counts: { makes: 0, models: 0 } };
   const SUPPLIER_DIRECTORY_GENERATION = "supplier-directory";
   const SUPPLIER_CONFIRM_ENGINE = "confirm-engine";
+  const ECS_BMW_F8X_VEHICLE_SELECTIONS = Object.freeze([
+    Object.freeze({
+      directoryModel: "M3 (14-20)", model: "M3", generation: "F80", engine: "S55",
+      labelEn: "F80 M3 Saloon · S55", labelAr: "F80 M3 سيدان · S55"
+    }),
+    Object.freeze({
+      directoryModel: "M4 (14-20)", model: "M4", generation: "F82", engine: "S55",
+      labelEn: "F82 M4 Coupé · S55", labelAr: "F82 M4 كوبيه · S55"
+    }),
+    Object.freeze({
+      directoryModel: "M4 (14-20)", model: "M4", generation: "F83", engine: "S55",
+      labelEn: "F83 M4 Convertible · S55", labelAr: "F83 M4 مكشوفة · S55"
+    })
+  ]);
   const PARTS_CATALOG_ENDPOINT = "/api/parts-catalog/";
   const PARTS_CATALOG_FALLBACK_ENDPOINT = "/api/tegiwa-catalog/";
   const STAGING_ORDER_ENDPOINT = "/api/staging-order/";
@@ -47,7 +61,7 @@
     alt: "2026 Tegiwa Racing Tsuki Team T-Shirt",
     altAr: "قميص فريق تيجيوا ريسنغ تسوكي 2026"
   });
-  function tsukiTshirtPolicy(sizeSlug, sizeTitle, sizeTitleAr, sku) {
+  function tsukiTshirtPolicy(sizeSlug, sizeTitle, sizeTitleAr, sku, supplierAvailable) {
     return Object.freeze({
       productId: `tegiwa-2026-team-tegiwa-tsuki-t-shirt-${sizeSlug}`,
       sourceHandle: "2026-team-tegiwa-tsuki-t-shirt",
@@ -58,10 +72,11 @@
       sku,
       currency: "GBP",
       unitAmount: 27.49,
-      priceVerifiedAt: "2026-08-10",
+      priceVerifiedAt: "2026-08-18",
       maxPriceAgeDays: 7,
-      availabilityVerifiedAt: "2026-08-10",
+      availabilityVerifiedAt: "2026-08-18",
       maxAvailabilityAgeDays: 7,
+      supplierAvailable,
       fitmentConfirmationRequired: false,
       purchaseMode: "direct",
       image: TEGIWA_TSUKI_TSHIRT_IMAGE,
@@ -72,19 +87,22 @@
     "tegiwa-magnust-gr-yaris-gopro-headrest-mount-lhd": Object.freeze({
       sku: "T-GOPRO-MOUNT-YARISGR-LHD",
       currency: "GBP",
-      unitAmount: 31.19,
-      priceVerifiedAt: "2026-08-03",
+      unitAmount: 25.99,
+      priceVerifiedAt: "2026-08-18",
       maxPriceAgeDays: 7,
+      availabilityVerifiedAt: "2026-08-18",
+      maxAvailabilityAgeDays: 7,
+      supplierAvailable: true,
       fitmentConfirmationRequired: true,
       notice: "Left-hand-drive GR Yaris and seat/headrest compatibility must be confirmed before fulfilment.",
       noticeAr: "يجب تأكيد توافق سيارة GR Yaris ذات المقود اليسار والمقعد ومسند الرأس قبل التجهيز.",
       supplier: TEGIWA_GB_SUPPLIER
     }),
-    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-s": tsukiTshirtPolicy("s", "Small", "صغير", "T-TSUKITEAM-TSHIRT-S"),
-    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-m": tsukiTshirtPolicy("m", "Medium", "متوسط", "T-TSUKITEAM-TSHIRT-M"),
-    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-l": tsukiTshirtPolicy("l", "Large", "كبير", "T-TSUKITEAM-TSHIRT-L"),
-    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xl": tsukiTshirtPolicy("xl", "X-Large", "كبير جداً", "T-TSUKITEAM-TSHIRT-XL"),
-    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xxl": tsukiTshirtPolicy("xxl", "XX-Large", "كبير جداً جداً", "T-TSUKITEAM-TSHIRT-XXL")
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-s": tsukiTshirtPolicy("s", "Small", "صغير", "T-TSUKITEAM-TSHIRT-S", true),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-m": tsukiTshirtPolicy("m", "Medium", "متوسط", "T-TSUKITEAM-TSHIRT-M", false),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-l": tsukiTshirtPolicy("l", "Large", "كبير", "T-TSUKITEAM-TSHIRT-L", true),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xl": tsukiTshirtPolicy("xl", "X-Large", "كبير جداً", "T-TSUKITEAM-TSHIRT-XL", true),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xxl": tsukiTshirtPolicy("xxl", "XX-Large", "كبير جداً جداً", "T-TSUKITEAM-TSHIRT-XXL", true)
   });
   const main = document.getElementById("main-content");
   const header = document.getElementById("site-header");
@@ -188,8 +206,8 @@
       stockPolicy: "manual-confirm",
       checkedAt: policy.availabilityVerifiedAt || policy.priceVerifiedAt,
       staleAfterDays: policy.maxAvailabilityAgeDays || policy.maxPriceAgeDays,
-      status: "Available from supplier",
-      statusAr: "متوفر لدى المورد",
+      status: policy.supplierAvailable === false ? "Supplier availability requires confirmation" : "Available from supplier",
+      statusAr: policy.supplierAvailable === false ? "يجب تأكيد التوفر لدى المورد" : "متوفر لدى المورد",
       images: [{ ...policy.image }]
     };
   }
@@ -2735,6 +2753,15 @@
         for (const engine of (application.engines || [])) generations.get(generation).add(engine);
       }
     }
+    for (const selection of ECS_BMW_F8X_VEHICLE_SELECTIONS) {
+      if (!directory.has("BMW")) directory.set("BMW", new Map());
+      const models = directory.get("BMW");
+      if (!models.has(selection.directoryModel)) models.set(selection.directoryModel, new Map());
+      const generations = models.get(selection.directoryModel);
+      generations.delete(SUPPLIER_DIRECTORY_GENERATION);
+      if (!generations.has(selection.generation)) generations.set(selection.generation, new Set());
+      generations.get(selection.generation).add(selection.engine);
+    }
     return directory;
   }
 
@@ -2750,6 +2777,8 @@
   function vehicleDirectoryChoiceLabel(value) {
     if (value === SUPPLIER_DIRECTORY_GENERATION) return storeText().supplierDirectoryGeneration;
     if (value === SUPPLIER_CONFIRM_ENGINE) return storeText().supplierConfirmEngine;
+    const f8xSelection = ECS_BMW_F8X_VEHICLE_SELECTIONS.find(selection => selection.generation === value);
+    if (f8xSelection) return state.locale === "ar" ? f8xSelection.labelAr : f8xSelection.labelEn;
     return value;
   }
 
@@ -2801,21 +2830,23 @@
     if (!vehicle) return {};
     const make = cleanText(vehicle.make || "", 80);
     const directoryModel = cleanText(vehicle.model || "", 100);
+    const supplierGeneration = cleanText(vehicle.generation || "", 120);
     const bmwMDirectory = new Map([
       ["M2 (22-26)", { model: "M2", generation: "G87" }],
-      ["M3 (14-20)", { model: "M3", generation: "F80" }],
       ["M3 (20-24)", { model: "M3", generation: "G80" }],
-      ["M4 (14-20)", { model: "M4", generation: "F82" }],
       ["M4 (21-24)", { model: "M4", generation: "G82" }]
     ]);
-    const mappedBmwM = make === "BMW" ? bmwMDirectory.get(directoryModel) : null;
+    const exactF8xSelection = make === "BMW"
+      ? ECS_BMW_F8X_VEHICLE_SELECTIONS.find(selection => selection.directoryModel === directoryModel
+        && selection.generation === supplierGeneration)
+      : null;
+    const mappedBmwM = make === "BMW" ? (exactF8xSelection || bmwMDirectory.get(directoryModel)) : null;
     const model = mappedBmwM?.model || directoryModel;
     const result = {
       year: cleanText(vehicle.year || "", 4),
       make,
       model
     };
-    const supplierGeneration = cleanText(vehicle.generation || "", 120);
     const generation = mappedBmwM?.generation || supplierGeneration;
     const engine = cleanText(vehicle.engine || "", 120);
     if (generation && generation !== SUPPLIER_DIRECTORY_GENERATION) result.generation = generation;
@@ -4045,22 +4076,25 @@
           eyebrow: "اختيارات BMW M المراجعة",
           heading: "ترقيات M2 وM3 وM4 المراجعة.",
           text: "اختيارات من صفحات ECS المخصصة للسيارة وترتيب الملاءمة الافتراضي. لا تمثل أرقام مبيعات منشورة، ويجب تأكيد السعر والمخزون والتوافق قبل الطلب.",
-          action: "ابحث في قطع ECS"
+          action: "ابحث في قطع ECS",
+          possibleFitment: "توافق محتمل · يتطلب التأكيد"
         }
       : {
           eyebrow: "Featured reviewed BMW M selections",
           heading: "Reviewed M2, M3 and M4 upgrades.",
           text: "Curated from ECS vehicle pages and their default relevance ordering. These are not published sales figures; price, stock and exact fitment still require confirmation.",
-          action: "Search ECS parts"
+          action: "Search ECS parts",
+          possibleFitment: "Possible fitment · confirmation required"
         };
     const popularMModels = [
       ["BMW M2 G87", "M2", "G87", "S58"],
       ["BMW M3 F80", "M3", "F80", "S55"],
       ["BMW M4 F82", "M4", "F82", "S55"],
+      ["BMW M4 F83", "M4", "F83", "S55"],
       ["BMW M3 G80", "M3", "G80", "S58"],
       ["BMW M4 G82", "M4", "G82", "S58"]
     ];
-    const popularMMarkup = popularMModels.map(([query, model, chassis, engine]) => `<button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" data-tegiwa-directory-supplier="ecs" data-tegiwa-directory-match="any" aria-pressed="false"><span><strong>${esc(model)} <bdi dir="ltr">${esc(chassis)}</bdi></strong><small><bdi dir="ltr">${esc(engine)}</bdi> · ECS Tuning</small></span><span>${esc(popularM.action)}${icons.arrow}</span></button>`).join("");
+    const popularMMarkup = popularMModels.map(([query, model, chassis, engine]) => `<button type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(query)}" data-tegiwa-directory-supplier="ecs" data-tegiwa-directory-match="any" aria-pressed="false"><span><strong>${esc(model)} <bdi dir="ltr">${esc(chassis)}</bdi></strong><small><bdi dir="ltr">${esc(engine)}</bdi> · ECS Tuning · ${esc(popularM.possibleFitment)}</small></span><span>${esc(popularM.action)}${icons.arrow}</span></button>`).join("");
     const brandTiles = brandCounts.map(({ brand }) => `<button class="parts-brand-card" type="button" data-action="search-tegiwa-directory" data-tegiwa-directory-query="${esc(brand.name)}" aria-pressed="false">${brandLogoMarkup(brand, { compact: true, inline: true })}<span class="parts-brand-copy"><strong dir="ltr">${esc(brand.name)}</strong><small>${esc(finder.byBrand)}</small></span>${icons.arrow}</button>`).join("");
     return `${pageHero({ eyebrow: page.eyebrow, title: page.heading, text: page.intro, media: 27, crumbs: [[U().nav.parts]], actions: `<a class="btn" href="#parts-vehicle">${esc(finder.byVehicle)}${icons.arrow}</a><button class="btn btn-outline-light" type="button" data-action="open-form" data-form-type="Parts Enquiry">${esc(U().actions.enquire)}${icons.quote}</button>` })}
       <div data-parts-shop>

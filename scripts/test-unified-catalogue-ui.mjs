@@ -210,6 +210,27 @@ assert.match(app, /USD and GBP prices are not converted or compared/,
 assert.match(app, /state\.tegiwaCatalog\.sortScope === "supplier-groups"/);
 assert.match(styles, /\.catalogue-sort-note/);
 assert.match(app, /loadTegiwaCatalog\(\{ query: state\.tegiwaCatalog\.query, match: partsVehicleLabel\(\) \? "vehicle" : "any"/);
+for (const [directoryModel, model, generation, engine] of [
+  ['M3 (14-20)', 'M3', 'F80', 'S55'],
+  ['M4 (14-20)', 'M4', 'F82', 'S55'],
+  ['M4 (14-20)', 'M4', 'F83', 'S55']
+]) {
+  assert.match(app, new RegExp(`directoryModel: "${directoryModel.replace(/[()]/g, '\\$&')}", model: "${model}", generation: "${generation}", engine: "${engine}"`),
+    `${generation} must be an explicit ECS-supported BMW vehicle selection.`);
+}
+assert.match(app, /generations\.delete\(SUPPLIER_DIRECTORY_GENERATION\)[\s\S]{0,240}generations\.get\(selection\.generation\)\.add\(selection\.engine\)/,
+  'Supported F8X choices must replace the supplier-only placeholder with exact chassis and engine values.');
+assert.match(app, /selection\.directoryModel === directoryModel[\s\S]{0,100}selection\.generation === supplierGeneration/,
+  'BMW F8X normalization must preserve the exact selected chassis.');
+assert.doesNotMatch(app, /\["M4 \(14-20\)", \{ model: "M4", generation: "F82" \}\]/,
+  'The M4 directory model must not force F83 selections back to F82.');
+assert.match(app, /\["BMW M4 F83", "M4", "F83", "S55"\]/,
+  'The reviewed BMW M shortcuts must expose the F83 M4 S55 alongside F80 and F82.');
+assert.match(app, /possibleFitment: "Possible fitment · confirmation required"/);
+assert.match(app, /possibleFitment: "توافق محتمل · يتطلب التأكيد"/,
+  'Reviewed BMW M shortcuts must retain an Arabic possible-fitment and confirmation label.');
+assert.match(app, /for \(const \[key, value\] of Object\.entries\(vehicleFields\)\) params\.set\(key, value\)/,
+  'The selected F8X generation must be sent as a structured catalogue filter.');
 assert.match(app, /syncCatalogueFacetOptions\(meta\)/);
 assert.match(app, /Number\(meta\.catalogProductCount\)/,
   'The global catalogue statistic must use verified structured product records only.');
@@ -272,6 +293,12 @@ assert.doesNotMatch(app, /sourceHandle: "tegiwa-2026-team-tegiwa-tsuki-t-shirt"/
   'The public Tegiwa route namespace must not be stored as the supplier source handle.');
 assert.match(app, /function commerceProduct\(slug\)[\s\S]*policy\?\.sourceHandle[\s\S]*images:\s*\[\{ \.\.\.policy\.image \}\]/,
   'Approved supplier variants must have a deterministic cart-product fallback for reload persistence.');
+assert.match(app, /function ecsCatalogueCartSelection\(product, now = Date\.now\(\)\)[\s\S]*commerce\?\.eligible !== true[\s\S]*commerce\?\.mode !== "confirmation-cart"[\s\S]*commerce\?\.paymentAllowed !== false[\s\S]*now > expiresAt/,
+  'ECS cart selection must rely on the current server-issued confirmation-cart decision and expiry.');
+assert.match(app, /if \(supplier === "ecs" && !variant\) return ecsCatalogueCartSelection\(product, now\)/,
+  'ECS detail, restored-cart and catalogue actions must share the same client selection normalizer.');
+assert.match(app, /function catalogueProductMayEnterCart\(item\)[\s\S]*item\?\.commerce\?\.eligible === true[\s\S]*"confirmation-cart"[\s\S]*supplier !== "tegiwa"/,
+  'ECS cards must require server commerce eligibility; only Tegiwa may use the existing public-detail fallback.');
 assert.match(app, /function liveTegiwaCommerceObservation\(product, now = Date\.now\(\)\)[\s\S]*observation\.source !== "official_tegiwa_product_detail"[\s\S]*observation\.paymentEligible !== false[\s\S]*now >= expiresAt[\s\S]*priceCurrency \|\| ""\)\.toUpperCase\(\) !== "GBP"/,
   'Live Tegiwa cart observations must be official, non-payment-eligible, unexpired GBP observations.');
 assert.match(app, /function tegiwaCatalogueCartSelection\(product, variant = null, now = Date\.now\(\)\)[\s\S]*const observation = liveTegiwaCommerceObservation\(product, now\)[\s\S]*product\?\.price\?\.startingAt === true[\s\S]*\^tegiwa-live-\[A-Za-z0-9_-\]\{24\}\$/,
@@ -282,6 +309,8 @@ assert.doesNotMatch(app, /data-direct-cart-product-id=/,
   'Supplier options must not expose the obsolete direct-cart product-id attribute.');
 assert.match(app, /data-action="add-catalogue-cart" \$\{cartButtonAttributes\}>\$\{esc\(commerceText\(\)\.addToCart\)\}/,
   'Eligible supplier products must render the generic catalogue Add to cart action.');
+assert.match(app, /const primaryAction = directCartSupported[\s\S]{0,260}data-action="add-catalogue-cart"[\s\S]{0,260}data-action="add-quote"/,
+  'Eligible ECS details must render Add to cart while ineligible details remain in the quote flow.');
 assert.match(app, /const selection = state\.catalogueCartSelections\.get\(selectionKey\)[\s\S]{0,250}cartButton\.disabled = !selection/,
   'Add to cart must remain disabled until the selected variant has a registered canonical selection.');
 assert.match(app, /if \(action === "add-catalogue-cart"\)[\s\S]{0,500}querySelector\("\[data-tegiwa-variant\]:checked"\)[\s\S]{0,300}addCatalogueCart\(selectionKey \|\| "", quantity\)/,

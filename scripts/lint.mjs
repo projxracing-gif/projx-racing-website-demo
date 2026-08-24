@@ -12,6 +12,8 @@ const files = [
   'server/commerce-validation.js', 'server/commerce-database.js', 'server/commerce-repository.js',
   'server/transactional-email.js', 'server/customer-commerce-api.js', 'server/clerk-webhook-api.js',
   'server/ecs-discovery-catalog.js', 'server/ecs-reviewed-catalog.js', 'server/catalog-search-intelligence.js',
+  'server/catalog-taxonomy.js', 'server/ecs-reviewed-shard-catalog.js',
+  'server/ecs-f8x-overlay-contract.js',
   'scripts/build.mjs', 'scripts/validate.mjs', 'scripts/serve.mjs',
   'scripts/test-api.mjs', 'scripts/test-tegiwa-catalog-api.mjs', 'scripts/test-catalog-search-intelligence.mjs', 'scripts/test-customer-commerce.mjs', 'scripts/lint.mjs',
   'scripts/catalog-import.mjs', 'scripts/build-tegiwa-stock-index.mjs',
@@ -20,6 +22,18 @@ const files = [
   'scripts/ecs-catalog/ingest.mjs', 'scripts/ecs-catalog/lib.mjs',
   'scripts/ecs-catalog/build-url-manifests.mjs', 'scripts/ecs-catalog/shard-jobs.mjs',
   'scripts/ecs-catalog/collect-sitemaps.mjs', 'scripts/ecs-catalog/publish-discovery-blob.mjs',
+  'scripts/ecs-catalog/capture-bmw-m3-section.mjs', 'scripts/ecs-catalog/capture-bmw-m3-section.test.mjs',
+  'scripts/ecs-catalog/capture-f8x-section.mjs', 'scripts/ecs-catalog/capture-f8x-section.test.mjs',
+  'scripts/ecs-catalog/prepare-f8x-aggregate.mjs', 'scripts/ecs-catalog/prepare-f8x-aggregate.test.mjs',
+  'scripts/ecs-catalog/build-reviewed-product-shards.mjs', 'scripts/ecs-catalog/publish-reviewed-product-shards.mjs',
+  'scripts/ecs-catalog/f8x-overlay-contract.test.mjs',
+  'scripts/ecs-catalog/build-f8x-overlay-release.test.mjs', 'scripts/ecs-catalog/f8x-overlay-runtime.test.mjs',
+  'scripts/ecs-catalog/build-f8x-overlay-media-recovery-queue.mjs',
+  'scripts/ecs-catalog/build-f8x-overlay-media-recovery-queue.test.mjs',
+  'scripts/ecs-catalog/reviewed-product-shards.test.mjs',
+  'scripts/ecs-catalog/finalize-bmw-m3-release-audit.mjs', 'scripts/ecs-catalog/finalize-bmw-m3-release-audit.test.mjs',
+  'scripts/ecs-catalog/finalize-f8x-release-audit.mjs', 'scripts/ecs-catalog/finalize-f8x-release-audit.test.mjs',
+  'scripts/test-catalog-taxonomy.mjs',
   'scripts/scrape-tegiwa-vehicle-directory.mjs', 'scripts/validate-tegiwa-vehicle-directory.mjs', 'sw.js'
 ];
 

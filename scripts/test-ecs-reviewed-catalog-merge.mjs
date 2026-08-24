@@ -88,6 +88,33 @@ function generatedProduct(overrides = {}) {
   });
 }
 
+const VERIFIED_PRODUCT_REDIRECT_FIXTURES = Object.freeze([
+  Object.freeze({
+    identity: '5388610',
+    mpn: '201-0200',
+    previousUrl: 'https://www.ecstuning.com/b-precision-parts/fuel-line-check-valve-an6-male-to-an6-male/201-0200~prc/',
+    currentUrl: 'https://www.ecstuning.com/b-precision-raceworks-parts/fuel-line-check-valve-an6-male-to-an6-male/201-0200~prc/'
+  }),
+  Object.freeze({
+    identity: '5456347',
+    mpn: '008731KT',
+    previousUrl: 'https://www.ecstuning.com/b-assembled-by-ecs-parts/n54-n55-low-temp-oil-thermostat-kit-70c/008731kt/',
+    currentUrl: 'https://www.ecstuning.com/b-turner-motorsport-parts/n54-n55-low-temp-oil-thermostat-kit-70c/008731kt/'
+  })
+]);
+
+function redirectedProduct(fixture, originalUrl, overrides = {}) {
+  return reviewedProduct({
+    ecsPartNumber: `ES#${fixture.identity}`,
+    sku: `ES#${fixture.identity}`,
+    mpn: fixture.mpn,
+    publicKey: `ecs-es-${fixture.identity}`,
+    slug: `es-${fixture.identity}`,
+    originalUrl,
+    ...overrides
+  });
+}
+
 test('includes the reviewed BMW M3 aggregate through an auditable empty-safe source', () => {
   assert.equal(
     REVIEWED_ECS_CATALOGUE_STATUS.sourceRecordCounts.bmwM3Aggregate,
@@ -375,6 +402,81 @@ test('fails closed when the same ES number has a conflicting MPN or canonical pr
       [generatedProduct({ originalUrl: 'https://www.ecstuning.com/b-brand-parts/item/two/' })]
     ),
     /canonical product URL.*ES#10001/
+  );
+});
+
+test('resolves only the two identity-bound verified ECS redirects to their exact current URLs', () => {
+  for (const fixture of VERIFIED_PRODUCT_REDIRECT_FIXTURES) {
+    const previous = redirectedProduct(fixture, fixture.previousUrl);
+    const current = generatedProduct(redirectedProduct(fixture, fixture.currentUrl));
+    const [forward] = mergeReviewedEcsProducts([previous], [current]);
+    const [reversed] = mergeReviewedEcsProducts([current], [previous]);
+    for (const merged of [forward, reversed]) {
+      assert.equal(merged.originalUrl, fixture.currentUrl);
+      assert.equal(merged.publicKey, `ecs-es-${fixture.identity}`);
+      assert.equal(merged.slug, `es-${fixture.identity}`);
+      assert.equal(merged.ecsPartNumber, `ES#${fixture.identity}`);
+      assert.equal(merged.mpn, fixture.mpn);
+    }
+  }
+});
+
+test('keeps established public handles while resolving a verified ECS redirect', () => {
+  const fixture = VERIFIED_PRODUCT_REDIRECT_FIXTURES[0];
+  const established = redirectedProduct(fixture, fixture.previousUrl, {
+    publicKey: 'ecs-established-check-valve',
+    slug: 'established-check-valve'
+  });
+  const current = generatedProduct(redirectedProduct(fixture, fixture.currentUrl));
+  const [merged] = mergeReviewedEcsProducts([established], [current]);
+  assert.equal(merged.originalUrl, fixture.currentUrl);
+  assert.equal(merged.publicKey, established.publicKey);
+  assert.equal(merged.slug, established.slug);
+});
+
+test('rejects wrong identities, MPNs and near-miss URLs for verified ECS redirects', () => {
+  const fixture = VERIFIED_PRODUCT_REDIRECT_FIXTURES[0];
+  const wrongIdentity = { ...fixture, identity: '5388611' };
+  assert.throws(
+    () => mergeReviewedEcsProducts(
+      [redirectedProduct(wrongIdentity, fixture.previousUrl)],
+      [redirectedProduct(wrongIdentity, fixture.currentUrl)]
+    ),
+    /canonical product URL.*ES#5388611/
+  );
+
+  const wrongMpn = { ...fixture, mpn: '201-0201' };
+  assert.throws(
+    () => mergeReviewedEcsProducts(
+      [redirectedProduct(wrongMpn, fixture.previousUrl)],
+      [redirectedProduct(wrongMpn, fixture.currentUrl)]
+    ),
+    /canonical product URL.*ES#5388610/
+  );
+
+  const reformattedMpn = { ...fixture, mpn: '2010200' };
+  assert.throws(
+    () => mergeReviewedEcsProducts(
+      [redirectedProduct(reformattedMpn, fixture.previousUrl)],
+      [redirectedProduct(reformattedMpn, fixture.currentUrl)]
+    ),
+    /canonical product URL.*ES#5388610/
+  );
+
+  assert.throws(
+    () => mergeReviewedEcsProducts(
+      [redirectedProduct(fixture, fixture.previousUrl)],
+      [redirectedProduct(fixture, `${fixture.currentUrl}?source=near-miss`)]
+    ),
+    /canonical product URL.*ES#5388610/
+  );
+  assert.throws(
+    () => mergeReviewedEcsProducts(
+      [redirectedProduct(fixture, fixture.previousUrl)],
+      [redirectedProduct(fixture,
+        fixture.currentUrl.replace('/b-precision-raceworks-parts/', '/b-precision-racework-parts/'))]
+    ),
+    /canonical product URL.*ES#5388610/
   );
 });
 

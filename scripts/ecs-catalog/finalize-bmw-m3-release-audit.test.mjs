@@ -13,6 +13,10 @@ import {
   writeFinalReleaseAuditCreateOnly,
   __test,
 } from './finalize-bmw-m3-release-audit.mjs';
+import {
+  buildReviewedProductShardRelease,
+  writeReviewedProductShardRelease,
+} from './build-reviewed-product-shards.mjs';
 
 const GENERATED_AT = '2026-08-10T04:00:00.000Z';
 const SECTION_KEYS = Object.keys(BMW_M3_FINAL_SECTIONS);
@@ -49,6 +53,36 @@ function currentProduct(digits) {
     ecsPartNumber: `ES#${digits}`,
     sku: `ES#${digits}`,
     title: `Current reviewed ${digits}`,
+  };
+}
+
+function currentShardProduct(digits) {
+  return {
+    publicKey: `ecs-es-${digits}`,
+    slug: `es-${digits}`,
+    ecsPartNumber: `ES#${digits}`,
+    sku: `ES#${digits}`,
+    title: `Current sharded reviewed ${digits}`,
+    brand: 'Fixture Brand',
+    priceCurrency: 'USD',
+    selectionSources: [{ section: 'Braking', category: 'BMW M3 Braking Fixture Parts' }],
+    filters: { categories: ['bmw-m3', 'bmw-m3-braking'], subcategories: [] },
+  };
+}
+
+function currentShardAudit() {
+  const sections = Object.fromEntries(SECTION_KEYS.map(key => [key, {
+    complete: key === 'braking',
+    capturedPages: key === 'braking' ? 1 : 0,
+    expectedPages: key === 'braking' ? 1 : 0,
+    capturedPlacements: key === 'braking' ? 1 : 0,
+    expectedPlacements: key === 'braking' ? 1 : 0,
+  }]));
+  return {
+    generatedAt: GENERATED_AT,
+    quarantinedIdentityCount: 0,
+    sections: Object.fromEntries(SECTION_KEYS.map(key => [key, { productCount: key === 'braking' ? 1 : 0 }])),
+    captureProgress: { complete: false, includedSections: ['braking'], sections },
   };
 }
 
@@ -238,12 +272,13 @@ function finalize(overrides = {}) {
     aggregateProducts: overrides.products ?? item.products,
     aggregateQuarantinedEcsIdentities: overrides.quarantine ?? item.quarantine,
     currentReviewedProducts: overrides.current ?? item.current,
+    currentReviewedShardProducts: overrides.currentShards ?? null,
     inputChecksums: overrides.inputChecksums ?? null,
     inputSetSha256: overrides.inputSetSha256 ?? null,
   });
 }
 
-async function fileFixture(context) {
+async function fileFixture(context, { withCurrentShards = false } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'projx-final-audit-'));
   context.after(() => rm(root, { recursive: true, force: true }));
   const item = inputs();
@@ -259,11 +294,21 @@ async function fileFixture(context) {
     await writeFile(filename, `${JSON.stringify(reportDocument, null, 2)}\n`);
     reconciliationPaths.push(filename);
   }
+  let currentReviewedShardDirectory = null;
+  if (withCurrentShards) {
+    currentReviewedShardDirectory = path.join(root, 'current-reviewed-shards');
+    const release = buildReviewedProductShardRelease(
+      [currentShardProduct('7777')],
+      currentShardAudit(),
+    );
+    await writeReviewedProductShardRelease(currentReviewedShardDirectory, release);
+  }
   return {
     root,
     auditPath,
     aggregateModulePath,
     currentReviewedModulePath: TRUSTED_CURRENT_REVIEWED_MODULE,
+    ...(currentReviewedShardDirectory ? { currentReviewedShardDirectory } : {}),
     reconciliationPaths,
   };
 }
@@ -287,44 +332,46 @@ test('finalizes seven exact sections and computes publication counts from actual
   assert.equal(output.finalReleaseAudit.inputSetSha256, 'a'.repeat(64));
 });
 
-test('subtracts current reviewed products removed by the incoming aggregate quarantine', () => {
-  const item = inputs();
-  const quarantined = ['4017812', '4630189', '4715378'];
-  item.quarantine = [...quarantined];
-  item.current.push(...quarantined.map(currentProduct));
-  item.audit.rawRecordCount = 10;
-  item.audit.validatedRecordCount = 10;
-  item.audit.uniqueValidatedEcsIdentityCount = 10;
-  item.audit.quarantinedIdentityCount = 3;
-  item.audit.quarantinedRecordCount = 3;
-  item.audit.quarantine = quarantined.map((identity, index) => ({
-    ecsPartNumber: `ES#${identity}`,
-    reasons: ['conflicting-same-day-public-price'],
-    recordIndexes: [7 + index],
-    sections: ['Braking'],
-  }));
-  item.audit.sections.braking.observationCount = 4;
-  const braking = item.reports[0];
-  braking.scope.expectedPlacements = 4;
-  braking.scope.capturedPlacements = 4;
-  braking.scope.uniqueEcsProducts = 4;
-  braking.completeness.categoryAudit[0].count = 4;
-  braking.completeness.categoryAudit[0].pageCounts = [4];
-  braking.completeness.categoryAudit[0].observedCount = 4;
-
-  const output = finalizeBmwM3ReleaseAudit({
-    importerAudit: item.audit,
-    reconciliationReports: item.reports,
-    aggregateProducts: item.products,
-    aggregateQuarantinedEcsIdentities: item.quarantine,
-    currentReviewedProducts: item.current,
+test('includes the current shard release in union counts without removing any existing identity', () => {
+  const output = finalize({
+    currentShards: [currentShardProduct('9999'), currentShardProduct('7777')],
   });
-  assert.equal(output.publicationMergeAudit.overlapWithPreviouslyReviewedEcsCount, 1);
+  assert.equal(output.publicationMergeAudit.staticReviewedProductCount, 2);
+  assert.equal(output.publicationMergeAudit.currentReviewedShardProductCount, 2);
+  assert.equal(output.publicationMergeAudit.currentRuntimeReviewedProductCount, 3);
+  assert.equal(output.publicationMergeAudit.overlapWithStaticReviewedEcsCount, 1);
+  assert.equal(output.publicationMergeAudit.overlapWithCurrentRuntimeReviewedEcsCount, 1);
   assert.equal(output.publicationMergeAudit.newUniqueProductCount, 6);
-  assert.equal(output.publicationMergeAudit.currentReviewedRemovedByIncomingQuarantineCount, 3);
-  assert.equal(output.publicationMergeAudit.projectedPublishedReviewedEcsCount, 8);
-  assert.equal(3_383 + 14_314 - 2_162
-    - output.publicationMergeAudit.currentReviewedRemovedByIncomingQuarantineCount, 15_532);
+  assert.equal(output.publicationMergeAudit.currentRuntimeQuarantineOverlapCount, 0);
+  assert.equal(output.publicationMergeAudit.unintendedCurrentReviewedRemovalCount, 0);
+  assert.equal(output.publicationMergeAudit.projectedPublishedReviewedEcsCount, 9);
+});
+
+test('rejects quarantine overlap with either static or sharded current reviewed products', () => {
+  const staticOverlap = inputsWithQuarantine(['9999']);
+  assert.throws(
+    () => finalizeBmwM3ReleaseAudit({
+      importerAudit: staticOverlap.audit,
+      reconciliationReports: staticOverlap.reports,
+      aggregateProducts: staticOverlap.products,
+      aggregateQuarantinedEcsIdentities: staticOverlap.quarantine,
+      currentReviewedProducts: staticOverlap.current,
+    }),
+    error => error instanceof FinalReleaseAuditError && error.code === 'current_reviewed_quarantine_overlap',
+  );
+
+  const shardOverlap = inputsWithQuarantine(['7777']);
+  assert.throws(
+    () => finalizeBmwM3ReleaseAudit({
+      importerAudit: shardOverlap.audit,
+      reconciliationReports: shardOverlap.reports,
+      aggregateProducts: shardOverlap.products,
+      aggregateQuarantinedEcsIdentities: shardOverlap.quarantine,
+      currentReviewedProducts: shardOverlap.current,
+      currentReviewedShardProducts: [currentShardProduct('7777')],
+    }),
+    error => error instanceof FinalReleaseAuditError && error.code === 'current_reviewed_quarantine_overlap',
+  );
 });
 
 test('rejects incomplete, non-exact, or unsafe reconciliation reports', () => {
@@ -594,6 +641,25 @@ test('verifies a deterministic input checksum then writes create-only in a desig
   await assert.rejects(
     () => writeFinalReleaseAuditCreateOnly(outputPath, pinned.finalizedAudit, pinned.roots),
     error => error instanceof FinalReleaseAuditError && error.code === 'output_exists',
+  );
+});
+
+test('checksum-binds a current reviewed shard release and includes it in the audited runtime union', async (context) => {
+  const item = await fileFixture(context, { withCurrentShards: true });
+  const verified = await verifyBmwM3ReleaseAuditFiles({
+    ...item,
+    workDirectory: item.root,
+  });
+  assert.equal(verified.checksums.currentReviewedShardRelease.productCount, 1);
+  assert.equal(verified.checksums.currentReviewedShardRelease.fileCount, 3);
+  assert.match(verified.checksums.currentReviewedShardRelease.sha256, /^[a-f0-9]{64}$/);
+  assert.equal(
+    verified.finalizedAudit.publicationMergeAudit.currentReviewedShardProductCount,
+    1,
+  );
+  assert.equal(
+    verified.finalizedAudit.publicationMergeAudit.unintendedCurrentReviewedRemovalCount,
+    0,
   );
 });
 

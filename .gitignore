@@ -42,3 +42,6 @@ assets/products/ecs/bmw-m3/
 *.xls
 *.xlsx
 *.xml
+
+.vercel
+.env*

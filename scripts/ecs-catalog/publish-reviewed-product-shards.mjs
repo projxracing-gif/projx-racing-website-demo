@@ -1,19 +1,28 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { setTimeout as waitForRetry } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import {
   createReviewedShardCatalogueProvider,
   signReviewedShardManifest,
   verifyReviewedShardManifestSignature
 } from '../../server/ecs-reviewed-shard-catalog.js';
+import {
+  F8X_OVERLAY_MANIFEST_KIND,
+  readReviewedProductShardRelease,
+} from './build-reviewed-product-shards.mjs';
 
 export const ECS_REVIEWED_RELEASE_PREFIX = 'projx-racing/ecs-reviewed/releases/';
 export const ECS_REVIEWED_CURRENT_PATH = 'projx-racing/ecs-reviewed/preview/current.json';
+export const ECS_REVIEWED_F8X_OVERLAY_RELEASE_PREFIX = 'projx-racing/ecs-reviewed/f8x-overlay/releases/';
+export const ECS_REVIEWED_F8X_OVERLAY_CURRENT_PATH = 'projx-racing/ecs-reviewed/f8x-overlay/preview/current.json';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_\-.]{20,4096}$/;
 const STORE_ID_PATTERN = /^(?:store_)?[A-Za-z0-9_-]{3,256}$/;
 const MAX_READ_BYTES = 4 * 1024 * 1024;
+const REMOTE_VERIFY_RETRY_DELAYS_MS = Object.freeze([200, 500, 1_000, 2_000, 4_000]);
+const BLOB_ALREADY_EXISTS_MESSAGE_PREFIX = 'Vercel Blob: This blob already exists, use allowOverwrite: true';
 
 export class ReviewedShardPublisherError extends Error {
   constructor(code, message) {
@@ -68,15 +77,18 @@ async function readStream(stream, maximumBytes) {
 }
 
 async function loadLocalRelease(directory) {
-  const root = path.resolve(directory);
+  const release = await readReviewedProductShardRelease(directory);
+  const root = release.root;
   const manifestPath = path.join(root, 'manifest.json');
-  const provider = createReviewedShardCatalogueProvider({
-    localManifestPath: manifestPath,
-    allowIncompleteLocal: false
-  });
-  await provider.getStatus([]);
+  if (release.manifest.kind !== F8X_OVERLAY_MANIFEST_KIND) {
+    const provider = createReviewedShardCatalogueProvider({
+      localManifestPath: manifestPath,
+      allowIncompleteLocal: false
+    });
+    await provider.getStatus([]);
+  }
   const manifestBuffer = Buffer.from(await readFile(manifestPath));
-  const manifest = JSON.parse(manifestBuffer.toString('utf8'));
+  const manifest = release.manifest;
   const artifacts = [];
   for (const descriptor of [manifest.index, ...manifest.shards]) {
     const buffer = Buffer.from(await readFile(path.join(root, descriptor.file)));
@@ -97,7 +109,7 @@ async function officialSdk() {
 }
 
 function validateSdk(sdk) {
-  if (!sdk || !['put', 'get'].every(method => typeof sdk[method] === 'function')) {
+  if (!sdk || !['put', 'get', 'head'].every(method => typeof sdk[method] === 'function')) {
     fail('blob_sdk_invalid', 'The Vercel Blob SDK is invalid.');
   }
   return sdk;
@@ -111,17 +123,87 @@ async function getExisting(sdk, pathname, authOptions) {
   }
 }
 
-async function verifyRemote(sdk, pathname, expected, authOptions) {
-  const response = await getExisting(sdk, pathname, authOptions);
+async function remoteResponseMatches(response, pathname, expected) {
   if (!response || response.statusCode !== 200) fail('remote_verify_failed', `${pathname} could not be read back.`);
   const body = await readStream(response.stream, Math.max(MAX_READ_BYTES, expected.length));
-  if (body.length !== expected.length || sha256(body) !== sha256(expected)) {
+  return body.length === expected.length && sha256(body) === sha256(expected);
+}
+
+async function verifyRemoteResponse(response, pathname, expected) {
+  if (!await remoteResponseMatches(response, pathname, expected)) {
     fail('remote_verify_failed', `${pathname} failed remote checksum validation.`);
   }
   return response;
 }
 
-async function putImmutable(sdk, pathname, buffer, authOptions) {
+async function verifyRemote(sdk, pathname, expected, authOptions, retryWait, retryChecksumMismatch = false) {
+  let response = await getExisting(sdk, pathname, authOptions);
+  let checksumMismatch = false;
+  for (const delayMs of [null, ...REMOTE_VERIFY_RETRY_DELAYS_MS]) {
+    if (delayMs !== null) {
+      await retryWait(delayMs);
+      response = await getExisting(sdk, pathname, authOptions);
+    }
+    if (response?.statusCode !== 200) continue;
+    if (await remoteResponseMatches(response, pathname, expected)) return response;
+    checksumMismatch = true;
+    if (!retryChecksumMismatch) break;
+  }
+  if (checksumMismatch) {
+    fail('remote_verify_failed', `${pathname} failed remote checksum validation.`);
+  }
+  fail('remote_verify_failed', `${pathname} could not be read back.`);
+}
+
+function blobPreconditionFailed(error) {
+  return error?.constructor?.name === 'BlobPreconditionFailedError'
+    || error?.name === 'BlobPreconditionFailedError'
+    || error?.code === 'BLOB_PRECONDITION_FAILED'
+    || error?.message === 'Vercel Blob: Precondition failed: ETag mismatch.';
+}
+
+function normalizeBlobEtag(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || /[\r\n]/.test(trimmed)) return null;
+  const normalized = trimmed.startsWith('W/') ? trimmed.slice(2).trim() : trimmed;
+  return normalized || null;
+}
+
+async function currentPointerEtag(sdk, pathname, existing, authOptions) {
+  const contentEtag = normalizeBlobEtag(existing?.blob?.etag);
+  let metadata;
+  try {
+    metadata = await sdk.head(pathname, authOptions);
+  } catch {
+    fail('publish_conflict', 'The reviewed shard current manifest changed during publication.');
+  }
+  const authoritativeEtag = normalizeBlobEtag(metadata?.etag);
+  const strongEtag = typeof metadata?.etag === 'string' ? metadata.etag.trim() : '';
+  if (!contentEtag || !authoritativeEtag || contentEtag !== authoritativeEtag
+    || !strongEtag || strongEtag.startsWith('W/')) {
+    fail('publish_conflict', 'The reviewed shard current manifest changed during publication.');
+  }
+  return strongEtag;
+}
+
+function immutableAlreadyExists(error) {
+  if (blobPreconditionFailed(error)) return true;
+  if (error?.constructor?.name === 'BlobAlreadyExistsError'
+    || error?.name === 'BlobAlreadyExistsError'
+    || error?.code === 'BLOB_ALREADY_EXISTS') return true;
+  return typeof error?.message === 'string'
+    && error.message.startsWith(BLOB_ALREADY_EXISTS_MESSAGE_PREFIX);
+}
+
+async function putImmutable(sdk, pathname, buffer, authOptions, retryWait) {
+  const existing = await getExisting(sdk, pathname, authOptions);
+  if (existing?.statusCode === 200) {
+    await verifyRemoteResponse(existing, pathname, buffer);
+    const url = existing?.blob?.url || null;
+    if (!url) fail('remote_verify_failed', `${pathname} did not expose a public URL.`);
+    return { url, etag: existing?.blob?.etag || null };
+  }
   let blob;
   try {
     blob = await sdk.put(pathname, buffer, {
@@ -129,10 +211,9 @@ async function putImmutable(sdk, pathname, buffer, authOptions) {
       addRandomSuffix: false, allowOverwrite: false, multipart: buffer.length > 4 * 1024 * 1024
     });
   } catch (error) {
-    if (!['BlobAlreadyExistsError', 'BlobPreconditionFailedError'].includes(error?.name)
-      && !['BLOB_ALREADY_EXISTS', 'BLOB_PRECONDITION_FAILED'].includes(error?.code)) throw error;
+    if (!immutableAlreadyExists(error)) throw error;
   }
-  const response = await verifyRemote(sdk, pathname, buffer, authOptions);
+  const response = await verifyRemote(sdk, pathname, buffer, authOptions, retryWait);
   const url = blob?.url || response?.blob?.url;
   if (!url) fail('remote_verify_failed', `${pathname} did not expose a public URL.`);
   return { url, etag: response?.blob?.etag || null };
@@ -146,7 +227,9 @@ export async function publishReviewedProductShards({
   oidcToken = process.env.VERCEL_OIDC_TOKEN || '',
   storeId = process.env.BLOB_STORE_ID || '',
   manifestSecret = process.env.ECS_REVIEWED_SHARD_MANIFEST_SECRET || '',
+  overlayManifestSecret = process.env.ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET || '',
   blobSdk = null,
+  readBackWait = waitForRetry,
   now = Date.now()
 } = {}) {
   if (!directory) fail('invalid_arguments', 'A reviewed product shard directory is required.');
@@ -160,22 +243,53 @@ export async function publishReviewedProductShards({
   const plan = {
     status: 'dry_run_passed', environment: 'preview', releaseId: local.manifest.releaseId,
     productCount: local.manifest.counts.productCount, shardCount: local.manifest.counts.shardCount,
-    complete: local.manifest.complete
+    complete: local.manifest.complete,
+    kind: local.manifest.kind,
+    publicationMode: local.manifest.publicationMode,
+    ...(local.manifest.kind === F8X_OVERLAY_MANIFEST_KIND
+      ? { baseReleaseId: local.manifest.baseRelease.releaseId } : {})
   };
   if (dryRun) return Object.freeze(plan);
   if (!previewConfirmed) fail('preview_confirmation_required', 'A real reviewed shard publish requires explicit preview confirmation.');
+  if (typeof readBackWait !== 'function') {
+    fail('invalid_arguments', 'The reviewed shard read-back retry wait function is invalid.');
+  }
   const authOptions = blobAuthOptions({ token, oidcToken, storeId });
-  if (typeof manifestSecret !== 'string' || Buffer.byteLength(manifestSecret, 'utf8') < 32) {
+  const f8xOverlay = local.manifest.kind === F8X_OVERLAY_MANIFEST_KIND;
+  const target = f8xOverlay
+    ? Object.freeze({
+      releasePrefix: ECS_REVIEWED_F8X_OVERLAY_RELEASE_PREFIX,
+      currentPath: ECS_REVIEWED_F8X_OVERLAY_CURRENT_PATH,
+      manifestSecret: overlayManifestSecret,
+    })
+    : Object.freeze({
+      releasePrefix: ECS_REVIEWED_RELEASE_PREFIX,
+      currentPath: ECS_REVIEWED_CURRENT_PATH,
+      manifestSecret,
+    });
+  if (f8xOverlay && target.currentPath === ECS_REVIEWED_CURRENT_PATH) {
+    fail('unsafe_f8x_overlay_pointer', 'The F8X overlay cannot use the reviewed-base current pointer.');
+  }
+  if (typeof target.manifestSecret !== 'string' || Buffer.byteLength(target.manifestSecret, 'utf8') < 32) {
+    if (f8xOverlay) {
+      fail(
+        'f8x_overlay_manifest_secret_required',
+        'ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET is required for a real F8X preview publish.'
+      );
+    }
     fail('manifest_secret_required', 'ECS_REVIEWED_SHARD_MANIFEST_SECRET is required for a real preview publish.');
   }
   const nowValue = Number(now);
   if (!Number.isFinite(nowValue)) fail('invalid_clock', 'The reviewed shard publish clock is invalid.');
   const sdk = validateSdk(blobSdk || await officialSdk());
-  const prefix = `${ECS_REVIEWED_RELEASE_PREFIX}${local.manifest.releaseId}/`;
+  const prefix = `${target.releasePrefix}${local.manifest.releaseId}/`;
   const remoteByFile = new Map();
   for (const artifact of local.artifacts) {
     const pathname = `${prefix}${artifact.descriptor.file}`;
-    remoteByFile.set(artifact.descriptor.file, await putImmutable(sdk, pathname, artifact.buffer, authOptions));
+    remoteByFile.set(
+      artifact.descriptor.file,
+      await putImmutable(sdk, pathname, artifact.buffer, authOptions, readBackWait)
+    );
   }
   const publishedAt = new Date(nowValue).toISOString();
   const expiresAt = new Date(nowValue + 7 * 24 * 60 * 60 * 1_000).toISOString();
@@ -198,38 +312,70 @@ export async function publishReviewedProductShards({
     publishedAt,
     expiresAt
   };
-  remoteManifest.signature = signReviewedShardManifest(remoteManifest, manifestSecret);
-  if (!verifyReviewedShardManifestSignature(remoteManifest, manifestSecret)) {
+  remoteManifest.signature = signReviewedShardManifest(remoteManifest, target.manifestSecret);
+  if (!verifyReviewedShardManifestSignature(remoteManifest, target.manifestSecret)) {
     fail('manifest_signing_failed', 'The reviewed shard manifest signature could not be verified locally.');
   }
   const body = Buffer.from(`${JSON.stringify(remoteManifest)}\n`, 'utf8');
-  let existing = await getExisting(sdk, ECS_REVIEWED_CURRENT_PATH, authOptions);
+  let existing = await getExisting(sdk, target.currentPath, authOptions);
+  let pointerIfMatch = null;
   if (existing?.statusCode === 200) {
     const currentBody = await readStream(existing.stream, 2 * 1024 * 1024);
+    pointerIfMatch = await currentPointerEtag(sdk, target.currentPath, existing, authOptions);
     try {
       const current = JSON.parse(currentBody.toString('utf8'));
-      if (current.releaseId === remoteManifest.releaseId
-        && verifyReviewedShardManifestSignature(current, manifestSecret)) {
-        return Object.freeze({ ...plan, status: 'no_change', dryRun: false, currentManifest: current });
+      const exactOverlayRelease = f8xOverlay
+        && current.kind === F8X_OVERLAY_MANIFEST_KIND
+        && current.releaseId === remoteManifest.releaseId
+        && current.contentSetSha256 === remoteManifest.contentSetSha256
+        && JSON.stringify(current.overlayScope) === JSON.stringify(remoteManifest.overlayScope)
+        && JSON.stringify(current.baseRelease) === JSON.stringify(remoteManifest.baseRelease)
+        && JSON.stringify(current.finalAudit) === JSON.stringify(remoteManifest.finalAudit)
+        && JSON.stringify(current.projectedQuarantine) === JSON.stringify(remoteManifest.projectedQuarantine)
+        && Date.parse(current.expiresAt) > nowValue
+        && verifyReviewedShardManifestSignature(current, target.manifestSecret);
+      const exactBaseRelease = !f8xOverlay
+        && current.releaseId === remoteManifest.releaseId
+        && verifyReviewedShardManifestSignature(current, target.manifestSecret);
+      if (exactOverlayRelease || exactBaseRelease) {
+        const currentUrl = existing?.blob?.url || null;
+        if (f8xOverlay && !currentUrl) {
+          fail('remote_verify_failed', 'The F8X overlay pointer did not expose a public URL.');
+        }
+        return Object.freeze({
+          ...plan,
+          status: 'no_change',
+          dryRun: false,
+          currentManifest: current,
+          ...(f8xOverlay ? { currentUrl } : {}),
+        });
       }
     } catch { /* an invalid current pointer must be replaced only through the guarded write below */ }
   }
+  let pointerBlob;
   try {
-    await sdk.put(ECS_REVIEWED_CURRENT_PATH, body, {
+    pointerBlob = await sdk.put(target.currentPath, body, {
       ...authOptions, access: 'public', contentType: 'application/json', cacheControlMaxAge: 60,
       addRandomSuffix: false, allowOverwrite: Boolean(existing),
-      ...(existing?.blob?.etag ? { ifMatch: existing.blob.etag } : {})
+      ...(pointerIfMatch ? { ifMatch: pointerIfMatch } : {})
     });
   } catch (error) {
-    if (['BlobPreconditionFailedError', 'BLOB_PRECONDITION_FAILED'].includes(error?.name || error?.code)) {
+    if (immutableAlreadyExists(error)) {
       fail('publish_conflict', 'The reviewed shard current manifest changed during publication.');
     }
     fail('manifest_upload_failed', 'The reviewed shard current manifest could not be published.');
   }
-  await verifyRemote(sdk, ECS_REVIEWED_CURRENT_PATH, body, authOptions);
+  const verifiedPointer = await verifyRemote(
+    sdk, target.currentPath, body, authOptions, readBackWait, true
+  );
+  const currentUrl = pointerBlob?.url || verifiedPointer?.blob?.url || null;
+  if (f8xOverlay && !currentUrl) {
+    fail('remote_verify_failed', 'The F8X overlay pointer did not expose a public URL.');
+  }
   return Object.freeze({
     ...plan, status: 'published', dryRun: false,
-    currentManifest: Object.freeze(remoteManifest)
+    currentManifest: Object.freeze(remoteManifest),
+    ...(f8xOverlay ? { currentUrl } : {}),
   });
 }
 
@@ -256,7 +402,9 @@ async function main() {
   });
   process.stdout.write(`${JSON.stringify({
     status: result.status, environment: result.environment, releaseId: result.releaseId,
-    productCount: result.productCount, shardCount: result.shardCount, complete: result.complete
+    productCount: result.productCount, shardCount: result.shardCount, complete: result.complete,
+    ...(result.kind === F8X_OVERLAY_MANIFEST_KIND && result.currentUrl
+      ? { currentUrl: result.currentUrl } : {})
   })}\n`);
 }
 
