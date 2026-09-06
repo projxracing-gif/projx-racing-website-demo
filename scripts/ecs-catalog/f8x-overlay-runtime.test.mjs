@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { gunzipSync } from 'node:zlib';
 import {
   createConfiguredReviewedShardCatalogueProvider,
   createReviewedShardCatalogueProvider,
@@ -15,7 +16,9 @@ import {
   ECS_REVIEWED_F8X_OVERLAY_SHARD_KIND,
   signReviewedShardManifest
 } from '../../server/ecs-reviewed-shard-catalog.js';
+import { REVIEWED_ECS_PRODUCTS } from '../../server/ecs-reviewed-catalog.js';
 import { buildReviewedProductShardRelease } from './build-reviewed-product-shards.mjs';
+import { bundleF8xOverlayRelease } from './bundle-f8x-overlay-release.mjs';
 
 const NOW = Date.parse('2026-08-20T12:30:00.000Z');
 const MANIFEST_SIGNING_FIXTURE = 'f8x-overlay-runtime-test-secret-'.repeat(2);
@@ -616,7 +619,7 @@ test('post-merge F8X policy stays fail-closed and cached product snapshots are d
   assert.deepEqual(newerStatic.fitments[0].chassis, ['F82']);
 });
 
-test('the reviewed shard builder output is accepted directly by the distinct runtime loader', async (t) => {
+test('the reviewed shard builder output is accepted and bundles deterministically', async (t) => {
   const current = await fixture();
   t.after(() => rm(current.root, { recursive: true, force: true }));
   const products = [f8xProduct(), f8xProduct('7000002')];
@@ -656,6 +659,47 @@ test('the reviewed shard builder output is accepted directly by the distinct run
   assert.equal(prepared.status.f8xOverlayRelease.releaseId, built.manifest.releaseId);
   assert.equal(prepared.status.f8xOverlayExistingProductCount, 1);
   assert.equal(prepared.status.f8xOverlayNewUniqueProductCount, 1);
+
+  const manifestBuffer = jsonBuffer(built.manifest, true);
+  await writeFile(
+    path.join(current.overlayRoot, 'manifest.json.sha256'),
+    `${sha256(manifestBuffer)}  manifest.json\n`
+  );
+  const firstBundleRoot = path.join(current.root, 'bundle-a');
+  const secondBundleRoot = path.join(current.root, 'bundle-b');
+  const firstSummary = await bundleF8xOverlayRelease({
+    sourceDirectory: current.overlayRoot,
+    outputDirectory: firstBundleRoot
+  });
+  const secondSummary = await bundleF8xOverlayRelease({
+    sourceDirectory: current.overlayRoot,
+    outputDirectory: secondBundleRoot
+  });
+  assert.deepEqual(firstSummary, secondSummary);
+  assert.equal(firstSummary.productCount, 2);
+  assert.equal(firstSummary.shardCount, 1);
+
+  const bundledFiles = (await readdir(firstBundleRoot)).sort();
+  assert.deepEqual(bundledFiles, [
+    'bundle-summary.json',
+    'index.json.gz',
+    'manifest.json',
+    'shard-00001.json.gz'
+  ]);
+  for (const filename of bundledFiles) {
+    assert.deepEqual(
+      await readFile(path.join(firstBundleRoot, filename)),
+      await readFile(path.join(secondBundleRoot, filename))
+    );
+  }
+  assert.deepEqual(
+    gunzipSync(await readFile(path.join(firstBundleRoot, 'index.json.gz'))),
+    built.indexBuffer
+  );
+  assert.deepEqual(
+    gunzipSync(await readFile(path.join(firstBundleRoot, 'shard-00001.json.gz'))),
+    built.shards[0].buffer
+  );
 });
 
 test('base-release, scope and projected-quarantine bindings fail closed', async (t) => {
@@ -991,6 +1035,33 @@ test('cached signed base and F8X releases are revalidated after manifest expiry'
   });
 });
 
+test('a configured preview provider prefers the complete bundled F8X release over remote settings', async () => {
+  let remoteFetchCount = 0;
+  const provider = createConfiguredReviewedShardCatalogueProvider({
+    env: {
+      VERCEL_ENV: 'preview',
+      [ECS_REVIEWED_F8X_OVERLAY_CURRENT_URL_ENV]: 'https://expired-f8x.public.blob.vercel-storage.com/current.json',
+      [ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET_ENV]: MANIFEST_SIGNING_FIXTURE
+    },
+    fetchImpl: async () => {
+      remoteFetchCount += 1;
+      throw new Error('The bundled preview release must not fetch a remote overlay.');
+    }
+  });
+
+  const status = await provider.getStatus(REVIEWED_ECS_PRODUCTS);
+  assert.equal(status.schemaVersion, 3);
+  assert.equal(status.f8xOverlayRelease.source, 'bundled-complete-overlay');
+  assert.equal(status.f8xOverlayRelease.releaseId, '20260821T094926386Z-4ab768650f081c7c');
+  assert.equal(status.f8xOverlayRelease.complete, true);
+  assert.equal(status.f8xOverlayRelease.shardCount, 36);
+  assert.equal(status.f8xOverlayRelease.routeCount, 4_545);
+  assert.equal(status.sourceRecordCounts.f8xOverlay, 4_545);
+  assert.equal(provider.diagnostics().overlayShardReadCount, 36);
+  assert.equal(provider.diagnostics().overlayRemote, false);
+  assert.equal(remoteFetchCount, 0);
+});
+
 test('configured providers activate the F8X overlay only for complete environment configuration', async (t) => {
   const current = await fixture();
   t.after(() => rm(current.root, { recursive: true, force: true }));
@@ -998,7 +1069,7 @@ test('configured providers activate the F8X overlay only for complete environmen
   const remote = remoteOverlayFixture(current);
 
   const disabled = createConfiguredReviewedShardCatalogueProvider({
-    env: {}, localManifestPath, now: () => NOW
+    env: { VERCEL_ENV: 'production' }, localManifestPath, now: () => NOW
   });
   assert.equal(disabled.diagnostics().f8xOverlayConfigured, false);
   assert.equal((await disabled.getStatus([])).schemaVersion, 2);

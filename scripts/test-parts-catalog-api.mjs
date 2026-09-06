@@ -4,6 +4,7 @@ import { createPartsCatalogHandler, __test } from '../api/parts-catalog.js';
 import { REVIEWED_ECS_PRODUCTS } from '../server/ecs-reviewed-catalog.js';
 import { cataloguePartTypeMatches } from '../server/catalog-taxonomy.js';
 import { canonicalTegiwaLiveProductId } from '../server/tegiwa-live-commerce.js';
+import { ReviewedShardProviderError } from '../server/ecs-reviewed-shard-catalog.js';
 
 const FIXED_NOW = Date.parse('2026-08-09T09:30:00Z');
 const REVIEWED_SHARD_INDEX = JSON.parse(await readFile(
@@ -265,6 +266,49 @@ assert.equal(reviewedBrowse.body.meta.partialCatalogue, true);
 assert.equal(reviewedBrowse.body.meta.catalogueSource, 'reviewed-local-fallback');
 assert.deepEqual(reviewedBrowse.body.meta.suppliers, [{ slug: 'ecs', name: 'ECS Tuning' }]);
 assert.deepEqual(reviewedBrowse.body.meta.currencies, ['USD']);
+
+const expiredOverlayWarnings = [];
+const expiredOverlayProvider = {
+  async prepareProducts() {
+    throw new ReviewedShardProviderError(
+      503,
+      'invalid_f8x_overlay_manifest',
+      'The remote reviewed F8X overlay manifest is unsigned, expired or invalid.'
+    );
+  },
+  async getStatus() {
+    throw new Error('The fallback response must prepare products before reading status.');
+  }
+};
+const previewWithExpiredOverlay = createPartsCatalogHandler({
+  databaseUrl: '',
+  deploymentEnvironment: 'preview',
+  legacyHandler: false,
+  reviewedShardProvider: expiredOverlayProvider,
+  logger: { warn: (...args) => expiredOverlayWarnings.push(args), error: () => {} },
+  now: () => FIXED_NOW
+});
+const previewExpiredOverlayBrowse = await invoke(previewWithExpiredOverlay);
+assert.equal(previewExpiredOverlayBrowse.status, 200);
+assert.equal(previewExpiredOverlayBrowse.body.meta.reviewedEcsCatalogueStatus.schemaVersion, 2);
+assert.deepEqual(previewExpiredOverlayBrowse.body.meta.reviewedEcsCatalogueStatus.f8xOverlayFallback, {
+  mode: 'validated-base-only',
+  reason: 'invalid_f8x_overlay_manifest'
+});
+assert.equal(expiredOverlayWarnings.length, 1);
+assert.equal(expiredOverlayWarnings[0][1].code, 'invalid_f8x_overlay_manifest');
+
+const productionWithExpiredOverlay = createPartsCatalogHandler({
+  databaseUrl: '',
+  deploymentEnvironment: 'production',
+  legacyHandler: false,
+  reviewedShardProvider: expiredOverlayProvider,
+  logger: { warn: () => {}, error: () => {} },
+  now: () => FIXED_NOW
+});
+const productionExpiredOverlayBrowse = await invoke(productionWithExpiredOverlay);
+assert.equal(productionExpiredOverlayBrowse.status, 503);
+assert.equal(productionExpiredOverlayBrowse.body.error.code, 'invalid_f8x_overlay_manifest');
 assert.ok(reviewedBrowse.body.meta.brands.some(item => item.slug === 'genuine-bmw'));
 assert.ok(reviewedBrowse.body.meta.partTypes.some(item => item.slug === 'exterior'));
 assert.ok(reviewedBrowse.body.meta.partTypes.some(item => item.slug === 'exterior-body-parts'));

@@ -5120,8 +5120,8 @@
 
   function shippingDestinationReady(destination) {
     if (!destination?.countryCode || !destination?.city) return false;
-    if (destination.fulfilment === "workshop") return true;
-    return Boolean(destination.governorate && destination.area && destination.addressLine1 && destination.phone);
+    if (destination.fulfilment === "workshop") return false;
+    return Boolean(destination.governorate && destination.area && destination.addressLine1 && destination.postcode && destination.phone);
   }
 
   function resetShippingRevalidation() {

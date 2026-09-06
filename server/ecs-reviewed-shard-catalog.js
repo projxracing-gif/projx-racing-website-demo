@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 import { mergeReviewedEcsProducts, selectReviewedEcsProducts } from './ecs-reviewed-catalog.js';
 import {
   ECS_F8X_OVERLAY_SCOPE,
@@ -15,6 +16,25 @@ export const ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET_ENV = 'ECS_REVIEWED_F8X_OV
 export const ECS_REVIEWED_SHARD_LOCAL_MANIFEST = fileURLToPath(
   new URL('../api/data/ecs-bmw-m3-reviewed/manifest.json', import.meta.url)
 );
+export const ECS_REVIEWED_F8X_OVERLAY_LOCAL_MANIFEST = fileURLToPath(
+  new URL('../api/data/ecs-f8x-reviewed/manifest.json', import.meta.url)
+);
+const ECS_REVIEWED_F8X_OVERLAY_LOCAL_ROOT = path.dirname(ECS_REVIEWED_F8X_OVERLAY_LOCAL_MANIFEST);
+
+async function readBundledReviewedShardArtifact(filename, reader = readFile) {
+  const resolved = path.resolve(filename);
+  const relative = path.relative(ECS_REVIEWED_F8X_OVERLAY_LOCAL_ROOT, resolved).replaceAll('\\', '/');
+  const bundledOverlayArtifact = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+    && /^(?:index|shard-\d{5})\.json$/u.test(relative);
+  if (!bundledOverlayArtifact) return reader(resolved);
+
+  const maximumBytes = relative === 'index.json' ? MAX_INDEX_BYTES : MAX_SHARD_BYTES;
+  const compressed = Buffer.from(await reader(`${resolved}.gz`));
+  if (!compressed.length || compressed.length > maximumBytes + 65_536) {
+    throw new Error('The bundled reviewed F8X overlay gzip artifact exceeds its size limit.');
+  }
+  return gunzipSync(compressed, { maxOutputLength: maximumBytes });
+}
 
 const SCHEMA_VERSION = 1;
 const MANIFEST_KIND = 'ecs-reviewed-product-shard-manifest';
@@ -1397,20 +1417,33 @@ export function createReviewedShardCatalogueProvider({
   return Object.freeze({ prepareProducts, getStatus, diagnostics, clearCache });
 }
 
-export function createConfiguredReviewedShardCatalogueProvider({ env = process.env, ...options } = {}) {
+export function createConfiguredReviewedShardCatalogueProvider(configuration = {}) {
+  const {
+    env = process.env,
+    readFileImpl = readFile,
+    ...options
+  } = configuration;
   const currentUrl = env?.[ECS_REVIEWED_SHARD_CURRENT_URL_ENV] || null;
   const manifestSecret = env?.[ECS_REVIEWED_SHARD_MANIFEST_SECRET_ENV] || null;
   const overlayCurrentUrl = env?.[ECS_REVIEWED_F8X_OVERLAY_CURRENT_URL_ENV] || null;
   const overlayManifestSecret = env?.[ECS_REVIEWED_F8X_OVERLAY_MANIFEST_SECRET_ENV] || null;
   const overlayEnvConfigured = Boolean(overlayCurrentUrl || overlayManifestSecret);
+  const overlayExplicitlyConfigured = Object.prototype.hasOwnProperty.call(options, 'f8xOverlay');
+  const useBundledPreviewOverlay = !overlayExplicitlyConfigured
+    && String(env?.VERCEL_ENV || '').trim().toLowerCase() === 'preview';
   return createReviewedShardCatalogueProvider({
     currentUrl,
     manifestSecret,
     localManifestPath: currentUrl ? null : ECS_REVIEWED_SHARD_LOCAL_MANIFEST,
-    f8xOverlay: overlayEnvConfigured ? {
-      currentUrl: overlayCurrentUrl,
-      manifestSecret: overlayManifestSecret
-    } : null,
+    f8xOverlay: useBundledPreviewOverlay
+      ? { localManifestPath: ECS_REVIEWED_F8X_OVERLAY_LOCAL_MANIFEST }
+      : overlayEnvConfigured ? {
+        currentUrl: overlayCurrentUrl,
+        manifestSecret: overlayManifestSecret
+      } : null,
+    readFileImpl: useBundledPreviewOverlay
+      ? filename => readBundledReviewedShardArtifact(filename, readFileImpl)
+      : readFileImpl,
     allowIncompleteLocal: true,
     ...options
   });

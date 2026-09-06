@@ -938,6 +938,7 @@ function createRateLimiter(now, { limit = SEARCH_RATE_LIMIT, windowMs = SEARCH_R
 export function createPartsCatalogHandler({
   query = null,
   databaseUrl = process.env.DATABASE_URL || '',
+  deploymentEnvironment = process.env.VERCEL_ENV || '',
   now = () => Date.now(),
   searchRateLimit,
   reviewedFallback = true,
@@ -949,6 +950,7 @@ export function createPartsCatalogHandler({
   logger = console
 } = {}) {
   if (query !== null && typeof query !== 'function') throw new TypeError('The query adapter must be a function.');
+  if (typeof deploymentEnvironment !== 'string') throw new TypeError('The deployment environment must be a string.');
   if (typeof now !== 'function') throw new TypeError('A clock function is required.');
   if (!Array.isArray(reviewedProducts)) throw new TypeError('Reviewed fallback products must be an array.');
   if (reviewedShardProvider !== undefined && reviewedShardProvider !== null
@@ -967,6 +969,8 @@ export function createPartsCatalogHandler({
   let loadedLegacyHandler = typeof legacyHandler === 'function' ? legacyHandler : null;
   let legacyHandlerPromise = null;
   let configuredReviewedShardProvider = reviewedShardProvider || null;
+  let configuredReviewedBaseShardProvider = null;
+  const previewOverlayFallbackEnabled = deploymentEnvironment.trim().toLowerCase() === 'preview';
   const rateLimit = createRateLimiter(now, searchRateLimit);
   const getAdapter = async () => {
     if (adapter) return adapter;
@@ -988,6 +992,13 @@ export function createPartsCatalogHandler({
     if (reviewedProducts !== REVIEWED_ECS_PRODUCTS) return null;
     configuredReviewedShardProvider = createConfiguredReviewedShardCatalogueProvider();
     return configuredReviewedShardProvider;
+  };
+  const getReviewedBaseShardProvider = () => {
+    if (!previewOverlayFallbackEnabled || reviewedProducts !== REVIEWED_ECS_PRODUCTS) return null;
+    configuredReviewedBaseShardProvider ||= createConfiguredReviewedShardCatalogueProvider({
+      f8xOverlay: null
+    });
+    return configuredReviewedBaseShardProvider;
   };
   const staticReviewedEcsCatalogueStatus = reviewedProducts === REVIEWED_ECS_PRODUCTS
     ? REVIEWED_ECS_CATALOGUE_STATUS
@@ -1056,13 +1067,36 @@ export function createPartsCatalogHandler({
       }
       try {
         const shardProvider = getReviewedShardProvider();
-        const prepared = shardProvider
-          ? await shardProvider.prepareProducts({
-              request,
-              baseProducts: reviewedProducts,
-              nowValue: Number(now())
-            })
-          : { products: reviewedProducts, status: staticReviewedEcsCatalogueStatus };
+        const prepareOptions = {
+          request,
+          baseProducts: reviewedProducts,
+          nowValue: Number(now())
+        };
+        let prepared;
+        try {
+          prepared = shardProvider
+            ? await shardProvider.prepareProducts(prepareOptions)
+            : { products: reviewedProducts, status: staticReviewedEcsCatalogueStatus };
+        } catch (error) {
+          const overlayFailure = error instanceof ReviewedShardProviderError
+            && /^(?:invalid_)?f8x_overlay_/u.test(error.code || '');
+          const baseProvider = overlayFailure ? getReviewedBaseShardProvider() : null;
+          if (!baseProvider) throw error;
+          logger?.warn?.('Reviewed F8X overlay unavailable; serving validated preview base catalogue', {
+            code: error.code
+          });
+          const basePrepared = await baseProvider.prepareProducts(prepareOptions);
+          prepared = {
+            ...basePrepared,
+            status: {
+              ...basePrepared.status,
+              f8xOverlayFallback: {
+                mode: 'validated-base-only',
+                reason: error.code
+              }
+            }
+          };
+        }
         const body = await reviewedFallbackResponse({
           request,
           req,

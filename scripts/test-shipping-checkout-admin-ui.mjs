@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = fs.readFileSync(path.join(repo, 'assets/app.js'), 'utf8');
@@ -41,6 +42,28 @@ test('checkout captures a normalized GCC destination without guessing missing fi
   const payload = sourceBetween(app, 'function checkoutShippingPayload(', 'function resetShippingEstimate(');
   for (const key of ['countryCode', 'governorate', 'city', 'area', 'addressLine1', 'addressLine2', 'postcode', 'phone', 'fulfilment']) {
     assert.match(payload, new RegExp(`\\b${key}(?:\\s*:|\\s*,)`), `shipping request omits ${key}`);
+  }
+});
+
+test('courier estimation waits for every server-required field and workshop stays local', () => {
+  const readinessSource = sourceBetween(app, 'function shippingDestinationReady(', 'function resetShippingRevalidation(').trim();
+  const shippingDestinationReady = vm.runInNewContext(`(${readinessSource})`);
+  const destination = {
+    countryCode: 'KW',
+    governorate: 'Al Asimah',
+    city: 'Kuwait City',
+    area: 'Shuwaikh',
+    addressLine1: 'Street 35, Block C, Building 261',
+    postcode: '70050',
+    phone: '+965 5555 0000',
+    fulfilment: 'courier'
+  };
+
+  assert.equal(shippingDestinationReady(destination), true);
+  assert.equal(shippingDestinationReady({ ...destination, fulfilment: 'workshop' }), false,
+    'workshop collection must remain a local manual-confirmation flow');
+  for (const field of ['countryCode', 'governorate', 'city', 'area', 'addressLine1', 'postcode', 'phone']) {
+    assert.equal(shippingDestinationReady({ ...destination, [field]: '' }), false, `courier estimate must wait for ${field}`);
   }
 });
 
