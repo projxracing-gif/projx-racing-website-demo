@@ -76,8 +76,10 @@ const tests = [
     && refreshedStaticTegiwa.get('T-B58-SERVICE-KIT')?.priceAmount === 98.30
     && refreshedStaticTegiwa.get('T-GOPRO-MOUNT-YARISGR-LHD')?.priceAmount === 25.99
     && refreshedStaticTegiwa.get('T-4077023')?.priceAmount === 120.83
-    && [...refreshedStaticTegiwa.values()].every(product => product.checkedAt === '2026-08-18'
-      && product.priceVerifiedAt === '2026-08-18'
+    && [...refreshedStaticTegiwa.values()].every(product => product.checkedAt === '2026-09-06'
+      && product.priceVerifiedAt === '2026-09-06'
+      && product.stockPolicy === 'manual-confirm'
+      && product.staleAfterDays === 7
       && product.priceNote.includes('excluding UK VAT'))],
   ['approves all five and only the intended Tsuki size identities', tsukiPolicies.every(Boolean)
     && tsukiVariants.every((variant, index) => tsukiPolicies[index]?.productId === variant.productId
@@ -88,12 +90,12 @@ const tests = [
     && new Set(tsukiPolicies.map(item => item.productId)).size === 5
     && new Set(tsukiPolicies.map(item => item.sku)).size === 5],
   ['every approved Tsuki size uses the exact verified GBP 27.49 price', tsukiPolicies.every(item => item.currency === 'GBP'
-    && item.unitAmount === 27.49 && item.priceVerifiedAt === '2026-08-18' && item.maxPriceAgeDays === 7)],
-  ['approved Tsuki price evidence is fresh on 2026-08-18', tsukiPolicies.every(item => policyPriceIsFresh(item, Date.parse('2026-08-18T12:00:00.000Z')))],
-  ['approved Tsuki price evidence becomes stale after its bounded review window', tsukiPolicies.every(item => !policyPriceIsFresh(item, Date.parse('2026-08-26T00:00:00.000Z')))],
+    && item.unitAmount === 27.49 && item.priceVerifiedAt === '2026-09-06' && item.maxPriceAgeDays === 7)],
+  ['approved Tsuki price evidence is fresh on 2026-09-06', tsukiPolicies.every(item => policyPriceIsFresh(item, Date.parse('2026-09-06T12:00:00.000Z')))],
+  ['approved Tsuki price evidence becomes stale after its bounded review window', tsukiPolicies.every(item => !policyPriceIsFresh(item, Date.parse('2026-09-14T00:00:00.000Z')))],
   ['approved Tsuki sizes are direct purchases without a fitment gate', tsukiPolicies.every(item => item.purchaseMode === 'direct'
     && item.fitmentConfirmationRequired === false)],
-  ['approved Tsuki sizes preserve current variant-level stock evidence', tsukiPolicies.map(item => item.supplierAvailable).join(',') === 'true,false,true,true,true'],
+  ['approved Tsuki sizes preserve current variant-level stock evidence', tsukiPolicies.map(item => item.supplierAvailable).join(',') === 'true,true,true,true,true'],
   ['approved cart product has a verified supplier fulfilment profile', policy.supplier?.slug === 'tegiwa' && policy.supplier?.originCountryCode === 'GB'],
   ['client cart policy carries the same supplier origin profile', clientSource.includes('originCountryCode: "GB"') && clientSource.includes('originCountryName: "Great Britain"')],
   ['checkout requests a destination-aware shipping plan', clientSource.includes('const SHIPPING_ESTIMATE_ENDPOINT = "/api/shipping-estimate/"') && clientSource.includes('async function requestShippingEstimate(form)')],
@@ -283,7 +285,7 @@ tests.push(['rejects duplicate checkout lines for the same selected Tsuki size',
 const originalNow = Date.now;
 let staleCart;
 try {
-  const staleNow = Date.parse('2026-08-26T00:00:00.000Z');
+  const staleNow = Date.parse('2026-09-14T00:00:00.000Z');
   Date.now = () => staleNow;
   staleCart = await invoke({ body: { ...basePayload, idempotencyKey: 'i'.repeat(48), startedAt: staleNow - 5000 } });
 } finally {

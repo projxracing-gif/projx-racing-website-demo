@@ -594,14 +594,14 @@ assert.ok(bundledBrowse.body.items.every(item => item.handle && item.title && it
 const productionBrowse = await invoke(productionHandler);
 assert.equal(productionBrowse.status, 200);
 assert.equal(productionBrowse.body.items.length, 100);
-assert.equal(productionBrowse.body.meta.catalogProductCount, 193_253);
-assert.equal(productionBrowse.body.meta.stockIndexedProductCount, 194_460);
-assert.equal(productionBrowse.body.meta.skuIndexedProductCount, 188_348);
-assert.equal(productionBrowse.body.meta.availableProductCount, 27_010);
-assert.equal(productionBrowse.body.meta.checkedAt, '2026-08-18');
+assert.equal(productionBrowse.body.meta.catalogProductCount, 197_881);
+assert.equal(productionBrowse.body.meta.stockIndexedProductCount, 197_580);
+assert.equal(productionBrowse.body.meta.skuIndexedProductCount, 192_239);
+assert.equal(productionBrowse.body.meta.availableProductCount, 28_323);
+assert.equal(productionBrowse.body.meta.checkedAt, '2026-09-06');
 assert.equal(productionBrowse.body.meta.page, 1);
 assert.equal(productionBrowse.body.meta.pageSize, 100);
-assert.equal(productionBrowse.body.meta.totalPages, 1_933);
+assert.equal(productionBrowse.body.meta.totalPages, 1_979);
 assert.equal(productionBrowse.body.items[0].handle, 'garmin-tread-powersport-sat-nav');
 assert.equal(productionBrowse.body.items[0].sku, 'GAR010-02406-10');
 assert.equal(productionBrowse.body.items[0].skuCount, 1);
@@ -611,21 +611,21 @@ assert.equal(productionPageTwo.status, 200);
 assert.equal(productionPageTwo.body.items.length, 100);
 assert.equal(productionPageTwo.body.meta.page, 2);
 assert.equal(productionPageTwo.body.meta.pageSize, 100);
-assert.equal(productionPageTwo.body.meta.totalPages, 1_933);
+assert.equal(productionPageTwo.body.meta.totalPages, 1_979);
 assert.equal(new Set([
   ...productionBrowse.body.items.map(item => item.handle),
   ...productionPageTwo.body.items.map(item => item.handle)
 ]).size, 200);
 
-const productionFinalPage = await invoke(productionHandler, { query: { page: '1933' } });
+const productionFinalPage = await invoke(productionHandler, { query: { page: '1979' } });
 assert.equal(productionFinalPage.status, 200);
-assert.equal(productionFinalPage.body.items.length, 53);
-assert.equal(productionFinalPage.body.meta.page, 1_933);
-assert.equal(productionFinalPage.body.meta.count, 53);
-assert.equal(productionFinalPage.body.meta.totalPages, 1_933);
+assert.equal(productionFinalPage.body.items.length, 81);
+assert.equal(productionFinalPage.body.meta.page, 1_979);
+assert.equal(productionFinalPage.body.meta.count, 81);
+assert.equal(productionFinalPage.body.meta.totalPages, 1_979);
 assert.equal(productionFinalPage.body.nextCursor, null);
 
-const productionPageOutOfRange = await invoke(productionHandler, { query: { page: '1934' } });
+const productionPageOutOfRange = await invoke(productionHandler, { query: { page: '1980' } });
 assert.equal(productionPageOutOfRange.status, 400);
 assert.equal(productionPageOutOfRange.body.error.code, 'invalid_page');
 
@@ -1251,7 +1251,7 @@ console.log('PASS: 100-result search pagination has stable totals and no skips o
 console.log('PASS: full-result stock/pricing filters and relevance/name/price sorts run before pagination');
 console.log('PASS: local autocomplete, Arabic/Kuwaiti aliases, unknown Arabic safety, XSS rejection and bounded rate limiting');
 console.log('PASS: bundled public-catalog browsing with numbered pages and compatible opaque cursors');
-console.log('PASS: generated 194-shard catalog snapshot loads through the production file path');
+console.log('PASS: generated 199-shard catalog snapshot loads through the production file path');
 console.log('PASS: product/variant SKU and MPN sanitization, missing identifiers, image allow-list and variant caps');
 console.log('PASS: upstream failures return structured, non-cacheable errors');
 console.log('PASS: duplicate-title SKU suppression keeps exact inventory, private URLs and raw stock data unexposed');

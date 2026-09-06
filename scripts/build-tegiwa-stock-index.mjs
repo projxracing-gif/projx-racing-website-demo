@@ -3,6 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  TEGIWA_REFRESH_QUARANTINE,
+  isTegiwaRefreshPriceOutlierSku
+} from '../server/tegiwa-refresh-quarantine.js';
+
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const catalogSummaryPath = path.join(repo, 'api', 'data', 'tegiwa-catalog-summary.json');
 const catalogDirectory = path.join(repo, 'api', 'data', 'tegiwa-catalog-pages');
@@ -22,6 +27,11 @@ const checkedAt = String(checkedAtArgument);
 if (!fs.existsSync(input) || !fs.statSync(input).isFile()) throw new Error('The private stock CSV was not found.');
 if (!/^\d{4}-\d{2}-\d{2}$/.test(checkedAt) || Number.isNaN(Date.parse(`${checkedAt}T00:00:00Z`))) {
   throw new Error('checkedAt must be a valid ISO date in YYYY-MM-DD format.');
+}
+const inputSha256 = crypto.createHash('sha256').update(fs.readFileSync(input)).digest('hex');
+if (checkedAt === TEGIWA_REFRESH_QUARANTINE.refreshDate
+    && inputSha256 !== TEGIWA_REFRESH_QUARANTINE.audit.dealerStockSha256) {
+  throw new Error('The dated Tegiwa quarantine may only be applied to its exact audited dealer-stock source.');
 }
 
 const requiredHeaders = [
@@ -346,6 +356,23 @@ for (const product of productsByTitle.values()) {
   });
 }
 
+let refreshQuarantinedProducts = 0;
+for (let index = productRows.length - 1; index >= 0; index -= 1) {
+  const product = productRows[index];
+  if (!product.skus.some(isTegiwaRefreshPriceOutlierSku)) continue;
+  productRows.splice(index, 1);
+  skuOnlyRows.push({
+    hash: product.hash,
+    skus: product.skus,
+    skuStateCode: product.skuStateCode
+  });
+  refreshQuarantinedProducts += 1;
+}
+if (checkedAt === TEGIWA_REFRESH_QUARANTINE.refreshDate
+    && refreshQuarantinedProducts !== TEGIWA_REFRESH_QUARANTINE.auditedOutlierHandleCount) {
+  throw new Error('The audited Tegiwa price-outlier set did not match the dated dealer-stock source exactly.');
+}
+
 const leadTimes = [
   '',
   ...new Set(productRows.map(product => product.leadTime).filter(Boolean))
@@ -392,5 +419,6 @@ console.log(`Public Tegiwa stock index written with ${publicIndex.productCount} 
 console.log(`Published customer-safe SKUs for ${publicIndex.skuProductCount} unambiguous catalog products; maximum ${maximumSkuCount} SKUs on one feed title.`);
 console.log(`Suppressed ${suppressedAmbiguousSkus} SKUs across ${ambiguousCatalogTitleProducts} ambiguous duplicate-title groups; ${unmatchedCatalogTitleProducts} feed titles had no catalog match.`);
 console.log(`Processed ${rowCount} private rows; quarantined ${quarantinedVariants} ambiguous/invalid-price variants, ${blankSkuRows} blank-SKU rows, ${unsafeSkuRows} unsafe-SKU rows and ${invalidPriceRows} invalid/zero-price rows.`);
+console.log(`Withheld price and availability for ${refreshQuarantinedProducts} audited refresh outliers while retaining their customer-safe SKU search identities.`);
 console.log(`Excluded ${excludedProducts} products without a safe variant; ignored ${blankTitleRows} blank-title rows; verified ${titleByHash.size} unique title hashes with zero collisions.`);
 console.log(`Output: ${path.relative(repo, output)} (${fs.statSync(output).size} bytes).`);

@@ -9,7 +9,7 @@ import {
 import { DIRECT_CART_PRODUCTS } from '../server/commerce-policy.js';
 import { canonicalTegiwaLiveProductId } from '../server/tegiwa-live-commerce.js';
 
-const NOW = Date.parse('2026-08-18T12:00:00.000Z');
+const NOW = Date.parse('2026-09-06T12:00:00.000Z');
 const ECS_NOW = Date.parse('2026-08-21T12:00:00.000Z');
 const HANDLE = 'network-free-catalogue-cart-fixture';
 const IMAGE = 'https://cdn.shopify.com/s/files/1/0715/5767/7352/files/catalogue-cart-fixture.jpg?v=1';
@@ -115,11 +115,11 @@ test('mixed direct and live variants resolve canonically in submitted order with
   assert.equal(resolved[0].stockReserved, false);
   assert.equal(resolved[1].supplier.slug, 'tegiwa', 'direct policy must replace the submitted supplier');
   assert.equal(resolved[1].supplier.originCountryCode, 'GB');
-  assert.equal(resolved[1].supplierAvailable, false, 'current dealer evidence marks Medium for confirmation');
+  assert.equal(resolved[1].supplierAvailable, true, 'current dealer evidence marks Medium available');
   assert.equal(resolved[2].supplierAvailable, true);
   assert.equal(resolved[2].sourceHandle, HANDLE);
-  assert.equal(resolved[2].observedAt, '2026-08-18T12:00:00.000Z');
-  assert.equal(resolved[2].expiresAt, '2026-08-18T12:05:00.000Z');
+  assert.equal(resolved[2].observedAt, '2026-09-06T12:00:00.000Z');
+  assert.equal(resolved[2].expiresAt, '2026-09-06T12:05:00.000Z');
   assert.deepEqual(resolved[2].supplier, {
     slug: 'tegiwa',
     name: 'Tegiwa',

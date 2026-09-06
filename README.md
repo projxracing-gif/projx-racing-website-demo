@@ -18,7 +18,7 @@ This version keeps the verified workshop, tuning, engine-building, wiring, fabri
 - 46 brands, suppliers and technical-platform records with relationship labels
 - 80 verified Projx Racing photographs, including 30 newly selected high-resolution workshop, engine, dyno and track images
 - Searchable services, projects, parts, brands and gallery sections
-- A paginated 193,253-product Tegiwa preview catalogue using official public product data, GBP prices and a customer-safe stock snapshot without exposing exact dealer inventory
+- A paginated 197,881-product Tegiwa preview catalogue using official public product data, GBP prices and a customer-safe stock snapshot without exposing exact dealer inventory
 - Quote basket, enquiry forms, secure customer-account portal shell, mobile navigation, lightbox and FAQ controls
 - Verified telephone, WhatsApp, Instagram and map actions
 - Localized metadata, canonical URLs, hreflang, structured data, sitemap and robots rules

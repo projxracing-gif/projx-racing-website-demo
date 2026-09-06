@@ -54,7 +54,7 @@ The safe data flow is:
 5. Publish only the compact public artifacts to a website-accessible store or Preview deployment.
 6. Retain the previous successful snapshot for immediate rollback.
 
-The complete Tegiwa catalogue can continue using its existing sharded static files. Neon is not required to store those 193,253 catalogue products. A small online object store is still needed for frequently changing public stock because Vercel cannot read this PC drive directly.
+The complete Tegiwa catalogue can continue using its existing sharded static files. Neon is not required to store the full catalogue snapshot. A small online object store is still needed for frequently changing public stock because Vercel cannot read this PC drive directly.
 
 The intended public release model is:
 

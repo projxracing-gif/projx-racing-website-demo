@@ -14,6 +14,13 @@ import {
   resolveTegiwaLiveCartItems,
   validateTegiwaLiveCartItems
 } from '../server/tegiwa-live-commerce.js';
+import {
+  TEGIWA_REFRESH_QUARANTINE,
+  isTegiwaRefreshQuarantinedHandle,
+  isTegiwaRefreshQuarantinedIdentity,
+  isTegiwaRefreshQuarantinedSku,
+  isTegiwaRefreshPriceOutlierSku
+} from '../server/tegiwa-refresh-quarantine.js';
 
 const HANDLE = 'tegiwa-2026-team-tegiwa-tsuki-t-shirt';
 const OBSERVED_MS = Date.parse('2026-08-11T12:00:00.000Z');
@@ -23,6 +30,16 @@ const MEDIUM_SKU = 'T-TSUKITEAM-TSHIRT-M';
 const SMALL_ID = 'tegiwa-live-DDwV-XJQ97P0W2r4JQzzg2Tq';
 const MEDIUM_ID = 'tegiwa-live-mR0R-hyiDD2_pmItpUmWOgAn';
 const SOURCE_URL = `https://www.tegiwa.com/products/${HANDLE}.js?country=KW`;
+const QUARANTINED_HANDLE = 'king-engine-bearings-nissan-vq40de-thrustwasher';
+const QUARANTINED_SKU = 'KING-TW1020AM';
+const PBS_SKU = '1142PT';
+const PBS_HANDLES = Object.freeze([
+  'pbs-protrack-rear-brake-pads-honda-civic-type-r-ep3-fn2',
+  'pbs-protrack-rear-brake-pads-honda-s2000',
+  'pbs-protrack-rear-brake-pads-suzuki-swift-sport-06-12-swift-sport-challenge'
+]);
+const SAFE_HANDLE = 'tegiwa-live-commerce-quarantine-control';
+const SAFE_SKU = 'QUARANTINE-CONTROL-SKU';
 
 test('public detail and checkout share the exact supplier SKU grammar', () => {
   for (const sku of [SMALL_SKU, '034-401-1065', 'ABC_123', 'A+B / C']) assert.equal(isCanonicalTegiwaLiveSku(sku), true);
@@ -89,6 +106,17 @@ function submittedVariant({ size = 'Small', sku = SMALL_SKU, availableTitle = tr
     unitAmount: 27.49,
     currency: 'GBP',
     ...(availableTitle ? { title: `2026 Tegiwa Racing Tsuki Team T-Shirt — ${size}` } : {})
+  };
+}
+
+function submittedIdentity(sourceHandle, sku) {
+  return {
+    productId: canonicalTegiwaLiveProductId(sourceHandle, sku),
+    sourceHandle,
+    sku,
+    quantity: 1,
+    unitAmount: 27.49,
+    currency: 'GBP'
   };
 }
 
@@ -342,6 +370,106 @@ test('public cart decoration uses the checkout canonicalizer and caps exposed va
   assert.equal(withheld.variants.length, 101);
   assert.ok(withheld.variants.every(variant => variant.cartProductId === null));
   assert.equal(Object.hasOwn(withheld, 'commerceObservation'), false);
+});
+
+test('September refresh quarantine is source-bound and covers audited outliers and the PBS conflict', () => {
+  assert.equal(TEGIWA_REFRESH_QUARANTINE.refreshDate, '2026-09-06');
+  assert.match(TEGIWA_REFRESH_QUARANTINE.audit.dealerStockSha256, /^[a-f0-9]{64}$/);
+  assert.match(TEGIWA_REFRESH_QUARANTINE.audit.stockIndexSha256, /^[a-f0-9]{64}$/);
+  assert.match(TEGIWA_REFRESH_QUARANTINE.audit.reportSha256, /^[a-f0-9]{64}$/);
+  assert.match(TEGIWA_REFRESH_QUARANTINE.audit.priceOutlierAuditSha256, /^[a-f0-9]{64}$/);
+  assert.equal(TEGIWA_REFRESH_QUARANTINE.auditedOutlierHandleCount, 37);
+  assert.equal(TEGIWA_REFRESH_QUARANTINE.ambiguousHandleCount, 3);
+  assert.equal(TEGIWA_REFRESH_QUARANTINE.handleCount, 40);
+  assert.equal(TEGIWA_REFRESH_QUARANTINE.skuCount, 211);
+
+  assert.equal(isTegiwaRefreshQuarantinedHandle(QUARANTINED_HANDLE), true);
+  assert.equal(isTegiwaRefreshQuarantinedSku(QUARANTINED_SKU), true);
+  assert.equal(isTegiwaRefreshQuarantinedSku(QUARANTINED_SKU.toLowerCase()), true);
+  assert.equal(isTegiwaRefreshPriceOutlierSku(QUARANTINED_SKU), true);
+  assert.equal(isTegiwaRefreshQuarantinedSku(PBS_SKU), true);
+  assert.equal(isTegiwaRefreshPriceOutlierSku(PBS_SKU), false);
+  assert.ok(PBS_HANDLES.every(handle => isTegiwaRefreshQuarantinedHandle(handle)));
+  assert.equal(isTegiwaRefreshQuarantinedIdentity(SAFE_HANDLE, QUARANTINED_SKU), true);
+  assert.equal(isTegiwaRefreshQuarantinedIdentity(QUARANTINED_HANDLE, SAFE_SKU), true);
+  assert.equal(isTegiwaRefreshQuarantinedIdentity(SAFE_HANDLE, SAFE_SKU), false);
+});
+
+test('public decoration withholds cart identities and observations on either quarantine match', () => {
+  const baseProduct = {
+    title: 'Stored snapshot title',
+    variants: [],
+    commerceObservation: { source: 'stale-client-value' }
+  };
+  const cases = [
+    {
+      handle: QUARANTINED_HANDLE,
+      skus: [SAFE_SKU]
+    },
+    {
+      handle: SAFE_HANDLE,
+      skus: [QUARANTINED_SKU, `${SAFE_SKU}-SIBLING`]
+    },
+    {
+      handle: PBS_HANDLES[0],
+      skus: [PBS_SKU]
+    }
+  ];
+
+  for (const { handle, skus } of cases) {
+    const decorated = decorateTegiwaLiveCatalogueProduct(baseProduct, productPayload({
+      handle,
+      variants: skus.map((sku, index) => ({ title: `Option ${index + 1}`, sku, price: 2749, available: true }))
+    }), handle, { now: OBSERVED_MS });
+    assert.ok(decorated.variants.every(variant => variant.cartProductId === null));
+    assert.ok(decorated.variants.every(variant => variant.price === null));
+    assert.ok(decorated.variants.every(variant => variant.available === true));
+    assert.deepEqual(decorated.price, { currency: 'GBP', min: null, max: null, note: null });
+    assert.equal(Object.hasOwn(decorated, 'commerceObservation'), false);
+  }
+
+  const unaffected = decorateTegiwaLiveCatalogueProduct(baseProduct, productPayload({
+    handle: SAFE_HANDLE,
+    variants: [{ title: 'Default Title', sku: SAFE_SKU, price: 2749, available: true }]
+  }), SAFE_HANDLE, { now: OBSERVED_MS });
+  assert.match(unaffected.variants[0].cartProductId, /^tegiwa-live-[A-Za-z0-9_-]{24}$/);
+  assert.equal(unaffected.commerceObservation.source, 'official_tegiwa_product_detail');
+});
+
+test('cart resolution rejects handle and SKU quarantine matches before supplier network work', async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    return jsonResponse(productPayload());
+  };
+
+  for (const submitted of [
+    submittedIdentity(QUARANTINED_HANDLE, SAFE_SKU),
+    submittedIdentity(SAFE_HANDLE, QUARANTINED_SKU),
+    submittedIdentity(PBS_HANDLES[1], PBS_SKU)
+  ]) {
+    await rejectsCode(
+      resolveTegiwaLiveCartItem(submitted, { fetchImpl, now: OBSERVED_MS }),
+      'tegiwa_refresh_quarantined',
+      409
+    );
+  }
+  assert.equal(calls, 0);
+});
+
+test('cart resolution still fetches and resolves an unaffected product', async () => {
+  let calls = 0;
+  const payload = productPayload({
+    handle: SAFE_HANDLE,
+    variants: [{ title: 'Default Title', sku: SAFE_SKU, price: 2749, available: true }]
+  });
+  const resolved = await resolveTegiwaLiveCartItem(submittedIdentity(SAFE_HANDLE, SAFE_SKU), {
+    fetchImpl: successFetch(payload, () => { calls += 1; }),
+    now: OBSERVED_MS
+  });
+  assert.equal(calls, 1);
+  assert.equal(resolved.sourceHandle, SAFE_HANDLE);
+  assert.equal(resolved.sku, SAFE_SKU);
 });
 
 test('public cart decoration withholds every identity when checkout validation rejects raw semantics', () => {

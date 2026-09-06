@@ -72,9 +72,9 @@
       sku,
       currency: "GBP",
       unitAmount: 27.49,
-      priceVerifiedAt: "2026-08-18",
+      priceVerifiedAt: "2026-09-06",
       maxPriceAgeDays: 7,
-      availabilityVerifiedAt: "2026-08-18",
+      availabilityVerifiedAt: "2026-09-06",
       maxAvailabilityAgeDays: 7,
       supplierAvailable,
       fitmentConfirmationRequired: false,
@@ -88,9 +88,9 @@
       sku: "T-GOPRO-MOUNT-YARISGR-LHD",
       currency: "GBP",
       unitAmount: 25.99,
-      priceVerifiedAt: "2026-08-18",
+      priceVerifiedAt: "2026-09-06",
       maxPriceAgeDays: 7,
-      availabilityVerifiedAt: "2026-08-18",
+      availabilityVerifiedAt: "2026-09-06",
       maxAvailabilityAgeDays: 7,
       supplierAvailable: true,
       fitmentConfirmationRequired: true,
@@ -99,7 +99,7 @@
       supplier: TEGIWA_GB_SUPPLIER
     }),
     "tegiwa-2026-team-tegiwa-tsuki-t-shirt-s": tsukiTshirtPolicy("s", "Small", "صغير", "T-TSUKITEAM-TSHIRT-S", true),
-    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-m": tsukiTshirtPolicy("m", "Medium", "متوسط", "T-TSUKITEAM-TSHIRT-M", false),
+    "tegiwa-2026-team-tegiwa-tsuki-t-shirt-m": tsukiTshirtPolicy("m", "Medium", "متوسط", "T-TSUKITEAM-TSHIRT-M", true),
     "tegiwa-2026-team-tegiwa-tsuki-t-shirt-l": tsukiTshirtPolicy("l", "Large", "كبير", "T-TSUKITEAM-TSHIRT-L", true),
     "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xl": tsukiTshirtPolicy("xl", "X-Large", "كبير جداً", "T-TSUKITEAM-TSHIRT-XL", true),
     "tegiwa-2026-team-tegiwa-tsuki-t-shirt-xxl": tsukiTshirtPolicy("xxl", "XX-Large", "كبير جداً جداً", "T-TSUKITEAM-TSHIRT-XXL", true)
@@ -2109,9 +2109,15 @@
 
   function storeProductManualFieldIsFresh(product, field) {
     if (product.stockPolicy !== "manual-confirm") return true;
-    const verifiedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(product[field] || "")) ? Date.parse(`${product[field]}T00:00:00.000Z`) : NaN;
+    const verifiedDate = String(product[field] || "");
+    const verifiedDayStarts = /^\d{4}-\d{2}-\d{2}$/.test(verifiedDate) ? Date.parse(`${verifiedDate}T00:00:00.000Z`) : NaN;
+    const verifiedAt = /^\d{4}-\d{2}-\d{2}$/.test(verifiedDate) ? Date.parse(`${verifiedDate}T23:59:59.999Z`) : NaN;
     const staleAfterDays = Math.min(30, Math.max(1, Number.parseInt(product.staleAfterDays, 10) || 7));
-    return Number.isFinite(verifiedAt) && Date.now() < verifiedAt + staleAfterDays * 86_400_000;
+    const now = Date.now();
+    return Number.isFinite(verifiedAt)
+      && Number.isFinite(verifiedDayStarts)
+      && now >= verifiedDayStarts - 5 * 60_000
+      && now - verifiedAt <= staleAfterDays * 86_400_000;
   }
 
   function storeProductPriceCheckIsFresh(product) {

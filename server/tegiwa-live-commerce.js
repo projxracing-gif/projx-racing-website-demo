@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto';
 
+import {
+  isTegiwaRefreshQuarantinedHandle,
+  isTegiwaRefreshQuarantinedSku
+} from './tegiwa-refresh-quarantine.js';
+
 const OFFICIAL_ORIGIN = 'https://www.tegiwa.com';
 const OFFICIAL_IMAGE_HOSTS = new Set(['cdn.shopify.com']);
 const COUNTRY_CODE = 'KW';
@@ -331,13 +336,15 @@ export function decorateTegiwaLiveCatalogueProduct(product, payload, sourceHandl
   const existingBySku = new Map(existingVariants
     .filter(variant => variant && typeof variant === 'object' && typeof variant.sku === 'string')
     .map(variant => [variant.sku, variant]));
-  const cartEligible = live.variants.length <= PUBLIC_CART_VARIANT_LIMIT;
+  const refreshQuarantined = isTegiwaRefreshQuarantinedHandle(live.sourceHandle)
+    || live.variants.some(variant => isTegiwaRefreshQuarantinedSku(variant.sku));
+  const cartEligible = live.variants.length <= PUBLIC_CART_VARIANT_LIMIT && !refreshQuarantined;
   const variants = live.variants.map(variant => ({
     ...(existingBySku.get(variant.sku) || {}),
     title: variant.variantTitle,
     sku: variant.sku,
     available: variant.supplierAvailable,
-    price: { currency: variant.currency, amount: variant.unitAmount },
+    price: refreshQuarantined ? null : { currency: variant.currency, amount: variant.unitAmount },
     cartProductId: cartEligible ? variant.productId : null
   }));
   const canonicalImages = [];
@@ -359,7 +366,9 @@ export function decorateTegiwaLiveCatalogueProduct(product, payload, sourceHandl
     skuCount: variants.length,
     skuState: variants.length === 1 ? 'exact' : 'multiple',
     skus: variants.map(variant => variant.sku),
-    price: { currency: CURRENCY, min: minimum, max: maximum, note: 'Tegiwa online price excluding UK VAT' },
+    price: refreshQuarantined
+      ? { currency: CURRENCY, min: null, max: null, note: null }
+      : { currency: CURRENCY, min: minimum, max: maximum, note: 'Tegiwa online price excluding UK VAT' },
     sourceUrl: live.sourceUrl.replace(/\.js\?country=KW$/, ''),
     supplier: { slug: SUPPLIER.slug, name: SUPPLIER.name },
     variants,
@@ -430,6 +439,9 @@ function normalizeSubmittedItem(submitted) {
   const sourceHandle = strictHandle(submitted.sourceHandle);
   const sku = submittedText(submitted.sku, MAX_SKU_LENGTH);
   if (!SKU_PATTERN.test(sku)) fail('invalid_tegiwa_cart_item', 400);
+  if (isTegiwaRefreshQuarantinedHandle(sourceHandle) || isTegiwaRefreshQuarantinedSku(sku)) {
+    fail('tegiwa_refresh_quarantined', 409);
+  }
   const productId = submittedText(submitted.productId, 100);
   if (productId !== canonicalTegiwaLiveProductId(sourceHandle, sku)) fail('tegiwa_cart_item_mismatch', 409);
   const quantity = Number(submitted.quantity);
