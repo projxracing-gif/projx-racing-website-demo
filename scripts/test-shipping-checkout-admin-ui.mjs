@@ -65,6 +65,10 @@ test('courier estimation waits for every server-required field and workshop stay
   for (const field of ['countryCode', 'governorate', 'city', 'area', 'addressLine1', 'postcode', 'phone']) {
     assert.equal(shippingDestinationReady({ ...destination, [field]: '' }), false, `courier estimate must wait for ${field}`);
   }
+
+  const planner = sourceBetween(app, 'function shipmentPlannerMarkup(', 'function refreshShipmentPlanner(');
+  assert.match(planner, /workshopSelected[\s\S]*?\? text\.workshop : text\.shippingEnterDestination/,
+    'workshop selection must show confirmation-pending guidance instead of asking for a courier address');
 });
 
 test('shipping money uses integer minor units and preserves three-decimal KWD display', () => {

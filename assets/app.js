@@ -4817,10 +4817,13 @@
     const split = groups.length > 1;
     const allRatesConfirmed = groups.length > 0 && groups.every(group => shippingGroupHasConfirmedRate(group, safePlan));
     const checkoutText = shippingCheckoutText();
+    const workshopSelected = live && currentPath() === "/checkout"
+      && document.querySelector('[data-staging-checkout] [name="fulfilment"]')?.value === "workshop";
     const statusText = state.shippingEstimateStatus === "loading" && live ? text.shippingEstimating
       : state.shippingEstimateStatus === "error" && live ? text.shippingEstimateError
         : allRatesConfirmed ? text.shippingRatesConfirmed
-          : safePlan ? text.shippingAuthorisedAccessRequired : text.shippingEnterDestination;
+          : safePlan ? text.shippingAuthorisedAccessRequired
+            : workshopSelected ? text.workshop : text.shippingEnterDestination;
     const destination = safePlan?.destination?.country && safePlan?.destination?.city
       ? `<p class="shipping-planner-destination"><strong>${esc(text.shippingDestination)}:</strong> ${esc(`${safePlan.destination.city}, ${safePlan.destination.country}`)}</p>` : "";
     const cards = groups.map(group => {
